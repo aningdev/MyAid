@@ -1,0 +1,3 @@
+.nsh/
+target/
+!nsh.json

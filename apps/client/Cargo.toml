@@ -1,0 +1,10 @@
+[package]
+name = "myaid-client"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Native NSH adapters (Cookie WebSocket, host control, SMAppService) land here.
+# Empty shell: library crate with no dependencies yet.
+[lib]
+path = "src/lib.rs"

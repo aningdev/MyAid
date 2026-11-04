@@ -1,0 +1,8 @@
+[package]
+name = "myaid-relay"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# axum / tokio land when the relay frame path is implemented.

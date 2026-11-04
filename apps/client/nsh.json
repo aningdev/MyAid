@@ -1,0 +1,21 @@
+{
+  "name": "MyAid",
+  "id": "dev.myaid.client",
+  "version": "0.1.0",
+  "build": 1,
+  "capabilities": {
+    "network": {
+      "hosts": ["127.0.0.1"]
+    },
+    "fs": {
+      "read": ["/"],
+      "write": [
+        "${homeDir}/.myaid",
+        "${dataDir}"
+      ]
+    },
+    "process": {
+      "env": ["MYAID_HOST_SOCKET"]
+    }
+  }
+}

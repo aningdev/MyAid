@@ -1,0 +1,5 @@
+# Product overlay when this package is installed into a profile via `dsh plugin add`.
+# Empty shell: declare the plugin id only; no inject targets yet.
+- insert:
+    - id: myaid-core
+      name: '@myaid/myaid-plugin-core'

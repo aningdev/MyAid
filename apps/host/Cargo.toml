@@ -1,0 +1,11 @@
+[package]
+name = "myaid-host"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# Lifecycle, control socket, and bridge deps land when Host is implemented.
+
+[dev-dependencies]
+myaid-relay = { path = "../relay" }
