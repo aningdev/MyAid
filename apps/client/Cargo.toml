@@ -1,10 +1,12 @@
 [package]
-name = "myaid-client"
+name = "nsh-app-myaid"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
-# Native NSH adapters (Cookie WebSocket, host control, SMAppService) land here.
-# Empty shell: library crate with no dependencies yet.
-[lib]
-path = "src/lib.rs"
+# Official NSH mixed layout: TSX entry + Rust crate at the app root (`nsh.json` `"rust": "."`).
+# Member of the repo Cargo workspace (no nested `[workspace]` table).
+
+[dependencies]
+nsh-core = "0.3.0"
+nsh-base = "0.3.0"

@@ -18,7 +18,7 @@ flowchart LR
 
 | 位置 | 职责 | 空壳状态 |
 | --- | --- | --- |
-| `apps/client` | NSH TSX 界面与原生适配 | 占位 UI + 分层目录 |
+| `apps/client` | NSH mixed：TSX 入口 + `src/lib.rs` `#[native_module]` | 对齐 `nsh init --template mixed` |
 | `apps/host` | dsh 生命周期、HostControl、后续 Bridge | 模块骨架，`serve` 返回未实现 |
 | `apps/relay` | 多端密文转发 | 可编译的空 crate |
 | `packages/myaid-plugin-*` | Cordis 能力插件 | `myaid-plugin-core` 占位 |

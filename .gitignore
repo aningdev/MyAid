@@ -15,7 +15,6 @@ coverage/
 .DS_Store
 .nsh/
 apps/client/launch.json
-apps/client/nsh.json
 
 # Runtime data
 pids
@@ -47,3 +46,4 @@ target
 *.pdb
 **/mutants.out*/
 rustc-ice-*.txt
+.nsh/

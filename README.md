@@ -8,7 +8,7 @@
 
 | 位置 | 职责 |
 | --- | --- |
-| `apps/client` | NSH 桌面客户端（空壳 UI） |
+| `apps/client` | NSH **mixed** 客户端（`App.tsx` + 根级 Rust crate，`nsh.json` `"rust": "."`） |
 | `apps/host` | Rust 后台辅助程序：进程生命周期与本机控制通道（空壳） |
 | `apps/relay` | 多端密文转发（空壳） |
 | `packages/myaid-plugin-*` | Cordis / Harness 能力插件占位 |
