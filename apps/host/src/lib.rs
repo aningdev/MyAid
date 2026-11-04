@@ -9,5 +9,5 @@ mod runtime;
 
 pub use config::Config;
 pub type Result<T> = std::result::Result<T, String>;
-pub use host_control::{Request, Status};
+pub use host_control::{MAX_FRAME, PROTOCOL, Request, Status};
 pub use runtime::private_dir;

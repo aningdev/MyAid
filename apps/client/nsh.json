@@ -3,6 +3,7 @@
   "id": "dev.myaid.client",
   "version": "0.1.0",
   "build": 1,
+  "rust": ".",
   "capabilities": {
     "network": {
       "hosts": ["127.0.0.1"]

@@ -1,8 +1,12 @@
 //! Official dsh process lifecycle (empty shell).
-//! Named to mirror dsh-bot; implementation lands with real CLI ownership.
+//!
+//! Principle (from dsh-bot): this module owns CLI/env/spawn/ready/version/logs/reap
+//! and concurrent ensure merging. Public entry will be `Lifecycle`; guardian stays private.
+//! `HostControl` must only call that public entry — never locks or guardian internals.
 
 use crate::{Config, Result};
 
+/// Placeholder until `Lifecycle` is implemented.
 pub fn run_guardian(config: &Config) -> Result<()> {
     Err(format!(
         "myaid-host empty shell: guardian not implemented (data_root={})",

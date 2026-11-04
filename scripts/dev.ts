@@ -1,5 +1,9 @@
 /**
- * Dev launcher: start or reuse Host, then run the NSH client.
+ * Dev launcher principle (from dsh-bot):
+ * Reuse or start the Host listening on ~/.myaid/host/control.sock, then run NSH.
+ * Do not spawn dsh from the client; Host owns lifecycle. Explicit MYAID_HOST_SOCKET
+ * means connect-only (caller must already have a Host).
+ *
  * Empty shell: only launches the client; Host/dsh stay manual.
  */
 import { spawn } from 'node:child_process'
