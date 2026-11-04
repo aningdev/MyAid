@@ -1,0 +1,15 @@
+{
+  "name": "@myaid/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "MYAID_HOST_SOCKET=${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock} nsh run App.tsx",
+    "check": "nsh check App.tsx",
+    "build": "nsh build App.tsx --release",
+    "test": "bun test tests/smoke.test.ts"
+  },
+  "dependencies": {
+    "@myaid/myaid-plugin-core": "workspace:*"
+  }
+}

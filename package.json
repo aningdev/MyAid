@@ -1,0 +1,33 @@
+{
+  "name": "@myaid/workspace",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "prepare:sdk": "bun scripts/prepare-sdk.ts",
+    "prepare:plugins": "bun run --cwd packages/myaid-plugin-core build",
+    "dev": "bun run prepare:sdk && bun run prepare:plugins && bun scripts/dev.ts",
+    "check": "bun run prepare:sdk && bun run prepare:plugins && bun run --cwd apps/client check && cargo check --workspace",
+    "build": "bun run prepare:sdk && bun run prepare:plugins && bun run --cwd apps/client build",
+    "host:dev": "cargo run --manifest-path apps/host/Cargo.toml -- serve-app",
+    "test": "bun run prepare:sdk && bun run test:host && bun run test:relay && bun run --cwd packages/myaid-plugin-core test && bun run --cwd apps/client test",
+    "test:relay": "cargo test -p myaid-relay",
+    "test:host": "cargo test --manifest-path apps/host/Cargo.toml",
+    "test:startup": "bun run prepare:sdk && bun scripts/test-client-startup.ts",
+    "package:macos": "bun scripts/package-macos.ts",
+    "test:package": "bun scripts/smoke-package.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "bun": ">=1.4.4",
+    "node": "^24.15.0 || >=26.0.0"
+  }
+}

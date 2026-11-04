@@ -1,0 +1,12 @@
+[submodule "references/deepseek-harness"]
+	path = references/deepseek-harness
+	url = https://github.com/deepseek-ai/deepseek-harness.git
+[submodule "references/nsh"]
+	path = references/nsh
+	url = https://github.com/longbridge/nsh.git
+[submodule "references/waku"]
+	path = references/waku
+	url = https://github.com/egoist/waku.git
+[submodule "references/lorca"]
+	path = references/lorca
+	url = https://github.com/egoist/lorca.git
