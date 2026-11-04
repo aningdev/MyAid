@@ -27,6 +27,8 @@
 
 实现客户端前查阅 `references/nsh/website`（elements / modules）与安装版 `.nsh/types/`。选型顺序：原生组件与标准模块 → 产品组合 → 已核实缺口的最小自定义。详见 [ARCHITECTURE](docs/ARCHITECTURE.md)。
 
+客户端样式化基础层在 [`apps/client/components/ui`](apps/client/components/ui/)（NSH gallery `nsh-gallery-ui` 的外观 / 动画）；产品功能组合该层，勿在功能模块直连 `nsh/base`。细则见 [`apps/client/AGENTS.md`](apps/client/AGENTS.md)。
+
 ## 异步、协议与持久化
 
 - 跨进程输入在接收端校验；Host 协议集中在 `apps/host/src/host_control/protocol.rs`。

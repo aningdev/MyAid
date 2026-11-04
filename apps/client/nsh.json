@@ -4,19 +4,18 @@
   "version": "0.1.0",
   "build": 1,
   "rust": ".",
+  "appearance": "system",
   "capabilities": {
     "network": {
       "hosts": ["127.0.0.1"]
     },
     "fs": {
       "read": ["/"],
-      "write": [
-        "${homeDir}/.myaid",
-        "${dataDir}"
-      ]
+      "write": ["${homeDir}/.myaid", "${dataDir}"]
     },
     "process": {
-      "env": ["MYAID_HOST_SOCKET"]
+      "env": ["MYAID_HOST_SOCKET"],
+      "execute": ["claude", "codex"]
     }
   }
 }

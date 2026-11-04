@@ -5,8 +5,16 @@
 ## 布局（NSH mixed）
 
 - 本目录是官方 **mixed** 应用：`App.tsx` 为 TSX 入口，`nsh.json` `"rust": "."`，Rust 在同级 `Cargo.toml` / `src/lib.rs`（`#[native_module("myaid/native")]`）。
-- 产品 TSX 模块放 `components/`（及按需子目录）；静态资源放 `assets/`。
+- 产品 TSX 模块放 `components/`（及按需子目录）；功能域放 `features/`；工作台状态放 `workspace/`；静态资源放 `assets/`。
 - **不要**为对齐旧 dsh-bot 客户端而引入平行的 `frontend/{ui,application,infrastructure}` 树，除非架构文档明确改判。
+
+## 工作台（模块页宿主）
+
+- 壳（[`components/AppShell.tsx`](components/AppShell.tsx)）只做：窗口标题栏、一级 `NavRail` / `AppTabBar`、按 `moduleId` 挂载一个 **`module.Page`**。
+- **二次布局属各业务**：不要在壳层假定 List|Main|Context。Dialogue 在 [`features/dialogue/Page.tsx`](features/dialogue/Page.tsx) 内自管桌面三栏与移动内栈。
+- 模块注册：[`workspace/modules.ts`](workspace/modules.ts)；契约：[`workspace/types.ts`](workspace/types.ts)（`Page`）。
+- 移动底栏显隐跟 [`moduleAtRoot`](workspace/state.ts)；模块进入内部页时自行 `setModuleAtRoot(false)`。
+- 默认一级模块为 `today`（空白页），不默认进入 Dialogue 布局。
 
 ## 前端职责
 
@@ -19,6 +27,13 @@
 - 使用 NSH 细粒度响应式；不套用 React hooks，不引入 `solid-js`。
 - 订阅与原生句柄在 `cleanup` 中释放；组件卸载 ≠ 后台任务停止。
 - 生产代码只使用安装版 NSH 提供的模块；以 `.nsh/types/` 与运行为准。
+
+## UI 组件边界
+
+- [`components/ui`](components/ui/) 是**样式化基础层**（gallery `nsh-gallery-ui` 外观 / motion）；主题为官方 shadcn `neutral`。
+- 壳层可直接使用导航基础设施；需要内栈的业务（如 Dialogue）可在 `features/*` 使用 `createNavStack` / `NavStack` / `NavPage`。
+- 功能模块默认不直连 `nsh/base`；**例外**：模块自管导航，以及 `features/dialogue` 内移植的 gallery AI Chat（`Input` / `TextView` / `Dialog` 等）直至产品化封装。
+- 布局原语与运行时（`View` / `Text` / `signal` / `mount` / `token`…）从 `nsh` 引入。
 
 ## 原生接口与权限
 
