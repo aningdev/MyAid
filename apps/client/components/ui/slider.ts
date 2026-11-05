@@ -1,7 +1,7 @@
 import type { TextStyle, ViewStyle } from "nsh";
 import { platform } from "nsh";
 
-import { alpha, colors } from "./theme";
+import { alpha, colors, finish } from "./theme";
 
 /** Options of `sliderLook`. */
 export interface SliderLookOptions {
@@ -29,7 +29,7 @@ export function sliderLook(o: SliderLookOptions = {}) {
     "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-card";
   const fade = "transition duration-150 motion-reduce:transition-none";
   const railStyle = (): ViewStyle => ({
-    boxShadow: `inset 0 1px 1px rgba(255, 255, 255, 0.04), 0 0 14px ${alpha(colors.accent, 0.06)}`,
+    boxShadow: finish.inset.boxShadow,
   });
   const track = pointer
     ? `${rail} ${vertical ? "h-32 py-2" : "px-2"} ${focus}`
@@ -55,7 +55,7 @@ export function sliderLook(o: SliderLookOptions = {}) {
     get thumbStyle(): ViewStyle {
       return {
         backgroundColor: colors.faint,
-        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.42)",
+        boxShadow: finish.knob.boxShadow,
       };
     },
   };

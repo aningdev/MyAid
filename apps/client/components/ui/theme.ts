@@ -1,30 +1,12 @@
 // Design tokens and finishes for MyAid UI atoms.
-// Colors map onto NSH's built-in shadcn `neutral` theme (no custom theme.json).
+// Colors map onto NSH's shadcn `neutral` theme plus apps/client/theme.json.
 import type { Tokens, ViewStyle } from "nsh";
 import { token } from "nsh";
 import { Easing } from "nsh";
 import { colorScheme } from "nsh";
 
-import finishes from "./finishes.json";
-
 /** Whether the UI shows its dark palette (reactive: reading it subscribes). */
 export const isDark = () => colorScheme() !== "light";
-
-/**
- * An object with `dark`'s keys whose getters read `dark` or `light` by the
- * appearance shown. Shadows and gradients are not design tokens, so they
- * stay here while every color comes from the theme.
- */
-function themed<T extends object>(dark: T, light: T): T {
-  const out = {} as T;
-  for (const key of Object.keys(dark) as (keyof T)[]) {
-    Object.defineProperty(out, key, {
-      enumerable: true,
-      get: () => (isDark() ? dark : light)[key],
-    });
-  }
-  return out;
-}
 
 /** The roles of the palette. */
 export interface Palette {
@@ -167,24 +149,107 @@ export interface Finish {
   backdropFilter?: string;
 }
 
-/** Light and depth finishes (neutral, matching the default theme). */
-export const finish = themed<
-  Record<
-    | "card"
-    | "inset"
-    | "field"
-    | "raised"
-    | "light"
-    | "accent"
-    | "track"
-    | "knob"
-    | "pill"
-    | "chip"
-    | "glass"
-    | "menu",
-    Finish
-  >
->(finishes.dark, finishes.light);
+/** `token` at `percent` opacity. Highlight and shadow live in the theme, so a host theme restyles every finish. */
+function mix(name: "highlight" | "shadow" | "popover" | "card" | "primary", percent: number) {
+  return `color-mix(in srgb, ${token(name)} ${percent}%, transparent)`;
+}
+
+const shine = (percent: number) => mix("highlight", percent);
+const shade = (percent: number) => mix("shadow", percent);
+
+function primaryFinish(): Finish {
+  return {
+    backgroundImage: `linear-gradient(180deg, ${token("primary")} 0%, ${token("foreground")} 100%)`,
+    boxShadow: `inset 0 1px 0 ${shine(24)}, 0 1px 1px ${shade(20)}, 0 8px 18px -8px ${shade(35)}`,
+  };
+}
+
+/**
+ * Depth shared by cards, controls, and popups. Colors are theme tokens;
+ * the geometry of the shadow stays here because it is not a color role.
+ */
+export const finish = {
+  get card(): Finish {
+    return {
+      backgroundImage: `linear-gradient(180deg, ${token("card")} 0%, ${token("secondary")} 100%)`,
+      boxShadow: `inset 0 1px 0 ${shine(55)}, 0 12px 32px -18px ${shade(22)}`,
+    };
+  },
+  get inset(): Finish {
+    return { boxShadow: `inset 0 1px 2px ${shade(12)}` };
+  },
+  get field(): Finish {
+    return { boxShadow: `inset 0 1px 2px ${shade(14)}` };
+  },
+  get raised(): Finish {
+    return {
+      backgroundImage: `linear-gradient(180deg, ${token("secondary")} 0%, ${token("muted")} 100%)`,
+      boxShadow: `inset 0 1px 0 ${shine(40)}, 0 1px 1px ${shade(8)}, 0 6px 14px -7px ${shade(28)}`,
+    };
+  },
+  get light(): Finish {
+    return primaryFinish();
+  },
+  get accent(): Finish {
+    return primaryFinish();
+  },
+  get track(): Finish {
+    return { boxShadow: `inset 0 1px 2px ${shade(16)}` };
+  },
+  get knob(): Finish {
+    return {
+      boxShadow: `inset 0 1px 0 ${shine(70)}, 0 1px 4px ${shade(28)}`,
+    };
+  },
+  get pill(): Finish {
+    return {
+      backgroundColor: token("card"),
+      backgroundImage: `linear-gradient(180deg, ${token("card")} 0%, ${token("secondary")} 100%)`,
+      boxShadow: `inset 0 1px 0 ${shine(40)}, 0 1px 1px ${shade(8)}, 0 6px 14px -7px ${shade(24)}`,
+      borderColor: token("border"),
+    };
+  },
+  get chip(): Finish {
+    return { boxShadow: `inset 0 1px 0 ${shine(50)}, inset 0 -1px 0 ${shade(8)}` };
+  },
+  get glass(): Finish {
+    return {
+      backgroundColor: mix("popover", 70),
+      backgroundImage: `linear-gradient(180deg, ${shine(18)} 0%, ${shine(6)} 60%)`,
+      boxShadow: `inset 0 1px 0 ${shine(30)}, 0 -8px 24px ${shade(12)}`,
+      borderColor: token("border"),
+      backdropFilter: "blur(20px)",
+    };
+  },
+  get menu(): Finish {
+    return {
+      backgroundColor: mix("popover", 84),
+      backgroundImage: `linear-gradient(180deg, ${shine(16)} 0%, ${shine(6)} 100%)`,
+      boxShadow: `inset 0 1px 0 ${shine(40)}, inset 0 -1px 0 ${shade(8)}, 0 12px 32px ${shade(16)}`,
+      borderColor: token("border"),
+      backdropFilter: "blur(24px)",
+    };
+  },
+};
+
+/** Type scale from the theme, in points. Use `text-xs` … `text-xl` on `Text`; use these where a style object cannot take a class (`TextView` parts). */
+export const font = {
+  get xs() {
+    return Number(token("font-xs"));
+  },
+  get sm() {
+    return Number(token("font-sm"));
+  },
+  get base() {
+    return Number(token("font-base"));
+  },
+  get lg() {
+    return Number(token("font-lg"));
+  },
+  get xl() {
+    return Number(token("font-xl"));
+  },
+};
 
 /** The monospaced family, for code. */
 export const mono = "monospace";

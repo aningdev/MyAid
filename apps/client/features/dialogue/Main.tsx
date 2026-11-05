@@ -1,6 +1,5 @@
 import { Text, View } from "nsh";
 
-import { colors } from "../../components/ui";
 import { ChatPane } from "./ChatPane";
 
 /** Dialogue main: gallery AI Chat pane. */
@@ -13,8 +12,8 @@ export function DialogueMain(props: { selectedId: string | null }) {
         <View
           style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 8 }}
         >
-          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>Dialogue</Text>
-          <Text style={{ fontSize: 14, color: colors.muted, textAlign: "center" }}>
+          <Text class="text-lg font-semibold text-foreground">Dialogue</Text>
+          <Text class="text-sm text-center text-muted-foreground">
             Select a conversation in the list, or start a new chat.
           </Text>
         </View>

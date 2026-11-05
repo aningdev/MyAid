@@ -15,6 +15,7 @@ import {
   platform,
   keymap,
   safeArea,
+  token,
 } from "nsh";
 import { Button as BaseButton, Sheet as BaseSheet, Switch, Tooltip } from "nsh/base";
 
@@ -24,7 +25,6 @@ import {
   colors,
   finish,
   focusRing,
-  isDark,
   mono,
   motion,
   radius,
@@ -633,12 +633,8 @@ export function switchLook(
         height: knob,
         borderRadius: knob / 2,
         backgroundColor: on() ? colors.onAccent : colors.knob,
-        // A drop of glass: a specular top over the knob's color.
-        backgroundImage:
-          "linear-gradient(180deg, rgba(255,255,255,0.202) 0%, rgba(255,255,255,0.098) 60%)",
-        boxShadow: isDark()
-          ? "inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 3px rgba(0,0,0,0.4)"
-          : finish.knob.boxShadow,
+        backgroundImage: `linear-gradient(180deg, ${token("highlight")} 0%, transparent 60%)`,
+        boxShadow: finish.knob.boxShadow,
         transform: [{ translateX: x }],
       };
     },

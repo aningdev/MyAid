@@ -13,4 +13,6 @@ test("opens Dialogue from primary navigation", async () => {
   const app = await open("./App.tsx", desktop);
   await app.press("label:Dialogue");
   expect(app.texts().some((t) => t.includes("New chat"))).toBe(true);
+  await app.press("label:New chat");
+  expect(app.texts().some((t) => t.includes("How can I help?"))).toBe(true);
 });
