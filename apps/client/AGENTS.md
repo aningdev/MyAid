@@ -35,6 +35,12 @@
 - 功能模块默认不直连 `nsh/base`；**例外**：模块自管导航，以及 `features/dialogue` 内移植的 gallery AI Chat（`Input` / `TextView` / `Dialog` 等）直至产品化封装。
 - 布局原语与运行时（`View` / `Text` / `signal` / `mount` / `token`…）从 `nsh` 引入。
 
+## dsh 认证传输
+
+- NSH **0.4** 标准 `websocket.connect` **仍拒绝** Cookie 握手头；官方 `/api/remote.mux` 必须经原生 [`CookieWebSocket`](src/cookie_websocket/)（导出在 `myaid/native`）。
+- TS：[`lib/dsh/`](lib/dsh/) — `AuthenticatedSocket`、`fetchSessionCookie`、`smokeDshAuthTransport`。说明见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
+- HTTP `/connect` 用标准 `fetch`（可设 Cookie 响应头解析）；勿把认证 URL/token 写入公开 Host status。
+
 ## 原生接口与权限
 
 - 新增文件 / 网络 / 进程访问时同步更新 `nsh.json` capabilities。
