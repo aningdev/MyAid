@@ -8,7 +8,7 @@
 - `apps/client` 保持官方 NSH **mixed** 布局（`nsh init --template mixed`），不要为「更像 dsh-bot」而恢复独立 `frontend/` 树。
 - 离开 `design/wireframes/`，除非任务明确是线框。
 - 轻量验收：`bun install && bun run check`（`vp check --fix` → plugin `tsc --noEmit` → `nsh check` → `cargo check`）。CI 同此。
-- `pre-commit`：`vp staged`（仅 staged；见 `vite.config.ts` → `staged`），勿绑全量 `bun run check`。
+- Git hooks：官方 Vite+（[commit-hooks](https://viteplus.dev/guide/commit-hooks)）。`prepare` → `vp config --hooks --no-agent`；项目钩子 `.vite-hooks/pre-commit` 跑 `vp staged`（`vite.config.ts` → `staged`）。勿绑全量 `bun run check`，勿用 `simple-git-hooks`。
 - 根 scripts 用 bun `--cwd` 组合；`apps/client` 直接用官方 `nsh run|check|build|test`。勿再往 `scripts/` 加编排 TS。
 - 工具链版本以根为准：`.bun-version` / `.node-version` / `packageManager` + `engines`；共享 npm 版在 `workspaces.catalog`，包内用 `"catalog:"`，勿另钉旧版。
 

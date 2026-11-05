@@ -37,7 +37,7 @@ bun run test
 bun run build   # 发布产物：plugin build + nsh build
 ```
 
-数据根：`~/.myaid`（`DSH_HOME`）。`pre-commit` 跑 `vp staged`（仅 staged 文件）；完整门禁仍是 `bun run check` / CI。
+数据根：`~/.myaid`（`DSH_HOME`）。Git hooks 用官方 Vite+：`prepare` → `vp config --hooks`，项目钩子在 [`.vite-hooks/pre-commit`](.vite-hooks/pre-commit)（`vp staged`，读 `vite.config.ts` → `staged`）。完整门禁仍是 `bun run check` / CI。详见 [Commit Hooks](https://viteplus.dev/guide/commit-hooks)。
 
 ```sh
 bun run host:dev

@@ -28,6 +28,8 @@ pids
 .eslintcache
 .vite/
 .turbo
+# Vite+ hook dispatcher (recreated by `vp config` / `vp hooks enable`)
+.vite-hooks/_
 
 # pnpm / yarn
 .pnpm-store

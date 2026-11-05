@@ -16,7 +16,7 @@
   },
   "type": "module",
   "scripts": {
-    "prepare": "simple-git-hooks",
+    "prepare": "vp config --hooks --no-agent",
     "dev": "bun run --cwd apps/client dev",
     "check": "vp check --fix && bun run --cwd packages/myaid-plugin-core check && bun run --cwd apps/client check && cargo check --workspace",
     "build": "bun run --cwd packages/myaid-plugin-core build && bun run --cwd apps/client build",
@@ -26,12 +26,8 @@
   "devDependencies": {
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "simple-git-hooks": "^2.13.1",
     "typescript": "catalog:",
     "vite-plus": "^1.4.0"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "vp staged"
   },
   "engines": {
     "bun": ">=1.4.4",
