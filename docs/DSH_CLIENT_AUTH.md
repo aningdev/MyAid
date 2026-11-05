@@ -4,11 +4,11 @@
 
 ## 代码落点
 
-| 层 | 路径 |
-| --- | --- |
+| 层       | 路径                                                                                 |
+| -------- | ------------------------------------------------------------------------------------ |
 | 原生模块 | `apps/client/src/cookie_websocket/` → `myaid/native` 的 `CookieWebSocket` / `Socket` |
-| TS 适配 | `apps/client/lib/dsh/socket.ts`（`AuthenticatedSocket`） |
-| 引导 | `apps/client/lib/dsh/auth.ts`（`/connect` 换 Cookie → mux） |
+| TS 适配  | `apps/client/lib/dsh/socket.ts`（`AuthenticatedSocket`）                             |
+| 引导     | `apps/client/lib/dsh/auth.ts`（`/connect` 换 Cookie → mux）                          |
 
 数据根：`~/.myaid`（`DSH_HOME`）。控制 socket 约定：`~/.myaid/host/control.sock`（Host `connectionInfo` 尚未实现时用环境变量）。
 
@@ -31,9 +31,9 @@ bun run --cwd apps/client dev
 在 NSH 运行时（或临时脚本）调用：
 
 ```ts
-import { smokeDshAuthTransport } from './lib/dsh'
+import { smokeDshAuthTransport } from "./lib/dsh";
 
-const result = await smokeDshAuthTransport()
+const result = await smokeDshAuthTransport();
 // result.standardRejection 含 Cookie / credential
 // CookieWebSocket 对同一 mux URL 应 open 成功
 ```

@@ -8,32 +8,39 @@
 
 ## 仓库形状
 
-| 位置 | 职责 |
-| --- | --- |
-| `apps/client` | NSH mixed 客户端（`nsh.json` `"rust": "."`） |
-| `apps/host` | Rust Host：dsh 生命周期与 HostControl（原则级协议桩） |
-| `apps/relay` | 多端密文转发（空壳） |
-| `packages/myaid-plugin-*` | Cordis / 声明式 bundle 插件占位 |
-| `scripts` | prepare / dev / check / package |
-| `docs/` | [DSH 原则](docs/DSH_PRINCIPLES.md) · [架构](docs/ARCHITECTURE.md) · [蓝图](docs/BLUEPRINT.md) |
-| `references/` | 上游 submodule（只读） |
+| 位置                      | 职责                                                                                          |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| `apps/client`             | NSH mixed 客户端（`nsh.json` `"rust": "."`）                                                  |
+| `apps/host`               | Rust Host：dsh 生命周期与 HostControl（原则级协议桩）                                         |
+| `apps/relay`              | 多端密文转发（空壳）                                                                          |
+| `packages/myaid-plugin-*` | Cordis / 声明式 bundle 插件占位                                                               |
+| `docs/`                   | [DSH 原则](docs/DSH_PRINCIPLES.md) · [架构](docs/ARCHITECTURE.md) · [蓝图](docs/BLUEPRINT.md) |
+| `references/`             | 上游 submodule（只读）                                                                        |
 
 ## 开发与运行
 
-需要 macOS、Bun ≥ 1.4.4、Rust、NSH **0.4.0**。Node 见 [`.node-version`](.node-version)。dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
+需要 macOS、Rust、NSH **0.4.0**、`vp`（vite-plus）。工具链版本钉在根目录：
+
+| 钉                                        | 文件 / 字段                                                          |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| Bun `1.4.4`                               | [`.bun-version`](.bun-version)、`packageManager` / `engines.bun`     |
+| Node `26.13.0`（兼容 `^24.15 \|\| >=26`） | [`.node-version`](.node-version)、[`.nvmrc`](.nvmrc)、`engines.node` |
+| TypeScript `7.1.0-beta`                   | 根与 `packages/*` 统一；`@types/node` / `@types/bun` 同版本          |
+
+dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
 
 ```sh
 bun install
-bun run check   # 插件 tsc + nsh check + cargo check
-bun run dev     # 空壳客户端（不自动拉起 host/dsh）
+bun run check   # vp check --fix → plugin check → nsh check → cargo check
+bun run dev     # apps/client: nsh run App.tsx（不自动拉起 host/dsh）
+bun run test
+bun run build   # 发布产物：plugin build + nsh build
 ```
 
-数据根：`~/.myaid`（`DSH_HOME`）。
+数据根：`~/.myaid`（`DSH_HOME`）。`pre-commit` 跑同一套 `bun run check`。
 
 ```sh
 bun run host:dev
-cargo test -p myaid-host
-cargo test -p myaid-relay
 ```
 
 ## 有意省略

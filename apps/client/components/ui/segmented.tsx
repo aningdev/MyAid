@@ -1,7 +1,7 @@
 import { effect, signal, Text, View, createAnimatedValue } from "nsh";
 import { Tab, Tabs } from "nsh/base";
-import { colors, finish, motion } from "./theme";
 
+import { colors, finish, motion } from "./theme";
 
 /**
  * Equal segments with an indicator that springs to the selected one
@@ -16,7 +16,11 @@ export function Segmented<T extends string>(props: {
 }) {
   const width = signal(0);
   const x = createAnimatedValue(0);
-  const index = () => Math.max(0, props.options.findIndex((o) => o.value === props.value));
+  const index = () =>
+    Math.max(
+      0,
+      props.options.findIndex((o) => o.value === props.value),
+    );
   // The track's border and padding: the indicator is placed inside the
   // border (an absolute child's containing block is the padding box), so
   // the segments share what is left of the measured width after both.
@@ -66,7 +70,13 @@ export function Segmented<T extends string>(props: {
           <Tab
             selected={props.value === option().value}
             onPress={() => props.onChange(option().value)}
-            style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 }}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+            }}
           >
             <Text
               style={{
@@ -79,7 +89,9 @@ export function Segmented<T extends string>(props: {
               {option().label}
             </Text>
             <If when={option().count !== undefined}>
-              <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>{option().count}</Text>
+              <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+                {option().count}
+              </Text>
             </If>
           </Tab>
         )}
@@ -87,4 +99,3 @@ export function Segmented<T extends string>(props: {
     </Tabs>
   );
 }
-

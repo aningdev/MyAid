@@ -6,17 +6,37 @@
  * Only this package wraps `nsh/base`; do not import `nsh/base` outside ui.
  */
 import type { JSX, ViewStyle } from "nsh";
-import { effect, Text, View, reduceMotion, createAnimatedValue, platform, keymap, safeArea } from "nsh";
+import {
+  effect,
+  Text,
+  View,
+  reduceMotion,
+  createAnimatedValue,
+  platform,
+  keymap,
+  safeArea,
+} from "nsh";
 import { Button as BaseButton, Sheet as BaseSheet, Switch, Tooltip } from "nsh/base";
+
 import { Icon, type IconName } from "./icons";
-import { alpha, colors, finish, focusRing, isDark, mono, motion, radius, toneColor, toneTint, type Tone } from "./theme";
+import {
+  alpha,
+  colors,
+  finish,
+  focusRing,
+  isDark,
+  mono,
+  motion,
+  radius,
+  toneColor,
+  toneTint,
+  type Tone,
+} from "./theme";
 
 export * from "./theme";
 export { Segmented } from "./segmented";
 export * from "./data-table";
 export * from "./slider";
-
-
 
 /**
  * The thumb of a resize handle (`handleThumbClass`), as gpui-component
@@ -31,7 +51,8 @@ export const handleThumb =
  * Instructions for the device's input: `touch` on phones and tablets,
  * `pointer` on desktops (a mouse, a touchpad, a keyboard).
  */
-export const hint = (touch: string, pointer: string) => (platform.idiom === "desktop" ? pointer : touch);
+export const hint = (touch: string, pointer: string) =>
+  platform.idiom === "desktop" ? pointer : touch;
 
 /**
  * Desktops' way to refresh what phones pull down (the mouse does not drag
@@ -75,7 +96,10 @@ export function Press(props: {
       accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.accessibilityState}
       hitSlop={props.hitSlop}
-      style={[props.style ?? null, { transform: [{ scale: s }], opacity: props.disabled ? 0.4 : 1 }]}
+      style={[
+        props.style ?? null,
+        { transform: [{ scale: s }], opacity: props.disabled ? 0.4 : 1 },
+      ]}
     >
       {props.children}
     </View>
@@ -89,7 +113,13 @@ export function Press(props: {
  * `style` and `activeStyle` into the tab's.
  */
 export const tabPress = {
-  style: { margin: -4, padding: 4, transitionProperty: "transform", transitionDuration: 150, transitionTimingFunction: "ease-out" },
+  style: {
+    margin: -4,
+    padding: 4,
+    transitionProperty: "transform",
+    transitionDuration: 150,
+    transitionTimingFunction: "ease-out",
+  },
   activeStyle: { transform: [{ scale: 0.97 }] },
 } satisfies { style: ViewStyle; activeStyle: ViewStyle };
 
@@ -101,7 +131,13 @@ export function Appear(props: { index?: number; flex?: boolean; children: JSX.El
   const t = createAnimatedValue(0);
   t.timing(1, { ...motion.enter, delay: Math.min(8, props.index ?? 0) * 40 });
   return (
-    <View style={{ flex: props.flex ? 1 : undefined, opacity: t, transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
+    <View
+      style={{
+        flex: props.flex ? 1 : undefined,
+        opacity: t,
+        transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+      }}
+    >
       {props.children}
     </View>
   );
@@ -160,12 +196,23 @@ export function Card(props: {
       ]}
     >
       <If when={props.title}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 11, paddingTop: 11, paddingBottom: 12 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            paddingHorizontal: 11,
+            paddingTop: 11,
+            paddingBottom: 12,
+          }}
+        >
           <If when={props.icon}>
             <IconTile name={props.icon!} />
           </If>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>{props.title}</Text>
+            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+              {props.title}
+            </Text>
             <If when={props.subtitle}>
               <Text style={{ numberOfLines: 2, fontSize: 13, color: colors.muted }}>
                 {props.subtitle}
@@ -208,7 +255,9 @@ export function Caption(props: { label: JSX.Element; note?: JSX.Element }) {
     <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
       <Text style={{ flex: 1, fontSize: 14, color: colors.muted }}>{props.label}</Text>
       <If when={props.note}>
-        <Text style={{ fontSize: 13, color: colors.faint, fontVariant: ["tabular-nums"] }}>{props.note}</Text>
+        <Text style={{ fontSize: 13, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+          {props.note}
+        </Text>
       </If>
     </View>
   );
@@ -217,13 +266,24 @@ export function Caption(props: { label: JSX.Element; note?: JSX.Element }) {
 /** A large figure with a tinted note after it ("38 / 1k  would pass"). */
 export function Figure(props: { value: string; unit?: string; note?: string; tone?: Tone }) {
   return (
-    <Text style={{ fontSize: 32, fontWeight: "600", color: colors.text, fontVariant: ["tabular-nums"], letterSpacing: -0.5 }}>
+    <Text
+      style={{
+        fontSize: 32,
+        fontWeight: "600",
+        color: colors.text,
+        fontVariant: ["tabular-nums"],
+        letterSpacing: -0.5,
+      }}
+    >
       {props.value}
       <If when={props.unit}>
         <Text style={{ fontSize: 17, fontWeight: "400", color: colors.muted }}> {props.unit}</Text>
       </If>
       <If when={props.note}>
-        <Text style={{ fontSize: 15, fontWeight: "500", color: toneColor(props.tone ?? "accent") }}> {props.note}</Text>
+        <Text style={{ fontSize: 15, fontWeight: "500", color: toneColor(props.tone ?? "accent") }}>
+          {" "}
+          {props.note}
+        </Text>
       </If>
     </Text>
   );
@@ -242,10 +302,20 @@ export function Badge(props: { label: string; tone?: Tone; outline?: boolean }) 
         backgroundColor: props.outline ? "transparent" : toneTint(tone()),
         boxShadow: props.outline ? undefined : finish.chip.boxShadow,
         borderWidth: 1,
-        borderColor: props.outline ? toneColor(tone()) : alpha(tone() === "neutral" ? colors.text : toneColor(tone()), 0.1),
+        borderColor: props.outline
+          ? toneColor(tone())
+          : alpha(tone() === "neutral" ? colors.text : toneColor(tone()), 0.1),
       }}
     >
-      <Text style={{ fontSize: 12, fontWeight: "500", color: tone() === "neutral" ? colors.text : toneColor(tone()) }}>{props.label}</Text>
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: "500",
+          color: tone() === "neutral" ? colors.text : toneColor(tone()),
+        }}
+      >
+        {props.label}
+      </Text>
     </View>
   );
 }
@@ -255,7 +325,13 @@ export function Stat(props: { label: string; value: string; tone?: Tone; width?:
   return (
     <View style={{ width: props.width, gap: 3, paddingVertical: 4 }}>
       <Text style={{ fontSize: 12, color: colors.muted }}>{props.label}</Text>
-      <Text style={{ fontSize: 15, color: props.tone ? toneColor(props.tone) : colors.text, fontVariant: ["tabular-nums"] }}>
+      <Text
+        style={{
+          fontSize: 15,
+          color: props.tone ? toneColor(props.tone) : colors.text,
+          fontVariant: ["tabular-nums"],
+        }}
+      >
         {props.value}
       </Text>
     </View>
@@ -321,8 +397,22 @@ export function Button(props: {
   const scale = createAnimatedValue(1);
   const variant = () => props.variant ?? "primary";
   const bg = () =>
-    props.color ?? (variant() === "primary" ? colors.light : variant() === "accent" ? colors.accentFill : variant() === "ghost" ? "transparent" : colors.raised);
-  const fg = () => (props.color ? "#ffffff" : variant() === "primary" ? colors.onLight : variant() === "accent" ? colors.onAccent : colors.text);
+    props.color ??
+    (variant() === "primary"
+      ? colors.light
+      : variant() === "accent"
+        ? colors.accentFill
+        : variant() === "ghost"
+          ? "transparent"
+          : colors.raised);
+  const fg = () =>
+    props.color
+      ? "#ffffff"
+      : variant() === "primary"
+        ? colors.onLight
+        : variant() === "accent"
+          ? colors.onAccent
+          : colors.text;
   return (
     <BaseButton
       onPress={props.onPress}
@@ -332,7 +422,12 @@ export function Button(props: {
       accessibilityLabel={props.label}
       hoverStyle={props.disabled ? undefined : { opacity: 0.88 }}
       focusStyle={focusRing(2)}
-      style={{ flex: props.flex, opacity: props.disabled ? 0.4 : 1, transform: [{ scale }], borderRadius: small() ? 8 : radius.control }}
+      style={{
+        flex: props.flex,
+        opacity: props.disabled ? 0.4 : 1,
+        transform: [{ scale }],
+        borderRadius: small() ? 8 : radius.control,
+      }}
     >
       <View
         style={{
@@ -359,7 +454,9 @@ export function Button(props: {
         <If when={props.icon}>
           <Icon name={props.icon!} size={small() ? 14 : 16} tint={fg()} />
         </If>
-        <Text style={{ fontSize: small() ? 13 : 15, fontWeight: "600", color: fg() }}>{props.label}</Text>
+        <Text style={{ fontSize: small() ? 13 : 15, fontWeight: "600", color: fg() }}>
+          {props.label}
+        </Text>
       </View>
     </BaseButton>
   );
@@ -376,7 +473,12 @@ export function RoundButton(props: {
   const size = props.size ?? 44;
   const primary = () => (props.variant ?? "primary") === "primary";
   return (
-    <Press onPress={props.onPress} disabled={props.disabled} scale={0.92} accessibilityLabel={props.label}>
+    <Press
+      onPress={props.onPress}
+      disabled={props.disabled}
+      scale={0.92}
+      accessibilityLabel={props.label}
+    >
       <View
         style={{
           width: size,
@@ -390,14 +492,23 @@ export function RoundButton(props: {
           borderColor: primary() ? colors.border : finish.pill.borderColor,
         }}
       >
-        <Icon name={props.icon} size={size * 0.42} tint={primary() ? colors.onLight : colors.text} />
+        <Icon
+          name={props.icon}
+          size={size * 0.42}
+          tint={primary() ? colors.onLight : colors.text}
+        />
       </View>
     </Press>
   );
 }
 
 /** A titled card of controls (the demos' sections). */
-export function Section(props: { title: string; note?: string; style?: ViewStyle; children: JSX.Element }) {
+export function Section(props: {
+  title: string;
+  note?: string;
+  style?: ViewStyle;
+  children: JSX.Element;
+}) {
   return (
     <View
       style={[
@@ -413,10 +524,23 @@ export function Section(props: { title: string; note?: string; style?: ViewStyle
         props.style ?? null,
       ]}
     >
-      <View style={{ flexDirection: "row", alignItems: "baseline", paddingHorizontal: 11, paddingTop: 10, paddingBottom: 10, gap: 8 }}>
-        <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: colors.text }}>{props.title}</Text>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "baseline",
+          paddingHorizontal: 11,
+          paddingTop: 10,
+          paddingBottom: 10,
+          gap: 8,
+        }}
+      >
+        <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: colors.text }}>
+          {props.title}
+        </Text>
         <If when={props.note}>
-          <Text style={{ fontSize: 13, color: colors.faint, fontVariant: ["tabular-nums"] }}>{props.note}</Text>
+          <Text style={{ fontSize: 13, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+            {props.note}
+          </Text>
         </If>
       </View>
       <Inset>{props.children}</Inset>
@@ -428,7 +552,11 @@ export function Section(props: { title: string; note?: string; style?: ViewStyle
  * An on / off switch (`nsh/base`'s `Switch`, in the gallery's look): the
  * knob springs across, the track changes color natively.
  */
-export function Toggle(props: { value: boolean; onChange: (value: boolean) => void; label?: string }) {
+export function Toggle(props: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+  label?: string;
+}) {
   const look = switchLook(() => props.value);
   return (
     <Switch
@@ -450,7 +578,10 @@ export function Toggle(props: { value: boolean; onChange: (value: boolean) => vo
  * `small` is 38 × 22, for pointer-sized rows. Read the styles in JSX so the
  * appearance is followed.
  */
-export function switchLook(on: () => boolean, size: "small" | "regular" = "regular"): { readonly trackStyle: ViewStyle; readonly thumbStyle: ViewStyle } {
+export function switchLook(
+  on: () => boolean,
+  size: "small" | "regular" = "regular",
+): { readonly trackStyle: ViewStyle; readonly thumbStyle: ViewStyle } {
   // The track's size and inset, and the knob: it travels what is left inside
   // the border and the padding.
   const [width, height, inset, knob] = size === "small" ? [38, 22, 2, 16] : [50, 30, 3, 22];
@@ -472,7 +603,10 @@ export function switchLook(on: () => boolean, size: "small" | "regular" = "regul
         height,
         borderRadius: height / 2,
         padding: inset,
-        backgroundColor: t.interpolate({ inputRange: [0, 1], outputRange: [colors.track, colors.accentFill] }),
+        backgroundColor: t.interpolate({
+          inputRange: [0, 1],
+          outputRange: [colors.track, colors.accentFill],
+        }),
         borderWidth: 1,
         borderColor: colors.border,
         ...finish.track,
@@ -485,8 +619,11 @@ export function switchLook(on: () => boolean, size: "small" | "regular" = "regul
         borderRadius: knob / 2,
         backgroundColor: on() ? colors.onAccent : colors.knob,
         // A drop of glass: a specular top over the knob's color.
-        backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.202) 0%, rgba(255,255,255,0.098) 60%)",
-        boxShadow: isDark() ? "inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 3px rgba(0,0,0,0.4)" : finish.knob.boxShadow,
+        backgroundImage:
+          "linear-gradient(180deg, rgba(255,255,255,0.202) 0%, rgba(255,255,255,0.098) 60%)",
+        boxShadow: isDark()
+          ? "inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 3px rgba(0,0,0,0.4)"
+          : finish.knob.boxShadow,
         transform: [{ translateX: x }],
       };
     },
@@ -506,7 +643,17 @@ export function Meter(props: { value: number; tone?: Tone; marker?: number }) {
         }}
       />
       <If when={props.marker !== undefined}>
-        <View style={{ position: "absolute", left: `${(props.marker ?? 0) * 100}%`, top: -3, width: 2, height: 12, borderRadius: 1, backgroundColor: colors.text }} />
+        <View
+          style={{
+            position: "absolute",
+            left: `${(props.marker ?? 0) * 100}%`,
+            top: -3,
+            width: 2,
+            height: 12,
+            borderRadius: 1,
+            backgroundColor: colors.text,
+          }}
+        />
       </If>
     </View>
   );
@@ -533,7 +680,15 @@ export function Sheet(props: { open: boolean; onClose: () => void; children: JSX
         backgroundColor: colors.surface,
       }}
     >
-      <View style={{ width: 36, height: 5, borderRadius: 3, alignSelf: "center", backgroundColor: colors.raised }} />
+      <View
+        style={{
+          width: 36,
+          height: 5,
+          borderRadius: 3,
+          alignSelf: "center",
+          backgroundColor: colors.raised,
+        }}
+      />
       {props.children}
     </BaseSheet>
   );
@@ -545,8 +700,8 @@ export { Icon, type IconName } from "./icons";
  * small bubble of the theme's `popover` tokens. */
 export function Tip(props: { label: string }) {
   return (
-    <Tooltip class="rounded-md border border-border bg-popover px-2 py-1">
-      <Text class="text-xs text-popover-foreground">{props.label}</Text>
+    <Tooltip class="border-border bg-popover rounded-md border px-2 py-1">
+      <Text class="text-popover-foreground text-xs">{props.label}</Text>
     </Tooltip>
   );
 }

@@ -6,5 +6,5 @@ export {
   resolveLoginUrl,
   smokeDshAuthTransport,
   type DshLogin,
-} from './auth'
-export { AuthenticatedSocket } from './socket'
+} from "./auth";
+export { AuthenticatedSocket } from "./socket";

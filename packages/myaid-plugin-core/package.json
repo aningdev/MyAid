@@ -2,29 +2,30 @@
   "name": "@myaid/myaid-plugin-core",
   "version": "0.1.0",
   "private": true,
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml"
+  ],
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./package.json": "./package.json"
   },
-  "files": [
-    "lib",
-    "src",
-    "cordis.patch.yml"
-  ],
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    }
-  },
   "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
     "test": "bun test src/index.test.ts",
     "prepare": "bun run build"
   },
   "devDependencies": {
-    "bun-types": "^1.4.4",
-    "typescript": "5.8.3"
+    "@types/bun": "1.4.4",
+    "typescript": "7.1.0-beta"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   }
 }

@@ -7,8 +7,26 @@ export type ToolState = "pending" | "running" | "done" | "cancelled";
 export type Source = { title: string; site: string; tone: Tone };
 export type Tool =
   | { id: string; kind: "search"; state: ToolState; query: string; sources: Source[] }
-  | { id: string; kind: "weather"; state: ToolState; city: string; temp: number; condition: string; high: number; low: number; hours: number[] }
-  | { id: string; kind: "code"; state: ToolState; lang: string; code: string; output: string; ms: number };
+  | {
+      id: string;
+      kind: "weather";
+      state: ToolState;
+      city: string;
+      temp: number;
+      condition: string;
+      high: number;
+      low: number;
+      hours: number[];
+    }
+  | {
+      id: string;
+      kind: "code";
+      state: ToolState;
+      lang: string;
+      code: string;
+      output: string;
+      ms: number;
+    };
 
 export type FileRef = { name: string; size: string };
 export type Reasoning = { text: string; seconds: number; open: boolean };
@@ -103,7 +121,8 @@ export const scenarios: Scenario[] = [
   {
     id: "reason",
     chip: "Think it through",
-    prompt: "A bat and a ball cost 1.10 in total. The bat costs 1.00 more than the ball. How much is the ball?",
+    prompt:
+      "A bat and a ball cost 1.10 in total. The bat costs 1.00 more than the ball. How much is the ball?",
     model: "Deep",
     steps: [
       {
@@ -156,10 +175,22 @@ The benchmark post notes the gains are smallest on single-core machines.`,
     model: "Swift",
     steps: [
       {
-        tool: { id: "weather", kind: "weather", state: "pending", city: "Lisbon", temp: 21, condition: "Partly cloudy", high: 24, low: 16, hours: [22, 23, 24, 23, 21, 19, 17, 16] },
+        tool: {
+          id: "weather",
+          kind: "weather",
+          state: "pending",
+          city: "Lisbon",
+          temp: 21,
+          condition: "Partly cloudy",
+          high: 24,
+          low: 16,
+          hours: [22, 23, 24, 23, 21, 19, 17, 16],
+        },
         ms: 1000,
       },
-      { say: "It's **21°** now and drops to about **16°** after sunset, with a breeze off the river. A light jacket is a good idea for the evening." },
+      {
+        say: "It's **21°** now and drops to about **16°** after sunset, with a breeze off the river. A light jacket is a good idea for the evening.",
+      },
     ],
   },
   {
@@ -168,7 +199,10 @@ The benchmark post notes the gains are smallest on single-core machines.`,
     prompt: "How many primes are there below 10,000?",
     model: "Deep",
     steps: [
-      { think: "Counting by hand is error-prone. A sieve of Eratosthenes up to 10,000 is quick to run, so I will run one and report the count." },
+      {
+        think:
+          "Counting by hand is error-prone. A sieve of Eratosthenes up to 10,000 is quick to run, so I will run one and report the count.",
+      },
       {
         tool: {
           id: "code",
@@ -181,7 +215,9 @@ The benchmark post notes the gains are smallest on single-core machines.`,
         },
         ms: 1800,
       },
-      { say: "There are **1,229** primes below 10,000. I counted them with a sieve of Eratosthenes, which runs in a few milliseconds." },
+      {
+        say: "There are **1,229** primes below 10,000. I counted them with a sieve of Eratosthenes, which runs in a few milliseconds.",
+      },
     ],
   },
   {
@@ -207,14 +243,22 @@ The benchmark post notes the gains are smallest on single-core machines.`,
     chip: "Fail a reply",
     prompt: "Summarize this week's meeting notes.",
     model: "Swift",
-    steps: [{ say: "Here's a summary of the four meetings this week. The planning session agreed on" }, { fail: "The model is overloaded right now (error 529)." }],
+    steps: [
+      { say: "Here's a summary of the four meetings this week. The planning session agreed on" },
+      { fail: "The model is overloaded right now (error 529)." },
+    ],
   },
   {
     id: "offline",
     chip: "Go offline",
     prompt: "Remind me what we decided about the launch date.",
     model: "Swift",
-    steps: [{ offline: 2600 }, { say: "You decided to launch on **Tuesday, November 3**, after the final review on Monday afternoon." }],
+    steps: [
+      { offline: 2600 },
+      {
+        say: "You decided to launch on **Tuesday, November 3**, after the final review on Monday afternoon.",
+      },
+    ],
   },
 ];
 
@@ -240,7 +284,10 @@ export const retried: Scenario = {
 export function freeform(prompt: string, model: Model): Scenario {
   const quote = prompt.length > 60 ? `${prompt.slice(0, 57)}…` : prompt;
   const steps: Step[] = [];
-  if (model === "Deep") steps.push({ think: `The user asked: "${quote}". This is a simulated assistant, so I will explain that and show what a structured answer would look like.` });
+  if (model === "Deep")
+    steps.push({
+      think: `The user asked: "${quote}". This is a simulated assistant, so I will explain that and show what a structured answer would look like.`,
+    });
   steps.push({
     say: `You asked: *${quote}*
 
@@ -256,14 +303,38 @@ Try the suggestions for streaming, tools, reasoning and errors.`,
 }
 
 const pastPrompts = [
-  ["Can you suggest a name for a hiking club?", "How about **Switchback Society**, **Trail Mix** or **The Ridge Walkers**? The first one sounds the friendliest."],
-  ["What's a quick dinner with eggs and spinach?", "A **frittata**: sauté the spinach, pour in six beaten eggs, cook on low for 8 minutes, then finish under the grill for 3."],
-  ["Convert 3 cups of flour to grams.", "About **375 g** of all-purpose flour (125 g per cup, spooned and leveled)."],
-  ["Is it 'affect' or 'effect' here: the rain will ___ the game?", "**Affect**: it's the verb. *Effect* is usually the noun, as in *the effect of the rain*."],
-  ["Give me a one-line summary of photosynthesis.", "Plants use sunlight to turn water and carbon dioxide into sugar, releasing oxygen."],
-  ["How do I center a view in a flex container?", "Set `alignItems: \"center\"` and `justifyContent: \"center\"` on the container."],
-  ["What's the capital of Australia?", "**Canberra**, not Sydney: it was chosen as a compromise between Sydney and Melbourne."],
-  ["Write a haiku about Mondays.", "*Alarm sings too soon*\n\n*coffee steams against the glass*\n\n*the week opens slow*"],
+  [
+    "Can you suggest a name for a hiking club?",
+    "How about **Switchback Society**, **Trail Mix** or **The Ridge Walkers**? The first one sounds the friendliest.",
+  ],
+  [
+    "What's a quick dinner with eggs and spinach?",
+    "A **frittata**: sauté the spinach, pour in six beaten eggs, cook on low for 8 minutes, then finish under the grill for 3.",
+  ],
+  [
+    "Convert 3 cups of flour to grams.",
+    "About **375 g** of all-purpose flour (125 g per cup, spooned and leveled).",
+  ],
+  [
+    "Is it 'affect' or 'effect' here: the rain will ___ the game?",
+    "**Affect**: it's the verb. *Effect* is usually the noun, as in *the effect of the rain*.",
+  ],
+  [
+    "Give me a one-line summary of photosynthesis.",
+    "Plants use sunlight to turn water and carbon dioxide into sugar, releasing oxygen.",
+  ],
+  [
+    "How do I center a view in a flex container?",
+    'Set `alignItems: "center"` and `justifyContent: "center"` on the container.',
+  ],
+  [
+    "What's the capital of Australia?",
+    "**Canberra**, not Sydney: it was chosen as a compromise between Sydney and Melbourne.",
+  ],
+  [
+    "Write a haiku about Mondays.",
+    "*Alarm sings too soon*\n\n*coffee steams against the glass*\n\n*the week opens slow*",
+  ],
 ];
 
 /** A long conversation over three days, for scrolling. */
@@ -275,7 +346,15 @@ export function history(nextId: () => string): Msg[] {
     for (let i = 0; i < 20; i++) {
       const [q, a] = pastPrompts[(day * 20 + i) % pastPrompts.length];
       out.push({ kind: "user", id: nextId(), text: q });
-      out.push({ kind: "assistant", id: nextId(), model: "Swift", script: "history", tools: [], md: a, status: "done" });
+      out.push({
+        kind: "assistant",
+        id: nextId(),
+        model: "Swift",
+        script: "history",
+        tools: [],
+        md: a,
+        status: "done",
+      });
     }
   });
   return out;

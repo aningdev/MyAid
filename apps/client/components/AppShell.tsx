@@ -4,12 +4,13 @@
  */
 import { Text, View } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
-import { colors } from "./ui";
-import { NavRail } from "./NavRail";
-import { AppTabBar } from "./TabBar";
+
 import { isDesktopLayout, TITLE_CHROME, titleTopInset } from "../workspace/layout";
 import { modules } from "../workspace/modules";
 import { moduleAtRoot, moduleId } from "../workspace/state";
+import { NavRail } from "./NavRail";
+import { AppTabBar } from "./TabBar";
+import { colors } from "./ui";
 
 export { isDesktopLayout } from "../workspace/layout";
 

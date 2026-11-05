@@ -1,9 +1,10 @@
 import { Text, View } from "nsh";
 import { titleBar } from "nsh/desktop";
-import { colors, hovered, Icon, Press, radius } from "./ui";
+
 import { titleTopInset } from "../workspace/layout";
 import { modules } from "../workspace/modules";
 import { moduleId, setModule, type ModuleId } from "../workspace/state";
+import { colors, hovered, Icon, Press, radius } from "./ui";
 
 /** Base rail width; grows if traffic-light cluster is wider. */
 export const RAIL_WIDTH = 80;

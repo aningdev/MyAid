@@ -1,7 +1,8 @@
 import { effect, Image, signal, Text, View } from "nsh";
 import { createAnimatedValue } from "nsh";
-import { Dialog, type TextViewImage } from "nsh/base";
 import { safeArea } from "nsh";
+import { Dialog, type TextViewImage } from "nsh/base";
+
 import { motion, Press } from "../../components/ui";
 
 /** The deepest zoom, and where a double tap zooms in to. */
@@ -92,7 +93,11 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
     const b = box();
     const dx = tap.x - b.width / 2;
     const dy = tap.y - b.height / 2;
-    settle({ scale: DOUBLE_TAP_ZOOM, x: at.x + (at.scale - DOUBLE_TAP_ZOOM) * dx, y: at.y + (at.scale - DOUBLE_TAP_ZOOM) * dy });
+    settle({
+      scale: DOUBLE_TAP_ZOOM,
+      x: at.x + (at.scale - DOUBLE_TAP_ZOOM) * dx,
+      y: at.y + (at.scale - DOUBLE_TAP_ZOOM) * dy,
+    });
   };
 
   return (
@@ -118,7 +123,12 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
           if (at.scale <= 1.01 && (dy > SWIPE_CLOSE || e.velocity.y > 1200)) return props.onClose();
           settle({ scale: at.scale, x: vx, y: vy });
         }}
-        style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.92)" }}
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(0,0,0,0.92)",
+        }}
       >
         <View
           accessibilityLabel={shown()?.alt || "Image"}
@@ -132,7 +142,9 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
             transform: [
               { translateX: x },
               { translateY: y },
-              { scale: scale.mul(enter.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] })) },
+              {
+                scale: scale.mul(enter.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] })),
+              },
             ],
           }}
         >
@@ -144,16 +156,63 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
         </View>
         {shown()?.alt ? (
           <View
-            style={{ pointerEvents: "none", position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 24, paddingTop: 32, paddingBottom: safeArea().bottom + 20 }}
+            style={{
+              pointerEvents: "none",
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              paddingHorizontal: 24,
+              paddingTop: 32,
+              paddingBottom: safeArea().bottom + 20,
+            }}
           >
-            <Text style={{ fontSize: 14, lineHeight: 20, textAlign: "center", color: "rgba(255,255,255,0.85)" }}>{shown()?.alt}</Text>
+            <Text
+              style={{
+                fontSize: 14,
+                lineHeight: 20,
+                textAlign: "center",
+                color: "rgba(255,255,255,0.85)",
+              }}
+            >
+              {shown()?.alt}
+            </Text>
           </View>
         ) : null}
-        <View style={{ position: "absolute", top: safeArea().top + 12, right: safeArea().right + 12 }}>
+        <View
+          style={{ position: "absolute", top: safeArea().top + 12, right: safeArea().right + 12 }}
+        >
           <Press onPress={props.onClose} accessibilityLabel="Close" scale={0.9} hitSlop={8}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.16)" }}>
-              <View style={{ position: "absolute", width: 16, height: 2, borderRadius: 1, backgroundColor: "#ffffff", transform: [{ rotate: "45deg" }] }} />
-              <View style={{ position: "absolute", width: 16, height: 2, borderRadius: 1, backgroundColor: "#ffffff", transform: [{ rotate: "-45deg" }] }} />
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(255,255,255,0.16)",
+              }}
+            >
+              <View
+                style={{
+                  position: "absolute",
+                  width: 16,
+                  height: 2,
+                  borderRadius: 1,
+                  backgroundColor: "#ffffff",
+                  transform: [{ rotate: "45deg" }],
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  width: 16,
+                  height: 2,
+                  borderRadius: 1,
+                  backgroundColor: "#ffffff",
+                  transform: [{ rotate: "-45deg" }],
+                }}
+              />
             </View>
           </Press>
         </View>

@@ -2,4 +2,4 @@
 # Empty shell: declare the plugin id only; no inject targets yet.
 - insert:
     - id: myaid-core
-      name: '@myaid/myaid-plugin-core'
+      name: "@myaid/myaid-plugin-core"

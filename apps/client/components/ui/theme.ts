@@ -4,6 +4,7 @@ import type { Tokens, ViewStyle } from "nsh";
 import { token } from "nsh";
 import { Easing } from "nsh";
 import { colorScheme } from "nsh";
+
 import finishes from "./finishes.json";
 
 /** Whether the UI shows its dark palette (reactive: reading it subscribes). */
@@ -17,7 +18,10 @@ export const isDark = () => colorScheme() !== "light";
 function themed<T extends object>(dark: T, light: T): T {
   const out = {} as T;
   for (const key of Object.keys(dark) as (keyof T)[]) {
-    Object.defineProperty(out, key, { enumerable: true, get: () => (isDark() ? dark : light)[key] });
+    Object.defineProperty(out, key, {
+      enumerable: true,
+      get: () => (isDark() ? dark : light)[key],
+    });
   }
   return out;
 }
@@ -116,7 +120,8 @@ export type Tone = "neutral" | "accent" | "info" | "warn" | "danger" | "up" | "d
 /** The color of a tone. */
 export const toneColor = (tone: Tone) => (tone === "neutral" ? colors.muted : colors[tone]);
 /** The tint of a tone (derived from the tone color; no custom tint tokens). */
-export const toneTint = (tone: Tone) => (tone === "neutral" ? colors.raised : alpha(toneColor(tone), 0.12));
+export const toneTint = (tone: Tone) =>
+  tone === "neutral" ? colors.raised : alpha(toneColor(tone), 0.12);
 
 /** Translucent tints of the tones, for fills behind text. */
 export const tints = {
@@ -151,7 +156,21 @@ export interface Finish {
 
 /** Light and depth finishes (neutral, matching the default theme). */
 export const finish = themed<
-  Record<"card" | "inset" | "field" | "raised" | "light" | "accent" | "track" | "knob" | "pill" | "chip" | "glass" | "menu", Finish>
+  Record<
+    | "card"
+    | "inset"
+    | "field"
+    | "raised"
+    | "light"
+    | "accent"
+    | "track"
+    | "knob"
+    | "pill"
+    | "chip"
+    | "glass"
+    | "menu",
+    Finish
+  >
 >(finishes.dark, finishes.light);
 
 /** The monospaced family, for code. */

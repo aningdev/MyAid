@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noEmitOnError": true,
-    "types": ["bun-types"]
+    "types": ["bun"]
   },
   "include": ["src/index.ts"]
 }
