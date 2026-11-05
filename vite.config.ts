@@ -6,7 +6,13 @@ import { defineConfig } from "vite-plus";
 const ignoreVendored = ["references/**", ".agents/skills"];
 // NSH client is type-checked by `nsh check` (QuickJS / nsh globals like If/Each).
 // Host/relay are Cargo.
-const ignoreLint = [...ignoreVendored, "apps/client/**", "apps/host/**", "apps/relay/**"];
+const ignoreLint = [
+  ...ignoreVendored,
+  "apps/client/**",
+  "apps/host/**",
+  "apps/relay/**",
+  "scripts/**",
+];
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },

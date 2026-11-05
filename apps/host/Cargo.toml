@@ -5,7 +5,12 @@ edition = "2024"
 publish = false
 
 [dependencies]
-# Lifecycle, control socket, and bridge deps land when Host is implemented.
+fs2 = "0.4"
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
 
 [dev-dependencies]
 myaid-relay = { path = "../relay" }
+tempfile = "3"

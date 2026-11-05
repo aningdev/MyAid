@@ -13,6 +13,7 @@ export function WorkspacePageHeader(props: {
   const showBack = () => !props.root && !!props.onBack;
   return (
     <View
+      desktop={{ windowDrag: true }}
       style={{
         height: 52,
         flexDirection: "row",

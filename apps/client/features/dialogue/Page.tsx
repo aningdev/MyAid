@@ -62,6 +62,7 @@ function ContextToggle() {
 function DesktopMainHeader() {
   return (
     <View
+      desktop={{ windowDrag: true }}
       style={{
         height: 52,
         flexShrink: 0,

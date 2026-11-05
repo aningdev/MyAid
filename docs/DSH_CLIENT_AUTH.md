@@ -10,18 +10,18 @@
 | TS 适配  | `apps/client/lib/dsh/socket.ts`（`AuthenticatedSocket`）                             |
 | 引导     | `apps/client/lib/dsh/auth.ts`（`/connect` 换 Cookie → mux）                          |
 
-数据根：`~/.myaid`（`DSH_HOME`）。控制 socket 约定：`~/.myaid/host/control.sock`（Host `connectionInfo` 尚未实现时用环境变量）。
+数据根：`~/.myaid`（`DSH_HOME`）。控制 socket：`~/.myaid/host/control.sock`。
 
 ## 本地跑通
 
 ```sh
-# 1) 官方 dsh（本机已安装；版本钉见 apps/host/supported-dsh.json，现为占位）
-DSH_HOME=~/.myaid dsh web --host 127.0.0.1 --port 0 --no-open
-# ready 行给出 http://127.0.0.1:<port>/?token=…
+# 1) Host（独占 dsh 生命周期；版本钉 apps/host/supported-dsh.json）
+cargo run -p myaid-host -- serve --data-root ~/.myaid --official-dsh
 
-# 2) 客户端（保留 AppShell；认证库可被设置页/探针调用）
-export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=<token>'
+# 2) 客户端（MYAID_HOST_SOCKET 已由 dev 脚本注入）
 vp run @myaid/client#dev
+# Dialogue → Context →「启动后台」→ connectionInfo → Session
+# 无 Host 时仍可用：export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=…'
 ```
 
 `nsh.json` 已授权 `127.0.0.1`；dsh 必须绑回环。
@@ -46,7 +46,13 @@ const result = await smokeDshAuthTransport();
 
 故意跳过原生适配、只把 Cookie 塞进标准 `connect`，应无法建立官方 remote 通道。
 
+## 已落地
+
+- `@deepseek-ai/dsh-*` Connection + Gateway + Session Remote（见 `lib/dsh/connection.ts`）。
+- HostControl 原生 Unix 适配（`myaid/native` `HostControl`）与 `lib/host/control.ts`。
+- `bun run prepare:sdk`（`scripts/prepare-sdk.mjs`）用 Node 条件打出 `lib/dsh/sdk.js`；`nsh.json` `resolve.conditions: ["node"]` 兜底。勿直接依赖 `client.browser.js`（ModuleLoader 产物，无 ESM `installConnection`）。
+
 ## 有意未做
 
-- 未嵌入完整 `@deepseek-ai/dsh-*` Gateway / Session Controller（体积与产品范围另开）。
-- HostControl 原生 Unix 适配仍待 Host `serve` 实现；当前用 `MYAID_DSH_LOGIN_URL`。
+- 完整注册表 / 多助手 Session 指针；MVP 使用固定 `myaid-primary`。
+- Bridge / Relay / `SMAppService` 成品登记。

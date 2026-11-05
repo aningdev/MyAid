@@ -7,7 +7,6 @@ import {
   Scroll,
   signal,
   Text,
-  untracked,
   View,
   type ListRef,
   type ViewStyle,
@@ -19,7 +18,6 @@ import { Picker } from "nsh";
 import { keyboardFrame, safeAreaInsets } from "nsh";
 import { Input } from "nsh/base";
 
-import { Icon, type IconName } from "../../components/ui";
 import {
   alpha,
   Appear,
@@ -34,7 +32,6 @@ import {
   toneTint,
 } from "../../components/ui";
 import { Glyph } from "./chat/glyphs";
-import { localReply, type Provider } from "./chat/local";
 import { Markdown } from "./chat/markdown";
 import {
   ActionButton,
@@ -47,50 +44,24 @@ import {
   Spinner,
   ToolCard,
 } from "./chat/parts";
+import { type FileRef, type Model, type Msg, type Status, type Tool } from "./chat/scripts";
 import {
-  type FileRef,
-  freeform,
-  history,
-  type Model,
-  type Msg,
-  photo,
-  retried,
-  type Scenario,
-  scenarios,
-  type Status,
-  type Tool,
-} from "./chat/scripts";
-import { chatEpoch, model as chatModel, provider as chatProvider } from "./state";
+  cancelSession,
+  connectSession,
+  openSession,
+  promptSession,
+  resetLocalProjection,
+  sessionError,
+  sessionReady,
+  subscribeSession,
+} from "./session/runtime";
+import { chatEpoch, model as chatModel, openContext } from "./state";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
 type User = Extract<Msg, { kind: "user" }>;
 
-const models = [
-  { value: "Swift", label: "Swift" },
-  { value: "Deep", label: "Deep" },
-  { value: "Vision", label: "Vision" },
-] as const;
-
-const providers = [
-  { value: "Claude", label: "Claude" },
-  { value: "Codex", label: "Codex" },
-] as const;
-
-const featured: { id: string; icon: IconName; note: string }[] = [
-  { id: "guide", icon: "text", note: "Markdown, a table, code" },
-  { id: "reason", icon: "spark", note: "Reasoning first" },
-  { id: "search", icon: "search", note: "A tool call" },
-  { id: "vision", icon: "image", note: "A photo and a file" },
-];
-
-/** Thrown into a run that was stopped. */
-class Stopped extends Error {}
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 /**
- * Dialogue main pane — gallery AI Chat without the embedded wide sidebar.
- * Session selection and model/provider live in workspace / dialogue state.
+ * Dialogue main pane — official Session follow/prompt projection.
  */
 export function ChatPane(props: { selectedId: string | null }) {
   const column: ViewStyle = { width: "100%", maxWidth: 820, alignSelf: "center" };
@@ -101,8 +72,7 @@ export function ChatPane(props: { selectedId: string | null }) {
   const messages = signal<Msg[]>([]);
   const model = chatModel;
   const native = platform.idiom === "desktop" && platform.os !== "web";
-  const provider = chatProvider;
-  let cancelLocal: (() => void) | undefined;
+  const useDsh = () => native && !!props.selectedId;
   const draft = signal("");
   const inputHeight = signal(20);
   const attachment = signal<{ image: string; file: FileRef } | null>(null);
@@ -131,75 +101,24 @@ export function ChatPane(props: { selectedId: string | null }) {
     model: Model;
     script: string;
     cancelled: boolean;
+    /** True after follow reports a turn actually started (avoids idle-snapshot freeze). */
+    turned: boolean;
     md: string;
     reason: string;
     thinkStart: number;
     thinkSeconds: number | null;
   };
   let run: Run | null = null;
-  let ticker: number | undefined;
 
-  // Tokens collect here and reach the signals once per frame.
-  let pendingText = "";
-  let pendingReason = "";
-  let frameQueued = false;
   /** Scrolls to the end on the user's own action (send, jump, load). */
   const toEnd = (animated = true) => {
     following.set(true);
     list?.scrollToEnd({ animated });
   };
-  const flush = () => {
-    frameQueued = false;
-    const r = run;
-    if (!r) return;
-    batch(() => {
-      if (pendingReason) {
-        r.reason += pendingReason;
-        pendingReason = "";
-        liveReason.set(r.reason);
-      }
-      if (pendingText) {
-        r.md += pendingText;
-        pendingText = "";
-        liveMd.set(r.md);
-      }
-    });
-  };
-  const queue = () => {
-    if (frameQueued) return;
-    frameQueued = true;
-    requestAnimationFrame(flush);
-  };
-
-  const wait = async (r: Run, ms: number) => {
-    await sleep(ms);
-    if (r.cancelled) throw new Stopped();
-  };
-  /** Streams `text` at about `rate` tokens a second, with jitter. */
-  const stream = async (r: Run, text: string, rate: number, into: "text" | "reason") => {
-    for (const token of text.match(/\s*\S{1,4}|\s+/g) ?? []) {
-      await wait(r, (1000 / rate) * (0.55 + Math.random() * 0.9));
-      if (into === "text") pendingText += token;
-      else pendingReason += token;
-      queue();
-    }
-    flush();
-  };
-  const setTool = (id: string, change: Partial<Tool>) =>
-    liveTools.set(liveTools().map((t) => (t.id === id ? ({ ...t, ...change } as Tool) : t)));
-
-  const stopTicker = () => {
-    if (ticker !== undefined) clearInterval(ticker);
-    ticker = undefined;
-  };
 
   /** Freezes the reply into a message and ends the run. */
   const freeze = (r: Run, status: Status, error?: string) => {
     if (run !== r) return;
-    r.md += pendingText;
-    r.reason += pendingReason;
-    pendingText = pendingReason = "";
-    stopTicker();
     const seconds =
       r.thinkSeconds ?? Math.max(1, Math.round((performance.now() - r.thinkStart) / 1000));
     const final: Assistant = {
@@ -226,13 +145,47 @@ export function ChatPane(props: { selectedId: string | null }) {
     setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
   };
 
-  /** Runs a scenario's reply; `at` replaces that message (retry, regenerate). */
-  const reply = async (s: Scenario, at?: string) => {
+  const showConnectError = (error: unknown, at?: string) => {
+    const msg = error instanceof Error ? error.message : String(error);
+    const failId = at ?? nextId();
+    const failed: Assistant = {
+      kind: "assistant",
+      id: failId,
+      model: model(),
+      script: "dsh",
+      tools: [],
+      md: "",
+      status: "error",
+      error: msg,
+    };
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    batch(() => {
+      messages.set(
+        at
+          ? messages().map((m) => (m.id === at ? failed : m))
+          : [
+              ...(messages().length
+                ? messages()
+                : [{ kind: "date" as const, id: nextId(), label: "Today" }]),
+              failed,
+            ],
+      );
+      liveId.set(null);
+      liveMd.set("");
+    });
+    // Host / backend setup lives in Context — open it when connect fails.
+    if (/宿主|后台未|MYAID_DSH/.test(msg)) openContext();
+  };
+
+  /** Start a Session reply; `at` replaces that assistant bubble (retry / regenerate). */
+  const replyDsh = async (text: string, at?: string) => {
+    if (run) return;
     const r: Run = {
-      id: nextId(),
-      model: s.model,
-      script: native ? `local:${provider()}` : s.id,
+      id: at ?? nextId(),
+      model: model(),
+      script: "dsh",
       cancelled: false,
+      turned: false,
       md: "",
       reason: "",
       thinkStart: performance.now(),
@@ -242,7 +195,7 @@ export function ChatPane(props: { selectedId: string | null }) {
     const placeholder: Assistant = {
       kind: "assistant",
       id: r.id,
-      model: s.model,
+      model: r.model,
       script: r.script,
       tools: [],
       md: "",
@@ -259,113 +212,124 @@ export function ChatPane(props: { selectedId: string | null }) {
         at ? messages().map((m) => (m.id === at ? placeholder : m)) : [...messages(), placeholder],
       );
     });
-    if (native) {
-      const all = messages();
-      const conversation = all
-        .slice(
-          0,
-          all.findIndex((m) => m.id === r.id),
-        )
-        .filter(
-          (m) => m.kind === "user" || (m.kind === "assistant" && m.id !== r.id && m.id !== at),
-        );
-      const prompt =
-        "You are a helpful chat assistant. Answer the final user message using the conversation below. Reply directly in Markdown. Do not use tools or modify files.\n\n" +
-        conversation
-          .map((m) =>
-            m.kind === "user"
-              ? `User: ${m.text}`
-              : m.kind === "assistant"
-                ? `Assistant: ${m.md}`
-                : "",
-          )
-          .join("\n\n");
-      try {
-        cancelLocal = localReply(
-          provider(),
-          prompt,
-          (chunk) => {
-            if (run !== r || r.cancelled) return;
-            pendingText += chunk;
-            queue();
-          },
-          (error) => {
-            if (run !== r || r.cancelled) return;
-            cancelLocal = undefined;
-            freeze(r, error ? "error" : "done", error);
-          },
-        );
-      } catch (error) {
-        freeze(
-          r,
-          "error",
-          `${provider()}: ${error instanceof Error ? error.message : String(error)}. Install and sign in to the CLI, then retry.`,
-        );
-      }
-      return;
-    }
     try {
-      await wait(r, 450);
-      for (const step of s.steps) {
-        if ("think" in step) {
-          r.thinkStart = performance.now();
-          now.set(r.thinkStart);
-          liveThinking.set({ start: r.thinkStart, seconds: null });
-          ticker = setInterval(() => now.set(performance.now()), 1000);
-          await stream(r, step.think, 75, "reason");
-          stopTicker();
-          r.thinkSeconds = Math.max(1, Math.round((performance.now() - r.thinkStart) / 1000));
-          liveThinking.set({ start: r.thinkStart, seconds: r.thinkSeconds });
-          await wait(r, 350);
-        } else if ("tool" in step) {
-          liveTools.set([...liveTools(), { ...step.tool, state: "pending" }]);
-          await wait(r, 450);
-          setTool(step.tool.id, { state: "running" });
-          await wait(r, step.ms);
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setTool(step.tool.id, { state: "done" });
-          await wait(r, 400);
-        } else if ("say" in step) {
-          await stream(r, step.say, 40, "text");
-        } else if ("fail" in step) {
-          await wait(r, 900);
-          freeze(r, "error", step.fail);
-          return;
-        }
-      }
-      freeze(r, "done");
-    } catch (e) {
-      // A stopped run was frozen by `stop` already.
-      if (!(e instanceof Stopped)) throw e;
+      await promptSession(text);
+    } catch (error) {
+      freeze(r, "error", error instanceof Error ? error.message : String(error));
     }
   };
 
   const stop = () => {
     if (!run) return;
     run.cancelled = true;
-    cancelLocal?.();
-    cancelLocal = undefined;
+    if (useDsh()) void cancelSession();
     freeze(run, "stopped");
   };
 
   cleanup(() => {
     if (run) run.cancelled = true;
-    cancelLocal?.();
-    stopTicker();
+  });
+
+  // Project official Session follow frames into the primary pane.
+  effect(() => {
+    if (!useDsh()) return;
+    const stopSub = subscribeSession((view) => {
+      const r = run;
+      if (!r || r.script !== "dsh") {
+        if (!r && view.messages.length) {
+          const projected: Msg[] = [
+            { kind: "date", id: nextId(), label: "Today" },
+            ...view.messages,
+          ];
+          if (view.running && view.liveMd) {
+            const live: Assistant = {
+              kind: "assistant",
+              id: `live-${Date.now()}`,
+              model: model(),
+              script: "dsh",
+              tools: [],
+              md: view.liveMd,
+              status: "done",
+            };
+            batch(() => {
+              messages.set([...projected, live]);
+              liveId.set(live.id);
+              liveMd.set(view.liveMd);
+            });
+          } else {
+            batch(() => {
+              messages.set(projected);
+              liveId.set(null);
+              liveMd.set("");
+            });
+          }
+        }
+        return;
+      }
+      if (view.running || view.liveMd) r.turned = true;
+      if (view.liveMd) {
+        r.md = view.liveMd;
+        liveMd.set(view.liveMd);
+      }
+      // Only freeze after a turn actually ran — idle follow snapshot must not
+      // cancel a prompt that has not started yet (first-send race).
+      if (!view.running && r.turned && r === run) {
+        freeze(
+          r,
+          view.status.includes("失败")
+            ? "error"
+            : view.status.includes("停止")
+              ? "stopped"
+              : "done",
+          view.status || undefined,
+        );
+      }
+    });
+    cleanup(stopSub);
+  });
+
+  effect(() => {
+    const id = props.selectedId;
+    chatEpoch();
+    if (!useDsh() || !id) return;
+    resetLocalProjection();
+    messages.set([]);
+    liveId.set(null);
+    liveMd.set("");
+    void openSession(id).catch(() => undefined);
+  });
+
+  effect(() => {
+    const err = sessionError();
+    if (useDsh() && err && run?.script === "dsh") {
+      freeze(run, "error", err);
+    }
   });
 
   const jumpToLatest = () => {
     toEnd();
   };
 
-  /** Sends the user's message for a scenario, then its reply. */
-  const submit = async (s: Scenario, text: string, image?: string, file?: FileRef) => {
+  /** Sends the user's message into the official Session. */
+  const submit = async (text: string, image?: string, file?: FileRef) => {
     if (run) return;
     menu.set(false);
     following.set(true);
-    const offline =
-      !native && (s.steps.find((step) => "offline" in step) as { offline: number } | undefined);
-    const user: User = { kind: "user", id: nextId(), text, image, file, waiting: !!offline };
+    if (!native) {
+      bannerKind.set("offline");
+      banner.set("offline");
+      return;
+    }
+    // Connect before mutating local messages so the idle follow snapshot
+    // cannot wipe the just-added user bubble / freeze a pending run.
+    try {
+      if (!sessionReady()) await connectSession();
+    } catch (error) {
+      showConnectError(error);
+      return;
+    }
+    if (run) return;
+    const user: User = { kind: "user", id: nextId(), text, image, file };
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     batch(() => {
       const start: Msg[] = messages().length
@@ -374,34 +338,16 @@ export function ChatPane(props: { selectedId: string | null }) {
       messages.set([...messages(), ...start, user]);
       draft.set("");
       attachment.set(null);
-      model.set(s.model);
     });
     toEnd();
-    if (offline) {
-      bannerKind.set("offline");
-      banner.set("offline");
-      await sleep(offline.offline);
-      bannerKind.set("online");
-      messages.set(messages().map((m) => (m.id === user.id ? { ...user, waiting: false } : m)));
-      await sleep(900);
-      banner.set(null);
-    }
-    void reply({ ...s, steps: s.steps.filter((step) => !("offline" in step)) });
+    await replyDsh(text);
   };
 
   const send = () => {
     const text = draft().trim();
     const a = attachment();
     if (!text && !a) return;
-    if (a) {
-      const vision = scenarios.find((s) => s.id === "vision")!;
-      void submit(
-        { ...vision, model: model() === "Swift" ? "Vision" : model() },
-        text || vision.prompt,
-        a.image,
-        a.file,
-      );
-    } else void submit(freeform(text, model()), text);
+    void submit(text || "（附件）", a?.image, a?.file);
   };
 
   /** Attaches a photo from the system's picker: its bytes stay native, shown through a blob URL. */
@@ -414,17 +360,6 @@ export function ChatPane(props: { selectedId: string | null }) {
         ? `${Math.max(1, Math.round(file.size / 1024))} KB`
         : `${(file.size / 1024 / 1024).toFixed(1)} MB`;
     attachment.set({ image: URL.createObjectURL(file), file: { name: file.name, size } });
-  };
-
-  const play = (id: string) => {
-    if (id === "history") {
-      menu.set(false);
-      messages.set([...history(nextId), ...messages()]);
-      toEnd(false);
-      return;
-    }
-    const s = scenarios.find((x) => x.id === id)!;
-    void submit(s, s.prompt, s.image, s.file);
   };
 
   const update = (id: string, change: (m: Assistant) => Assistant) =>
@@ -440,26 +375,20 @@ export function ChatPane(props: { selectedId: string | null }) {
   };
   const regenerate = (m: Assistant) => {
     if (run) return;
+    const text = promptBefore(m.id);
+    if (!text) return;
     following.set(true);
-    const s =
-      m.script === "retry"
-        ? retried
-        : (scenarios.find((x) => x.id === m.script) ?? freeform(promptBefore(m.id), m.model));
-    void reply(
-      {
-        ...s,
-        model: m.model,
-        steps: s.steps.filter((step) => !("offline" in step || "fail" in step)),
-      },
-      m.id,
-    );
+    void (async () => {
+      try {
+        if (!sessionReady()) await connectSession();
+      } catch (error) {
+        showConnectError(error, m.id);
+        return;
+      }
+      await replyDsh(text, m.id);
+    })();
   };
-  const retry = (m: Assistant) => {
-    if (run) return;
-    following.set(true);
-    if (native) regenerate(m);
-    else void reply(retried, m.id);
-  };
+  const retry = (m: Assistant) => regenerate(m);
   const copy = (key: string, text: string) => {
     Clipboard.writeText(text);
     copied.set(key);
@@ -670,57 +599,16 @@ export function ChatPane(props: { selectedId: string | null }) {
           </Text>
           <Text style={{ fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: "center" }}>
             {native
-              ? "Chat with your local Claude or Codex CLI. Sign in to the CLI in a terminal first."
-              : "A simulated assistant: every reply is scripted and streamed locally."}
+              ? "Messages go to the official dsh Session through the local Host."
+              : "Dialogue needs the desktop Client connected to Host / dsh."}
           </Text>
         </View>
       </Appear>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        <Each of={featured}>
-          {(f, i) => {
-            const s = scenarios.find((x) => x.id === f().id)!;
-            return (
-              <View style={{ width: "47%", flexGrow: 1 }}>
-                <Appear index={i() + 1}>
-                  <Press onPress={() => play(s.id)} accessibilityLabel={s.chip}>
-                    <View
-                      style={{
-                        minHeight: 104,
-                        padding: 12,
-                        gap: 8,
-                        borderRadius: radius.inset,
-                        borderCurve: "continuous",
-                        backgroundColor: colors.surface,
-                        ...finish.card,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                      }}
-                    >
-                      <Icon name={f().icon} size={18} tint={colors.accent} />
-                      <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-                        {s.chip}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: colors.muted }}>{f().note}</Text>
-                    </View>
-                  </Press>
-                </Appear>
-              </View>
-            );
-          }}
-        </Each>
-      </View>
     </View>
   );
 
-  const chips = [
-    ...scenarios.map((s) => ({ id: s.id, label: s.chip })),
-    { id: "history", label: "Load a long conversation" },
-  ];
-
-  const menuRows: { id: string; glyph: "clip" | "regenerate"; label: string }[] = [
+  const menuRows: { id: string; glyph: "clip"; label: string }[] = [
     { id: "photo", glyph: "clip", label: "Choose a photo" },
-    { id: "attach", glyph: "clip", label: "Attach a photo and a file" },
-    ...chips.map((c) => ({ id: c.id, glyph: "regenerate" as const, label: c.label })),
   ];
 
   const pane = (
@@ -872,7 +760,7 @@ export function ChatPane(props: { selectedId: string | null }) {
             </View>
           </View>
 
-          {/* The "+" menu: attachments and the scenarios, to replay them. */}
+          {/* The "+" menu: attachments. */}
           <View
             onPress={() => menu.set(false)}
             style={{
@@ -921,21 +809,15 @@ export function ChatPane(props: { selectedId: string | null }) {
                   paddingBottom: 4,
                 }}
               >
-                ADD AND REPLAY
+                ADD
               </Text>
               <Scroll style={{ flexShrink: 1 }}>
                 <Each of={menuRows}>
-                  {(row, i) => (
+                  {(row) => (
                     <View
                       onPress={() => {
                         menu.set(false);
                         if (row().id === "photo") void choosePhoto();
-                        else if (row().id === "attach")
-                          attachment.set({
-                            image: photo,
-                            file: { name: "trip-notes.pdf", size: "2.4 MB" },
-                          });
-                        else play(row().id);
                       }}
                       activeStyle={{ backgroundColor: alpha(colors.text, 0.06) }}
                       role="button"
@@ -948,11 +830,7 @@ export function ChatPane(props: { selectedId: string | null }) {
                         paddingHorizontal: 16,
                       }}
                     >
-                      <Glyph
-                        name={row().glyph}
-                        size={16}
-                        tint={i() < 2 ? colors.accent : colors.muted}
-                      />
+                      <Glyph name={row().glyph} size={16} tint={colors.accent} />
                       <Text style={{ flex: 1, fontSize: 15, color: colors.text }}>
                         {row().label}
                       </Text>
@@ -963,45 +841,6 @@ export function ChatPane(props: { selectedId: string | null }) {
             </View>
           </View>
         </View>
-
-        {/* Suggestions while the conversation is empty. */}
-        <If when={!messages().length}>
-          <Scroll
-            horizontal
-            scrollbar={false}
-            keyboardShouldPersistTaps="handled"
-            style={{ flexGrow: 0 }}
-          >
-            <View
-              style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}
-            >
-              <Each of={chips}>
-                {(chip) => (
-                  <Press
-                    onPress={() => play(chip().id)}
-                    hitSlop={4}
-                    accessibilityLabel={chip().label}
-                  >
-                    <View
-                      style={{
-                        height: 36,
-                        paddingHorizontal: 14,
-                        borderRadius: 18,
-                        justifyContent: "center",
-                        ...finish.pill,
-                        borderWidth: 1,
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: "500", color: colors.text }}>
-                        {chip().label}
-                      </Text>
-                    </View>
-                  </Press>
-                )}
-              </Each>
-            </View>
-          </Scroll>
-        </If>
 
         {/* The composer. */}
         <View
@@ -1045,7 +884,7 @@ export function ChatPane(props: { selectedId: string | null }) {
               onSubmit={() => {
                 if (!streaming()) send();
               }}
-              placeholder={`Message ${native ? provider() : model()}`}
+              placeholder="Message Session"
               onFocus={() => menu.set(false)}
               onContentSizeChange={(e) =>
                 inputHeight.set(Math.min(100, Math.max(20, e.size.height)))
@@ -1079,7 +918,11 @@ export function ChatPane(props: { selectedId: string | null }) {
               </View>
               <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 8 }}>
                 <Text style={{ fontSize: 12, color: colors.muted }}>
-                  {native ? provider() : model()} · open Context to change
+                  {sessionReady()
+                    ? "Session connected"
+                    : sessionError()
+                      ? "Context 中启动 Host / 后台"
+                      : "Open Context to connect"}
                 </Text>
               </View>
               <If
@@ -1117,11 +960,9 @@ export function ChatPane(props: { selectedId: string | null }) {
       </View>
     </View>
   );
-  // Drive session from List / stack selection.
-  // play→submit reads/writes `messages`; must not track those or this effect loops.
+  // Clear local projection when selection / epoch changes.
   effect(() => {
-    const id = props.selectedId;
-    // Track New-chat bumps so re-clicking New while already empty still resets.
+    props.selectedId;
     chatEpoch();
     stop();
     batch(() => {
@@ -1130,8 +971,6 @@ export function ChatPane(props: { selectedId: string | null }) {
       menu.set(false);
       draft.set("");
     });
-    if (!id || id === "new") return;
-    untracked(() => play(id));
   });
 
   return pane;

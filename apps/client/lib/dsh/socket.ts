@@ -1,3 +1,4 @@
+import type { ConnectionWebSocket } from "@deepseek-ai/dsh-client-connection/client";
 import { CookieWebSocket, type Socket } from "myaid/native";
 
 /**
@@ -5,6 +6,10 @@ import { CookieWebSocket, type Socket } from "myaid/native";
  * Uses native CookieWebSocket — NSH 0.4 standard `websocket.connect` still refuses Cookie.
  */
 export class AuthenticatedSocket extends EventTarget {
+  declare addEventListener: EventTarget["addEventListener"] &
+    ConnectionWebSocket["addEventListener"];
+  declare removeEventListener: EventTarget["removeEventListener"] &
+    ConnectionWebSocket["removeEventListener"];
   readyState = 0;
   private socket?: Socket;
 
