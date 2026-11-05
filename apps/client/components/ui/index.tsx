@@ -17,7 +17,7 @@ import {
   safeArea,
   token,
 } from "nsh";
-import { Button as BaseButton, Sheet as BaseSheet, Switch, Tooltip } from "nsh/base";
+import { Button as BaseButton, Input, Sheet as BaseSheet, Switch, Tooltip } from "nsh/base";
 
 import { Icon, type IconName } from "./icons";
 import {
@@ -361,6 +361,53 @@ export function Legend(props: { color: string; label: string; value?: string }) 
           <Text style={{ color: colors.text, fontVariant: ["tabular-nums"] }}> {props.value}</Text>
         </If>
       </Text>
+    </View>
+  );
+}
+
+/** A single-line field. Locked values are text, so they are not editable inputs. */
+export function Field(props: {
+  label: string;
+  value: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  editable?: boolean;
+  testID?: string;
+}) {
+  const editable = () => props.editable !== false && !!props.onChange;
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>{props.label}</Text>
+      <If
+        when={editable()}
+        else={
+          <Text style={{ fontSize: 15, lineHeight: 22, color: colors.text, paddingVertical: 8 }}>
+            {props.value}
+          </Text>
+        }
+      >
+        <Input
+          testID={props.testID}
+          accessibilityLabel={props.label}
+          value={props.value}
+          placeholder={props.placeholder}
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChange={(event) => props.onChange?.(event.value)}
+          style={{
+            height: 40,
+            fontSize: 15,
+            color: colors.text,
+            backgroundColor: colors.field,
+            borderWidth: 1,
+            borderColor: colors.fieldBorder,
+            borderRadius: radius.control,
+            borderCurve: "continuous",
+            paddingHorizontal: 12,
+            placeholderColor: colors.faint,
+          }}
+        />
+      </If>
     </View>
   );
 }

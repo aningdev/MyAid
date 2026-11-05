@@ -12,7 +12,10 @@ export type DshLogin = {
   cookie: string;
 };
 
-/** Prefer explicit env; Host `connectionInfo` will supply this when Host is implemented. */
+/**
+ * Prefer explicit argument, then Host `connectionInfo` (async path via `resolveDshLoginUrl`),
+ * then `MYAID_DSH_LOGIN_URL` for manual smoke without Host.
+ */
 export function resolveLoginUrl(explicit?: string): string {
   const fromEnv =
     typeof process !== "undefined" &&
@@ -23,7 +26,7 @@ export function resolveLoginUrl(explicit?: string): string {
   const url = explicit?.trim() || fromEnv;
   if (!url) {
     throw new Error(
-      "缺少登录 URL：设置 MYAID_DSH_LOGIN_URL（http://127.0.0.1:<port>/?token=…）或待 Host connectionInfo 就绪",
+      "缺少登录 URL：请先经 Host 启动后台（connectionInfo），或设置 MYAID_DSH_LOGIN_URL",
     );
   }
   return url;

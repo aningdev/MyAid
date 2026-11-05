@@ -1,29 +1,29 @@
 import {
+  batch,
+  cleanup,
   computed,
   effect,
   List,
-  reduceMotion,
   Scroll,
   signal,
   Text,
-  untracked,
   View,
   type ListRef,
   type ViewStyle,
 } from "nsh";
 import { createAnimatedValue, LayoutAnimation } from "nsh";
+import { Clipboard } from "nsh";
 import { platform } from "nsh";
+import { Picker } from "nsh";
 import { keyboardFrame, safeAreaInsets } from "nsh";
-import { Input, Menu, MenuItem } from "nsh/base";
+import { Input } from "nsh/base";
 
-import { Icon, type IconName } from "../../components/ui";
 import {
   alpha,
   Appear,
   Badge,
   colors,
   finish,
-  focusRing,
   IconTile,
   motion,
   Press,
@@ -33,7 +33,6 @@ import {
 } from "../../components/ui";
 import { Glyph } from "./chat/glyphs";
 import { Markdown } from "./chat/markdown";
-import { createChatSession } from "./chat/session";
 import {
   ActionButton,
   Avatar,
@@ -45,98 +44,367 @@ import {
   Spinner,
   ToolCard,
 } from "./chat/parts";
-import { type Msg, photo, scenarios } from "./chat/scripts";
-import { chatEpoch, model as chatModel, provider as chatProvider, setModel } from "./state";
+import { type FileRef, type Model, type Msg, type Status, type Tool } from "./chat/scripts";
+import {
+  cancelSession,
+  connectSession,
+  openSession,
+  promptSession,
+  resetLocalProjection,
+  sessionError,
+  sessionReady,
+  subscribeSession,
+} from "./session/runtime";
+import { chatEpoch, model as chatModel, openContext } from "./state";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
 type User = Extract<Msg, { kind: "user" }>;
 
-const models = [
-  { value: "Swift", label: "Swift" },
-  { value: "Deep", label: "Deep" },
-  { value: "Vision", label: "Vision" },
-] as const;
-
-const providers = [
-  { value: "Claude", label: "Claude" },
-  { value: "Codex", label: "Codex" },
-] as const;
-
-const featured: { id: string; icon: IconName; note: string }[] = [
-  { id: "guide", icon: "text", note: "Markdown, a table, code" },
-  { id: "reason", icon: "spark", note: "Reasoning first" },
-  { id: "search", icon: "search", note: "A tool call" },
-  { id: "vision", icon: "image", note: "A photo and a file" },
-];
-
+/**
+ * Dialogue main pane — official Session follow/prompt projection.
+ */
 export function ChatPane(props: { selectedId: string | null }) {
   const column: ViewStyle = { width: "100%", maxWidth: 820, alignSelf: "center" };
   const insets = safeAreaInsets();
+  let ids = 0;
+  const nextId = () => `m${ids++}`;
+
+  const messages = signal<Msg[]>([]);
+  const model = chatModel;
   const native = platform.idiom === "desktop" && platform.os !== "web";
+  const useDsh = () => native && !!props.selectedId;
+  const draft = signal("");
+  const inputHeight = signal(20);
+  const attachment = signal<{ image: string; file: FileRef } | null>(null);
+  const menu = signal(false);
+  const banner = signal<"offline" | "online" | null>(null);
+  const bannerKind = signal<"offline" | "online">("offline");
+  /** The copied message or code block, for a moment. */
+  const copied = signal<string | null>(null);
+
+  // The reply being written. Finished replies are plain data in `messages`.
+  const liveId = signal<string | null>(null);
+  const liveReason = signal("");
+  const liveThinking = signal<{ start: number; seconds: number | null } | null>(null);
+  const liveTools = signal<Tool[]>([]);
+  const liveMd = signal("");
+  const now = signal(0);
+
+  /** Whether the user is at the bottom (the list then follows the stream
+   * natively, `maintainVisibleContentPosition`); scrolling up clears it. */
+  const following = signal(true);
   let list: ListRef | undefined;
   let dragging = false;
-  const following = signal(true);
-  const jumpToLatest = () => {
-    following.set(true);
-    list?.scrollToEnd({ animated: true });
-  };
-  const menu = signal(false);
-  const session = createChatSession({
-    native,
-    model: chatModel,
-    provider: chatProvider,
-    setModel,
-    scrollToEnd(animated) {
-      following.set(true);
-      list?.scrollToEnd({ animated });
-    },
-    followIfPinned() {
-      if (following()) list?.scrollToEnd({ animated: true });
-    },
-    closeMenu() {
-      menu.set(false);
-    },
-  });
-  const {
-    messages,
-    draft,
-    inputHeight,
-    attachment,
-    banner,
-    bannerKind,
-    copied,
-    liveId,
-    liveReason,
-    liveThinking,
-    liveTools,
-    liveMd,
-    now,
-    streaming,
-    canSend,
-    stop,
-    send,
-    choosePhoto,
-    play,
-    update,
-    regenerate,
-    retry,
-    copy,
-    clearTranscript,
-  } = session;
 
-    // Motion, run natively when the state changes.
+  type Run = {
+    id: string;
+    model: Model;
+    script: string;
+    cancelled: boolean;
+    /** True after follow reports a turn actually started (avoids idle-snapshot freeze). */
+    turned: boolean;
+    md: string;
+    reason: string;
+    thinkStart: number;
+    thinkSeconds: number | null;
+  };
+  let run: Run | null = null;
+
+  /** Scrolls to the end on the user's own action (send, jump, load). */
+  const toEnd = (animated = true) => {
+    following.set(true);
+    list?.scrollToEnd({ animated });
+  };
+
+  /** Freezes the reply into a message and ends the run. */
+  const freeze = (r: Run, status: Status, error?: string) => {
+    if (run !== r) return;
+    const seconds =
+      r.thinkSeconds ?? Math.max(1, Math.round((performance.now() - r.thinkStart) / 1000));
+    const final: Assistant = {
+      kind: "assistant",
+      id: r.id,
+      model: r.model,
+      script: r.script,
+      reasoning: r.reason ? { text: r.reason, seconds, open: false } : undefined,
+      tools: liveTools().map((t) =>
+        t.state === "done" ? t : ({ ...t, state: "cancelled" } as Tool),
+      ),
+      md: r.md,
+      status,
+      error,
+    };
+    run = null;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    batch(() => {
+      messages.set(messages().map((m) => (m.id === r.id ? final : m)));
+      liveId.set(null);
+    });
+    // The list follows the final layout natively; once the layout animation
+    // has settled, make sure a following list ends exactly at the bottom.
+    setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
+  };
+
+  const showConnectError = (error: unknown, at?: string) => {
+    const msg = error instanceof Error ? error.message : String(error);
+    const failId = at ?? nextId();
+    const failed: Assistant = {
+      kind: "assistant",
+      id: failId,
+      model: model(),
+      script: "dsh",
+      tools: [],
+      md: "",
+      status: "error",
+      error: msg,
+    };
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    batch(() => {
+      messages.set(
+        at
+          ? messages().map((m) => (m.id === at ? failed : m))
+          : [
+              ...(messages().length
+                ? messages()
+                : [{ kind: "date" as const, id: nextId(), label: "Today" }]),
+              failed,
+            ],
+      );
+      liveId.set(null);
+      liveMd.set("");
+    });
+    // Host / backend setup lives in Context — open it when connect fails.
+    if (/宿主|后台未|MYAID_DSH/.test(msg)) openContext();
+  };
+
+  /** Start a Session reply; `at` replaces that assistant bubble (retry / regenerate). */
+  const replyDsh = async (text: string, at?: string) => {
+    if (run) return;
+    const r: Run = {
+      id: at ?? nextId(),
+      model: model(),
+      script: "dsh",
+      cancelled: false,
+      turned: false,
+      md: "",
+      reason: "",
+      thinkStart: performance.now(),
+      thinkSeconds: null,
+    };
+    run = r;
+    const placeholder: Assistant = {
+      kind: "assistant",
+      id: r.id,
+      model: r.model,
+      script: r.script,
+      tools: [],
+      md: "",
+      status: "done",
+    };
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    batch(() => {
+      liveReason.set("");
+      liveThinking.set(null);
+      liveTools.set([]);
+      liveMd.set("");
+      liveId.set(r.id);
+      messages.set(
+        at ? messages().map((m) => (m.id === at ? placeholder : m)) : [...messages(), placeholder],
+      );
+    });
+    try {
+      await promptSession(text);
+    } catch (error) {
+      freeze(r, "error", error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const stop = () => {
+    if (!run) return;
+    run.cancelled = true;
+    if (useDsh()) void cancelSession();
+    freeze(run, "stopped");
+  };
+
+  cleanup(() => {
+    if (run) run.cancelled = true;
+  });
+
+  // Project official Session follow frames into the primary pane.
+  effect(() => {
+    if (!useDsh()) return;
+    const stopSub = subscribeSession((view) => {
+      const r = run;
+      if (!r || r.script !== "dsh") {
+        if (!r && view.messages.length) {
+          const projected: Msg[] = [
+            { kind: "date", id: nextId(), label: "Today" },
+            ...view.messages,
+          ];
+          if (view.running && view.liveMd) {
+            const live: Assistant = {
+              kind: "assistant",
+              id: `live-${Date.now()}`,
+              model: model(),
+              script: "dsh",
+              tools: [],
+              md: view.liveMd,
+              status: "done",
+            };
+            batch(() => {
+              messages.set([...projected, live]);
+              liveId.set(live.id);
+              liveMd.set(view.liveMd);
+            });
+          } else {
+            batch(() => {
+              messages.set(projected);
+              liveId.set(null);
+              liveMd.set("");
+            });
+          }
+        }
+        return;
+      }
+      if (view.running || view.liveMd) r.turned = true;
+      if (view.liveMd) {
+        r.md = view.liveMd;
+        liveMd.set(view.liveMd);
+      }
+      // Only freeze after a turn actually ran — idle follow snapshot must not
+      // cancel a prompt that has not started yet (first-send race).
+      if (!view.running && r.turned && r === run) {
+        freeze(
+          r,
+          view.status.includes("失败")
+            ? "error"
+            : view.status.includes("停止")
+              ? "stopped"
+              : "done",
+          view.status || undefined,
+        );
+      }
+    });
+    cleanup(stopSub);
+  });
+
+  effect(() => {
+    const id = props.selectedId;
+    chatEpoch();
+    if (!useDsh() || !id) return;
+    resetLocalProjection();
+    messages.set([]);
+    liveId.set(null);
+    liveMd.set("");
+    void openSession(id).catch(() => undefined);
+  });
+
+  effect(() => {
+    const err = sessionError();
+    if (useDsh() && err && run?.script === "dsh") {
+      freeze(run, "error", err);
+    }
+  });
+
+  const jumpToLatest = () => {
+    toEnd();
+  };
+
+  /** Sends the user's message into the official Session. */
+  const submit = async (text: string, image?: string, file?: FileRef) => {
+    if (run) return;
+    menu.set(false);
+    following.set(true);
+    if (!native) {
+      bannerKind.set("offline");
+      banner.set("offline");
+      return;
+    }
+    // Connect before mutating local messages so the idle follow snapshot
+    // cannot wipe the just-added user bubble / freeze a pending run.
+    try {
+      if (!sessionReady()) await connectSession();
+    } catch (error) {
+      showConnectError(error);
+      return;
+    }
+    if (run) return;
+    const user: User = { kind: "user", id: nextId(), text, image, file };
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    batch(() => {
+      const start: Msg[] = messages().length
+        ? []
+        : [{ kind: "date", id: nextId(), label: "Today" }];
+      messages.set([...messages(), ...start, user]);
+      draft.set("");
+      attachment.set(null);
+    });
+    toEnd();
+    await replyDsh(text);
+  };
+
+  const send = () => {
+    const text = draft().trim();
+    const a = attachment();
+    if (!text && !a) return;
+    void submit(text || "（附件）", a?.image, a?.file);
+  };
+
+  /** Attaches a photo from the system's picker: its bytes stay native, shown through a blob URL. */
+  const choosePhoto = async () => {
+    const [picked] = await Picker.pickImages({ maxDimension: 2048, quality: 0.85 });
+    if (!picked) return;
+    const { file } = picked;
+    const size =
+      file.size < 1024 * 1024
+        ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+        : `${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    attachment.set({ image: URL.createObjectURL(file), file: { name: file.name, size } });
+  };
+
+  const update = (id: string, change: (m: Assistant) => Assistant) =>
+    messages.set(messages().map((m) => (m.id === id && m.kind === "assistant" ? change(m) : m)));
+
+  const promptBefore = (id: string) => {
+    const all = messages();
+    for (let i = all.findIndex((m) => m.id === id) - 1; i >= 0; i--) {
+      const m = all[i];
+      if (m.kind === "user") return m.text;
+    }
+    return "";
+  };
+  const regenerate = (m: Assistant) => {
+    if (run) return;
+    const text = promptBefore(m.id);
+    if (!text) return;
+    following.set(true);
+    void (async () => {
+      try {
+        if (!sessionReady()) await connectSession();
+      } catch (error) {
+        showConnectError(error, m.id);
+        return;
+      }
+      await replyDsh(text, m.id);
+    })();
+  };
+  const retry = (m: Assistant) => regenerate(m);
+  const copy = (key: string, text: string) => {
+    Clipboard.writeText(text);
+    copied.set(key);
+    setTimeout(() => copied() === key && copied.set(null), 1600);
+  };
+
+  // Motion, run natively when the state changes.
   const jump = createAnimatedValue(0);
-  effect(() => {
-    const next = following() ? 0 : 1;
-    if (reduceMotion()) jump.set(next);
-    else jump.spring(next, motion.settle);
-  });
+  effect(() => void jump.spring(following() ? 0 : 1, motion.settle));
+  const menuValue = createAnimatedValue(0);
+  effect(() => void menuValue.spring(menu() ? 1 : 0, motion.settle));
   const bannerValue = createAnimatedValue(0);
-  effect(() => {
-    const next = banner() ? 1 : 0;
-    if (reduceMotion()) bannerValue.set(next);
-    else bannerValue.spring(next, motion.settle);
-  });
+  effect(() => void bannerValue.spring(banner() ? 1 : 0, motion.settle));
+
+  const streaming = () => liveId() !== null;
+  const canSend = () => !!draft().trim() || !!attachment();
 
   const userRow = (m: () => User) => (
     <View style={{ alignItems: "flex-end", paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
@@ -161,13 +429,13 @@ export function ChatPane(props: { selectedId: string | null }) {
             borderColor: colors.border,
           }}
         >
-          <Text class="text-base text-foreground">{m().text}</Text>
+          <Text style={{ fontSize: 15, lineHeight: 21, color: colors.text }}>{m().text}</Text>
         </View>
       </If>
       <If when={m().waiting}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Spinner size={12} tint={colors.warn} />
-          <Text class="text-xs text-muted-foreground">Waiting for a connection</Text>
+          <Text style={{ fontSize: 12, color: colors.muted }}>Waiting for a connection</Text>
         </View>
       </If>
     </View>
@@ -197,7 +465,7 @@ export function ChatPane(props: { selectedId: string | null }) {
       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, height: 26 }}>
           <Avatar />
-          <Text class="text-sm font-semibold text-muted-foreground" style={{ flex: 1 }}>
+          <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.muted }}>
             {m().script.startsWith("local:") ? m().script.slice(6) : m().model}
           </Text>
           <If when={!live() && m().status === "stopped"}>
@@ -234,7 +502,7 @@ export function ChatPane(props: { selectedId: string | null }) {
                 >
                   <Spinner size={14} tint={colors.muted} />
                 </If>
-                <Text class="text-sm text-muted-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+                <Text style={{ fontSize: 14, color: colors.muted, fontVariant: ["tabular-nums"] }}>
                   {thinkingLabel()}
                 </Text>
                 <View
@@ -252,7 +520,7 @@ export function ChatPane(props: { selectedId: string | null }) {
             <If when={reasoning()?.open}>
               <View style={{ flexDirection: "row", gap: 12, paddingLeft: 7 }}>
                 <View style={{ width: 2, borderRadius: 1, backgroundColor: colors.border }} />
-                <Text class="text-sm text-muted-foreground" style={{ flex: 1 }}>
+                <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: colors.muted }}>
                   {reasoning()?.text}
                 </Text>
               </View>
@@ -274,7 +542,7 @@ export function ChatPane(props: { selectedId: string | null }) {
         <If when={!live() && m().status === "stopped"}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Glyph name="stop" size={12} tint={colors.faint} />
-            <Text class="text-sm text-faint">You stopped this reply</Text>
+            <Text style={{ fontSize: 13, color: colors.faint }}>You stopped this reply</Text>
           </View>
         </If>
         <If when={!live() && m().status !== "error"}>
@@ -326,62 +594,21 @@ export function ChatPane(props: { selectedId: string | null }) {
       <Appear>
         <View style={{ alignItems: "center", gap: 12 }}>
           <IconTile name="spark" tint={colors.accent} size={56} />
-          <Text class="text-xl font-semibold text-foreground">
+          <Text style={{ fontSize: 22, fontWeight: "600", color: colors.text }}>
             How can I help?
           </Text>
-          <Text class="text-base text-center text-muted-foreground">
+          <Text style={{ fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: "center" }}>
             {native
-              ? "Chat with your local Claude or Codex CLI. Sign in to the CLI in a terminal first."
-              : "A simulated assistant: every reply is scripted and streamed locally."}
+              ? "Messages go to the official dsh Session through the local Host."
+              : "Dialogue needs the desktop Client connected to Host / dsh."}
           </Text>
         </View>
       </Appear>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        <Each of={featured}>
-          {(f, i) => {
-            const s = scenarios.find((x) => x.id === f().id)!;
-            return (
-              <View style={{ width: "47%", flexGrow: 1 }}>
-                <Appear index={i() + 1}>
-                  <Press onPress={() => play(s.id)} accessibilityLabel={s.chip}>
-                    <View
-                      style={{
-                        minHeight: 104,
-                        padding: 12,
-                        gap: 8,
-                        borderRadius: radius.inset,
-                        borderCurve: "continuous",
-                        backgroundColor: colors.surface,
-                        ...finish.card,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                      }}
-                    >
-                      <Icon name={f().icon} size={18} tint={colors.accent} />
-                      <Text class="text-sm font-semibold text-foreground">
-                        {s.chip}
-                      </Text>
-                      <Text class="text-xs text-muted-foreground">{f().note}</Text>
-                    </View>
-                  </Press>
-                </Appear>
-              </View>
-            );
-          }}
-        </Each>
-      </View>
     </View>
   );
 
-  const chips = [
-    ...scenarios.map((s) => ({ id: s.id, label: s.chip })),
-    { id: "history", label: "Load a long conversation" },
-  ];
-
-  const menuRows: { id: string; glyph: "clip" | "regenerate"; label: string }[] = [
+  const menuRows: { id: string; glyph: "clip"; label: string }[] = [
     { id: "photo", glyph: "clip", label: "Choose a photo" },
-    { id: "attach", glyph: "clip", label: "Attach a photo and a file" },
-    ...chips.map((c) => ({ id: c.id, glyph: "regenerate" as const, label: c.label })),
   ];
 
   const pane = (
@@ -521,10 +748,10 @@ export function ChatPane(props: { selectedId: string | null }) {
                 />
               </View>
               <View style={{ flex: 1, gap: 1 }}>
-                <Text class="text-sm font-semibold text-foreground">
+                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
                   {bannerKind() === "offline" ? "You're offline" : "Back online"}
                 </Text>
-                <Text class="text-sm text-muted-foreground">
+                <Text style={{ fontSize: 13, color: colors.muted }}>
                   {bannerKind() === "offline"
                     ? "Your message sends when the connection returns."
                     : "Sending your message."}
@@ -533,46 +760,87 @@ export function ChatPane(props: { selectedId: string | null }) {
             </View>
           </View>
 
-        </View>
-
-        {/* Suggestions while the conversation is empty. */}
-        <If when={!messages().length}>
-          <Scroll
-            horizontal
-            scrollbar={false}
-            keyboardShouldPersistTaps="handled"
-            style={{ flexGrow: 0 }}
+          {/* The "+" menu: attachments. */}
+          <View
+            onPress={() => menu.set(false)}
+            style={{
+              pointerEvents: menu() ? "auto" : "none",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.45)",
+              opacity: menuValue,
+            }}
+          />
+          <View
+            style={{
+              pointerEvents: menu() ? "auto" : "none",
+              position: "absolute",
+              left: 16,
+              right: 16,
+              bottom: 8,
+              opacity: menuValue,
+              transform: [
+                { translateY: menuValue.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
+                { scale: menuValue.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
+              ],
+            }}
           >
             <View
-              style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}
+              style={{
+                borderRadius: radius.card,
+                borderCurve: "continuous",
+                ...finish.menu,
+                borderWidth: 1,
+                paddingVertical: 6,
+                maxHeight: 460,
+                overflow: "hidden",
+              }}
             >
-              <Each of={chips}>
-                {(chip) => (
-                  <Press
-                    onPress={() => play(chip().id)}
-                    hitSlop={4}
-                    accessibilityLabel={chip().label}
-                  >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: colors.faint,
+                  paddingHorizontal: 16,
+                  paddingTop: 8,
+                  paddingBottom: 4,
+                }}
+              >
+                ADD
+              </Text>
+              <Scroll style={{ flexShrink: 1 }}>
+                <Each of={menuRows}>
+                  {(row) => (
                     <View
+                      onPress={() => {
+                        menu.set(false);
+                        if (row().id === "photo") void choosePhoto();
+                      }}
+                      activeStyle={{ backgroundColor: alpha(colors.text, 0.06) }}
+                      role="button"
+                      accessibilityLabel={row().label}
                       style={{
-                        height: 36,
-                        paddingHorizontal: 14,
-                        borderRadius: 18,
-                        justifyContent: "center",
-                        ...finish.pill,
-                        borderWidth: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                        height: 48,
+                        paddingHorizontal: 16,
                       }}
                     >
-                      <Text class="text-sm font-medium text-foreground">
-                        {chip().label}
+                      <Glyph name={row().glyph} size={16} tint={colors.accent} />
+                      <Text style={{ flex: 1, fontSize: 15, color: colors.text }}>
+                        {row().label}
                       </Text>
                     </View>
-                  </Press>
-                )}
-              </Each>
+                  )}
+                </Each>
+              </Scroll>
             </View>
-          </Scroll>
-        </If>
+          </View>
+        </View>
 
         {/* The composer. */}
         <View
@@ -616,77 +884,45 @@ export function ChatPane(props: { selectedId: string | null }) {
               onSubmit={() => {
                 if (!streaming()) send();
               }}
-              placeholder={`Message ${native ? chatProvider() : chatModel()}`}
+              placeholder="Message Session"
               onFocus={() => menu.set(false)}
               onContentSizeChange={(e) =>
                 inputHeight.set(Math.min(100, Math.max(20, e.size.height)))
               }
-              class="text-base text-foreground px-2.5 py-2.5"
               style={{
                 placeholderColor: colors.faint,
                 selectionColor: colors.accent,
                 height: inputHeight() + 20,
+                fontSize: 15,
+                lineHeight: 20,
+                color: colors.text,
+                paddingHorizontal: 10,
+                paddingVertical: 10,
               }}
             />
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Menu
-                open={menu()}
-                onOpenChange={(event) => menu.set(event.open)}
-                placement="top"
-                align="start"
-                offset={8}
-                popupClass="border-border bg-popover max-h-96 min-w-64 overflow-hidden rounded-(--radius) border p-1"
-                backdropClass="bg-overlay"
-                trigger={
-                  <View
-                    accessibilityLabel="Add"
-                    focusStyle={focusRing()}
-                    class="border-border bg-secondary size-11 items-center justify-center rounded-full border"
-                    style={{
-                      transform: [{ rotate: menu() ? "45deg" : "0deg" }],
-                      transitionProperty: "transform",
-                      transitionDuration: reduceMotion() ? 0 : 200,
-                    }}
-                  >
-                    <Icon name="plus" size={18} tint={colors.text} />
-                  </View>
-                }
+              <View
+                style={{
+                  transform: [{ rotate: menu() ? "45deg" : "0deg" }],
+                  transitionProperty: "transform",
+                  transitionDuration: 200,
+                  transitionTimingFunction: "ease-out",
+                }}
               >
-                <Text class="text-muted-foreground px-3 pb-1 pt-2 text-xs font-medium">
-                  Add and replay
-                </Text>
-                <Scroll class="max-h-80">
-                  <Each of={menuRows} key={(row) => row.id}>
-                    {(row, i) => (
-                      <MenuItem
-                        class="hover:bg-accent active:bg-accent min-h-11 rounded-(--radius) px-3"
-                        accessibilityLabel={row().label}
-                        onSelect={() => {
-                          if (row().id === "photo") void choosePhoto();
-                          else if (row().id === "attach")
-                            attachment.set({
-                              image: photo,
-                              file: { name: "trip-notes.pdf", size: "2.4 MB" },
-                            });
-                          else play(row().id);
-                        }}
-                      >
-                        <View class="flex-row items-center gap-3">
-                          <Glyph
-                            name={row().glyph}
-                            size={16}
-                            tint={i() < 2 ? colors.accent : colors.muted}
-                          />
-                          <Text class="text-popover-foreground text-base">{row().label}</Text>
-                        </View>
-                      </MenuItem>
-                    )}
-                  </Each>
-                </Scroll>
-              </Menu>
+                <RoundButton
+                  icon="plus"
+                  label="Add"
+                  variant="secondary"
+                  onPress={() => menu.set(!menu())}
+                />
+              </View>
               <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 8 }}>
-                <Text class="text-xs text-muted-foreground">
-                  {native ? chatProvider() : chatModel()} · open Context to change
+                <Text style={{ fontSize: 12, color: colors.muted }}>
+                  {sessionReady()
+                    ? "Session connected"
+                    : sessionError()
+                      ? "Context 中启动 Host / 后台"
+                      : "Open Context to connect"}
                 </Text>
               </View>
               <If
@@ -724,18 +960,16 @@ export function ChatPane(props: { selectedId: string | null }) {
       </View>
     </View>
   );
-  // Drive session from List / stack selection.
-  // play→submit reads/writes `messages`; must not track those or this effect loops.
+  // Clear local projection when selection / epoch changes.
   effect(() => {
-    const id = props.selectedId;
-    // Track New-chat bumps so re-clicking New while already empty still resets.
-    // The reset writes messages; reading them here would rerun this effect.
+    props.selectedId;
     chatEpoch();
-    untracked(() => {
+    stop();
+    batch(() => {
+      messages.set([]);
+      attachment.set(null);
       menu.set(false);
-      clearTranscript();
-      if (!id || id === "new") return;
-      play(id);
+      draft.set("");
     });
   });
 

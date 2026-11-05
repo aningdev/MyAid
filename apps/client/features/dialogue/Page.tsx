@@ -58,6 +58,7 @@ function DesktopMainHeader() {
   return (
     <View
       class="min-h-12 shrink-0 flex-row items-center gap-2 px-4"
+      desktop={{ windowDrag: true }}
       style={{
         borderBottomWidth: 1,
         borderBottomColor: colors.line,

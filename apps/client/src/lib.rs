@@ -2,11 +2,14 @@
 //!
 //! - Shell demo: Badge / Format / Counter (from `nsh init --template mixed`)
 //! - DSH auth gap: CookieWebSocket (NSH 0.4 still refuses Cookie on standard WS)
+//! - Host control: Unix socket lifecycle adapter
 
 mod cookie_websocket;
+mod host_control;
 mod shell_demo;
 
 pub use cookie_websocket::{CookieWebSocket, Socket};
+pub use host_control::{HostControl, HostWatch};
 pub use shell_demo::{Badge, Counter, Format};
 
 use nsh_core::prelude::*;
@@ -19,5 +22,7 @@ fn native(registry: &mut Registry) {
         .module::<Format>()
         .class::<Counter>()
         .module::<CookieWebSocket>()
-        .class::<Socket>();
+        .class::<Socket>()
+        .module::<HostControl>()
+        .class::<HostWatch>();
 }

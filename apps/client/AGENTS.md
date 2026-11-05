@@ -4,6 +4,8 @@
 
 ## 参考源（实现前）
 
+- **设计**（选组件、布局、视觉、交互、文案前）：[Design Guides](../../references/nsh/website/docs/design-guides.md)。
+- **编码**（状态、响应式、组件边界、焦点、列表、异步前）：[Coding Guides](../../references/nsh/website/docs/coding-guides.md)。先读 Design Guides。本仓目录以本文「布局（NSH mixed）」为准。
 - **组件与样式**：`references/nsh/examples/nsh-gallery-ui`（样式化基础层）、`references/nsh/examples/gallery`（用法 / 交互 demo）、`references/nsh/website`（elements / modules 文档与 demos）。
 - **类型与运行时**：安装版 `.nsh/types/`；生产代码只用安装版 NSH 模块。
 - **dsh 能力面**（非 UI）：需要对话 / Session / 工具 / 审批等行为时，先对照官方 `dsh web` 与只读 `references/deepseek-harness` 的能力与 Remote；NSH 侧自建产品 UI，不移植 harness Web GUI。
@@ -45,8 +47,10 @@
 ## dsh 认证传输
 
 - NSH **0.4** 标准 `websocket.connect` **仍拒绝** Cookie 握手头；官方 `/api/remote.mux` 必须经原生 [`CookieWebSocket`](src/cookie_websocket/)（导出在 `myaid/native`）。
-- TS：[`lib/dsh/`](lib/dsh/) — `AuthenticatedSocket`、`fetchSessionCookie`、`smokeDshAuthTransport`。说明见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
+- TS：[`lib/dsh/`](lib/dsh/) — `AuthenticatedSocket`、Connection/Session Facade、`smokeDshAuthTransport`。Host 控制：[`lib/host/`](lib/host/) + 原生 `HostControl`。说明见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
 - HTTP `/connect` 用标准 `fetch`（可设 Cookie 响应头解析）；勿把认证 URL/token 写入公开 Host status。
+- Dialogue 主会话（`primary`）走官方 Session；gallery demos 仅作演示，不新建 Harness Session。
+- 官方 `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下是 ModuleLoader 产物，**无** ESM `installConnection`。做法：`bun run prepare:sdk` 用 Node 条件打出 `lib/dsh/sdk.js`；`nsh.json` 另设 `resolve.conditions: ["node"]` 作兜底。`dev` / `check` / `build` / `test` 均会先 prepare。
 
 ## 原生接口与权限
 

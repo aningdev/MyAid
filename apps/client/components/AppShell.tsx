@@ -25,8 +25,7 @@ function useHiddenTitleBar() {
 
 /**
  * Narrow-window title strip (MobileShell when hasWindow; no Rail).
- * Desktop wide layout does not use a sibling strip — columns fill the window
- * and drag via windowDrag on Rail / content (see DesktopShell).
+ * Only this strip + NavRail empty band drag the window — never the content tree.
  */
 function NarrowWindowChrome() {
   return (
@@ -64,7 +63,8 @@ function ModuleHost() {
 
 /**
  * Wide desktop: Rail | content fill the window edge-to-edge under hidden title bar.
- * Drag/zoom: windowDrag on Rail and the content column (press targets stay clickable).
+ * Drag regions: NavRail empty band + per-page headers (`windowDrag`). Never the
+ * whole content column — that made every click drag the window.
  * Traffic lights clear via Rail paddingTop; Win/GTK caption via content paddingTop.
  */
 function DesktopShell() {
@@ -81,7 +81,6 @@ function DesktopShell() {
     >
       <NavRail />
       <View
-        desktop={{ windowDrag: true }}
         style={{
           flex: 1,
           minWidth: 0,

@@ -14,6 +14,7 @@ export function WorkspacePageHeader(props: {
   return (
     <View
       class="min-h-12 flex-row items-center gap-2 px-3"
+      desktop={{ windowDrag: true }}
       style={{
         backgroundColor: colors.background,
         borderBottomWidth: 1,

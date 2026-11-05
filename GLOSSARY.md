@@ -4,10 +4,10 @@
 
 ## 产品与运行时
 
-**Assistant / Bot（助手档案）**：具有稳定身份、名称、模板引用、工作区与会话指针的对象；桌面持有，对应唯一持续对话。  
+**Assistant / Bot（助手档案）**：某个 Bot template 的实例。具有稳定身份、名称、模板引用、工作区与会话指针；桌面持有，对应唯一持续对话。初始化时绑定模板当时的 Agent preset id；单独配置能力后改用该 Bot 自己的派生 preset id。  
 _Avoid_：独立进程、profile 别名、Agent 引擎本身
 
-**Bot template（模板）**：具名指令与能力组合，以稳定模板 ID 引用；ID ≠ 永久内容快照。
+**Bot template（模板）**：稳定的产品模板 ID，映射到一个 DSH Agent preset id。模板 ID 不是 preset 正文的快照；未初始化的 Bot 跟随模板当前的 preset id。
 
 **Profile（装配单元）**：Harness 命名运行组合；多个助手共用一个 `web` profile。  
 _Avoid_：每助手一个后台

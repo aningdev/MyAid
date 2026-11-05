@@ -41,7 +41,8 @@ vp run @myaid/client#package:web
 
 ## Host socket（仅本机桌面）
 
-`MYAID_HOST_SOCKET` 只由 `dev` / `dev:macos` 注入（默认 `~/.myaid/host/control.sock`，可覆盖）。  
+日常联调请从**仓库根** `bun run dev`：会像 dsh-bot 一样先确保 Host，再起本包 `dev`。  
+`MYAID_HOST_SOCKET` 由根 `scripts/dev.mjs` 与本包 `dev` / `dev:macos` 注入（默认 `~/.myaid/host/control.sock`，可覆盖）。  
 `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` **不注入**——移动端经 Relay，不走本机 Host 控制通道。
 
 dsh 本机认证（NSH 0.4 仍需 CookieWebSocket）：见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。

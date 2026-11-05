@@ -33,14 +33,20 @@ dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
 ```sh
 bun install
 bun run check   # 或 vp run check：vp check --fix → plugin check → nsh check → cargo check
-bun run dev     # apps/client: nsh run App.tsx（不自动拉起 host/dsh）
+bun run dev     # scripts/dev.mjs：探测/拉起 Host，再起 NSH Client（对齐 dsh-bot）
 bun run test
 bun run build   # plugin + client（`vp run --filter @myaid/client... build`）
 ```
 
 数据根：`~/.myaid`（`DSH_HOME`）。根与包的 `package.json` scripts 保留；根脚本用 `vp run pkg#task` / `--filter` 调度包脚本（[Run](https://viteplus.dev/guide/run)）。Git hooks：已有 [`.vite-hooks/pre-commit`](.vite-hooks/pre-commit) → `vp staged`（根未挂 `prepare` → `vp config --hooks`）。完整门禁仍是 `bun run check` / CI。详见 [Commit Hooks](https://viteplus.dev/guide/commit-hooks)。
 
-Host 开发入口尚未做成根 script；直接在 `apps/host` 用 Cargo 跑骨架即可。
+`bun run dev` 会确保 `~/.myaid/host/control.sock` 上的 Host 可用，再启动客户端；打开 Dialogue / 发消息时会自动 `ensureDsh(userStart)` 拉起官方后台。仅起 Client：`bun run dev:client`。仅起 Host：`bun run host:dev`。
+
+```sh
+# 冒烟：apps/host/scripts/smoke-control.sh
+```
+
+客户端 `dev` / `dev:macos` 已注入 `MYAID_HOST_SOCKET`；Dialogue 主会话经 Host `connectionInfo` 连接官方 Session。
 
 ## 有意省略
 

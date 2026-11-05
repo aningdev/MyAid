@@ -1,15 +1,7 @@
-//! Local host control Interface (empty shell + principle-level protocol).
+//! Local host control Interface: Unix socket + shared protocol.
 
 mod protocol;
+mod server;
 
-pub use protocol::{MAX_FRAME, PROTOCOL, Request, Status};
-
-use crate::{Config, Result};
-
-pub fn serve(config: Config) -> Result<()> {
-    let _idle = Status::stopped("0.0.0-placeholder");
-    Err(format!(
-        "myaid-host empty shell: serve not implemented (data_root={}, protocol={PROTOCOL})",
-        config.data_root
-    ))
-}
+pub use protocol::{MAX_FRAME, PROTOCOL, Request, Status, call, decode_response, read_frame};
+pub use server::serve;

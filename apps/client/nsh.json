@@ -7,6 +7,9 @@
   "rust": ".",
   "appearance": "system",
   "theme": "theme.json",
+  "resolve": {
+    "conditions": ["node"]
+  },
   "capabilities": {
     "network": {
       "hosts": ["127.0.0.1", "picsum.photos"]
