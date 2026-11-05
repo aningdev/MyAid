@@ -1,8 +1,7 @@
 //! Process ownership: spawn guardian, parse ready, stop/restart, retry budget.
 
-use super::{logs, state::Durable};
+use super::{logs, process_tree, state::Durable};
 use crate::{Config, Result, Status, generation, now};
-use std::os::unix::process::CommandExt;
 use std::{
     io::{BufRead, BufReader},
     process::{Child, ChildStdin, Command, Stdio},
@@ -146,8 +145,8 @@ impl DshProcess {
             .args(self.config.arguments())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .process_group(0);
+            .stderr(Stdio::piped());
+        process_tree::configure(&mut command);
         let mut child = command
             .spawn()
             .map_err(|_| "不能启动后台 guardian".to_string())?;

@@ -9,5 +9,8 @@ mod runtime;
 
 pub use config::{CliSource, Config, STARTUP_TIMEOUT};
 pub type Result<T> = std::result::Result<T, String>;
-pub use host_control::{MAX_FRAME, PROTOCOL, Request, Status, call, decode_response, read_frame};
+pub use host_control::{
+    MAX_FRAME, PROTOCOL, Request, Status, call, decode_response, default_endpoint, read_frame,
+};
+pub use host_control::transport::LocalStream;
 pub use runtime::{generation, now, private_dir, private_file};

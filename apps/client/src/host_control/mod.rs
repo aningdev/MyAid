@@ -13,13 +13,23 @@ pub struct HostControl;
 fn socket_path() -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("MYAID_HOST_SOCKET") {
         let path = PathBuf::from(path);
-        if !path.is_absolute() {
-            return Err("宿主 socket 必须是绝对路径".into());
+        #[cfg(windows)]
+        {
+            let text = path.to_string_lossy();
+            if !(text.starts_with(r"\\.\pipe\") || text.starts_with("//./pipe/")) {
+                return Err("宿主端点必须是 \\\\.\\pipe\\... 命名管道路径".into());
+            }
+            return Ok(path);
         }
-        return Ok(path);
+        #[cfg(not(windows))]
+        {
+            if !path.is_absolute() {
+                return Err("宿主 socket 必须是绝对路径".into());
+            }
+            return Ok(path);
+        }
     }
-    let home = std::env::var("HOME").map_err(|_| "No home directory")?;
-    Ok(PathBuf::from(home).join(".myaid/host/control.sock"))
+    Ok(myaid_host::default_endpoint())
 }
 
 #[module]
@@ -27,7 +37,7 @@ impl HostControl {
     /// Whether the private Unix endpoint currently accepts connections.
     pub async fn reachable() -> Result<bool, String> {
         let socket = socket_path()?;
-        tokio::task::spawn_blocking(move || std::os::unix::net::UnixStream::connect(socket).is_ok())
+        tokio::task::spawn_blocking(move || myaid_host::LocalStream::connect(&socket).is_ok())
             .await
             .map_err(|_| "宿主端点检查中断".to_string())
     }

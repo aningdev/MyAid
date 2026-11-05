@@ -3,9 +3,11 @@
 use crate::{Config, Result, private_file};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, File},
+    fs,
     io::{self, Write},
 };
+#[cfg(unix)]
+use std::fs::File;
 
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -34,8 +36,13 @@ impl Durable {
             .map_err(|e| e.to_string())?;
         file.sync_all().map_err(|e| e.to_string())?;
         fs::rename(&temp, config.runtime().join("state.json")).map_err(|e| e.to_string())?;
+        // Directory fsync is Unix-oriented; Windows rejects opening directories as files.
+        #[cfg(unix)]
         File::open(config.runtime())
             .and_then(|file| file.sync_all())
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        let _ = config;
+        Ok(())
     }
 }

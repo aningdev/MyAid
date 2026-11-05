@@ -1,18 +1,13 @@
 //! Private socket listener, peer checks, request dispatch and status subscriptions.
 
-use super::{MAX_FRAME, PROTOCOL, Request, read_frame};
+use super::{
+    MAX_FRAME, PROTOCOL, Request, read_frame,
+    transport::{LocalListener, LocalStream, write_endpoint_marker},
+};
 use crate::{Config, Result, dsh_process::Lifecycle, private_file};
 use fs2::FileExt;
 use std::{
-    fs,
     io::{BufReader, Write},
-    os::{
-        fd::AsRawFd,
-        unix::{
-            fs::PermissionsExt,
-            net::{UnixListener, UnixStream},
-        },
-    },
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -21,34 +16,8 @@ use std::{
     time::Duration,
 };
 
-fn same_user(stream: &UnixStream) -> bool {
-    #[cfg(target_os = "macos")]
-    {
-        let mut uid = 0;
-        let mut gid = 0;
-        unsafe {
-            libc::getpeereid(stream.as_raw_fd(), &mut uid, &mut gid) == 0 && uid == libc::geteuid()
-        }
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let mut cred: libc::ucred = unsafe { std::mem::zeroed() };
-        let mut size = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
-        unsafe {
-            libc::getsockopt(
-                stream.as_raw_fd(),
-                libc::SOL_SOCKET,
-                libc::SO_PEERCRED,
-                &mut cred as *mut _ as *mut _,
-                &mut size,
-            ) == 0
-                && cred.uid == libc::geteuid()
-        }
-    }
-}
-
 fn response<T: serde::Serialize>(
-    stream: &mut UnixStream,
+    stream: &mut LocalStream,
     id: &str,
     value: Result<T>,
 ) -> Result<()> {
@@ -66,8 +35,8 @@ fn response<T: serde::Serialize>(
         .map_err(|e| e.to_string())
 }
 
-fn handle(mut stream: UnixStream, lifecycle: Lifecycle, exit: &AtomicBool) -> Result<()> {
-    if !same_user(&stream) {
+fn handle(mut stream: LocalStream, lifecycle: Lifecycle, exit: &AtomicBool) -> Result<()> {
+    if !stream.same_user() {
         return Err("Peer user rejected".into());
     }
     stream
@@ -93,20 +62,11 @@ fn handle(mut stream: UnixStream, lifecycle: Lifecycle, exit: &AtomicBool) -> Re
                     response(&mut stream, &request.id, Ok(snapshot))?;
                     previous = encoded;
                 }
-                let mut byte = [0u8; 1];
-                let result = unsafe {
-                    libc::recv(
-                        stream.as_raw_fd(),
-                        byte.as_mut_ptr() as *mut _,
-                        1,
-                        libc::MSG_PEEK | libc::MSG_DONTWAIT,
-                    )
-                };
-                if result == 0 {
-                    return Ok(());
-                }
-                if result > 0 {
-                    return Err("Watch accepts only one request".into());
+                match stream.peek_byte() {
+                    Ok(0) => return Ok(()),
+                    Ok(_) => return Err("Watch accepts only one request".into()),
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+                    Err(_) => return Ok(()),
                 }
                 thread::sleep(Duration::from_millis(50));
             }
@@ -129,12 +89,12 @@ pub fn serve(config: Config, exit: &'static AtomicBool) -> Result<()> {
     lock.try_lock_exclusive()
         .map_err(|_| "此数据根已有宿主运行".to_string())?;
     let socket = config.socket();
+    #[cfg(unix)]
     if socket.exists() {
-        fs::remove_file(&socket).map_err(|e| e.to_string())?;
+        std::fs::remove_file(&socket).map_err(|e| e.to_string())?;
     }
-    let listener = UnixListener::bind(&socket).map_err(|e| e.to_string())?;
-    fs::set_permissions(&socket, fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
-    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+    let listener = LocalListener::bind(&socket)?;
+    write_endpoint_marker(&config.runtime(), &socket)?;
     let lifecycle = Lifecycle::new(config)?;
     let active = Arc::new(AtomicUsize::new(0));
     let monitor_lifecycle = lifecycle.clone();
@@ -148,7 +108,7 @@ pub fn serve(config: Config, exit: &'static AtomicBool) -> Result<()> {
     });
     while !exit.load(Ordering::Acquire) {
         match listener.accept() {
-            Ok((stream, _)) => {
+            Ok(stream) => {
                 if active.fetch_add(1, Ordering::AcqRel) >= 32 {
                     active.fetch_sub(1, Ordering::AcqRel);
                     drop(stream);
@@ -168,7 +128,8 @@ pub fn serve(config: Config, exit: &'static AtomicBool) -> Result<()> {
         }
     }
     drop(listener);
-    let _ = fs::remove_file(socket);
+    #[cfg(unix)]
+    let _ = std::fs::remove_file(socket);
     let _ = monitor.join();
     drop(lifecycle);
     drop(lock);

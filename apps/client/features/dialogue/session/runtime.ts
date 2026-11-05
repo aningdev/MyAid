@@ -119,10 +119,16 @@ export type SessionView = {
   running: boolean;
   status: string;
   liveMd: string;
+  liveReason: string;
+  liveTools: ReturnType<SessionProjector["snapshot"]>["liveTools"];
   liveId: string | null;
 };
 
 const listeners = new Set<(view: SessionView) => void>();
+
+function liveBusy(snap: ReturnType<SessionProjector["snapshot"]>): boolean {
+  return !!(snap.liveMd || snap.liveReason || snap.liveTools.length);
+}
 
 function emit() {
   const snap = projector.snapshot();
@@ -131,7 +137,9 @@ function emit() {
     running: snap.running,
     status: snap.status,
     liveMd: snap.liveMd,
-    liveId: snap.running && snap.liveMd ? liveAssistantId : null,
+    liveReason: snap.liveReason,
+    liveTools: snap.liveTools,
+    liveId: snap.running && liveBusy(snap) ? liveAssistantId : null,
   };
   for (const listener of listeners) listener(view);
 }
@@ -144,6 +152,8 @@ export function subscribeSession(listener: (view: SessionView) => void): () => v
     running: snap.running,
     status: snap.status,
     liveMd: snap.liveMd,
+    liveReason: snap.liveReason,
+    liveTools: snap.liveTools,
     liveId: liveAssistantId,
   });
   return () => {

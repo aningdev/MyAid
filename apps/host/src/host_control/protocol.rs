@@ -1,12 +1,12 @@
 //! Shared local HostControl protocol and receiver validation.
 
+use super::transport::LocalStream;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::{
-    io::{BufRead, BufReader, Read, Write},
-    os::unix::net::UnixStream,
+    io::{BufRead, Read, Write},
     path::Path,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 /// Wire protocol version.
@@ -144,6 +144,24 @@ pub fn read_frame(reader: &mut impl BufRead) -> Result<String> {
     String::from_utf8(bytes).map_err(|_| "Invalid UTF-8 frame".into())
 }
 
+fn read_frame_deadline(stream: &mut LocalStream, deadline: Instant) -> Result<String> {
+    let mut bytes = Vec::new();
+    let mut buf = [0u8; 256];
+    while bytes.len() <= MAX_FRAME && !bytes.ends_with(b"\n") {
+        let n = stream
+            .read_with_deadline(&mut buf, deadline)
+            .map_err(|e| e.to_string())?;
+        if n == 0 {
+            return Err("Host frame missing or too large".into());
+        }
+        bytes.extend_from_slice(&buf[..n]);
+    }
+    if bytes.len() > MAX_FRAME || !bytes.ends_with(b"\n") {
+        return Err("Host frame missing or too large".into());
+    }
+    String::from_utf8(bytes).map_err(|_| "Invalid UTF-8 frame".into())
+}
+
 /// Shared receiver validation for one-shot replies and status subscriptions.
 pub fn decode_response(text: &str, id: &str, connection_info: bool) -> Result<Status> {
     #[derive(Deserialize)]
@@ -174,7 +192,7 @@ pub fn call(socket: &Path, request: &serde_json::Value) -> Result<Status> {
         serde_json::from_value(request.clone()).map_err(|_| "Invalid request fields")?;
     validated.validate()?;
     let connection_info = validated.operation == "connectionInfo";
-    let mut stream = UnixStream::connect(socket).map_err(|_| "后台宿主尚未运行".to_string())?;
+    let mut stream = LocalStream::connect(socket)?;
     stream
         .set_read_timeout(Some(Duration::from_secs(30)))
         .map_err(|e| e.to_string())?;
@@ -189,7 +207,8 @@ pub fn call(socket: &Path, request: &serde_json::Value) -> Result<Status> {
         .write_all(&bytes)
         .and_then(|_| stream.write_all(b"\n"))
         .map_err(|e| e.to_string())?;
-    let text = read_frame(&mut BufReader::new(stream))?;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let text = read_frame_deadline(&mut stream, deadline)?;
     decode_response(&text, &validated.id, connection_info)
 }
 

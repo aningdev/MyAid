@@ -4,8 +4,6 @@ use super::socket_path;
 use nsh_core::prelude::*;
 use std::{
     io::{BufReader, Write},
-    net::Shutdown,
-    os::unix::net::UnixStream,
     sync::Arc,
     time::Duration,
 };
@@ -14,7 +12,8 @@ use tokio::sync::{Mutex, mpsc};
 pub(super) async fn open() -> Result<HostWatch, String> {
     let socket = socket_path()?;
     tokio::task::spawn_blocking(move || {
-        let mut stream = UnixStream::connect(socket).map_err(|_| "后台宿主尚未运行".to_string())?;
+        let mut stream =
+            myaid_host::LocalStream::connect(&socket).map_err(|_| "后台宿主尚未运行".to_string())?;
         stream
             .set_write_timeout(Some(Duration::from_secs(3)))
             .map_err(|e| e.to_string())?;
@@ -56,13 +55,13 @@ pub(super) async fn open() -> Result<HostWatch, String> {
 /// A bounded, disposable host state subscription.
 #[class]
 pub struct HostWatch {
-    cancel: UnixStream,
+    cancel: myaid_host::LocalStream,
     incoming: Arc<Mutex<mpsc::Receiver<Result<String, String>>>>,
 }
 
 impl Drop for HostWatch {
     fn drop(&mut self) {
-        let _ = self.cancel.shutdown(Shutdown::Both);
+        self.cancel.shutdown();
     }
 }
 
@@ -83,6 +82,6 @@ impl HostWatch {
 
     /// Release the socket; repeated calls are harmless.
     pub fn close(&self) {
-        let _ = self.cancel.shutdown(Shutdown::Both);
+        self.cancel.shutdown();
     }
 }

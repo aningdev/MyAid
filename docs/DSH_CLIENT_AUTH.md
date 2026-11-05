@@ -10,7 +10,7 @@
 | TS 适配  | `apps/client/lib/dsh/socket.ts`（`AuthenticatedSocket`）                             |
 | 引导     | `apps/client/lib/dsh/auth.ts`（`/connect` 换 Cookie → mux）                          |
 
-数据根：`~/.myaid`（`DSH_HOME`）。控制 socket：`~/.myaid/host/control.sock`。
+数据根：`~/.myaid`（`DSH_HOME`）。控制端点：Unix `~/.myaid/host/control.sock`；Windows `\\.\pipe\myaid-host`（`MYAID_HOST_SOCKET` 可覆盖）。
 
 ## 本地跑通
 

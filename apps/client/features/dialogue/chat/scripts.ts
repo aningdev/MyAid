@@ -26,6 +26,15 @@ export type Tool =
       code: string;
       output: string;
       ms: number;
+    }
+  | {
+      id: string;
+      kind: "generic";
+      state: ToolState;
+      name: string;
+      arguments: string;
+      result?: string;
+      isError?: boolean;
     };
 
 export type FileRef = { name: string; size: string };

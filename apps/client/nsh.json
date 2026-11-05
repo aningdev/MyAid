@@ -15,7 +15,7 @@
       "hosts": ["127.0.0.1", "picsum.photos"]
     },
     "fs": {
-      "read": ["/"],
+      "read": ["${homeDir}/.myaid", "${dataDir}", "${pluginDir}"],
       "write": ["${homeDir}/.myaid", "${dataDir}"]
     },
     "process": {

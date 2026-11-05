@@ -1,62 +1,35 @@
 //! Owns the lifecycle lock until the old dsh process group is fully reaped.
 
-use super::environment::environment;
+use super::{
+    environment::environment,
+    process_tree::{self, Job},
+};
 use crate::{Config, Result, private_file};
 use fs2::FileExt;
 use std::{
     io::{self, Read, Write},
-    os::unix::process::CommandExt,
-    process::{Child, Command, Stdio},
+    process::{Child, Stdio},
     sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
 
 pub(super) fn alive_group(pid: u32) -> bool {
-    unsafe {
-        libc::kill(-(pid as i32), 0) == 0
-            || io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
-    }
+    process_tree::alive(pid)
 }
 
-fn signal_group(pid: u32, signal: i32) {
-    unsafe {
-        libc::kill(-(pid as i32), signal);
-    }
+pub(super) fn reap(child: &mut Child, job: &Job) -> Result<()> {
+    process_tree::reap(child, job)
 }
 
-pub(super) fn reap(child: &mut Child) -> Result<()> {
-    let pid = child.id();
-    signal_group(pid, libc::SIGTERM);
-    let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
-        let _ = child.try_wait();
-        if !alive_group(pid) {
-            let _ = child.wait();
-            return Ok(());
-        }
-        if Instant::now() >= deadline {
-            break;
-        }
-        thread::sleep(Duration::from_millis(25));
-    }
-    signal_group(pid, libc::SIGKILL);
-    let _ = child.wait();
-    let deadline = Instant::now() + Duration::from_secs(3);
-    while alive_group(pid) {
-        if Instant::now() >= deadline {
-            return Err("旧 dsh 进程组未确认退出，保持生命周期锁".into());
-        }
-        thread::sleep(Duration::from_millis(25));
-    }
-    Ok(())
+struct GuardedChild {
+    child: Child,
+    job: Job,
 }
-
-struct GuardedChild(Child);
 
 impl Drop for GuardedChild {
     fn drop(&mut self) {
-        while let Err(reason) = reap(&mut self.0) {
+        while let Err(reason) = reap(&mut self.child, &self.job) {
             eprintln!("{reason}");
             thread::sleep(Duration::from_secs(1));
         }
@@ -86,42 +59,29 @@ pub fn run(config: &Config) -> Result<()> {
     if rx.try_recv().is_ok() {
         return Ok(());
     }
-    let mut command = Command::new(cli);
+    let mut command = super::environment::command_for_cli(&cli);
     command
-        .args([
-            "web",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "0",
-            "--no-open",
-        ])
+        .args(["web", "--host", "127.0.0.1", "--port", "0", "--no-open"])
         .env_clear()
         .envs(env)
         .current_dir(&config.root)
         .stdin(Stdio::null())
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .process_group(0);
-    unsafe {
-        command.pre_exec(|| {
-            libc::signal(libc::SIGTERM, libc::SIG_DFL);
-            libc::signal(libc::SIGINT, libc::SIG_DFL);
-            Ok(())
-        });
-    }
-    let mut child = GuardedChild(
-        command
-            .spawn()
-            .map_err(|_| "无法启动官方 dsh".to_string())?,
-    );
-    let _ = writeln!(io::stdout(), "dsh-host-pid: {}", child.0.id());
+        .stderr(Stdio::inherit());
+    process_tree::configure(&mut command);
+    process_tree::reset_signals(&mut command);
+    let child = command
+        .spawn()
+        .map_err(|_| "无法启动官方 dsh".to_string())?;
+    let job = process_tree::attach(&child)?;
+    let mut child = GuardedChild { child, job };
+    let _ = writeln!(io::stdout(), "dsh-host-pid: {}", child.child.id());
     let _ = io::stdout().flush();
     loop {
         if rx.try_recv().is_ok() {
             break;
         }
-        if child.0.try_wait().map_err(|e| e.to_string())?.is_some() {
+        if child.child.try_wait().map_err(|e| e.to_string())?.is_some() {
             let _ = writeln!(io::stdout(), "dsh-host-exited");
             let _ = io::stdout().flush();
             break;

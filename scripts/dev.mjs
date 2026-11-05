@@ -9,7 +9,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const defaultSocket = join(homedir(), ".myaid/host/control.sock");
+const defaultSocket =
+  process.platform === "win32"
+    ? String.raw`\\.\pipe\myaid-host`
+    : join(homedir(), ".myaid/host/control.sock");
 const socket = process.env.MYAID_HOST_SOCKET || defaultSocket;
 /** @type {import('node:child_process').ChildProcess | undefined} */
 let host;

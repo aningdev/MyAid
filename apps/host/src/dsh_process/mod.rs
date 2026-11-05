@@ -4,6 +4,7 @@ mod environment;
 mod guardian;
 mod lifecycle;
 mod logs;
+mod process_tree;
 mod state;
 
 use crate::{Config, Result, Status};

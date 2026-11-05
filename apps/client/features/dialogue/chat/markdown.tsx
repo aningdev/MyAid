@@ -1,12 +1,14 @@
 import { type JSX, signal } from "nsh";
 import { TextView, type TextViewImage } from "nsh/base";
 
-import { colors, font } from "../../../components/ui";
+import { colors } from "../../../components/ui";
 import { ImageViewer } from "../ImageViewer";
 
 /**
  * A reply's Markdown, shown by `TextView` at a chat's scale (its default
  * typography otherwise, in the theme's colors).
+ *
+ * Aligned with `references/nsh/examples/gallery/demos/chat/markdown.tsx`.
  *
  * While a reply streams (`streaming`), syntax its end leaves open shows as
  * if closed and only the block being written renders again; `caret` is
@@ -34,19 +36,19 @@ export function Markdown(props: {
         codeBlockScrollbar={false}
         streamingCaret={props.caret}
         styles={{
-          // A chat's scale: tighter than a document's.
-          root: { gap: 12, fontSize: font.base, color: colors.text },
-          heading1: { fontSize: font.xl },
-          heading2: { fontSize: font.lg },
-          heading3: { fontSize: font.base },
+          // A chat's scale: tighter than a document's. (gallery Chat demo)
+          root: { gap: 12, fontSize: 15, lineHeight: 22, color: colors.text },
+          heading1: { fontSize: 20, lineHeight: 26 },
+          heading2: { fontSize: 17, lineHeight: 22 },
+          heading3: { fontSize: 15, lineHeight: 22 },
           code: { color: colors.code },
           codeBlockCode: { color: colors.code },
           link: { color: colors.accent },
         }}
         codeBlockActions={[{ id: "copy", label: "Copy code" }]}
-        onImagePress={(e) => {
+        onImagePress={(event) => {
           used.set(true);
-          viewing.set(e.image);
+          viewing.set(event.image);
         }}
       />
       {used() ? <ImageViewer image={viewing()} onClose={() => viewing.set(null)} /> : null}

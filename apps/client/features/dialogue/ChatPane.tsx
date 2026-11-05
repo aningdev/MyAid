@@ -64,7 +64,11 @@ type User = Extract<Msg, { kind: "user" }>;
  * Dialogue main pane — official Session follow/prompt projection.
  */
 export function ChatPane(props: { selectedId: string | null }) {
-  const column: ViewStyle = { width: "100%", maxWidth: 820, alignSelf: "center" };
+  const wide = platform.idiom === "desktop";
+  /** Desktop: messages and the composer in a centered column. */
+  const column: ViewStyle = wide
+    ? { width: "100%", maxWidth: 820, alignSelf: "center" }
+    : {};
   const insets = safeAreaInsets();
   let ids = 0;
   const nextId = () => `m${ids++}`;
@@ -109,6 +113,12 @@ export function ChatPane(props: { selectedId: string | null }) {
     thinkSeconds: number | null;
   };
   let run: Run | null = null;
+  let ticker: ReturnType<typeof setInterval> | undefined;
+
+  // Absolute live strings collect here and reach the signals once per frame.
+  let pendingMd: string | null = null;
+  let pendingReason: string | null = null;
+  let frameQueued = false;
 
   /** Scrolls to the end on the user's own action (send, jump, load). */
   const toEnd = (animated = true) => {
@@ -116,11 +126,72 @@ export function ChatPane(props: { selectedId: string | null }) {
     list?.scrollToEnd({ animated });
   };
 
+  const stopTicker = () => {
+    if (ticker !== undefined) clearInterval(ticker);
+    ticker = undefined;
+  };
+
+  const flushLive = () => {
+    frameQueued = false;
+    const r = run;
+    batch(() => {
+      if (pendingReason !== null) {
+        if (r) r.reason = pendingReason;
+        liveReason.set(pendingReason);
+        pendingReason = null;
+      }
+      if (pendingMd !== null) {
+        if (r) r.md = pendingMd;
+        liveMd.set(pendingMd);
+        pendingMd = null;
+      }
+    });
+  };
+
+  const queueLive = () => {
+    if (frameQueued) return;
+    frameQueued = true;
+    requestAnimationFrame(flushLive);
+  };
+
+  const clearLiveSignals = () => {
+    pendingMd = pendingReason = null;
+    frameQueued = false;
+    liveReason.set("");
+    liveThinking.set(null);
+    liveTools.set([]);
+    liveMd.set("");
+  };
+
+  const noteReasoning = (reason: string, r: Run | null) => {
+    if (!reason) return;
+    if (r) r.reason = reason;
+    if (!liveThinking()) {
+      const start = r?.thinkStart ?? performance.now();
+      now.set(start);
+      liveThinking.set({ start, seconds: null });
+      stopTicker();
+      ticker = setInterval(() => now.set(performance.now()), 1000);
+    }
+  };
+
+  const noteReasoningDone = (r: Run | null) => {
+    const thinking = liveThinking();
+    if (!thinking || thinking.seconds !== null) return;
+    const seconds = Math.max(1, Math.round((performance.now() - thinking.start) / 1000));
+    if (r) r.thinkSeconds = seconds;
+    stopTicker();
+    liveThinking.set({ start: thinking.start, seconds });
+  };
+
   /** Freezes the reply into a message and ends the run. */
   const freeze = (r: Run, status: Status, error?: string) => {
     if (run !== r) return;
+    flushLive();
+    stopTicker();
     const seconds =
-      r.thinkSeconds ?? Math.max(1, Math.round((performance.now() - r.thinkStart) / 1000));
+      r.thinkSeconds ??
+      (r.reason ? Math.max(1, Math.round((performance.now() - r.thinkStart) / 1000)) : 1);
     const final: Assistant = {
       kind: "assistant",
       id: r.id,
@@ -171,7 +242,7 @@ export function ChatPane(props: { selectedId: string | null }) {
             ],
       );
       liveId.set(null);
-      liveMd.set("");
+      clearLiveSignals();
     });
     // Host / backend setup lives in Context — open it when connect fails.
     if (/宿主|后台未|MYAID_DSH/.test(msg)) openContext();
@@ -203,10 +274,7 @@ export function ChatPane(props: { selectedId: string | null }) {
     };
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     batch(() => {
-      liveReason.set("");
-      liveThinking.set(null);
-      liveTools.set([]);
-      liveMd.set("");
+      clearLiveSignals();
       liveId.set(r.id);
       messages.set(
         at ? messages().map((m) => (m.id === at ? placeholder : m)) : [...messages(), placeholder],
@@ -237,19 +305,23 @@ export function ChatPane(props: { selectedId: string | null }) {
     if (!useDsh()) return;
     const stopSub = subscribeSession((view) => {
       const r = run;
+      const liveBusy = !!(view.liveMd || view.liveReason || view.liveTools.length);
       if (!r || r.script !== "dsh") {
         if (!r && view.messages.length) {
           const projected: Msg[] = [
             { kind: "date", id: nextId(), label: "Today" },
             ...view.messages,
           ];
-          if (view.running && view.liveMd) {
+          if (view.running && liveBusy) {
             const live: Assistant = {
               kind: "assistant",
               id: `live-${Date.now()}`,
               model: model(),
               script: "dsh",
-              tools: [],
+              reasoning: view.liveReason
+                ? { text: view.liveReason, seconds: 1, open: true }
+                : undefined,
+              tools: view.liveTools,
               md: view.liveMd,
               status: "done",
             };
@@ -257,25 +329,59 @@ export function ChatPane(props: { selectedId: string | null }) {
               messages.set([...projected, live]);
               liveId.set(live.id);
               liveMd.set(view.liveMd);
+              liveReason.set(view.liveReason);
+              liveTools.set(view.liveTools);
             });
           } else {
             batch(() => {
               messages.set(projected);
               liveId.set(null);
-              liveMd.set("");
+              clearLiveSignals();
             });
           }
         }
         return;
       }
-      if (view.running || view.liveMd) r.turned = true;
+      if (view.running || liveBusy) r.turned = true;
+      if (view.liveTools.length) liveTools.set(view.liveTools);
+      if (view.liveReason) {
+        pendingReason = view.liveReason;
+        noteReasoning(view.liveReason, r);
+        queueLive();
+      }
       if (view.liveMd) {
-        r.md = view.liveMd;
-        liveMd.set(view.liveMd);
+        if (view.liveReason || r.reason) noteReasoningDone(r);
+        pendingMd = view.liveMd;
+        queueLive();
       }
       // Only freeze after a turn actually ran — idle follow snapshot must not
       // cancel a prompt that has not started yet (first-send race).
       if (!view.running && r.turned && r === run) {
+        flushLive();
+        // Projection is source of truth (gallery Chat freezes from accumulated
+        // tokens; dsh follow may settle via assistant/message with fuller text).
+        const finalized = [...view.messages]
+          .reverse()
+          .find(
+            (item): item is Assistant =>
+              item.kind === "assistant" &&
+              (item.md.length > 0 || item.tools.length > 0 || !!item.reasoning),
+          );
+        if (finalized) {
+          if (finalized.md) r.md = finalized.md;
+          else if (view.liveMd) r.md = view.liveMd;
+          if (finalized.reasoning) {
+            r.reason = finalized.reasoning.text;
+            r.thinkSeconds = finalized.reasoning.seconds;
+          } else if (view.liveReason) {
+            r.reason = view.liveReason;
+          }
+          liveTools.set(finalized.tools.length ? finalized.tools : view.liveTools);
+        } else {
+          if (view.liveMd) r.md = view.liveMd;
+          if (view.liveReason) r.reason = view.liveReason;
+          if (view.liveTools.length) liveTools.set(view.liveTools);
+        }
         freeze(
           r,
           view.status.includes("失败")
@@ -285,6 +391,17 @@ export function ChatPane(props: { selectedId: string | null }) {
               : "done",
           view.status || undefined,
         );
+        // Replace local run bubble with projected history so reopen/reload match.
+        if (view.messages.length) {
+          batch(() => {
+            messages.set([
+              { kind: "date", id: nextId(), label: "Today" },
+              ...view.messages,
+            ]);
+            liveId.set(null);
+            clearLiveSignals();
+          });
+        }
       }
     });
     cleanup(stopSub);
@@ -295,11 +412,14 @@ export function ChatPane(props: { selectedId: string | null }) {
     chatEpoch();
     if (!useDsh() || !id) return;
     resetLocalProjection();
+    stopTicker();
     messages.set([]);
     liveId.set(null);
-    liveMd.set("");
+    clearLiveSignals();
     void openSession(id).catch(() => undefined);
   });
+
+  cleanup(stopTicker);
 
   effect(() => {
     const err = sessionError();
@@ -439,7 +559,9 @@ export function ChatPane(props: { selectedId: string | null }) {
             borderColor: colors.border,
           }}
         >
-          <Text style={{ fontSize: 15, lineHeight: 21, color: colors.text }}>{m().text}</Text>
+          <Text style={{ userSelect: "text", fontSize: 15, lineHeight: 21, color: colors.text }}>
+            {m().text}
+          </Text>
         </View>
       </If>
       <If when={m().waiting}>
@@ -530,7 +652,15 @@ export function ChatPane(props: { selectedId: string | null }) {
             <If when={reasoning()?.open}>
               <View style={{ flexDirection: "row", gap: 12, paddingLeft: 7 }}>
                 <View style={{ width: 2, borderRadius: 1, backgroundColor: colors.border }} />
-                <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: colors.muted }}>
+                <Text
+                  style={{
+                    userSelect: "text",
+                    flex: 1,
+                    fontSize: 14,
+                    lineHeight: 20,
+                    color: colors.muted,
+                  }}
+                >
                   {reasoning()?.text}
                 </Text>
               </View>
@@ -901,6 +1031,7 @@ export function ChatPane(props: { selectedId: string | null }) {
               }
               style={{
                 placeholderColor: colors.faint,
+                caretColor: colors.accent,
                 selectionColor: colors.accent,
                 height: inputHeight() + 20,
                 fontSize: 15,

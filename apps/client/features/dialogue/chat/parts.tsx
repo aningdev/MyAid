@@ -6,6 +6,8 @@ import {
   Badge,
   colors,
   finish,
+  isDark,
+  mono,
   Press,
   radius,
   type Tone,
@@ -113,9 +115,7 @@ export function DateSeparator(props: { label: string }) {
       }}
     >
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
-      <Text class="text-xs font-medium" style={{ color: colors.faint }}>
-        {props.label}
-      </Text>
+      <Text style={{ fontSize: 12, fontWeight: "500", color: colors.faint }}>{props.label}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
     </View>
   );
@@ -153,10 +153,10 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         <Glyph name="file" size={16} tint={colors.danger} />
       </View>
       <View style={{ gap: 1 }}>
-        <Text class="text-sm text-foreground" style={{ numberOfLines: 1, maxWidth: 170 }}>
+        <Text style={{ numberOfLines: 1, maxWidth: 170, fontSize: 14, color: colors.text }}>
           {props.file.name}
         </Text>
-        <Text class="text-xs text-muted-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+        <Text style={{ fontSize: 12, color: colors.muted, fontVariant: ["tabular-nums"] }}>
           {(props.file.name.split(".").pop() ?? "file").toUpperCase()} · {props.file.size}
         </Text>
       </View>
@@ -212,6 +212,19 @@ const stateTone: Record<ToolState, Tone> = {
   cancelled: "warn",
 };
 
+function truncate(value: string, max = 80): string {
+  const one = value.replace(/\s+/g, " ").trim();
+  return one.length > max ? `${one.slice(0, max - 1)}…` : one;
+}
+
+const monoBody = (): { userSelect: "text"; fontFamily: string; fontSize: number; lineHeight: number; color: string } => ({
+  userSelect: "text",
+  fontFamily: mono,
+  fontSize: 12,
+  lineHeight: 18,
+  color: isDark() ? "#c9cdd3" : colors.code,
+});
+
 /** A tool call: a header with its state, then its result once done. */
 export function ToolCard(props: { tool: Tool }) {
   const t = () => props.tool;
@@ -219,6 +232,13 @@ export function ToolCard(props: { tool: Tool }) {
     const tool = t();
     if (tool.kind === "search") return { glyph: "globe", title: "Web search", detail: tool.query };
     if (tool.kind === "weather") return { glyph: "sun", title: "Weather", detail: tool.city };
+    if (tool.kind === "generic") {
+      return {
+        glyph: "terminal",
+        title: tool.name,
+        detail: truncate(tool.arguments) || "No arguments",
+      };
+    }
     return { glyph: "terminal", title: "Run code", detail: `${tool.lang}, sandboxed` };
   };
   return (
@@ -229,7 +249,12 @@ export function ToolCard(props: { tool: Tool }) {
         borderRadius: radius.inset,
         borderCurve: "continuous",
         borderWidth: 1,
-        borderColor: t().state === "running" ? alpha(colors.info, 0.4) : colors.border,
+        borderColor:
+          t().state === "running"
+            ? isDark()
+              ? "#33405a"
+              : alpha(colors.info, 0.4)
+            : colors.border,
         transitionProperty: "colors",
         transitionDuration: 250,
         overflow: "hidden",
@@ -252,12 +277,8 @@ export function ToolCard(props: { tool: Tool }) {
           <Glyph name={head().glyph} size={16} tint={colors.text} />
         </View>
         <View style={{ flex: 1, gap: 1 }}>
-          <Text class="text-sm font-semibold text-foreground">
-            {head().title}
-          </Text>
-          <Text class="text-sm text-muted-foreground" style={{ numberOfLines: 1 }}>
-            {head().detail}
-          </Text>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>{head().title}</Text>
+          <Text style={{ numberOfLines: 1, fontSize: 13, color: colors.muted }}>{head().detail}</Text>
         </View>
         <If
           when={t().state === "running" || t().state === "pending"}
@@ -265,7 +286,7 @@ export function ToolCard(props: { tool: Tool }) {
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Spinner tint={t().state === "pending" ? colors.faint : colors.info} />
-            <Text class="text-sm text-muted-foreground">{stateLabel[t().state]}</Text>
+            <Text style={{ fontSize: 13, color: colors.muted }}>{stateLabel[t().state]}</Text>
           </View>
         </If>
       </View>
@@ -280,6 +301,7 @@ function ToolBody(props: { tool: Tool }) {
   const search = () => props.tool as Extract<Tool, { kind: "search" }>;
   const weather = () => props.tool as Extract<Tool, { kind: "weather" }>;
   const code = () => props.tool as Extract<Tool, { kind: "code" }>;
+  const generic = () => props.tool as Extract<Tool, { kind: "generic" }>;
   if (kind === "search")
     return (
       <If when={search().state === "done"}>
@@ -296,14 +318,19 @@ function ToolBody(props: { tool: Tool }) {
         <View style={{ borderTopWidth: 1, borderTopColor: colors.line, padding: 12, gap: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 12 }}>
             <Text
-              class="text-4xl font-semibold text-foreground"
-              style={{ fontVariant: ["tabular-nums"] }}
+              style={{
+                fontSize: 40,
+                fontWeight: "600",
+                color: colors.text,
+                fontVariant: ["tabular-nums"],
+                letterSpacing: -1,
+              }}
             >
               {weather().temp}°
             </Text>
             <View style={{ flex: 1, paddingBottom: 7, gap: 2 }}>
-              <Text class="text-base text-foreground">{weather().condition}</Text>
-              <Text class="text-sm text-muted-foreground" style={{ fontVariant: ["tabular-nums"] }}>
+              <Text style={{ fontSize: 15, color: colors.text }}>{weather().condition}</Text>
+              <Text style={{ fontSize: 13, color: colors.muted, fontVariant: ["tabular-nums"] }}>
                 H {weather().high}° L {weather().low}°
               </Text>
             </View>
@@ -320,10 +347,7 @@ function ToolBody(props: { tool: Tool }) {
                       backgroundColor: i() === 0 ? colors.warn : colors.raised,
                     }}
                   />
-                  <Text
-                    class="text-xs text-faint"
-                    style={{ fontVariant: ["tabular-nums"] }}
-                  >
+                  <Text style={{ fontSize: 11, color: colors.faint, fontVariant: ["tabular-nums"] }}>
                     {(17 + i()) % 24}h
                   </Text>
                 </View>
@@ -333,12 +357,46 @@ function ToolBody(props: { tool: Tool }) {
         </View>
       </If>
     );
+  if (kind === "generic")
+    return (
+      <View style={{ borderTopWidth: 1, borderTopColor: colors.line }}>
+        <If when={!!generic().arguments}>
+          <View style={{ padding: 12, backgroundColor: colors.inset }}>
+            <Text style={monoBody()}>{generic().arguments}</Text>
+          </View>
+        </If>
+        <If when={generic().state === "done" || generic().state === "cancelled"}>
+          <View
+            style={{
+              gap: 6,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              borderTopWidth: 1,
+              borderTopColor: colors.line,
+            }}
+          >
+            <Text style={{ fontSize: 13, color: colors.muted }}>
+              {generic().isError ? "Error" : "Output"}
+            </Text>
+            <Text
+              style={{
+                userSelect: "text",
+                fontFamily: mono,
+                fontSize: 14,
+                lineHeight: 20,
+                color: generic().isError ? colors.danger : colors.up,
+              }}
+            >
+              {generic().result?.trim() || (generic().isError ? "Tool failed." : "(empty)")}
+            </Text>
+          </View>
+        </If>
+      </View>
+    );
   return (
     <View style={{ borderTopWidth: 1, borderTopColor: colors.line }}>
       <View style={{ padding: 12, backgroundColor: colors.inset }}>
-        <Text class="text-xs font-mono" style={{ color: colors.code }}>
-          {code().code}
-        </Text>
+        <Text style={monoBody()}>{code().code}</Text>
       </View>
       <If when={code().state === "done"}>
         <View
@@ -352,11 +410,19 @@ function ToolBody(props: { tool: Tool }) {
             borderTopColor: colors.line,
           }}
         >
-          <Text class="text-sm text-muted-foreground">Output</Text>
-          <Text class="text-sm font-mono text-success" style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, color: colors.muted }}>Output</Text>
+          <Text
+            style={{
+              userSelect: "text",
+              flex: 1,
+              fontFamily: mono,
+              fontSize: 14,
+              color: colors.up,
+            }}
+          >
             {code().output}
           </Text>
-          <Text class="text-xs text-faint" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
             exit 0 · {code().ms} ms
           </Text>
         </View>
@@ -386,17 +452,17 @@ function SourceRow(props: { source: Source; index: number }) {
           justifyContent: "center",
         }}
       >
-        <Text class="text-xs font-bold" style={{ color: toneColor(props.source.tone) }}>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: toneColor(props.source.tone) }}>
           {props.source.site[0].toUpperCase()}
         </Text>
       </View>
       <View style={{ flex: 1, gap: 1 }}>
-        <Text class="text-sm text-foreground" style={{ numberOfLines: 1 }}>
+        <Text style={{ numberOfLines: 1, fontSize: 14, color: colors.text }}>
           {props.source.title}
         </Text>
-        <Text class="text-xs text-faint">{props.source.site}</Text>
+        <Text style={{ fontSize: 12, color: colors.faint }}>{props.source.site}</Text>
       </View>
-      <Text class="text-xs text-faint" style={{ fontVariant: ["tabular-nums"] }}>
+      <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
         {props.index + 1}
       </Text>
     </View>
@@ -420,9 +486,7 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
       }}
     >
       <Glyph name="alert" size={18} tint={colors.danger} />
-      <Text class="text-sm text-foreground" style={{ flex: 1 }}>
-        {props.message}
-      </Text>
+      <Text style={{ flex: 1, fontSize: 14, color: colors.text }}>{props.message}</Text>
       <Press onPress={props.onRetry} accessibilityLabel="Retry">
         <View
           style={{
@@ -437,7 +501,7 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
           }}
         >
           <Glyph name="regenerate" size={14} tint={colors.onLight} />
-          <Text class="text-sm font-semibold text-primary-foreground">Retry</Text>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.onLight }}>Retry</Text>
         </View>
       </Press>
     </View>

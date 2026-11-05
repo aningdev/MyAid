@@ -1,6 +1,6 @@
 //! Validated host paths and launch configuration.
 
-use crate::{Result, private_dir};
+use crate::{Result, private_dir, runtime::home_dir};
 use std::{path::PathBuf, time::Duration};
 
 /// Default startup deadline when unset.
@@ -31,13 +31,23 @@ impl Config {
     }
 
     pub fn socket(&self) -> PathBuf {
-        self.runtime().join("control.sock")
+        if let Some(path) = std::env::var_os("MYAID_HOST_SOCKET") {
+            return PathBuf::from(path);
+        }
+        #[cfg(windows)]
+        {
+            let _ = self;
+            PathBuf::from(r"\\.\pipe\myaid-host")
+        }
+        #[cfg(not(windows))]
+        {
+            self.runtime().join("control.sock")
+        }
     }
 
     /// Product defaults: `~/.myaid`, official dsh, embedded version pin.
     pub fn product() -> Result<Self> {
-        let home = std::env::var("HOME").map_err(|_| "无法确定用户目录".to_string())?;
-        let root = PathBuf::from(home).join(".myaid");
+        let root = home_dir()?.join(".myaid");
         let config = Self {
             logs: root.join("logs"),
             root,

@@ -93,7 +93,7 @@ export const colors: Palette = tokens<keyof Palette>({
   onLight: "primary-foreground",
   track: "muted",
   knob: "card",
-  code: "foreground",
+  code: "code",
   info: "info",
   warn: "warning",
   danger: "destructive",

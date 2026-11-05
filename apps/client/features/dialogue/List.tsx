@@ -1,6 +1,6 @@
 import { effect, Text, View } from "nsh";
 
-import { Button, colors, finish, hovered, Icon, Press, radius } from "../../components/ui";
+import { alpha, Button, colors, finish, hovered, Icon, Press, radius } from "../../components/ui";
 import { registry } from "../bots/state";
 import { openMain } from "./nav";
 import { openBotSessions, openModule, openOwningBot } from "./navigate";
@@ -145,7 +145,7 @@ export function DialogueList() {
                   paddingVertical: 9,
                   borderRadius: radius.control,
                   gap: 8,
-                  backgroundColor: active() ? colors.raised : "transparent",
+                  backgroundColor: active() ? colors.accentFill : "transparent",
                 }}
               >
                 <View
@@ -166,12 +166,19 @@ export function DialogueList() {
                     style={{
                       fontSize: 14,
                       fontWeight: active() ? "600" : "400",
-                      color: colors.text,
+                      color: active() ? colors.onAccent : colors.text,
                     }}
                   >
                     {row().label}
                   </Text>
-                  <Text style={{ fontSize: 12, color: colors.muted }}>{row().detail}</Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: active() ? alpha(colors.onAccent, 0.78) : colors.muted,
+                    }}
+                  >
+                    {row().detail}
+                  </Text>
                 </View>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <Button

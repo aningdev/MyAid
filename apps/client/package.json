@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "prepare:sdk": "bun ./scripts/prepare-sdk.mjs",
-    "dev": "bun run prepare:sdk && env MYAID_HOST_SOCKET=\"${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock}\" nsh run App.tsx",
-    "dev:macos": "bun run prepare:sdk && env MYAID_HOST_SOCKET=\"${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock}\" nsh run App.tsx --target macos",
+    "dev": "bun run prepare:sdk && bun ./scripts/run-with-host-socket.mjs nsh run App.tsx",
+    "dev:macos": "bun run prepare:sdk && bun ./scripts/run-with-host-socket.mjs nsh run App.tsx --target macos",
     "dev:web": "bun run prepare:sdk && nsh run App.tsx --target web",
     "dev:ios": "bun run prepare:sdk && nsh run App.tsx --target ios",
     "dev:android": "bun run prepare:sdk && nsh run App.tsx --target android",
