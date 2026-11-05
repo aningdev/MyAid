@@ -2,7 +2,7 @@
 
 本文从本机参考仓库 `~/Code/dsh-bot` 提炼 **DeepSeek Harness / 官方 `dsh` 集成原则**，以 MyAid 命名落地。不复制 dsh-bot 的对话工作台业务实现或 DeepSeek 产品品牌文案。
 
-权威展开见 [ARCHITECTURE.md](ARCHITECTURE.md)、[BLUEPRINT.md](BLUEPRINT.md)、[GLOSSARY.md](../GLOSSARY.md)；约束见根 [AGENTS.md](../AGENTS.md)。
+权威展开见 [ARCHITECTURE.md](ARCHITECTURE.md)、[BLUEPRINT.md](BLUEPRINT.md)、[GLOSSARY.md](../GLOSSARY.md)；本仓工程约定与读档指针见根 [AGENTS.md](../AGENTS.md)。
 
 ## 1. 单一官方执行后台
 
@@ -33,10 +33,11 @@
 
 ## 4. Cordis / 插件
 
-- Bot 能力**优先复用**官方 / 已安装的 dsh 插件。
-- 产品缺口放 `packages/myaid-plugin-*`，经 `cordis.patch.yml` / 声明式 bundle / `--patch` 装配进 `web` profile。
+- Bot 能力**优先复用**官方 `dsh web` / 已安装的 dsh 插件；实现前对照只读 [`references/deepseek-harness`](../references/deepseek-harness) 的能力面、preset 与 Remote 形态（机制结论见 [HARNESS_PRINCIPLES](research/HARNESS_PRINCIPLES.md)）。
+- 产品缺口放 `packages/myaid-plugin-*`，经 `cordis.patch.yml` / 声明式 bundle / `--patch` 装配进 `web` profile；约束见 [packages/AGENTS.md](../packages/AGENTS.md)。
 - 能力规则、专属数据与执行注入归插件；NSH 只经公开 Remote / 接口做管理与产品交互。
-- 不把共享 profile 的全局插件开关伪装成「每 Bot 差异」；派生组合真源在插件侧。
+- 共享 profile 的全局插件开关不伪装成「每 Bot 差异」；派生组合真源在插件侧。
+- 对照 harness **只取能力与协议形态**；不迁入其 Web GUI / 审批页 / 品牌文案（见 §7）。
 
 ## 5. 客户端与原生适配
 

@@ -33,10 +33,10 @@ flowchart LR
 | ------------------------- | --------------------------------------------------------------- | --------------------------------------------- |
 | `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell + 模块页 + Dialogue 壳；认证库已落点 |
 | `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | 模块骨架 + 协议类型桩                         |
-| `apps/relay`              | 多端密文转发                                                    | 可编译空 crate                                |
-| `packages/myaid-plugin-*` | Cordis 能力插件                                                 | `myaid-plugin-core` 占位                      |
-| 根 `package.json`         | bun workspace：`dev` / `dev:ios` / `check` / `build` / `test`   | 无 `scripts/*.ts` 编排；无 `host:dev`         |
-| `references`              | 上游 submodule                                                  | `.gitmodules`；不参与构建                     |
+| `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | 可编译空 crate                                |
+| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)         | `myaid-plugin-core` 占位                      |
+| 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                   | 无 `scripts/*.ts` 编排；无 `host:dev`         |
+| `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）    | `.gitmodules`；不参与构建                     |
 
 Bun 管理 JS workspace 与唯一 `bun.lock`；Cargo workspace：`apps/client`、`apps/host`、`apps/relay`。不在 Rust 中重实现 Harness。
 

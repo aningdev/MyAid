@@ -2,11 +2,17 @@
 
 补充[根约束](../../AGENTS.md)。职责以[架构](../../docs/ARCHITECTURE.md)与 [DSH 原则](../../docs/DSH_PRINCIPLES.md)为准。
 
+## 参考源（实现前）
+
+- **组件与样式**：`references/nsh/examples/nsh-gallery-ui`（样式化基础层）、`references/nsh/examples/gallery`（用法 / 交互 demo）、`references/nsh/website`（elements / modules 文档与 demos）。
+- **类型与运行时**：安装版 `.nsh/types/`；生产代码只用安装版 NSH 模块。
+- **dsh 能力面**（非 UI）：需要对话 / Session / 工具 / 审批等行为时，先对照官方 `dsh web` 与只读 `references/deepseek-harness` 的能力与 Remote；NSH 侧自建产品 UI，不移植 harness Web GUI。
+
 ## 布局（NSH mixed）
 
 - 本目录是官方 **mixed** 应用：`App.tsx` 为 TSX 入口，`nsh.json` `"rust": "."`，Rust 在同级 `Cargo.toml` / `src/lib.rs`（`#[native_module("myaid/native")]`）。
 - 产品 TSX 模块放 `components/`（及按需子目录）；功能域放 `features/`；工作台状态放 `workspace/`；静态资源放 `assets/`。
-- **不要**为对齐旧 dsh-bot 客户端而引入平行的 `frontend/{ui,application,infrastructure}` 树，除非架构文档明确改判。
+- 保持 NSH mixed 目录，不另起平行 `frontend/{ui,application,infrastructure}` 树，除非架构文档明确改判。
 
 ## 工作台（模块页宿主）
 
@@ -30,9 +36,10 @@
 
 ## UI 组件边界
 
-- [`components/ui`](components/ui/) 是**样式化基础层**（gallery `nsh-gallery-ui` 外观 / motion）；主题为官方 shadcn `neutral`。
+- 选型顺序：NSH 原语 / `nsh/base` → gallery / `nsh-gallery-ui` 模式 → 产品组合进 [`components/ui`](components/ui/) → 已核实缺口的最小自定义。
+- [`components/ui`](components/ui/) 是本仓**样式化基础层**（对齐 gallery `nsh-gallery-ui` 外观 / motion）；主题为官方 shadcn `neutral`。共享视觉规则优先在此层演进，与上游示例对照后再改。
 - 壳层可直接使用导航基础设施；需要内栈的业务（如 Dialogue）可在 `features/*` 使用 `createNavStack` / `NavStack` / `NavPage`。
-- 功能模块默认不直连 `nsh/base`；**例外**：模块自管导航，以及 `features/dialogue` 内移植的 gallery AI Chat（`Input` / `TextView` / `Dialog` 等）直至产品化封装。
+- 功能模块默认经 `components/ui` 组合；直连 `nsh/base` 仅限模块自管导航，以及 `features/dialogue` 内尚未产品化封装的 gallery 控件（`Input` / `TextView` / `Dialog` 等）。
 - 布局原语与运行时（`View` / `Text` / `signal` / `mount` / `token`…）从 `nsh` 引入。
 
 ## dsh 认证传输
@@ -47,11 +54,12 @@
 - Cookie WebSocket、Unix socket、`SMAppService` 等仅在标准 API 缺口核实后添加；升级后复核可否迁回标准 API。
 - 修改 `src/lib.rs` 导出后跑 `vp run @myaid/client#check` / `nsh check` 以刷新声明。
 
-## 开发与打包（NSH CLI）
+## 开发与打包（NSH CLI + vp）
 
-- 日常：`nsh run --target …`（`dev` / `dev:macos` 等）；只起服务用 `nsh dev --server-only`（`dev:server`）。
+- 工作区入口：`vp run @myaid/client#dev|check|test|…`（根 `bun run dev` 等同）。
+- 日常宿主：`nsh run --target …`（`dev` / `dev:macos` 等）；只起服务用 `nsh dev --server-only`（`dev:server`）。
 - `MYAID_HOST_SOCKET` **仅本机桌面**脚本注入（`dev` / `dev:macos`）；`dev:ios` / `dev:android` / `dev:web` / Relay 路径不注入。
-- 可安装包：`nsh package`（`package:macos` / `package:web`）。根级 App + Host 组装另议，勿把 client 的 `package:*` 当成成品分发。
+- 可安装包：`nsh package`（`package:macos` / `package:web`）。根级 App + Host 组装另议；client 的 `package:*` 不是成品分发。
 
 ## 状态与验证
 
