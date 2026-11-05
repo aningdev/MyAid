@@ -9,7 +9,6 @@ bun run check
 bun run dev
 bun run build
 bun run test
-bun run host:dev
 ```
 
-（`vp run <name>` 跑同名根 script。）仅在官方命令无法表达时（例如未来 macOS 打包流水线）再在此添加单个脚本，不预建空壳。
+（`vp run <name>` 跑同名根 script。）仅在官方命令无法表达时（例如未来 macOS 打包流水线或 Host 开发入口）再在此添加单个脚本，不预建空壳。

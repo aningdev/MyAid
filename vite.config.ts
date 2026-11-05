@@ -5,14 +5,8 @@ import { defineConfig } from "vite-plus";
 // tracked (or otherwise walked) but should stay out of fmt/lint.
 const ignoreVendored = ["references/**", ".agents/skills"];
 // NSH client is type-checked by `nsh check` (QuickJS / nsh globals like If/Each).
-// Host/relay are Cargo. Docs/astro would need their own sync if reintroduced.
-const ignoreLint = [
-  ...ignoreVendored,
-  "apps/client/**",
-  "apps/host/**",
-  "apps/relay/**",
-  "apps/docs/**",
-];
+// Host/relay are Cargo.
+const ignoreLint = [...ignoreVendored, "apps/client/**", "apps/host/**", "apps/relay/**"];
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },

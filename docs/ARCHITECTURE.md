@@ -1,6 +1,6 @@
 # MyAid 架构
 
-本文是技术方案真源的空壳版：进程边界、Host、插件与数据归属继承 [DSH 原则](DSH_PRINCIPLES.md)。产品规则见 [BLUEPRINT.md](BLUEPRINT.md)，概念见 [GLOSSARY.md](../GLOSSARY.md)。原则来源：`~/Code/dsh-bot`；**实现仍为空壳**，不以文档追认未完成代码。
+本文是技术方案真源：进程边界、Host、插件与数据归属继承 [DSH 原则](DSH_PRINCIPLES.md)。产品规则见 [BLUEPRINT.md](BLUEPRINT.md)，概念见 [GLOSSARY.md](../GLOSSARY.md)。原则来源：`~/Code/dsh-bot`。Host / Relay / 插件与成品打包仍多为骨架；**不以文档追认未完成代码**。
 
 ## 1. 系统概览
 
@@ -29,14 +29,14 @@ flowchart LR
 
 ## 2. 仓库与组件
 
-| 位置                      | 职责                                                            | 空壳状态                            |
-| ------------------------- | --------------------------------------------------------------- | ----------------------------------- |
-| `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | mixed 占位 UI + `myaid/native` 示范 |
-| `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | 模块骨架 + 协议类型桩               |
-| `apps/relay`              | 多端密文转发                                                    | 可编译空 crate                      |
-| `packages/myaid-plugin-*` | Cordis 能力插件                                                 | `myaid-plugin-core` 占位            |
-| 根 `package.json`         | bun workspace：`dev` / `check` / `build` / `test` / `host:dev`  | 无 `scripts/*.ts` 编排              |
-| `references`              | 上游 submodule                                                  | `.gitmodules`；不参与构建           |
+| 位置                      | 职责                                                            | 现状                                          |
+| ------------------------- | --------------------------------------------------------------- | --------------------------------------------- |
+| `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell + 模块页 + Dialogue 壳；认证库已落点 |
+| `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | 模块骨架 + 协议类型桩                         |
+| `apps/relay`              | 多端密文转发                                                    | 可编译空 crate                                |
+| `packages/myaid-plugin-*` | Cordis 能力插件                                                 | `myaid-plugin-core` 占位                      |
+| 根 `package.json`         | bun workspace：`dev` / `dev:ios` / `check` / `build` / `test`   | 无 `scripts/*.ts` 编排；无 `host:dev`         |
+| `references`              | 上游 submodule                                                  | `.gitmodules`；不参与构建                     |
 
 Bun 管理 JS workspace 与唯一 `bun.lock`；Cargo workspace：`apps/client`、`apps/host`、`apps/relay`。不在 Rust 中重实现 Harness。
 
@@ -64,7 +64,7 @@ apps/host/src/
 | `HostControl`              | socket、同用户校验、请求分派、状态订阅；只调 `Lifecycle`     |
 | `Bridge`                   | 配对、授权、官方协议转发                                     |
 
-相位：`stopped → preparing → starting → ready`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。
+相位（与 `protocol.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。
 
 初始化分工：NSH 管注册表 / 草稿 / 工作区；Host 管数据根、CLI、登录环境、profile 首启。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
 
@@ -79,12 +79,17 @@ apps/host/src/
 
 ```text
 apps/client/
-├── App.tsx / App.test.tsx / components/ / assets/
-├── nsh.json          # "rust": "."
-├── Cargo.toml / src/lib.rs   # #[native_module("myaid/native")]
+├── App.tsx / App.test.tsx
+├── components/          # AppShell、导航、ui 基础层
+├── features/            # 业务域（如 dialogue）
+├── workspace/           # 模块注册与工作台状态
+├── lib/dsh/             # Cookie 认证 + AuthenticatedSocket
+├── assets/
+├── nsh.json             # "rust": "."
+├── Cargo.toml / src/    # #[native_module("myaid/native")]；CookieWebSocket 等
 ```
 
-对齐 `nsh init --template mixed`（[project structure](https://nsh.dev/docs/project-structure.md)）。产品目录可在 `components/` 下按领域扩展；**不要**为迁回 dsh-bot 而恢复独立 `frontend/` 树，除非另有决策。
+对齐 `nsh init --template mixed`（[project structure](https://nsh.dev/docs/project-structure.md)）。**不要**为迁回 dsh-bot 而恢复独立 `frontend/` 树，除非另有决策。细则见 [apps/client/AGENTS.md](../apps/client/AGENTS.md)。
 
 原生缺口（Cookie WebSocket、控制 socket、`SMAppService`）在 `src/` 注册；标准网络仍走 NSH API。
 
@@ -100,4 +105,4 @@ apps/client/
 
 ## 8. 打包与交付（目标）
 
-`bun run package:macos` 组装 App + Host + 服务组件；脚本不另管一套 dsh 进程。签名与 `SMAppService` 须成品验收——空壳阶段未实现。
+成品目标：组装 App + Host + 服务组件；脚本不另管一套 dsh 进程。签名与 `SMAppService` 须成品验收——**尚未实现**。客户端侧 `vp run @myaid/client#package:macos` 只产出 NSH `.app`，不是根级成品。

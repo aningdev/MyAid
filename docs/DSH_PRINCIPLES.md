@@ -29,7 +29,7 @@
 | `host_control` | 控制 socket + 共享协议 | 只调用 `Lifecycle`；不复制生命周期策略                              |
 | `bridge`       | 多端阶段               | 官方协议转发 + 设备授权；Relay 只转发密文                           |
 
-生命周期相位：`stopped → preparing → starting → ready`（失败 → `failed`；停止 → `stopping → stopped`）。每次新子进程新 `generation`。公开 `status` **不得**携带认证 token；`connectionInfo` 与公开状态分离。
+生命周期相位：`stopped → preparing → starting → ready`（另有 `recovering`；失败 → `failed`；停止 → `stopping → stopped`；与 `protocol.rs` 一致）。每次新子进程新 `generation`。公开 `status` **不得**携带认证 token；`connectionInfo` 与公开状态分离。
 
 ## 4. Cordis / 插件
 

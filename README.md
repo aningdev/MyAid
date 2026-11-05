@@ -19,13 +19,14 @@
 
 ## 开发与运行
 
-需要 macOS、Rust、NSH **0.4.0**、`vp`（vite-plus）。工具链版本钉在根目录：
+需要 macOS、Rust、NSH **0.4.0**、`vp`（vite-plus）。版本钉以仓库文件为准，勿臆造：
 
-| 钉                                        | 文件 / 字段                                                          |
-| ----------------------------------------- | -------------------------------------------------------------------- |
-| Bun `1.4.4`                               | [`.bun-version`](.bun-version)、`packageManager` / `engines.bun`     |
-| Node `26.13.0`（兼容 `^24.15 \|\| >=26`） | [`.node-version`](.node-version)、[`.nvmrc`](.nvmrc)、`engines.node` |
-| TypeScript / `@types/node` / `@types/bun` | 根 `workspaces.catalog` 单源；包内 `"catalog:"` 引用                 |
+| 钉                         | 现状                                       |
+| -------------------------- | ------------------------------------------ |
+| Bun `1.4.4`                | [`.bun-version`](.bun-version)             |
+| TypeScript / `@types/node` | 根 `workspaces.catalog`；包内 `"catalog:"` |
+
+（未钉 `packageManager` / `engines` / `.node-version`；CI 自行指定 Node。）
 
 dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
 
@@ -37,17 +38,15 @@ bun run test
 bun run build   # plugin + client（`vp run --filter @myaid/client... build`）
 ```
 
-数据根：`~/.myaid`（`DSH_HOME`）。根与包的 `package.json` scripts 保留；根脚本用 `vp run pkg#task` / `--filter` 调度包脚本（[Run](https://viteplus.dev/guide/run)）。Git hooks：`prepare` → `vp config --hooks`，[`.vite-hooks/pre-commit`](.vite-hooks/pre-commit) → `vp staged`。完整门禁仍是 `bun run check` / CI。详见 [Commit Hooks](https://viteplus.dev/guide/commit-hooks)。
+数据根：`~/.myaid`（`DSH_HOME`）。根与包的 `package.json` scripts 保留；根脚本用 `vp run pkg#task` / `--filter` 调度包脚本（[Run](https://viteplus.dev/guide/run)）。Git hooks：已有 [`.vite-hooks/pre-commit`](.vite-hooks/pre-commit) → `vp staged`（根未挂 `prepare` → `vp config --hooks`）。完整门禁仍是 `bun run check` / CI。详见 [Commit Hooks](https://viteplus.dev/guide/commit-hooks)。
 
-```sh
-bun run host:dev
-```
+Host 开发入口尚未做成根 script；直接在 `apps/host` 用 Cargo 跑骨架即可。
 
 ## 有意省略
 
-- 未移植对话 / 审批 / 模型设置页等产品 UI
+- 未移植对话 / 审批 / 模型设置页等产品 UI（客户端已有 AppShell / Dialogue 壳与认证库，非完整业务）
 - 未移植完整 Host lifecycle / bot-composition 业务插件
-- `design/wireframes/` 为并行线框，不属于本空壳
+- 无产品线框目录；线框任务另开，不混进本仓库主路径
 
 ## 参考 submodule
 

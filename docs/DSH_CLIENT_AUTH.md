@@ -1,6 +1,6 @@
 # MyAid ↔ dsh 本机认证（NSH 0.4）
 
-**Verdict：** NSH 0.4 **仍拒绝**标准 WebSocket 握手上的 `Cookie` / `Authorization`。官方客户端连 `/api/remote.mux` 必须走原生 `CookieWebSocket`（见 Project 文档 `docs/nsh04-dsh-auth-integration.md`）。
+**Verdict：** NSH 0.4 **仍拒绝**标准 WebSocket 握手上的 `Cookie` / `Authorization`。官方客户端连 `/api/remote.mux` 必须走原生 `CookieWebSocket`。
 
 ## 代码落点
 
@@ -15,13 +15,13 @@
 ## 本地跑通
 
 ```sh
-# 1) 官方 dsh（本机已安装；版本钉见 apps/host/supported-dsh.json）
+# 1) 官方 dsh（本机已安装；版本钉见 apps/host/supported-dsh.json，现为占位）
 DSH_HOME=~/.myaid dsh web --host 127.0.0.1 --port 0 --no-open
 # ready 行给出 http://127.0.0.1:<port>/?token=…
 
 # 2) 客户端（保留 AppShell；认证库可被设置页/探针调用）
 export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=<token>'
-bun run --cwd apps/client dev
+vp run @myaid/client#dev
 ```
 
 `nsh.json` 已授权 `127.0.0.1`；dsh 必须绑回环。
