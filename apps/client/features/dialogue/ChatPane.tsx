@@ -213,7 +213,9 @@ export function ChatPane(props: { selectedId: string | null }) {
       );
     });
     try {
-      await promptSession(text);
+      const id = props.selectedId;
+      if (!id) throw new Error("先选择一条会话。");
+      await promptSession(text, id);
     } catch (error) {
       freeze(r, "error", error instanceof Error ? error.message : String(error));
     }
@@ -322,8 +324,12 @@ export function ChatPane(props: { selectedId: string | null }) {
     }
     // Connect before mutating local messages so the idle follow snapshot
     // cannot wipe the just-added user bubble / freeze a pending run.
+    if (!props.selectedId) {
+      showConnectError(new Error("先选择一条会话。"));
+      return;
+    }
     try {
-      if (!sessionReady()) await connectSession();
+      if (!sessionReady()) await connectSession(props.selectedId);
     } catch (error) {
       showConnectError(error);
       return;
@@ -379,8 +385,12 @@ export function ChatPane(props: { selectedId: string | null }) {
     if (!text) return;
     following.set(true);
     void (async () => {
+      if (!props.selectedId) {
+        showConnectError(new Error("先选择一条会话。"), m.id);
+        return;
+      }
       try {
-        if (!sessionReady()) await connectSession();
+        if (!sessionReady()) await connectSession(props.selectedId);
       } catch (error) {
         showConnectError(error, m.id);
         return;

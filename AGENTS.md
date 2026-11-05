@@ -4,7 +4,7 @@
 
 ## 何时读什么
 
-- **产品行为 / 对象模型**：[BLUEPRINT](docs/BLUEPRINT.md)；用词以 [GLOSSARY](GLOSSARY.md) 为准（见 [domain](docs/agents/domain.md)）。
+- **产品行为 / 对象模型**：[BLUEPRINT](docs/BLUEPRINT.md)；Bot / 会话 / DSH 映射图见 [BOT_SESSION_MAP](docs/BOT_SESSION_MAP.md)；用词以 [GLOSSARY](GLOSSARY.md) 为准（见 [domain](docs/agents/domain.md)）。
 - **DSH / Host / profile / 协议**：[DSH_PRINCIPLES](docs/DSH_PRINCIPLES.md) 与 [ARCHITECTURE](docs/ARCHITECTURE.md)；能力面对照只读 [references/deepseek-harness](references/deepseek-harness)。
 - **Client**：[apps/client/AGENTS.md](apps/client/AGENTS.md)。改 UI、布局、组件或 TSX 前读 [Design Guides](references/nsh/website/docs/design-guides.md)，再读 [Coding Guides](references/nsh/website/docs/coding-guides.md)；示例对照 gallery / `nsh-gallery-ui`，类型以 `.nsh/types/` 为准。
 - **Host**：[apps/host/AGENTS.md](apps/host/AGENTS.md)。

@@ -20,7 +20,7 @@ _Avoid_：ProductService、统一聊天接口、权威会话存储
 
 **Client（交互客户端）**：NSH 桌面（及未来移动）应用；桌面写注册表，移动端只读快照。
 
-**会话（Conversation）**：某个 Bot 的一项对话任务，与一条 Harness Session 一对一，并由注册表认领到该 Bot。  
+**会话（Conversation）**：某个 Bot 的一项对话任务，与一条 Harness Session 一对一，并由注册表认领到该 Bot。映射见 [docs/BOT_SESSION_MAP.md](docs/BOT_SESSION_MAP.md)。  
 _Avoid_：Task、跨 Bot 的执行容器、未认领的 Harness Session
 
 **认领（Claim）**：注册表中「一条 Harness Session 属于哪个 Bot」的记录。一条 Session 只属于一个 Bot。  

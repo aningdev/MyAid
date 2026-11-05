@@ -54,5 +54,5 @@ const result = await smokeDshAuthTransport();
 
 ## 有意未做
 
-- 按蓝图把会话认领到 Bot。客户端仍使用固定 `myaid-primary`，直至按该模型接线。
+- 按蓝图把会话认领到 Bot。未认领的 Session 不进入产品列表。
 - Bridge / Relay / `SMAppService` 成品登记。

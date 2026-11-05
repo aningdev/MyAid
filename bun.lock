@@ -15,6 +15,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@deepseek-ai/cordis": "^4.0.5",
+        "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-rc.5",
         "@deepseek-ai/dsh-api-gateway": "0.2.1-rc.5",
         "@deepseek-ai/dsh-api-session-controller": "0.2.1-rc.5",
         "@deepseek-ai/dsh-client-connection": "0.2.1-rc.5",

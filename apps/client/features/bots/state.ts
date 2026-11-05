@@ -6,8 +6,10 @@ import { setModuleAtRoot } from "../../workspace/state";
 import {
   createBot,
   createTemplate,
+  deleteBot,
   deleteTemplate,
   emptyRegistry,
+  importTemplatesFromPresets,
   initializeBot,
   RegistryRejection,
   updateBot,
@@ -176,6 +178,47 @@ export async function removeTemplate(): Promise<void> {
   const next = await commit((reg) => deleteTemplate(reg, id));
   if (!next) return;
   closeDetail();
+}
+
+export async function deleteEditorBot(): Promise<void> {
+  const current = untracked(editor);
+  if (current.kind !== "bot" || current.id === "new" || !canWrite()) return;
+  const id = current.id;
+  const next = await commit((reg) => deleteBot(reg, id));
+  if (!next) return;
+  closeDetail();
+}
+
+/** Connect dsh if needed and upsert its agent presets as templates. */
+export async function importDshTemplates(): Promise<number> {
+  if (!canWrite()) return 0;
+  saving.set(true);
+  actionError.set(null);
+  try {
+    const api = await import("../../lib/dsh/session");
+    const connection = await api.ensureConnected();
+    const presets = await api.listAgentPresets(connection);
+    const before = untracked(registry).templates.length;
+    const next = await repo.commit((reg) => importTemplatesFromPresets(reg, presets));
+    registry.set(next);
+    return Math.max(0, next.templates.length - before);
+  } catch (error) {
+    try {
+      const { readableError } = await import("../../lib/dsh/session");
+      actionError.set(readableError(error));
+    } catch {
+      actionError.set(messageOf(error));
+    }
+    return 0;
+  } finally {
+    saving.set(false);
+  }
+}
+
+export async function changeRegistry(
+  change: (registry: BotRegistry) => BotRegistry,
+): Promise<BotRegistry | null> {
+  return commit(change);
 }
 
 export function closeDetail(): void {

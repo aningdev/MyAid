@@ -1,9 +1,10 @@
 import { Text, View } from "nsh";
 import { titleBar } from "nsh/desktop";
 
+import { openModule } from "../features/dialogue/navigate";
 import { railTopInset } from "../workspace/layout";
 import { modules } from "../workspace/modules";
-import { moduleId, setModule, type ModuleId } from "../workspace/state";
+import { moduleId } from "../workspace/state";
 import { colors, hovered, Icon, Press, radius } from "./ui";
 
 /** Base rail width; grows if traffic-light cluster is wider. */
@@ -35,7 +36,7 @@ export function NavRail() {
           const active = () => moduleId() === mod().id;
           return (
             <Press
-              onPress={() => setModule(mod().id as ModuleId)}
+              onPress={() => openModule(mod().id)}
               accessibilityLabel={mod().label}
               accessibilityState={{ selected: active() }}
               hoverStyle={active() ? undefined : hovered()}

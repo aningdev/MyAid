@@ -9,6 +9,14 @@ import { Badge, Button, colors, Field, hovered, mono, radius } from "../../compo
 import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
 import { isDesktopLayout } from "../../workspace/layout";
 import { setModuleAtRoot } from "../../workspace/state";
+import { openBotSessions } from "../dialogue/navigate";
+import {
+  answerApproval,
+  approvalOwnerBotId,
+  occupyingSessionId,
+  pendingApproval,
+  sessionError,
+} from "../dialogue/session/runtime";
 import { presetBinding, type Bot, type BotTemplate, type PresetBindingLabel } from "./model";
 import {
   actionError,
@@ -16,9 +24,11 @@ import {
   beginTemplate,
   botsNav,
   closeDetail,
+  deleteEditorBot,
   editBot,
   editTemplate,
   editor,
+  importDshTemplates,
   initializeEditor,
   loadError,
   loadRegistry,
@@ -123,13 +133,22 @@ function BotsList() {
             </Text>
           </If>
           <SectionLabel label="模板" />
-          <Button
-            label="新建模板"
-            variant="secondary"
-            size="small"
-            disabled={writeBlocked()}
-            onPress={() => beginTemplate()}
-          />
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            <Button
+              label="从 dsh 导入"
+              variant="accent"
+              size="small"
+              disabled={writeBlocked()}
+              onPress={() => void importDshTemplates()}
+            />
+            <Button
+              label="新建模板"
+              variant="secondary"
+              size="small"
+              disabled={writeBlocked()}
+              onPress={() => beginTemplate()}
+            />
+          </View>
           <If
             when={registry().templates.length === 0}
             else={
@@ -148,7 +167,7 @@ function BotsList() {
             }
           >
             <Text style={{ fontSize: 13, lineHeight: 18, color: colors.muted }}>
-              还没有模板。写下名称和它对应的 Agent preset id。
+              还没有模板。先从 dsh 导入内置 Agent preset，或手动填写 preset id。
             </Text>
           </If>
           <SectionLabel label="Bot" />
@@ -169,7 +188,10 @@ function BotsList() {
                       title={bot().name}
                       detail={botDetail(bot())}
                       selected={selectedBot(bot().id)}
-                      onPress={() => editBot(bot().id)}
+                      onPress={() => {
+                        if (approvalOwnerBotId() && approvalOwnerBotId() !== bot().id) return;
+                        editBot(bot().id);
+                      }}
                     />
                   )}
                 </Each>
@@ -196,9 +218,9 @@ function BotsDetail() {
       >
         <Scroll style={{ flex: 1 }} contentStyle={{ padding: 16, gap: 16 }}>
           <View style={{ gap: 16, maxWidth: 560 }}>
-            <If when={actionError()}>
+            <If when={actionError() || sessionError()}>
               <Text style={{ fontSize: 13, lineHeight: 18, color: colors.danger }}>
-                {actionError()}
+                {actionError() || sessionError()}
               </Text>
             </If>
             <If when={current().kind === "template"} else={<BotForm />}>
@@ -313,7 +335,30 @@ function BotForm() {
           onChange={setEditorModel}
         />
         <PresetLine binding={binding()} />
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <If when={pendingApproval() && approvalOwnerBotId() === form()?.id}>
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>
+              需要审批：{pendingApproval()?.toolName}
+            </Text>
+            <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>
+              {pendingApproval()?.reason}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Button
+                label="允许一次"
+                size="small"
+                onPress={() => answerApproval("allowed-once")}
+              />
+              <Button
+                label="拒绝"
+                variant="secondary"
+                size="small"
+                onPress={() => answerApproval("rejected")}
+              />
+            </View>
+          </View>
+        </If>
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <Button
             label="保存"
             size="small"
@@ -327,6 +372,26 @@ function BotForm() {
               size="small"
               disabled={initializeDisabled()}
               onPress={() => void initializeEditor()}
+            />
+          </If>
+          <If when={readyBot() && form()?.id !== "new"}>
+            <Button
+              label="会话"
+              variant="secondary"
+              size="small"
+              onPress={() => {
+                const id = form()?.id;
+                if (id) openBotSessions(id);
+              }}
+            />
+          </If>
+          <If when={stored() && !stored()?.hadSession}>
+            <Button
+              label="删除"
+              variant="secondary"
+              size="small"
+              disabled={writeBlocked()}
+              onPress={() => void deleteEditorBot()}
             />
           </If>
         </View>
@@ -474,9 +539,13 @@ function selectedBot(id: string): boolean {
 
 function botDetail(bot: Bot): string {
   const template = registry().templates.find((item) => item.id === bot.templateId) ?? null;
+  const running =
+    occupyingSessionId() !== null &&
+    bot.claims.some((claim) => claim.sessionId === occupyingSessionId());
   try {
     const binding = presetBinding(bot, template);
-    return `${binding.presetId} · ${binding.label}`;
+    const base = `${binding.presetId} · ${binding.label}`;
+    return running ? `${base} · 执行中` : base;
   } catch {
     return "模板不在了";
   }
@@ -489,7 +558,8 @@ function previewBot(form: Extract<Editor, { kind: "bot" }>, stored: Bot | undefi
     templateId: form.templateId,
     workspace: form.workspace,
     defaultModel: form.defaultModel.trim() ? form.defaultModel : null,
-    sessionId: stored?.sessionId ?? null,
+    claims: stored?.claims ?? [],
+    hadSession: stored?.hadSession ?? false,
     status: stored?.status ?? "draft",
     boundPresetId: stored?.boundPresetId ?? null,
     derivedPresetId: stored?.derivedPresetId ?? null,

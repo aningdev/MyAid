@@ -5,6 +5,7 @@
 import { effect, Text, View } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
+import { loadRegistry } from "../features/bots/state";
 import { isDesktopLayout, TITLE_CHROME, titleTopInset } from "../workspace/layout";
 import { modules } from "../workspace/modules";
 import { moduleAtRoot, moduleId } from "../workspace/state";
@@ -115,6 +116,9 @@ function MobileShell() {
 
 /** Adaptive shell: Rail/Tab + module page host. */
 export function AppShell() {
+  effect(() => {
+    void loadRegistry();
+  });
   return (
     <If when={isDesktopLayout()} else={<MobileShell />}>
       <DesktopShell />

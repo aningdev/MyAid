@@ -1,24 +1,41 @@
-import { Text, View } from "nsh";
+import { effect, Text, View } from "nsh";
 
-import { colors, finish, hovered, Icon, Press, radius } from "../../components/ui";
+import { Button, colors, finish, hovered, Icon, Press, radius } from "../../components/ui";
+import { registry } from "../bots/state";
 import { openMain } from "./nav";
+import { openBotSessions, openModule, openOwningBot } from "./navigate";
 import {
   activeSessionId,
+  approvalLock,
   createSession,
+  creatingSession,
+  pendingApproval,
+  refreshSessionList,
+  releaseMissingSession,
   sessionError,
   sessionList,
-  sessionReady,
 } from "./session/runtime";
-import { bumpChatEpoch, selectItem, selectedId } from "./state";
+import { bumpChatEpoch, selectItem, selectedId, sessionScopeBotId } from "./state";
 
 /** Dialogue list: official Sessions + new Session. */
 export function DialogueList() {
+  effect(() => {
+    registry();
+    sessionScopeBotId();
+    void refreshSessionList();
+  });
+
   const rows = () => sessionList();
+  const scopedBot = () => registry().bots.find((bot) => bot.id === sessionScopeBotId()) ?? null;
+  const canCreate = () =>
+    scopedBot()?.status === "ready" && !pendingApproval() && !creatingSession();
 
   const onNew = () => {
+    const botId = scopedBot()?.id;
+    if (!botId || creatingSession()) return;
     void (async () => {
       try {
-        const id = await createSession();
+        const id = await createSession(botId);
         selectItem(id);
         bumpChatEpoch();
         openMain(id);
@@ -30,31 +47,37 @@ export function DialogueList() {
 
   return (
     <View style={{ flex: 1, padding: 12, gap: 2 }}>
-      <View desktop={{ windowDrag: true }} style={{ gap: 2 }}>
-        <Press onPress={onNew} accessibilityLabel="新建对话">
-          <View
-            hoverStyle={hovered()}
-            style={{
-              height: 40,
-              borderRadius: radius.control,
-              borderCurve: "continuous",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              backgroundColor: colors.raised,
-              ...finish.raised,
-              borderWidth: 1,
-              borderColor: colors.border,
-              cursor: "pointer",
-            }}
-          >
-            <Icon name="plus" size={15} tint={colors.text} />
-            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>新建对话</Text>
-          </View>
-        </Press>
+      <View style={{ gap: 2 }}>
+        <If when={scopedBot()?.status === "ready" && !pendingApproval()}>
+          <Press onPress={onNew} disabled={creatingSession()} accessibilityLabel="新建任务">
+            <View
+              hoverStyle={creatingSession() ? undefined : hovered()}
+              style={{
+                height: 40,
+                borderRadius: radius.control,
+                borderCurve: "continuous",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                backgroundColor: colors.raised,
+                ...finish.raised,
+                borderWidth: 1,
+                borderColor: colors.border,
+                cursor: creatingSession() ? "default" : "pointer",
+                opacity: creatingSession() ? 0.6 : 1,
+              }}
+            >
+              <Icon name="plus" size={15} tint={colors.text} />
+              <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+                {creatingSession() ? "正在新建…" : "新建任务"}
+              </Text>
+            </View>
+          </Press>
+        </If>
 
         <Text
+          desktop={{ windowDrag: true }}
           style={{
             fontSize: 11,
             fontWeight: "600",
@@ -65,26 +88,51 @@ export function DialogueList() {
             paddingBottom: 6,
           }}
         >
-          SESSIONS
+          {scopedBot() ? `${scopedBot()?.name} 的会话` : "全部会话"}
         </Text>
+        <If when={sessionError()}>
+          <Text
+            style={{ fontSize: 12, lineHeight: 18, color: colors.danger, paddingHorizontal: 12 }}
+          >
+            {sessionError()}
+          </Text>
+        </If>
       </View>
 
       <If
         when={rows().length > 0}
         else={
-          <Text
-            style={{
-              fontSize: 12,
-              color: colors.muted,
-              paddingHorizontal: 12,
-              paddingTop: 8,
-              lineHeight: 18,
-            }}
-          >
-            {sessionReady()
-              ? "还没有对话。点上方新建。"
-              : sessionError() || "连接后台后会列出 Session。"}
-          </Text>
+          <View style={{ gap: 10, paddingHorizontal: 12, paddingTop: 8 }}>
+            <Text style={{ fontSize: 12, color: colors.muted, lineHeight: 18 }}>
+              {canCreate()
+                ? "还没有会话。点上方新建任务。"
+                : scopedBot()
+                  ? "这个 Bot 还没有会话。"
+                  : registry().bots.some((bot) => bot.status === "ready")
+                    ? "还没有认领的会话。选一个就绪的 Bot 再新建。"
+                    : "还没有认领的会话。先到 Bots 导入模板并初始化助手。"}
+            </Text>
+            <If when={!canCreate() && registry().bots.some((bot) => bot.status === "ready")}>
+              <Each of={registry().bots.filter((bot) => bot.status === "ready")}>
+                {(bot) => (
+                  <Button
+                    label={`打开「${bot().name}」`}
+                    variant="secondary"
+                    size="small"
+                    onPress={() => openBotSessions(bot().id)}
+                  />
+                )}
+              </Each>
+            </If>
+            <If when={!registry().bots.some((bot) => bot.status === "ready")}>
+              <Button
+                label="去 Bots"
+                variant="secondary"
+                size="small"
+                onPress={() => openModule("bots")}
+              />
+            </If>
+          </View>
         }
       >
         <Each of={rows()}>
@@ -92,34 +140,55 @@ export function DialogueList() {
             const active = () => selectedId() === row().id || activeSessionId() === row().id;
             return (
               <View
-                onPress={() => {
-                  selectItem(row().id);
-                  bumpChatEpoch();
-                  openMain(row().id);
-                }}
-                role="button"
-                accessibilityLabel={row().label}
-                accessibilityState={{ selected: active() }}
-                hoverStyle={active() ? undefined : hovered()}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 9,
                   borderRadius: radius.control,
-                  gap: 2,
-                  cursor: "pointer",
+                  gap: 8,
                   backgroundColor: active() ? colors.raised : "transparent",
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: active() ? "600" : "400",
-                    color: colors.text,
+                <View
+                  onPress={() => {
+                    if (row().missing) return;
+                    if (approvalLock({ sessionId: row().id })) return;
+                    selectItem(row().id);
+                    bumpChatEpoch();
+                    openMain(row().id);
                   }}
+                  role="button"
+                  accessibilityLabel={row().label}
+                  accessibilityState={{ selected: active() }}
+                  hoverStyle={active() ? undefined : hovered()}
+                  style={{ gap: 2, cursor: row().missing ? "default" : "pointer" }}
                 >
-                  {row().label}
-                </Text>
-                <Text style={{ fontSize: 12, color: colors.muted }}>{row().detail}</Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: active() ? "600" : "400",
+                      color: colors.text,
+                    }}
+                  >
+                    {row().label}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.muted }}>{row().detail}</Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Button
+                    label="所属 Bot"
+                    variant="secondary"
+                    size="small"
+                    onPress={() => openOwningBot(row().botId)}
+                  />
+                  <If when={row().missing}>
+                    <Button
+                      label="解除认领"
+                      variant="secondary"
+                      size="small"
+                      onPress={() => void releaseMissingSession(row().id)}
+                    />
+                  </If>
+                </View>
               </View>
             );
           }}

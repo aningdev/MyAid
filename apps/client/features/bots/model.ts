@@ -1,6 +1,6 @@
 /** Desktop registry: a Bot is an instance of a product template, and the template maps to a DSH Agent preset id. */
 
-export const REGISTRY_VERSION = 1 as const;
+export const REGISTRY_VERSION = 2 as const;
 
 export type BotTemplate = {
   id: string;
@@ -11,13 +11,22 @@ export type BotTemplate = {
 
 export type BotStatus = "draft" | "ready";
 
+/** A Harness Session owned by one Bot. The event log stays in dsh. */
+export type SessionClaim = {
+  sessionId: string;
+  title: string | null;
+  archived: boolean;
+};
+
 export type Bot = {
   id: string;
   name: string;
   templateId: string;
   workspace: string;
   defaultModel: string | null;
-  sessionId: string | null;
+  claims: SessionClaim[];
+  /** Stays true after a missing session is released, so the Bot cannot be deleted. */
+  hadSession: boolean;
   status: BotStatus;
   /** Preset id captured from the template at initialization. */
   boundPresetId: string | null;
@@ -42,7 +51,11 @@ export type RegistryIssue =
   | { code: "frozen"; botId: string; field: "templateId" | "workspace" }
   | { code: "empty-name" }
   | { code: "empty-preset" }
-  | { code: "duplicate-id"; id: string };
+  | { code: "duplicate-id"; id: string }
+  | { code: "not-ready"; botId: string }
+  | { code: "session-claimed"; sessionId: string }
+  | { code: "bot-has-sessions"; botId: string }
+  | { code: "claim-not-found"; sessionId: string };
 
 export class RegistryRejection extends Error {
   readonly issue: RegistryIssue;
@@ -90,6 +103,14 @@ export function rejectionMessage(issue: RegistryIssue): string {
       return "Agent preset id 不能为空。";
     case "duplicate-id":
       return "标识已存在。";
+    case "not-ready":
+      return "初始化之后才能新建会话。";
+    case "session-claimed":
+      return "这条会话已经属于一个 Bot。";
+    case "bot-has-sessions":
+      return "这个 Bot 已经有过会话。";
+    case "claim-not-found":
+      return "找不到这条会话。";
   }
 }
 
@@ -131,6 +152,31 @@ export function createTemplate(
     throw new RegistryRejection({ code: "duplicate-id", id: template.id });
   }
   return { ...registry, templates: [...registry.templates, template] };
+}
+
+/**
+ * Upsert product templates from dsh agent presets.
+ * Uses the preset id as the template id. Skips broken presets. Leaves unknown local templates alone.
+ */
+export function importTemplatesFromPresets(
+  registry: BotRegistry,
+  presets: { id: string; name: string; broken?: string }[],
+): BotRegistry {
+  let next = registry;
+  for (const preset of presets) {
+    if (preset.broken) continue;
+    const id = preset.id.trim();
+    const name = preset.name.trim() || id;
+    if (!id) continue;
+    const existing = next.templates.find((item) => item.id === id);
+    if (!existing) {
+      next = createTemplate(next, { name, presetId: id }, id);
+      continue;
+    }
+    if (existing.name === name && existing.presetId === id) continue;
+    next = updateTemplate(next, id, { name, presetId: id });
+  }
+  return next;
 }
 
 export function updateTemplate(
@@ -178,7 +224,8 @@ export function createBot(
     templateId: template.id,
     workspace: input.workspace?.trim() ?? "",
     defaultModel: blankToNull(input.defaultModel ?? null),
-    sessionId: null,
+    claims: [],
+    hadSession: false,
     status: "draft",
     boundPresetId: null,
     derivedPresetId: null,
@@ -239,6 +286,73 @@ export function initializeBot(registry: BotRegistry, botId: string): BotRegistry
   });
 }
 
+/** Claim a new Harness Session for a ready Bot. */
+export function claimSession(registry: BotRegistry, botId: string, sessionId: string): BotRegistry {
+  const bot = mustBot(registry, botId);
+  if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId });
+  const id = sessionId.trim();
+  if (!id) throw new RegistryRejection({ code: "invalid", reason: "Session id 不能为空。" });
+  if (claimOwner(registry, id))
+    throw new RegistryRejection({ code: "session-claimed", sessionId: id });
+  return replaceBot(registry, {
+    ...bot,
+    hadSession: true,
+    claims: [...bot.claims, { sessionId: id, title: null, archived: false }],
+  });
+}
+
+export function renameClaim(
+  registry: BotRegistry,
+  botId: string,
+  sessionId: string,
+  title: string | null,
+): BotRegistry {
+  return mapClaim(registry, botId, sessionId, (claim) => ({
+    ...claim,
+    title: blankToNull(title),
+  }));
+}
+
+/** Mark the claim archived. Caller must refuse this while that session is executing. */
+export function archiveClaim(registry: BotRegistry, botId: string, sessionId: string): BotRegistry {
+  return mapClaim(registry, botId, sessionId, (claim) => ({ ...claim, archived: true }));
+}
+
+/**
+ * Drop a claim whose Harness Session is already gone.
+ * `hadSession` stays set. Caller must not use this while dsh still has the session.
+ */
+export function releaseClaim(registry: BotRegistry, botId: string, sessionId: string): BotRegistry {
+  const bot = mustBot(registry, botId);
+  if (!bot.claims.some((claim) => claim.sessionId === sessionId)) {
+    throw new RegistryRejection({ code: "claim-not-found", sessionId });
+  }
+  return replaceBot(registry, {
+    ...bot,
+    claims: bot.claims.filter((claim) => claim.sessionId !== sessionId),
+  });
+}
+
+/** Delete a Bot that has never claimed a session. */
+export function deleteBot(registry: BotRegistry, botId: string): BotRegistry {
+  const bot = mustBot(registry, botId);
+  if (bot.hadSession || bot.claims.length > 0) {
+    throw new RegistryRejection({ code: "bot-has-sessions", botId });
+  }
+  return { ...registry, bots: registry.bots.filter((item) => item.id !== botId) };
+}
+
+export function claimOwner(
+  registry: BotRegistry,
+  sessionId: string,
+): { bot: Bot; claim: SessionClaim } | null {
+  for (const bot of registry.bots) {
+    const claim = bot.claims.find((item) => item.sessionId === sessionId);
+    if (claim) return { bot, claim };
+  }
+  return null;
+}
+
 /** Record a per-bot preset id. The caller has registered that preset on the plugin side. */
 export function assignDerivedPreset(
   registry: BotRegistry,
@@ -260,9 +374,10 @@ export function parseRegistry(text: string): ParseResult {
   } catch {
     return { ok: false, message: "注册表不是 JSON。" };
   }
-  if (!isRecord(value) || value.version !== REGISTRY_VERSION) {
-    return { ok: false, message: "注册表版本不是 1。" };
+  if (!isRecord(value) || (value.version !== 1 && value.version !== REGISTRY_VERSION)) {
+    return { ok: false, message: "注册表版本无法读取。" };
   }
+  const legacy = value.version === 1;
   if (!Array.isArray(value.templates) || !Array.isArray(value.bots)) {
     return { ok: false, message: "注册表缺少模板或 Bot 列表。" };
   }
@@ -277,12 +392,17 @@ export function parseRegistry(text: string): ParseResult {
   }
   const bots: Bot[] = [];
   const botIds = new Set<string>();
+  const sessionIds = new Set<string>();
   for (const item of value.bots) {
-    const parsed = parseBot(item);
+    const parsed = parseBot(item, legacy);
     if (typeof parsed === "string") return { ok: false, message: parsed };
     if (botIds.has(parsed.id)) return { ok: false, message: "Bot id 重复。" };
     if (!templateIds.has(parsed.templateId)) {
       return { ok: false, message: "Bot 引用了不存在的模板。" };
+    }
+    for (const claim of parsed.claims) {
+      if (sessionIds.has(claim.sessionId)) return { ok: false, message: "Session id 重复。" };
+      sessionIds.add(claim.sessionId);
     }
     botIds.add(parsed.id);
     bots.push(parsed);
@@ -300,7 +420,7 @@ function parseTemplate(value: unknown): BotTemplate | string {
   return { id, name: name.trim(), presetId: presetId.trim() };
 }
 
-function parseBot(value: unknown): Bot | string {
+function parseBot(value: unknown, legacy: boolean): Bot | string {
   if (!isRecord(value)) return "Bot 项无效。";
   const id = readRequiredString(value, "id");
   const name = readRequiredString(value, "name");
@@ -308,33 +428,58 @@ function parseBot(value: unknown): Bot | string {
   const workspace = readRequiredString(value, "workspace");
   const status = value.status;
   const defaultModel = readNullableString(value, "defaultModel");
-  const sessionId = readNullableString(value, "sessionId");
   const boundPresetId = readNullableString(value, "boundPresetId");
   const derivedPresetId = readNullableString(value, "derivedPresetId");
   if (!id || !name?.trim() || !templateId || workspace === undefined) return "Bot 项无效。";
   if (status !== "draft" && status !== "ready") return "Bot 项无效。";
-  if (
-    defaultModel === undefined ||
-    sessionId === undefined ||
-    boundPresetId === undefined ||
-    derivedPresetId === undefined
-  ) {
+  if (defaultModel === undefined || boundPresetId === undefined || derivedPresetId === undefined) {
     return "Bot 项无效。";
   }
   if (status === "ready" && !blankToNull(boundPresetId) && !blankToNull(derivedPresetId)) {
     return "Bot 项无效。";
   }
+  const claims = legacy ? legacyClaims(value) : parseClaims(value.claims);
+  if (typeof claims === "string") return claims;
+  const hadSession = legacy ? claims.length > 0 : value.hadSession;
+  if (typeof hadSession !== "boolean") return "Bot 项无效。";
+  if (claims.length > 0 && !hadSession) return "Bot 项无效。";
   return {
     id,
     name: name.trim(),
     templateId,
     workspace,
     defaultModel: blankToNull(defaultModel),
-    sessionId: blankToNull(sessionId),
+    claims,
+    hadSession,
     status,
     boundPresetId: blankToNull(boundPresetId),
     derivedPresetId: blankToNull(derivedPresetId),
   };
+}
+
+function legacyClaims(value: Record<string, unknown>): SessionClaim[] | string {
+  const sessionId = readNullableString(value, "sessionId");
+  if (sessionId === undefined) return "Bot 项无效。";
+  const id = blankToNull(sessionId);
+  if (!id) return [];
+  return [{ sessionId: id, title: null, archived: false }];
+}
+
+function parseClaims(value: unknown): SessionClaim[] | string {
+  if (!Array.isArray(value)) return "Bot 项无效。";
+  const claims: SessionClaim[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (!isRecord(item)) return "Bot 项无效。";
+    const sessionId = readRequiredString(item, "sessionId")?.trim();
+    const title = readNullableString(item, "title");
+    if (!sessionId || title === undefined || typeof item.archived !== "boolean")
+      return "Bot 项无效。";
+    if (seen.has(sessionId)) return "Bot 项无效。";
+    seen.add(sessionId);
+    claims.push({ sessionId, title: blankToNull(title), archived: item.archived });
+  }
+  return claims;
 }
 
 function readTemplateInput(id: string, name: string, presetId: string): BotTemplate {
@@ -375,6 +520,22 @@ function mustBot(registry: BotRegistry, id: string): Bot {
 
 function templateById(registry: BotRegistry, id: string): BotTemplate | null {
   return registry.templates.find((item) => item.id === id) ?? null;
+}
+
+function mapClaim(
+  registry: BotRegistry,
+  botId: string,
+  sessionId: string,
+  change: (claim: SessionClaim) => SessionClaim,
+): BotRegistry {
+  const bot = mustBot(registry, botId);
+  if (!bot.claims.some((claim) => claim.sessionId === sessionId)) {
+    throw new RegistryRejection({ code: "claim-not-found", sessionId });
+  }
+  return replaceBot(registry, {
+    ...bot,
+    claims: bot.claims.map((claim) => (claim.sessionId === sessionId ? change(claim) : claim)),
+  });
 }
 
 function replaceBot(registry: BotRegistry, bot: Bot): BotRegistry {

@@ -1,18 +1,22 @@
 import { cleanup, effect, platform, Text, untracked, View } from "nsh";
 
-import { Button, colors, Segmented } from "../../components/ui";
+import { Button, colors, Field, Segmented } from "../../components/ui";
+import { claimOwner } from "../bots/model";
+import { registry } from "../bots/state";
+import { openOwningBot } from "./navigate";
 import {
-  activeSessionId,
   answerApproval,
+  archiveSession,
   connectSession,
   hostStatus,
   modelCatalog,
   pendingApproval,
   refreshHostStatus,
+  renameSession,
   sessionError,
   sessionReady,
 } from "./session/runtime";
-import { catalogModelKey, selectItem, selectedId } from "./state";
+import { catalogModelKey, selectedId } from "./state";
 
 /** Dialogue context: Host / Session status, approvals, and catalog. */
 export function DialogueContext(_props: { selectedId: string | null }) {
@@ -24,10 +28,7 @@ export function DialogueContext(_props: { selectedId: string | null }) {
     void (async () => {
       await refreshHostStatus();
       try {
-        const current = untracked(selectedId);
-        await connectSession(current ?? undefined);
-        const active = untracked(activeSessionId);
-        if (active && !untracked(selectedId)) selectItem(active);
+        await connectSession(untracked(selectedId) ?? undefined);
       } catch {
         // sessionError surfaces failure
       }
@@ -46,6 +47,11 @@ export function DialogueContext(_props: { selectedId: string | null }) {
     }));
   };
 
+  const owned = () => {
+    const id = selectedId();
+    return id ? claimOwner(registry(), id) : null;
+  };
+
   return (
     <View style={{ flex: 1, padding: 16, gap: 16 }}>
       <View desktop={{ windowDrag: true }} style={{ gap: 4, paddingBottom: 4 }}>
@@ -53,11 +59,48 @@ export function DialogueContext(_props: { selectedId: string | null }) {
           SESSION
         </Text>
         <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
-          {activeSessionId() ? activeSessionId() : "未连接"}
+          {owned()?.claim.title || (selectedId() ? "未命名任务" : "未选择会话")}
         </Text>
         <Text style={{ fontSize: 13, color: colors.muted }}>
-          {sessionReady() ? "官方 Session 已连接" : "正在自动连接后台…"}
+          {owned()
+            ? `${owned()?.bot.name}${owned()?.claim.archived ? " · 已归档" : ""}`
+            : sessionReady()
+              ? "选择一条已认领的会话"
+              : "正在连接后台…"}
         </Text>
+        <If when={owned()}>
+          <Field
+            label="任务名"
+            value={owned()?.claim.title ?? ""}
+            placeholder="未命名任务"
+            onChange={(value) => {
+              const id = selectedId();
+              if (id) void renameSession(id, value);
+            }}
+          />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Button
+              label="所属 Bot"
+              variant="secondary"
+              size="small"
+              onPress={() => {
+                const botId = owned()?.bot.id;
+                if (botId) openOwningBot(botId);
+              }}
+            />
+            <If when={!owned()?.claim.archived}>
+              <Button
+                label="归档"
+                variant="secondary"
+                size="small"
+                onPress={() => {
+                  const id = selectedId();
+                  if (id) void archiveSession(id);
+                }}
+              />
+            </If>
+          </View>
+        </If>
       </View>
 
       <If when={native}>

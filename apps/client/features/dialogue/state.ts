@@ -10,6 +10,8 @@ export const chatEpoch = signal(0);
 
 /** Selected Session id within Dialogue. */
 export const selectedId = signal<string | null>(null);
+/** null lists every claimed session. A bot id lists only that bot. */
+export const sessionScopeBotId = signal<string | null>(null);
 /** Desktop: Context column visible. Mobile: mirrored while Context page is on stack. */
 export const contextOpen = signal(false);
 

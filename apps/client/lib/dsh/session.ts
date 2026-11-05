@@ -49,6 +49,17 @@ export async function ensurePrimarySession(connection?: Connection): Promise<str
   return sessionId;
 }
 
+/** Create a Session in a Bot workspace and make it the followed id. */
+export async function createBoundSession(
+  connection: Connection | undefined,
+  request: { cwd?: string; agentPreset?: string },
+): Promise<string> {
+  const conn = connection ?? (await ensureConnected());
+  const created = await conn.createSession(request);
+  sessionId = created.sessionId;
+  return sessionId;
+}
+
 /** Create a brand-new official Session and make it active. */
 export async function createNewSession(connection?: Connection): Promise<string> {
   const conn = connection ?? (await ensureConnected());
@@ -62,6 +73,15 @@ export async function listSessions(
 ): Promise<{ sessionId: string; cwd?: string; blank: boolean; updatedAt: number }[]> {
   const conn = connection ?? shared ?? (await ensureConnected());
   return conn.listSessions();
+}
+
+export async function listAgentPresets(
+  connection?: Connection,
+): Promise<
+  { id: string; name: string; description?: string; isDefault: boolean; broken?: string }[]
+> {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.listAgentPresets();
 }
 
 export function setApprovalHandler(

@@ -1,8 +1,9 @@
 import { platform, safeArea, Text, View } from "nsh";
 import { TabBar, isAvailable as isMobile } from "nsh/mobile";
 
+import { openModule } from "../features/dialogue/navigate";
 import { modules } from "../workspace/modules";
-import { moduleId, setModule, type ModuleId } from "../workspace/state";
+import { moduleId } from "../workspace/state";
 import { colors, Icon, Press, type IconName } from "./ui";
 
 const iosTabIcons: Partial<Record<IconName, string>> = {
@@ -50,7 +51,7 @@ function SystemTabBar() {
       selectedIndex={selectedIndex()}
       onChange={(e) => {
         const mod = modules[e.index];
-        if (mod) setModule(mod.id as ModuleId);
+        if (mod) openModule(mod.id);
       }}
       style={{ flexShrink: 0 }}
     />
@@ -75,7 +76,7 @@ function DrawnTabBar() {
             const active = () => moduleId() === mod().id;
             return (
               <Press
-                onPress={() => setModule(mod().id as ModuleId)}
+                onPress={() => openModule(mod().id)}
                 accessibilityLabel={mod().label}
                 accessibilityState={{ selected: active() }}
                 style={{ flex: 1 }}

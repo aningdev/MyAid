@@ -16,7 +16,7 @@ MyAid 通过对话交付结果，用任务与结果跟踪进度，用记忆与�
 
 ## 对话与对象模型（原则）
 
-决定见 [ADR 0001](adr/0001-bot-has-many-sessions.md)。
+决定见 [ADR 0001](adr/0001-bot-has-many-sessions.md)。对象与 DSH 的映射图见 [BOT_SESSION_MAP](BOT_SESSION_MAP.md)。
 
 - Bot 是启动身份，名下可以有多条会话。每条会话是一项对话任务，并等于一条 Harness Session。
 - 会话只在用户进入某个就绪 Bot 后明确新建，并立刻认领给这个 Bot。草稿没有会话。打开、初始化、修改能力都不自动新建。跨 Bot 的会话列表不新建。

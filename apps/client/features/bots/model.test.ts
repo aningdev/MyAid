@@ -1,16 +1,21 @@
 import { expect, test } from "nsh/test";
 
 import {
+  archiveClaim,
   assignDerivedPreset,
+  claimSession,
   createBot,
   createTemplate,
+  deleteBot,
   deleteTemplate,
   emptyRegistry,
+  importTemplatesFromPresets,
   initializeBot,
   parseRegistry,
   presetBinding,
   presetForBot,
   RegistryRejection,
+  releaseClaim,
   updateBot,
   updateTemplate,
 } from "./model";
@@ -93,6 +98,70 @@ test("a corrupt registry is reported and not overwritten", async () => {
     ),
   ).rejects.toMatchObject({ issue: { code: "corrupt" } });
   expect(store.text()).toBe("{");
+});
+
+test("a ready bot claims sessions and cannot be deleted afterwards", () => {
+  let registry = initializeBot(codingDraft(), "bot");
+  expect(deleteBot(registry, "bot").bots).toHaveLength(0);
+
+  registry = claimSession(initializeBot(codingDraft(), "bot"), "bot", "s1");
+  expect(registry.bots[0].hadSession).toBe(true);
+  registry = archiveClaim(registry, "bot", "s1");
+  expect(registry.bots[0].claims[0]?.archived).toBe(true);
+  registry = releaseClaim(registry, "bot", "s1");
+  expect(registry.bots[0].claims).toHaveLength(0);
+  expect(() => deleteBot(registry, "bot")).toThrow(RegistryRejection);
+  expect(() => claimSession(codingDraft(), "bot", "s2")).toThrow(RegistryRejection);
+});
+
+test("one session belongs to one bot", () => {
+  let registry = claimSession(initializeBot(codingDraft(), "bot"), "bot", "s1");
+  registry = initializeBot(
+    createBot(registry, { name: "Bea", templateId: "tmpl", workspace: "/else" }, "bea"),
+    "bea",
+  );
+  expect(() => claimSession(registry, "bea", "s1")).toThrow(RegistryRejection);
+});
+
+test("dsh presets become templates keyed by preset id", () => {
+  const imported = importTemplatesFromPresets(emptyRegistry(), [
+    { id: "standard", name: "Standard" },
+    { id: "minimal", name: "Minimal", broken: "offline" },
+    { id: "coding", name: "Coding" },
+  ]);
+  expect(imported.templates.map((item) => item.id)).toEqual(["standard", "coding"]);
+  expect(imported.templates[0]?.presetId).toBe("standard");
+  const renamed = importTemplatesFromPresets(imported, [{ id: "standard", name: "标准" }]);
+  expect(renamed.templates.find((item) => item.id === "standard")?.name).toBe("标准");
+});
+
+test("a version 1 session pointer becomes one claim", () => {
+  const parsed = parseRegistry(
+    JSON.stringify({
+      version: 1,
+      templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
+      bots: [
+        {
+          id: "bot",
+          name: "Ada",
+          templateId: "tmpl",
+          workspace: "/work",
+          defaultModel: null,
+          sessionId: "s1",
+          status: "ready",
+          boundPresetId: "standard",
+          derivedPresetId: null,
+        },
+      ],
+    }),
+  );
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+  expect(parsed.registry.version).toBe(2);
+  expect(parsed.registry.bots[0]?.claims).toEqual([
+    { sessionId: "s1", title: null, archived: false },
+  ]);
+  expect(parsed.registry.bots[0]?.hadSession).toBe(true);
 });
 
 test("a missing registry starts empty and commits stay serial", async () => {

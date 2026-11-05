@@ -1,5 +1,12 @@
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
-import { Context, Gateway, TypertRegistry, installConnection, sessionRemote } from "./sdk.js";
+import {
+  Context,
+  Gateway,
+  TypertRegistry,
+  agentPresetsRemote,
+  installConnection,
+  sessionRemote,
+} from "./sdk.js";
 /**
  * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
  * Boundary adapted from dsh-bot `connection.ts` — no product workbench UI.
@@ -162,6 +169,7 @@ export class Connection {
       });
       await ctx.plugin(Gateway);
       await ctx.remote.$mount(sessionRemote);
+      await ctx.remote.$mount(agentPresetsRemote);
       const owner = this;
       ctx.remote.$on("approval/request", function (this: any, request: any) {
         return owner.answerApproval(request.agent?.[agentTag] ?? this?.[agentTag], request);
@@ -212,6 +220,21 @@ export class Connection {
     return this.ctx.remote;
   }
 
+  async listAgentPresets(): Promise<
+    { id: string; name: string; description?: string; isDefault: boolean; broken?: string }[]
+  > {
+    const value: any = unwrap(await this.remote.agentPresets.list());
+    return (value.presets ?? []).map((item: any) => ({
+      id: String(item.id),
+      name: typeof item.name === "string" && item.name.trim() ? item.name.trim() : String(item.id),
+      ...(typeof item.description === "string" && item.description
+        ? { description: item.description }
+        : {}),
+      isDefault: item.isDefault === true,
+      ...(typeof item.broken === "string" && item.broken ? { broken: item.broken } : {}),
+    }));
+  }
+
   async modelCatalog(): Promise<ModelCatalog> {
     const value: any = unwrap(await this.remote.session.modelCatalog());
     return {
@@ -235,11 +258,13 @@ export class Connection {
   async createSession(request?: {
     cwd?: string;
     sessionId?: string;
+    agentPreset?: string;
   }): Promise<{ sessionId: string }> {
     const value: any = unwrap(
       await this.remote.session.create({
         ...(request?.cwd ? { cwd: request.cwd } : {}),
         ...(request?.sessionId ? { sessionId: request.sessionId } : {}),
+        ...(request?.agentPreset ? { agentPreset: request.agentPreset } : {}),
       }),
     );
     return { sessionId: String(value.sessionId) };
