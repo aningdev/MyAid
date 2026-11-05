@@ -41,7 +41,7 @@ vp run @myaid/client#package:web
 
 ## Host socket（仅本机桌面）
 
-日常联调请从**仓库根** `bun run dev`：会像 dsh-bot 一样先确保 Host，再起本包 `dev`。  
+日常联调请从**仓库根** `bun run dev`：先确保 Host，再起本包 `dev`。  
 `MYAID_HOST_SOCKET` 由根 `scripts/dev.mjs` 与本包 `dev` / `dev:macos`（经 `scripts/run-with-host-socket.mjs`）注入；Unix 默认 `~/.myaid/host/control.sock`，Windows 默认 `\\.\pipe\myaid-host`，可覆盖。  
 `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` **不注入**——移动端经 Relay，不走本机 Host 控制通道。
 

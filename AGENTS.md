@@ -24,7 +24,7 @@
 - **Vite+（vp）**：JS/TS 工作区默认工具链为 `vp`（`vp run` / `vp check` / `vp pack` / `vp test` / `vp staged` / `vp fmt`）。根与包的 `package.json` scripts 都保留；根用 `vp run pkg#task` / `--filter` 调度。同一任务名不进 `vite.config.ts` → `run.tasks`（与 scripts 互斥，见 [run](https://viteplus.dev/guide/run)）。
 - 轻量验收：`bun install && bun run check`（与 CI 同；`vp run check` 等价）。细节以根 `package.json` 为准。
 - Git hooks：已有 `.vite-hooks/pre-commit` → `vp staged`；不绑全量 `check`。
-- Client 应用生命周期走官方 `nsh run|check|build|test|package`；工作区编排仍用 `vp run @myaid/client#…`。勿在 `apps/client/scripts/` 加应用编排 TS；仓库根 `scripts/dev.mjs`（Host+Client 联调）例外，对齐 dsh-bot。
+- Client 应用生命周期走官方 `nsh run|check|build|test|package`；工作区编排仍用 `vp run @myaid/client#…`。勿在 `apps/client/scripts/` 加应用编排 TS；仓库根 `scripts/dev.mjs`（Host+Client 联调）例外。
 - **NSH 示例组件与样式**：Client UI 对照 `references/nsh/examples/nsh-gallery-ui`、`examples/gallery`，再落到 [`apps/client/components/ui`](apps/client/components/ui/)；设计与编码以 Client 条的两份指南为准，细则见 client AGENTS。
 - **dsh web 能力**：Session / 工具 / preset / Remote 优先复用官方 `dsh web` 与已装插件；实现前对照 `references/deepseek-harness` 的能力面与插件形态，产品缺口才新建 `myaid-plugin-*`。细则见 DSH_PRINCIPLES §4 与 packages AGENTS。
 - 工具链版本以仓库实有文件为准：仅 [`.bun-version`](.bun-version)；共享 npm 版用 `workspaces.catalog` + `"catalog:"`。

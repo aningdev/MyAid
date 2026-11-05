@@ -1,6 +1,5 @@
 /**
  * DSH loopback auth bootstrap for MyAid (NSH 0.4).
- * Pattern from dsh-bot `frontend/infrastructure/dsh/connection.ts`:
  * fetch `/connect?token=…` with Cookie → open `ws://127.0.0.1…/api/remote.mux`.
  */
 import { connect as standardConnect } from "websocket";

@@ -9,7 +9,7 @@ import {
 } from "./sdk.js";
 /**
  * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
- * Boundary adapted from dsh-bot `connection.ts` — no product workbench UI.
+ * No product workbench UI.
  */
 import { AuthenticatedSocket } from "./socket";
 

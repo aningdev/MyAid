@@ -1,5 +1,5 @@
 //! Bounded WebSocket I/O owned and disposed by one JS Socket instance.
-//! Ported from dsh-bot `apps/client/src/cookie_websocket/socket.rs` for NSH 0.4.
+//! Cookie handshake for NSH 0.4 (standard websocket.connect still rejects Cookie headers).
 use futures_util::{SinkExt, StreamExt};
 use nsh_core::prelude::*;
 use std::{sync::Arc, time::Duration};

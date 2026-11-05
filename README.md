@@ -2,9 +2,9 @@
 
 个人助理操作系统空壳：通过对话交付结果，用任务与结果跟踪进度，用记忆与知识认识你，用插件扩展双手。
 
-- **DSH 原则**继承自本机参考仓 `~/Code/dsh-bot`（官方 `dsh` / Cordis / Host 边界）——见 [docs/DSH_PRINCIPLES.md](docs/DSH_PRINCIPLES.md)。
+- **DSH 原则**：官方 `dsh` / Cordis / Host 边界——见 [docs/DSH_PRINCIPLES.md](docs/DSH_PRINCIPLES.md)。
 - **客户端布局**为官方 NSH **mixed**（`App.tsx` + 根级 Rust crate）。
-- **不含** dsh-bot 对话工作台业务实现或 DeepSeek 产品品牌内容。
+- **不含** DeepSeek 产品品牌内容；不迁入官方 harness Web GUI。
 
 ## 仓库形状
 
@@ -33,7 +33,7 @@ dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
 ```sh
 bun install
 bun run check   # 或 vp run check：vp check --fix → plugin check → nsh check → cargo check
-bun run dev     # scripts/dev.mjs：探测/拉起 Host，再起 NSH Client（对齐 dsh-bot）
+bun run dev     # scripts/dev.mjs：探测/拉起 Host，再起 NSH Client
 bun run test
 bun run build   # plugin + client（`vp run --filter @myaid/client... build`）
 ```
@@ -50,8 +50,7 @@ bun run build   # plugin + client（`vp run --filter @myaid/client... build`）
 
 ## 有意省略
 
-- 未移植对话 / 审批 / 模型设置页等产品 UI（客户端已有 AppShell / Dialogue 壳与认证库，非完整业务）
-- 未移植完整 Host lifecycle / bot-composition 业务插件
+- 不迁入官方 harness Web GUI / 审批 / 模型设置页（客户端已有 AppShell / Dialogue 壳与认证库，非完整业务）
 - 无产品线框目录；线框任务另开，不混进本仓库主路径
 
 ## 参考 submodule

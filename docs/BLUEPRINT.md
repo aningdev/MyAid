@@ -2,8 +2,6 @@
 
 描述产品目标与业务规则的**原则层**；装配与协议细节见 [ARCHITECTURE.md](ARCHITECTURE.md)，DSH 集成原则见 [DSH_PRINCIPLES.md](DSH_PRINCIPLES.md)。实现进度见根 [README.md](../README.md)。
 
-本文件改编自 `~/Code/dsh-bot/docs/BLUEPRINT.md` 中与 Harness / Host / 注册表相关的不变式，产品叙事改为 MyAid（个人助理操作系统），**不**照搬「DSH Bot」工作台 UI 规格。
-
 ## 产品定位
 
 MyAid 通过对话交付结果，用任务与结果跟踪进度，用记忆与知识认识你，用插件扩展双手。桌面 UI 是控制端；独立 Host + 官方 `dsh` 管理执行。关闭 UI 不停止已接纳工作；遇审批时可能等待用户重连。

@@ -1,6 +1,6 @@
 # MyAid 继承的 DSH 原则
 
-本文从本机参考仓库 `~/Code/dsh-bot` 提炼 **DeepSeek Harness / 官方 `dsh` 集成原则**，以 MyAid 命名落地。不复制 dsh-bot 的对话工作台业务实现或 DeepSeek 产品品牌文案。
+本文定义 MyAid 的 **DeepSeek Harness / 官方 `dsh` 集成原则**。不迁入官方 harness Web GUI，不含 DeepSeek 产品品牌文案。
 
 权威展开见 [ARCHITECTURE.md](ARCHITECTURE.md)、[BLUEPRINT.md](BLUEPRINT.md)、[GLOSSARY.md](../GLOSSARY.md)；本仓工程约定与读档指针见根 [AGENTS.md](../AGENTS.md)。
 
@@ -51,9 +51,7 @@
 - 连接换代 / 切换对象后，旧回调不得回写当前状态；结果未知先核对，不盲目重发。
 - 注册表等关键写入串行；区分不存在、损坏与 I/O 失败。
 
-## 7. 有意不从 dsh-bot 迁入
+## 7. 有意不迁入
 
-- 对话工作台 / 审批 / 模型设置页等产品 UI
-- `dsh-plugin-bot-composition` 的业务 Remote 实现
-- Host 完整 lifecycle / guardian / Bridge 实现体
-- DeepSeek / 「DSH Bot」品牌文案与 e2e 夹具细节
+- 官方 harness Web GUI / 审批页 / 模型设置页等产品 UI（NSH 侧自建）
+- DeepSeek 产品品牌文案

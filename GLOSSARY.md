@@ -1,6 +1,6 @@
 # MyAid 术语表
 
-定义 MyAid 产品概念，并区分 DeepSeek Harness 的执行概念。改编自 `~/Code/dsh-bot/GLOSSARY.md`；英文用于类型与接口，中文用于解释。产品概念不改变上游同名概念的含义。
+定义 MyAid 产品概念，并区分 DeepSeek Harness 的执行概念。英文用于类型与接口，中文用于解释。产品概念不改变上游同名概念的含义。
 
 ## 产品与运行时
 

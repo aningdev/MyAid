@@ -1,6 +1,6 @@
 /**
- * Dev launcher (from dsh-bot scripts/dev.ts): ensure Host control socket,
- * then start the NSH client. Closing the client leaves Host running until Ctrl+C.
+ * Dev launcher: ensure Host control socket, then start the NSH client.
+ * Closing the client leaves Host running until Ctrl+C.
  */
 import { spawn } from "node:child_process";
 import { connect } from "node:net";

@@ -1,6 +1,6 @@
 # Harness / Cordis 集成原则
 
-从 `~/Code/dsh-bot/docs/research/HARNESS_INTEGRATION.md` 提炼的**机制原则**（去掉实验日志与旧 `apps/runner` 路径）。完整证据仍可读参考仓；MyAid 只保留可继承结论。
+从官方 DeepSeek Harness / Cordis 行为提炼的**机制原则**。完整证据对照只读 [`references/deepseek-harness`](../../references/deepseek-harness)；本文只保留可继承结论。
 
 ## 结论
 

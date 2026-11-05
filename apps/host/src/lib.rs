@@ -1,5 +1,5 @@
 //! Host lifecycle and local control. No Harness business calls or session state.
-//! Module layout mirrors dsh-bot: `dsh_process`, `host_control`, `bridge`.
+//! Modules: `dsh_process`, `host_control`, `bridge`.
 
 pub mod bridge;
 mod config;
