@@ -54,5 +54,5 @@ const result = await smokeDshAuthTransport();
 
 ## 有意未做
 
-- 完整注册表 / 多助手 Session 指针；MVP 使用固定 `myaid-primary`。
+- 按蓝图把会话认领到 Bot。客户端仍使用固定 `myaid-primary`，直至按该模型接线。
 - Bridge / Relay / `SMAppService` 成品登记。
