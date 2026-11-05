@@ -15,12 +15,12 @@
   },
   "scripts": {
     "check": "tsc -p tsconfig.json --noEmit",
-    "build": "tsc -p tsconfig.json",
-    "test": "bun test src/index.test.ts",
-    "prepare": "bun run build"
+    "build": "vp pack",
+    "test": "vp test",
+    "prepare": "vp pack"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "typescript": "catalog:"
   },
   "dsh": {

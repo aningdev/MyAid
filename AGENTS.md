@@ -23,7 +23,7 @@
 - 全部助手共用未经修改的官方 `dsh web`、`web` profile 与隔离数据根 `~/.myaid`（`DSH_HOME`）；不按助手拆进程或自拼执行运行时。
 - Client（NSH）负责界面、注册表、本地操作与产品策略；官方协议客户端直连 dsh。dsh 运行准备、启动、ready、监控与回收由 **Host 独占**。
 - `apps/client` 的 Rust crate 仅补足 NSH 标准 API 缺口；常驻 `apps/host` 负责 App 后台身份与 dsh 生命周期。**不设 `ProductService`。**
-- 能力优先复用 dsh 插件；缺口放 `packages/myaid-plugin-*`，经声明式 bundle / `--patch` 装配。
+- 能力优先复用 dsh 插件；缺口放 `packages/myaid-plugin-*`，经声明式 bundle / `--patch` 装配。插件包用 Vite+：`vp pack` 出 `lib/`、`vp test`（`vite-plus/test`）、`tsc --noEmit` 做 check；`tsconfig` 继承根 `tsconfig.base.json`。勿在插件内写 `bun` / `bun:test` / 裸 `node --test`。
 - 多端只经 Host 内 Bridge 出站；Relay 在 `apps/relay`，只转发密文。
 - Bun 管 JS workspace + 唯一 `bun.lock`；Rust 由 Cargo 管理。`references/` 只读，不参与产品构建。
 
