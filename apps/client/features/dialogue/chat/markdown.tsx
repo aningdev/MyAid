@@ -1,7 +1,7 @@
 import { type JSX, signal } from "nsh";
 import { TextView, type TextViewImage } from "nsh/base";
 
-import { colors } from "../../../components/ui";
+import { colors, font } from "../../../components/ui";
 import { ImageViewer } from "../ImageViewer";
 
 /**
@@ -35,10 +35,10 @@ export function Markdown(props: {
         streamingCaret={props.caret}
         styles={{
           // A chat's scale: tighter than a document's.
-          root: { gap: 12, fontSize: 15, lineHeight: 22, color: colors.text },
-          heading1: { fontSize: 20, lineHeight: 26 },
-          heading2: { fontSize: 17, lineHeight: 22 },
-          heading3: { fontSize: 15, lineHeight: 22 },
+          root: { gap: 12, fontSize: font.base, color: colors.text },
+          heading1: { fontSize: font.xl },
+          heading2: { fontSize: font.lg },
+          heading3: { fontSize: font.base },
           code: { color: colors.code },
           codeBlockCode: { color: colors.code },
           link: { color: colors.accent },

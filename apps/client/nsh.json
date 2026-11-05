@@ -6,6 +6,7 @@
   "icon": "assets/icon.png",
   "rust": ".",
   "appearance": "system",
+  "theme": "theme.json",
   "resolve": {
     "conditions": ["node"]
   },

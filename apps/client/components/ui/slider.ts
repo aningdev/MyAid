@@ -1,7 +1,7 @@
 import type { TextStyle, ViewStyle } from "nsh";
 import { platform } from "nsh";
 
-import { alpha, colors } from "./theme";
+import { alpha, colors, finish } from "./theme";
 
 /** Options of `sliderLook`. */
 export interface SliderLookOptions {
@@ -12,7 +12,7 @@ export interface SliderLookOptions {
 }
 
 /** The value column's label class. */
-export const sliderValueClass = "w-[42px] text-right font-mono text-[11px] leading-none";
+export const sliderValueClass = "w-10 text-right font-mono text-xs leading-none";
 
 /** The value column label's color. */
 export const sliderValueStyle = (): TextStyle => ({ color: alpha(colors.text, 0.6) });
@@ -26,10 +26,10 @@ export function sliderLook(o: SliderLookOptions = {}) {
   const pointer = platform.idiom === "desktop";
   const rail = `${vertical ? "w-2" : "h-2"} rounded-full bg-muted`;
   const focus =
-    "focus-within:ring-2 focus-within:ring-primary/36 focus-within:ring-offset-2 focus-within:ring-offset-card";
+    "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-card";
   const fade = "transition duration-150 motion-reduce:transition-none";
   const railStyle = (): ViewStyle => ({
-    boxShadow: `inset 0 1px 1px rgba(255, 255, 255, 0.04), 0 0 14px ${alpha(colors.accent, 0.06)}`,
+    boxShadow: finish.inset.boxShadow,
   });
   const track = pointer
     ? `${rail} ${vertical ? "h-32 py-2" : "px-2"} ${focus}`
@@ -38,7 +38,7 @@ export function sliderLook(o: SliderLookOptions = {}) {
       : "h-8 justify-center";
   return {
     class: o.value ? "flex-row items-center gap-2" : undefined,
-    trackClass: `${track} ${o.value ? "flex-1" : ""} cursor-pointer ${fade} disabled:opacity-35 disabled:cursor-not-allowed`,
+    trackClass: `${track} ${o.value ? "flex-1" : ""} ${fade} disabled:opacity-35`,
     get trackStyle(): ViewStyle | undefined {
       return pointer ? railStyle() : undefined;
     },
@@ -55,7 +55,7 @@ export function sliderLook(o: SliderLookOptions = {}) {
     get thumbStyle(): ViewStyle {
       return {
         backgroundColor: colors.faint,
-        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.42)",
+        boxShadow: finish.knob.boxShadow,
       };
     },
   };

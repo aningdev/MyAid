@@ -1,4 +1,4 @@
-import { effect, signal, Text, View, createAnimatedValue } from "nsh";
+import { effect, reduceMotion, signal, Text, View, createAnimatedValue } from "nsh";
 import { Tab, Tabs } from "nsh/base";
 
 import { colors, finish, motion } from "./theme";
@@ -33,7 +33,7 @@ export function Segmented<T extends string>(props: {
   effect(() => {
     const to = index() * segment();
     if (width() <= 0) return;
-    if (placed) x.spring(to, motion.settle);
+    if (placed && !reduceMotion()) x.spring(to, motion.settle);
     else x.set(to);
     placed = true;
   });

@@ -13,6 +13,11 @@ export const selectedId = signal<string | null>(null);
 /** Desktop: Context column visible. Mobile: mirrored while Context page is on stack. */
 export const contextOpen = signal(false);
 
+/** Read the selection without subscribing. Navigation uses this while it mutates the stack. */
+export function peekSelectedId() {
+  return untracked(selectedId);
+}
+
 export function selectItem(id: string | null) {
   if (untracked(selectedId) === id) return;
   selectedId.set(id);

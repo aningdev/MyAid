@@ -69,8 +69,8 @@ function DrawnTabBar() {
         paddingBottom: safeArea().bottom,
       }}
     >
-      <View style={{ height: 52, flexDirection: "row" }}>
-        <Each of={modules}>
+      <View class="min-h-12 flex-row">
+        <Each of={modules} key={(mod) => mod.id}>
           {(mod) => {
             const active = () => moduleId() === mod().id;
             return (
@@ -80,13 +80,13 @@ function DrawnTabBar() {
                 accessibilityState={{ selected: active() }}
                 style={{ flex: 1 }}
               >
-                <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 2 }}>
+                <View class="min-h-11 flex-1 items-center justify-center gap-0.5">
                   <Icon
                     name={mod().icon}
                     size={18}
                     tint={active() ? colors.accent : colors.muted}
                   />
-                  <Text style={{ fontSize: 9, color: active() ? colors.text : colors.faint }}>
+                  <Text class="text-xs" style={{ color: active() ? colors.text : colors.faint }}>
                     {mod().shortLabel}
                   </Text>
                 </View>

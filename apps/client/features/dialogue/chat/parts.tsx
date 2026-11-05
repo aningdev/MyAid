@@ -6,8 +6,6 @@ import {
   Badge,
   colors,
   finish,
-  isDark,
-  mono,
   Press,
   radius,
   type Tone,
@@ -115,7 +113,9 @@ export function DateSeparator(props: { label: string }) {
       }}
     >
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
-      <Text style={{ fontSize: 12, fontWeight: "500", color: colors.faint }}>{props.label}</Text>
+      <Text class="text-xs font-medium" style={{ color: colors.faint }}>
+        {props.label}
+      </Text>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
     </View>
   );
@@ -130,8 +130,8 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         alignItems: "center",
         gap: 10,
         height: 48,
-        paddingLeft: 10,
-        paddingRight: props.onRemove ? 4 : 14,
+        paddingStart: 10,
+        paddingEnd: props.onRemove ? 4 : 14,
         borderRadius: radius.control,
         borderCurve: "continuous",
         backgroundColor: colors.raised,
@@ -153,10 +153,10 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         <Glyph name="file" size={16} tint={colors.danger} />
       </View>
       <View style={{ gap: 1 }}>
-        <Text style={{ numberOfLines: 1, fontSize: 14, color: colors.text, maxWidth: 170 }}>
+        <Text class="text-sm text-foreground" style={{ numberOfLines: 1, maxWidth: 170 }}>
           {props.file.name}
         </Text>
-        <Text style={{ fontSize: 12, color: colors.muted, fontVariant: ["tabular-nums"] }}>
+        <Text class="text-xs text-muted-foreground" style={{ fontVariant: ["tabular-nums"] }}>
           {(props.file.name.split(".").pop() ?? "file").toUpperCase()} · {props.file.size}
         </Text>
       </View>
@@ -229,12 +229,7 @@ export function ToolCard(props: { tool: Tool }) {
         borderRadius: radius.inset,
         borderCurve: "continuous",
         borderWidth: 1,
-        borderColor:
-          t().state === "running"
-            ? isDark()
-              ? "#33405a"
-              : alpha(colors.info, 0.4)
-            : colors.border,
+        borderColor: t().state === "running" ? alpha(colors.info, 0.4) : colors.border,
         transitionProperty: "colors",
         transitionDuration: 250,
         overflow: "hidden",
@@ -257,10 +252,10 @@ export function ToolCard(props: { tool: Tool }) {
           <Glyph name={head().glyph} size={16} tint={colors.text} />
         </View>
         <View style={{ flex: 1, gap: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+          <Text class="text-sm font-semibold text-foreground">
             {head().title}
           </Text>
-          <Text style={{ numberOfLines: 1, fontSize: 13, color: colors.muted }}>
+          <Text class="text-sm text-muted-foreground" style={{ numberOfLines: 1 }}>
             {head().detail}
           </Text>
         </View>
@@ -270,7 +265,7 @@ export function ToolCard(props: { tool: Tool }) {
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Spinner tint={t().state === "pending" ? colors.faint : colors.info} />
-            <Text style={{ fontSize: 13, color: colors.muted }}>{stateLabel[t().state]}</Text>
+            <Text class="text-sm text-muted-foreground">{stateLabel[t().state]}</Text>
           </View>
         </If>
       </View>
@@ -301,19 +296,14 @@ function ToolBody(props: { tool: Tool }) {
         <View style={{ borderTopWidth: 1, borderTopColor: colors.line, padding: 12, gap: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 12 }}>
             <Text
-              style={{
-                fontSize: 40,
-                fontWeight: "600",
-                color: colors.text,
-                fontVariant: ["tabular-nums"],
-                letterSpacing: -1,
-              }}
+              class="text-4xl font-semibold text-foreground"
+              style={{ fontVariant: ["tabular-nums"] }}
             >
               {weather().temp}°
             </Text>
             <View style={{ flex: 1, paddingBottom: 7, gap: 2 }}>
-              <Text style={{ fontSize: 15, color: colors.text }}>{weather().condition}</Text>
-              <Text style={{ fontSize: 13, color: colors.muted, fontVariant: ["tabular-nums"] }}>
+              <Text class="text-base text-foreground">{weather().condition}</Text>
+              <Text class="text-sm text-muted-foreground" style={{ fontVariant: ["tabular-nums"] }}>
                 H {weather().high}° L {weather().low}°
               </Text>
             </View>
@@ -331,7 +321,8 @@ function ToolBody(props: { tool: Tool }) {
                     }}
                   />
                   <Text
-                    style={{ fontSize: 11, color: colors.faint, fontVariant: ["tabular-nums"] }}
+                    class="text-xs text-faint"
+                    style={{ fontVariant: ["tabular-nums"] }}
                   >
                     {(17 + i()) % 24}h
                   </Text>
@@ -345,14 +336,7 @@ function ToolBody(props: { tool: Tool }) {
   return (
     <View style={{ borderTopWidth: 1, borderTopColor: colors.line }}>
       <View style={{ padding: 12, backgroundColor: colors.inset }}>
-        <Text
-          style={{
-            fontFamily: mono,
-            fontSize: 12,
-            lineHeight: 18,
-            color: isDark() ? "#c9cdd3" : colors.code,
-          }}
-        >
+        <Text class="text-xs font-mono" style={{ color: colors.code }}>
           {code().code}
         </Text>
       </View>
@@ -368,11 +352,11 @@ function ToolBody(props: { tool: Tool }) {
             borderTopColor: colors.line,
           }}
         >
-          <Text style={{ fontSize: 13, color: colors.muted }}>Output</Text>
-          <Text style={{ flex: 1, fontFamily: mono, fontSize: 14, color: colors.up }}>
+          <Text class="text-sm text-muted-foreground">Output</Text>
+          <Text class="text-sm font-mono text-success" style={{ flex: 1 }}>
             {code().output}
           </Text>
-          <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+          <Text class="text-xs text-faint" style={{ fontVariant: ["tabular-nums"] }}>
             exit 0 · {code().ms} ms
           </Text>
         </View>
@@ -402,17 +386,17 @@ function SourceRow(props: { source: Source; index: number }) {
           justifyContent: "center",
         }}
       >
-        <Text style={{ fontSize: 12, fontWeight: "700", color: toneColor(props.source.tone) }}>
+        <Text class="text-xs font-bold" style={{ color: toneColor(props.source.tone) }}>
           {props.source.site[0].toUpperCase()}
         </Text>
       </View>
       <View style={{ flex: 1, gap: 1 }}>
-        <Text style={{ numberOfLines: 1, fontSize: 14, color: colors.text }}>
+        <Text class="text-sm text-foreground" style={{ numberOfLines: 1 }}>
           {props.source.title}
         </Text>
-        <Text style={{ fontSize: 12, color: colors.faint }}>{props.source.site}</Text>
+        <Text class="text-xs text-faint">{props.source.site}</Text>
       </View>
-      <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+      <Text class="text-xs text-faint" style={{ fontVariant: ["tabular-nums"] }}>
         {props.index + 1}
       </Text>
     </View>
@@ -436,7 +420,7 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
       }}
     >
       <Glyph name="alert" size={18} tint={colors.danger} />
-      <Text style={{ flex: 1, fontSize: 14, lineHeight: 19, color: colors.text }}>
+      <Text class="text-sm text-foreground" style={{ flex: 1 }}>
         {props.message}
       </Text>
       <Press onPress={props.onRetry} accessibilityLabel="Retry">
@@ -453,7 +437,7 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
           }}
         >
           <Glyph name="regenerate" size={14} tint={colors.onLight} />
-          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.onLight }}>Retry</Text>
+          <Text class="text-sm font-semibold text-primary-foreground">Retry</Text>
         </View>
       </Press>
     </View>
