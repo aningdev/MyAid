@@ -16,12 +16,7 @@
   },
   "type": "module",
   "scripts": {
-    "prepare": "vp config --hooks --no-agent",
-    "dev": "bun run --cwd apps/client dev",
-    "check": "vp check --fix && bun run --cwd packages/myaid-plugin-core check && bun run --cwd apps/client check && cargo check --workspace",
-    "build": "bun run --cwd packages/myaid-plugin-core build && bun run --cwd apps/client build",
-    "test": "cargo test --workspace && bun run --cwd packages/myaid-plugin-core test && bun run --cwd apps/client test",
-    "host:dev": "cargo run --manifest-path apps/host/Cargo.toml -- serve-app"
+    "prepare": "vp config --hooks --no-agent"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

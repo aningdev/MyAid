@@ -35,6 +35,39 @@ export default defineConfig({
   staged: {
     "*": "vp check --fix",
   },
+  // Workspace orchestration: https://viteplus.dev/config/run + https://viteplus.dev/guide/run
+  // Package-local scripts stay in each package.json; root tasks must not duplicate those names there.
+  run: {
+    tasks: {
+      check: {
+        command: [
+          "vp check --fix",
+          "vp run @myaid/myaid-plugin-core#check",
+          "vp run @myaid/client#check",
+          "cargo check --workspace",
+        ],
+      },
+      build: {
+        // client... includes workspace dependency plugin-core, in dep order
+        command: "vp run --filter @myaid/client... build",
+      },
+      test: {
+        command: [
+          "cargo test --workspace",
+          "vp run @myaid/myaid-plugin-core#test",
+          "vp run @myaid/client#test",
+        ],
+      },
+      dev: {
+        command: "vp run @myaid/client#dev",
+        cache: false,
+      },
+      "host:dev": {
+        command: "cargo run --manifest-path apps/host/Cargo.toml -- serve-app",
+        cache: false,
+      },
+    },
+  },
   test: {
     include: ["**/tests/**/*.test.{ts,tsx}"],
     exclude: ["**/node_modules/**", "**/.git/**", "tests/browser/**"],

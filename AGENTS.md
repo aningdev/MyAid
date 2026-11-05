@@ -7,9 +7,10 @@
 - 原则与组件边界继承本机 `~/Code/dsh-bot`；**不**默认移植其对话工作台 / 审批 UI / DeepSeek 品牌文案。
 - `apps/client` 保持官方 NSH **mixed** 布局（`nsh init --template mixed`），不要为「更像 dsh-bot」而恢复独立 `frontend/` 树。
 - 离开 `design/wireframes/`，除非任务明确是线框。
-- 轻量验收：`bun install && bun run check`（`vp check --fix` → plugin `tsc --noEmit` → `nsh check` → `cargo check`）。CI 同此。
-- Git hooks：官方 Vite+（[commit-hooks](https://viteplus.dev/guide/commit-hooks)）。`prepare` → `vp config --hooks --no-agent`；项目钩子 `.vite-hooks/pre-commit` 跑 `vp staged`（`vite.config.ts` → `staged`）。勿绑全量 `bun run check`，勿用 `simple-git-hooks`。
-- 根 scripts 用 bun `--cwd` 组合；`apps/client` 直接用官方 `nsh run|check|build|test`。勿再往 `scripts/` 加编排 TS。
+- 轻量验收：`bun install && vp run check`（`vp check --fix` → plugin `tsc --noEmit` → `nsh check` → `cargo check`）。CI 同此。
+- 根编排：`vite.config.ts` → `run.tasks`（[run config](https://viteplus.dev/config/run)）；包内脚本留在各自 `package.json`。同一任务名勿同时出现在根 `package.json` 与 `run.tasks`。
+- Git hooks：官方 Vite+（[commit-hooks](https://viteplus.dev/guide/commit-hooks)）。`prepare` → `vp config --hooks --no-agent`；`.vite-hooks/pre-commit` → `vp staged`。勿绑全量 `vp run check`，勿用 `simple-git-hooks`。
+- `apps/client` 直接用官方 `nsh run|check|build|test`。勿再往 `scripts/` 加编排 TS。
 - 工具链版本以根为准：`.bun-version` / `.node-version` / `packageManager` + `engines`；共享 npm 版在 `workspaces.catalog`，包内用 `"catalog:"`，勿另钉旧版。
 
 ## 目录与模块
