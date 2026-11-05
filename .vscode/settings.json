@@ -1,0 +1,10 @@
+{
+  // references/* are read-only submodules (not Bun workspaces); they have
+  // vitest configs/scripts but no installed deps. Exclude them so the Vitest
+  // extension does not try to load e.g. deepseek-harness and fail on missing
+  // packages like vite-tsconfig-paths.
+  "vitest.configSearchPatternExclude": "{**/node_modules/**,**/vendor/**,**/.*/**,**/*.d.ts,**/references/**}",
+  // Override a common user-level include like "~/Code/*{vite,vitest}*.config*"
+  // that never matches files inside this workspace folder.
+  "vitest.configSearchPatternInclude": "**/*{vite,vitest}*.config*.{ts,js,mjs,cjs,cts,mts}"
+}
