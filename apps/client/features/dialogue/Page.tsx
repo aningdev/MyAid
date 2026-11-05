@@ -3,17 +3,9 @@
  * Shell only mounts this Page; it does not own Dialogue layout.
  */
 import type { JSX } from "nsh";
-import {
-  Animated,
-  cleanup,
-  createAnimatedValue,
-  Easing,
-  effect,
-  Text,
-  untracked,
-  View,
-} from "nsh";
+import { Animated, cleanup, createAnimatedValue, Easing, effect, Text, untracked, View } from "nsh";
 import { NavPage, NavStack } from "nsh/base";
+
 import { colors, header, hovered, Icon, radius } from "../../components/ui";
 import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
 import { isDesktopLayout } from "../../workspace/layout";
@@ -126,7 +118,9 @@ function ContextPane(props: { children: JSX.Element }) {
 
 function DesktopDialogue() {
   return (
-    <View style={{ flex: 1, flexDirection: "row", minHeight: 0, backgroundColor: colors.background }}>
+    <View
+      style={{ flex: 1, flexDirection: "row", minHeight: 0, backgroundColor: colors.background }}
+    >
       <View
         style={{
           width: LIST_WIDTH,

@@ -1,5 +1,6 @@
 import type { JSX } from "nsh";
 import { Text, View } from "nsh";
+
 import { colors, hovered, Icon, radius } from "../ui";
 
 /** App-drawn page header (desktops / web NavPage `header` slot). */
@@ -45,7 +46,9 @@ export function WorkspacePageHeader(props: {
           <Text style={{ fontSize: 14, fontWeight: "500", color: colors.accent }}>Back</Text>
         </View>
       </If>
-      <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: colors.text }}>{props.title}</Text>
+      <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: colors.text }}>
+        {props.title}
+      </Text>
       {props.trailing}
     </View>
   );

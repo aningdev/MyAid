@@ -1,5 +1,6 @@
 import type { TextStyle, ViewStyle } from "nsh";
 import { platform } from "nsh";
+
 import { alpha, colors } from "./theme";
 
 /** Options of `sliderLook`. */
@@ -24,19 +25,28 @@ export function sliderLook(o: SliderLookOptions = {}) {
   const vertical = !!o.vertical;
   const pointer = platform.idiom === "desktop";
   const rail = `${vertical ? "w-2" : "h-2"} rounded-full bg-muted`;
-  const focus = "focus-within:ring-2 focus-within:ring-primary/36 focus-within:ring-offset-2 focus-within:ring-offset-card";
+  const focus =
+    "focus-within:ring-2 focus-within:ring-primary/36 focus-within:ring-offset-2 focus-within:ring-offset-card";
   const fade = "transition duration-150 motion-reduce:transition-none";
   const railStyle = (): ViewStyle => ({
     boxShadow: `inset 0 1px 1px rgba(255, 255, 255, 0.04), 0 0 14px ${alpha(colors.accent, 0.06)}`,
   });
-  const track = pointer ? `${rail} ${vertical ? "h-32 py-2" : "px-2"} ${focus}` : vertical ? "w-8 h-36 items-center" : "h-8 justify-center";
+  const track = pointer
+    ? `${rail} ${vertical ? "h-32 py-2" : "px-2"} ${focus}`
+    : vertical
+      ? "w-8 h-36 items-center"
+      : "h-8 justify-center";
   return {
     class: o.value ? "flex-row items-center gap-2" : undefined,
     trackClass: `${track} ${o.value ? "flex-1" : ""} cursor-pointer ${fade} disabled:opacity-35 disabled:cursor-not-allowed`,
     get trackStyle(): ViewStyle | undefined {
       return pointer ? railStyle() : undefined;
     },
-    indicatorClass: pointer ? (vertical ? "flex-1" : "h-full") : `${rail} ${vertical ? "h-full" : ""} ${focus}`,
+    indicatorClass: pointer
+      ? vertical
+        ? "flex-1"
+        : "h-full"
+      : `${rail} ${vertical ? "h-full" : ""} ${focus}`,
     get indicatorStyle(): ViewStyle | undefined {
       return pointer ? undefined : railStyle();
     },

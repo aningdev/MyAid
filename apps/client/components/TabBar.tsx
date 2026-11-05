@@ -1,8 +1,9 @@
 import { platform, safeArea, Text, View } from "nsh";
 import { TabBar, isAvailable as isMobile } from "nsh/mobile";
-import { colors, Icon, Press, type IconName } from "./ui";
+
 import { modules } from "../workspace/modules";
 import { moduleId, setModule, type ModuleId } from "../workspace/state";
+import { colors, Icon, Press, type IconName } from "./ui";
 
 const iosTabIcons: Partial<Record<IconName, string>> = {
   spark: "sparkles",

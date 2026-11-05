@@ -1,4 +1,5 @@
 import { platform, Text, View } from "nsh";
+
 import { colors, Segmented } from "../../components/ui";
 import { conversations, model, provider } from "./state";
 
@@ -20,12 +21,16 @@ export function DialogueContext(props: { selectedId: string | null }) {
 
   return (
     <View style={{ flex: 1, padding: 16, gap: 16 }}>
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted, letterSpacing: 0.4 }}>SESSION</Text>
+      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted, letterSpacing: 0.4 }}>
+        SESSION
+      </Text>
       <View style={{ gap: 4 }}>
         <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
           {row()?.label ?? "No conversation"}
         </Text>
-        <Text style={{ fontSize: 13, color: colors.muted }}>{row()?.detail ?? "Select an item in the list."}</Text>
+        <Text style={{ fontSize: 13, color: colors.muted }}>
+          {row()?.detail ?? "Select an item in the list."}
+        </Text>
       </View>
 
       <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted, letterSpacing: 0.4 }}>
@@ -33,9 +38,16 @@ export function DialogueContext(props: { selectedId: string | null }) {
       </Text>
       <If
         when={native}
-        else={<Segmented size="small" options={models} value={model()} onChange={(v) => model.set(v)} />}
+        else={
+          <Segmented size="small" options={models} value={model()} onChange={(v) => model.set(v)} />
+        }
       >
-        <Segmented size="small" options={providers} value={provider()} onChange={(v) => provider.set(v)} />
+        <Segmented
+          size="small"
+          options={providers}
+          value={provider()}
+          onChange={(v) => provider.set(v)}
+        />
       </If>
       <Text style={{ fontSize: 12, lineHeight: 18, color: colors.faint }}>
         {native

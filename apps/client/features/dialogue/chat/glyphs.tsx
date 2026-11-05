@@ -27,13 +27,28 @@ const line = (cx: CanvasRenderingContext2D, points: number[]) => {
   for (let i = 2; i < points.length; i += 2) cx.lineTo(points[i], points[i + 1]);
   cx.stroke();
 };
-const rect = (cx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, fill = false) => {
+const rect = (
+  cx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  fill = false,
+) => {
   cx.beginPath();
   cx.roundRect(x, y, w, h, r);
   if (fill) cx.fill();
   else cx.stroke();
 };
-const arc = (cx: CanvasRenderingContext2D, x: number, y: number, r: number, from = 0, to = Math.PI * 2) => {
+const arc = (
+  cx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  from = 0,
+  to = Math.PI * 2,
+) => {
   cx.beginPath();
   cx.arc(x, y, r, from, to);
   cx.stroke();
@@ -70,7 +85,12 @@ const glyphs: Record<GlyphName, Draw> = {
     arc(c, 10, 10, 3.5);
     for (let i = 0; i < 8; i++) {
       const a = (i * Math.PI) / 4;
-      line(c, [10 + Math.cos(a) * 6, 10 + Math.sin(a) * 6, 10 + Math.cos(a) * 8, 10 + Math.sin(a) * 8]);
+      line(c, [
+        10 + Math.cos(a) * 6,
+        10 + Math.sin(a) * 6,
+        10 + Math.cos(a) * 8,
+        10 + Math.sin(a) * 8,
+      ]);
     }
   },
   terminal: (c) => {
@@ -78,7 +98,14 @@ const glyphs: Record<GlyphName, Draw> = {
     line(c, [6, 8, 8.5, 10, 6, 12]);
     line(c, [10.5, 12.5, 14, 12.5]);
   },
-  clip: (c) => line(c, [13.5, 6.5, 7.5, 12.5, 7.5, 14, 9, 14.5, 15.5, 8, 15.5, 5, 13, 3.5, 11, 3.5, 4.5, 10, 4, 13, 5, 15.5, 8, 16.5, 11, 15.5, 16, 10.5]),
+  clip: (c) =>
+    line(
+      c,
+      [
+        13.5, 6.5, 7.5, 12.5, 7.5, 14, 9, 14.5, 15.5, 8, 15.5, 5, 13, 3.5, 11, 3.5, 4.5, 10, 4, 13,
+        5, 15.5, 8, 16.5, 11, 15.5, 16, 10.5,
+      ],
+    ),
   close: (c) => {
     line(c, [5.5, 5.5, 14.5, 14.5]);
     line(c, [14.5, 5.5, 5.5, 14.5]);

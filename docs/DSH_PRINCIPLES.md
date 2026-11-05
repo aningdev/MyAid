@@ -13,21 +13,21 @@
 
 ## 2. 职责三分：Client / Host / dsh
 
-| 角色 | 职责 | 不负责 |
-| --- | --- | --- |
-| **Client**（NSH） | UI、注册表、本地草稿/工作区、产品策略；官方协议客户端直连 dsh | dsh 启停、ready 发现、进程回收 |
-| **Host**（Rust） | App 后台身份、唯一 dsh 生命周期、连接发现、后续 Bridge | 业务 remote、统一聊天网关、`ProductService` |
-| **dsh / Harness** | Session、执行、工具、模型凭据、共享 settings | Bot 注册表权威写入 |
+| 角色              | 职责                                                          | 不负责                                      |
+| ----------------- | ------------------------------------------------------------- | ------------------------------------------- |
+| **Client**（NSH） | UI、注册表、本地草稿/工作区、产品策略；官方协议客户端直连 dsh | dsh 启停、ready 发现、进程回收              |
+| **Host**（Rust）  | App 后台身份、唯一 dsh 生命周期、连接发现、后续 Bridge        | 业务 remote、统一聊天网关、`ProductService` |
+| **dsh / Harness** | Session、执行、工具、模型凭据、共享 settings                  | Bot 注册表权威写入                          |
 
 不设 Rust `ProductService`：本地配置与产品交互由 NSH 完成；已有 dsh remote 由官方客户端调用。
 
 ## 3. Host 模块边界
 
-| Module | 公开入口 | 原则 |
-| --- | --- | --- |
-| `dsh_process` | `Lifecycle` | 独占 spawn / ready / 监控 / 失败预算 / 回收；内部锁与 guardian 私有 |
-| `host_control` | 控制 socket + 共享协议 | 只调用 `Lifecycle`；不复制生命周期策略 |
-| `bridge` | 多端阶段 | 官方协议转发 + 设备授权；Relay 只转发密文 |
+| Module         | 公开入口               | 原则                                                                |
+| -------------- | ---------------------- | ------------------------------------------------------------------- |
+| `dsh_process`  | `Lifecycle`            | 独占 spawn / ready / 监控 / 失败预算 / 回收；内部锁与 guardian 私有 |
+| `host_control` | 控制 socket + 共享协议 | 只调用 `Lifecycle`；不复制生命周期策略                              |
+| `bridge`       | 多端阶段               | 官方协议转发 + 设备授权；Relay 只转发密文                           |
 
 生命周期相位：`stopped → preparing → starting → ready`（失败 → `failed`；停止 → `stopping → stopped`）。每次新子进程新 `generation`。公开 `status` **不得**携带认证 token；`connectionInfo` 与公开状态分离。
 

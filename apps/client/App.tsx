@@ -1,9 +1,10 @@
-import { mount } from 'nsh'
-import { AppShell } from './components/AppShell'
+import { mount } from "nsh";
+
+import { AppShell } from "./components/AppShell";
 
 /** MyAid client: four-pane workspace shell. */
 function App() {
-  return <AppShell />
+  return <AppShell />;
 }
 
-mount(App)
+mount(App);

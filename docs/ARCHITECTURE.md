@@ -29,14 +29,14 @@ flowchart LR
 
 ## 2. 仓库与组件
 
-| 位置 | 职责 | 空壳状态 |
-| --- | --- | --- |
-| `apps/client` | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | mixed 占位 UI + `myaid/native` 示范 |
-| `apps/host` | dsh 生命周期、HostControl、后续 Bridge | 模块骨架 + 协议类型桩 |
-| `apps/relay` | 多端密文转发 | 可编译空 crate |
-| `packages/myaid-plugin-*` | Cordis 能力插件 | `myaid-plugin-core` 占位 |
-| `scripts` | prepare / dev / check / package | 工作流入口已对齐 |
-| `references` | 上游 submodule | `.gitmodules`；不参与构建 |
+| 位置                      | 职责                                                            | 空壳状态                            |
+| ------------------------- | --------------------------------------------------------------- | ----------------------------------- |
+| `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | mixed 占位 UI + `myaid/native` 示范 |
+| `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | 模块骨架 + 协议类型桩               |
+| `apps/relay`              | 多端密文转发                                                    | 可编译空 crate                      |
+| `packages/myaid-plugin-*` | Cordis 能力插件                                                 | `myaid-plugin-core` 占位            |
+| 根 `package.json`         | bun workspace：`dev` / `check` / `build` / `test` / `host:dev`  | 无 `scripts/*.ts` 编排              |
+| `references`              | 上游 submodule                                                  | `.gitmodules`；不参与构建           |
 
 Bun 管理 JS workspace 与唯一 `bun.lock`；Cargo workspace：`apps/client`、`apps/host`、`apps/relay`。不在 Rust 中重实现 Harness。
 
@@ -58,11 +58,11 @@ apps/host/src/
 └── bridge/           # 多端阶段
 ```
 
-| Module | 原则 |
-| --- | --- |
+| Module                     | 原则                                                         |
+| -------------------------- | ------------------------------------------------------------ |
 | `DshProcess` / `Lifecycle` | 独占 CLI、环境、spawn、ready、版本、日志、回收与并发启动归并 |
-| `HostControl` | socket、同用户校验、请求分派、状态订阅；只调 `Lifecycle` |
-| `Bridge` | 配对、授权、官方协议转发 |
+| `HostControl`              | socket、同用户校验、请求分派、状态订阅；只调 `Lifecycle`     |
+| `Bridge`                   | 配对、授权、官方协议转发                                     |
 
 相位：`stopped → preparing → starting → ready`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。
 

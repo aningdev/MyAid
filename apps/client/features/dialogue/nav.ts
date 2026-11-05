@@ -1,5 +1,6 @@
-import { createNavStack } from "nsh/base";
 import { untracked } from "nsh";
+import { createNavStack } from "nsh/base";
+
 import { isDesktopLayout } from "../../workspace/layout";
 import { setModuleAtRoot } from "../../workspace/state";
 import { closeContext, openContext, selectItem, selectedId } from "./state";

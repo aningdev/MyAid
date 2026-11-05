@@ -54,7 +54,14 @@ const line = (cx: CanvasRenderingContext2D, points: number[]) => {
   for (let i = 2; i < points.length; i += 2) cx.lineTo(points[i], points[i + 1]);
   cx.stroke();
 };
-const rect = (cx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+const rect = (
+  cx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) => {
   cx.beginPath();
   cx.roundRect(x, y, w, h, r);
   cx.stroke();
@@ -162,7 +169,12 @@ const glyphs: Record<IconName, Draw> = {
     circle(c, 10, 10, 3);
     for (let i = 0; i < 8; i++) {
       const a = (i * Math.PI) / 4;
-      line(c, [10 + Math.cos(a) * 5.5, 10 + Math.sin(a) * 5.5, 10 + Math.cos(a) * 7.5, 10 + Math.sin(a) * 7.5]);
+      line(c, [
+        10 + Math.cos(a) * 5.5,
+        10 + Math.sin(a) * 5.5,
+        10 + Math.cos(a) * 7.5,
+        10 + Math.sin(a) * 7.5,
+      ]);
     }
   },
   storage: (c) => {
@@ -185,7 +197,10 @@ const glyphs: Record<IconName, Draw> = {
     line(c, [3, 17.5, 17, 17.5]);
   },
   chat: (c) => {
-    line(c, [6, 16.5, 6, 14, 5, 14, 3, 12, 3, 6, 5, 4, 15, 4, 17, 6, 17, 12, 15, 14, 9, 14, 6, 16.5]);
+    line(
+      c,
+      [6, 16.5, 6, 14, 5, 14, 3, 12, 3, 6, 5, 4, 15, 4, 17, 6, 17, 12, 15, 14, 9, 14, 6, 16.5],
+    );
     line(c, [7, 8, 13, 8]);
     line(c, [7, 10.5, 11, 10.5]);
   },
@@ -248,7 +263,12 @@ const glyphs: Record<IconName, Draw> = {
     c.stroke();
     for (let i = 0; i < 8; i++) {
       const a = (i * Math.PI) / 4;
-      line(c, [10 + Math.cos(a) * 6, 10 + Math.sin(a) * 6, 10 + Math.cos(a) * 7.8, 10 + Math.sin(a) * 7.8]);
+      line(c, [
+        10 + Math.cos(a) * 6,
+        10 + Math.sin(a) * 6,
+        10 + Math.cos(a) * 7.8,
+        10 + Math.sin(a) * 7.8,
+      ]);
     }
   },
   code: (c) => {
@@ -257,7 +277,10 @@ const glyphs: Record<IconName, Draw> = {
     line(c, [11.5, 4.5, 8.5, 15.5]);
   },
   sliders: (c) => {
-    for (const [y, x] of [[6, 12.5], [14, 7.5]]) {
+    for (const [y, x] of [
+      [6, 12.5],
+      [14, 7.5],
+    ]) {
       line(c, [3, y, 17, y]);
       c.beginPath();
       c.arc(x, y, 2, 0, Math.PI * 2);
