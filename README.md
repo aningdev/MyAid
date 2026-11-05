@@ -20,7 +20,7 @@
 
 ## 开发与运行
 
-需要 macOS、Bun ≥ 1.4.4、Rust、NSH 0.3.0。Node 见 [`.node-version`](.node-version)。
+需要 macOS、Bun ≥ 1.4.4、Rust、NSH **0.4.0**。Node 见 [`.node-version`](.node-version)。dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
 
 ```sh
 bun install

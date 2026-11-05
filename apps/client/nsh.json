@@ -14,7 +14,7 @@
       "write": ["${homeDir}/.myaid", "${dataDir}"]
     },
     "process": {
-      "env": ["MYAID_HOST_SOCKET"],
+      "env": ["MYAID_HOST_SOCKET", "MYAID_DSH_LOGIN_URL"],
       "execute": ["claude", "codex"]
     }
   }
