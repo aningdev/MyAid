@@ -4,6 +4,8 @@
 
 ## 参考源（实现前）
 
+- **设计**（选组件、布局、视觉、交互、文案前）：[Design Guides](../../references/nsh/website/docs/design-guides.md)。
+- **编码**（状态、响应式、组件边界、焦点、列表、异步前）：[Coding Guides](../../references/nsh/website/docs/coding-guides.md)。先读 Design Guides。本仓目录以本文「布局（NSH mixed）」为准。
 - **组件与样式**：`references/nsh/examples/nsh-gallery-ui`（样式化基础层）、`references/nsh/examples/gallery`（用法 / 交互 demo）、`references/nsh/website`（elements / modules 文档与 demos）。
 - **类型与运行时**：安装版 `.nsh/types/`；生产代码只用安装版 NSH 模块。
 - **dsh 能力面**（非 UI）：需要对话 / Session / 工具 / 审批等行为时，先对照官方 `dsh web` 与只读 `references/deepseek-harness` 的能力与 Remote；NSH 侧自建产品 UI，不移植 harness Web GUI。

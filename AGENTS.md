@@ -6,7 +6,7 @@
 
 - **产品行为 / 对象模型**：[BLUEPRINT](docs/BLUEPRINT.md)；用词以 [GLOSSARY](GLOSSARY.md) 为准（见 [domain](docs/agents/domain.md)）。
 - **DSH / Host / profile / 协议**：[DSH_PRINCIPLES](docs/DSH_PRINCIPLES.md) 与 [ARCHITECTURE](docs/ARCHITECTURE.md)；能力面对照只读 [references/deepseek-harness](references/deepseek-harness)。
-- **Client**：[apps/client/AGENTS.md](apps/client/AGENTS.md)；UI 先对照 `references/nsh` 的 gallery / `nsh-gallery-ui` 与 `website`，类型以 `.nsh/types/` 为准。
+- **Client**：[apps/client/AGENTS.md](apps/client/AGENTS.md)。改 UI、布局、组件或 TSX 前读 [Design Guides](references/nsh/website/docs/design-guides.md)，再读 [Coding Guides](references/nsh/website/docs/coding-guides.md)；示例对照 gallery / `nsh-gallery-ui`，类型以 `.nsh/types/` 为准。
 - **Host**：[apps/host/AGENTS.md](apps/host/AGENTS.md)。
 - **Relay**：[apps/relay/AGENTS.md](apps/relay/AGENTS.md)。
 - **Plugin**（`myaid-plugin-*`）：[packages/AGENTS.md](packages/AGENTS.md)。
@@ -25,7 +25,7 @@
 - 轻量验收：`bun install && bun run check`（与 CI 同；`vp run check` 等价）。细节以根 `package.json` 为准。
 - Git hooks：已有 `.vite-hooks/pre-commit` → `vp staged`；不绑全量 `check`。
 - Client 应用生命周期走官方 `nsh run|check|build|test|package`；工作区编排仍用 `vp run @myaid/client#…`。不在 `scripts/` 加编排 TS。
-- **NSH 示例组件与样式**：Client UI 先对照 `references/nsh/examples/nsh-gallery-ui`、`examples/gallery` 与 `references/nsh/website`，再落到 [`apps/client/components/ui`](apps/client/components/ui/)；细则见 client AGENTS。
+- **NSH 示例组件与样式**：Client UI 对照 `references/nsh/examples/nsh-gallery-ui`、`examples/gallery`，再落到 [`apps/client/components/ui`](apps/client/components/ui/)；设计与编码以 Client 条的两份指南为准，细则见 client AGENTS。
 - **dsh web 能力**：Session / 工具 / preset / Remote 优先复用官方 `dsh web` 与已装插件；实现前对照 `references/deepseek-harness` 的能力面与插件形态，产品缺口才新建 `myaid-plugin-*`。细则见 DSH_PRINCIPLES §4 与 packages AGENTS。
 - 工具链版本以仓库实有文件为准：仅 [`.bun-version`](.bun-version)；共享 npm 版用 `workspaces.catalog` + `"catalog:"`。
 - 按领域与职责分目录；入口公开 Interface，实现私有。拆分保持策略与状态的**唯一所有者**。
