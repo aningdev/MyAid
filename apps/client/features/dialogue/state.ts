@@ -15,40 +15,72 @@ export const conversations = [
   { id: "new", label: "New chat", detail: "Empty conversation" },
 ];
 
-export const model = signal<Model>("Swift");
-export const provider = signal<Provider>("Codex");
+const modelState = signal<Model>("Swift");
+const providerState = signal<Provider>("Codex");
 /** Bumped on every New chat so an already-empty session still clears/resets. */
-export const chatEpoch = signal(0);
-
+const chatEpochState = signal(0);
 /** Selected conversation within Dialogue. */
-export const selectedId = signal<string | null>(null);
+const selectedIdState = signal<string | null>(null);
 /** Desktop: Context column visible. Mobile: mirrored while Context page is on stack. */
-export const contextOpen = signal(false);
+const contextOpenState = signal(false);
+
+export function model() {
+  return modelState();
+}
+
+export function setModel(next: Model) {
+  modelState.set(next);
+}
+
+export function provider() {
+  return providerState();
+}
+
+export function setProvider(next: Provider) {
+  providerState.set(next);
+}
+
+export function chatEpoch() {
+  return chatEpochState();
+}
+
+export function selectedId() {
+  return selectedIdState();
+}
+
+/** Read the selection without subscribing. Navigation uses this while it mutates the stack. */
+export function peekSelectedId() {
+  return untracked(selectedIdState);
+}
+
+export function contextOpen() {
+  return contextOpenState();
+}
 
 export function beginNewChat() {
-  chatEpoch.update((n) => n + 1);
+  chatEpochState.update((n) => n + 1);
 }
 
 export function selectItem(id: string | null) {
-  if (untracked(selectedId) === id) return;
-  selectedId.set(id);
-  if (id === null) contextOpen.set(false);
+  if (untracked(selectedIdState) === id) return;
+  selectedIdState.set(id);
+  if (id === null) contextOpenState.set(false);
 }
 
 export function toggleContext() {
-  contextOpen.set(!untracked(contextOpen));
+  contextOpenState.set(!untracked(contextOpenState));
 }
 
 export function openContext() {
-  contextOpen.set(true);
+  contextOpenState.set(true);
 }
 
 export function closeContext() {
-  contextOpen.set(false);
+  contextOpenState.set(false);
 }
 
 /** Reset Dialogue selection when leaving the module (called from setModule side if needed). */
 export function resetDialogueSession() {
-  selectedId.set(null);
-  contextOpen.set(false);
+  selectedIdState.set(null);
+  contextOpenState.set(false);
 }

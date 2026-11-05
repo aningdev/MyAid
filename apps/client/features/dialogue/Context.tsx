@@ -1,7 +1,7 @@
 import { platform, Text, View } from "nsh";
 
-import { colors, Segmented } from "../../components/ui";
-import { conversations, model, provider } from "./state";
+import { Segmented } from "../../components/ui";
+import { conversations, model, provider, setModel, setProvider } from "./state";
 
 const models = [
   { value: "Swift", label: "Swift" },
@@ -20,36 +20,34 @@ export function DialogueContext(props: { selectedId: string | null }) {
   const row = () => conversations.find((c) => c.id === props.selectedId);
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 16 }}>
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted, letterSpacing: 0.4 }}>
-        SESSION
-      </Text>
-      <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
+    <View class="flex-1 gap-4 p-4">
+      <Text class="text-sm font-semibold text-muted-foreground">Session</Text>
+      <View class="gap-1">
+        <Text class="text-base font-semibold text-foreground">
           {row()?.label ?? "No conversation"}
         </Text>
-        <Text style={{ fontSize: 13, color: colors.muted }}>
+        <Text class="text-sm text-muted-foreground">
           {row()?.detail ?? "Select an item in the list."}
         </Text>
       </View>
 
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted, letterSpacing: 0.4 }}>
-        {native ? "PROVIDER" : "MODEL"}
+      <Text class="text-sm font-semibold text-muted-foreground">
+        {native ? "Provider" : "Model"}
       </Text>
       <If
         when={native}
         else={
-          <Segmented size="small" options={models} value={model()} onChange={(v) => model.set(v)} />
+          <Segmented size="small" options={models} value={model()} onChange={setModel} />
         }
       >
         <Segmented
           size="small"
           options={providers}
           value={provider()}
-          onChange={(v) => provider.set(v)}
+          onChange={setProvider}
         />
       </If>
-      <Text style={{ fontSize: 12, lineHeight: 18, color: colors.faint }}>
+      <Text class="text-xs text-muted-foreground">
         {native
           ? "Desktop uses your local Claude or Codex CLI. Sign in to the CLI in a terminal first."
           : "On this platform replies are scripted and streamed locally (gallery AI Chat scenarios)."}

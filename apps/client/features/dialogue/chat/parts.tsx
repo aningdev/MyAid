@@ -6,7 +6,6 @@ import {
   Badge,
   colors,
   finish,
-  isDark,
   mono,
   Press,
   radius,
@@ -115,7 +114,9 @@ export function DateSeparator(props: { label: string }) {
       }}
     >
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
-      <Text style={{ fontSize: 12, fontWeight: "500", color: colors.faint }}>{props.label}</Text>
+      <Text class="text-xs font-medium" style={{ color: colors.faint }}>
+        {props.label}
+      </Text>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
     </View>
   );
@@ -130,8 +131,8 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         alignItems: "center",
         gap: 10,
         height: 48,
-        paddingLeft: 10,
-        paddingRight: props.onRemove ? 4 : 14,
+        paddingStart: 10,
+        paddingEnd: props.onRemove ? 4 : 14,
         borderRadius: radius.control,
         borderCurve: "continuous",
         backgroundColor: colors.raised,
@@ -229,12 +230,7 @@ export function ToolCard(props: { tool: Tool }) {
         borderRadius: radius.inset,
         borderCurve: "continuous",
         borderWidth: 1,
-        borderColor:
-          t().state === "running"
-            ? isDark()
-              ? "#33405a"
-              : alpha(colors.info, 0.4)
-            : colors.border,
+        borderColor: t().state === "running" ? alpha(colors.info, 0.4) : colors.border,
         transitionProperty: "colors",
         transitionDuration: 250,
         overflow: "hidden",
@@ -350,7 +346,7 @@ function ToolBody(props: { tool: Tool }) {
             fontFamily: mono,
             fontSize: 12,
             lineHeight: 18,
-            color: isDark() ? "#c9cdd3" : colors.code,
+            color: colors.code,
           }}
         >
           {code().code}

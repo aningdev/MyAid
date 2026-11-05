@@ -30,7 +30,7 @@ export function NavRail() {
         gap: 4,
       }}
     >
-      <Each of={modules}>
+      <Each of={modules} key={(mod) => mod.id}>
         {(mod) => {
           const active = () => moduleId() === mod().id;
           return (
@@ -38,23 +38,18 @@ export function NavRail() {
               onPress={() => setModule(mod().id as ModuleId)}
               accessibilityLabel={mod().label}
               accessibilityState={{ selected: active() }}
+              hoverStyle={active() ? undefined : hovered()}
               scale={0.94}
             >
               <View
-                hoverStyle={active() ? undefined : hovered()}
+                class="size-14 items-center justify-center gap-0.5"
                 style={{
-                  width: 56,
-                  height: 48,
                   borderRadius: radius.control,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 2,
                   backgroundColor: active() ? colors.raised : "transparent",
-                  cursor: "pointer",
                 }}
               >
                 <Icon name={mod().icon} size={20} tint={active() ? colors.accent : colors.muted} />
-                <Text style={{ fontSize: 9, color: active() ? colors.text : colors.faint }}>
+                <Text class="text-xs" style={{ color: active() ? colors.text : colors.faint }}>
                   {mod().shortLabel}
                 </Text>
               </View>

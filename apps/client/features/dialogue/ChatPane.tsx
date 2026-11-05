@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   List,
+  reduceMotion,
   Scroll,
   signal,
   Text,
@@ -17,7 +18,7 @@ import { Clipboard } from "nsh";
 import { platform } from "nsh";
 import { Picker } from "nsh";
 import { keyboardFrame, safeAreaInsets } from "nsh";
-import { Input } from "nsh/base";
+import { Input, Menu, MenuItem } from "nsh/base";
 
 import { Icon, type IconName } from "../../components/ui";
 import {
@@ -26,6 +27,7 @@ import {
   Badge,
   colors,
   finish,
+  focusRing,
   IconTile,
   motion,
   Press,
@@ -60,7 +62,7 @@ import {
   type Status,
   type Tool,
 } from "./chat/scripts";
-import { chatEpoch, model as chatModel, provider as chatProvider } from "./state";
+import { chatEpoch, model as chatModel, provider as chatProvider, setModel } from "./state";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
 type User = Extract<Msg, { kind: "user" }>;
@@ -125,6 +127,14 @@ export function ChatPane(props: { selectedId: string | null }) {
   const following = signal(true);
   let list: ListRef | undefined;
   let dragging = false;
+  const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
+  const later = (ms: number, run: () => void) => {
+    const id = setTimeout(() => {
+      pendingTimers.delete(id);
+      run();
+    }, ms);
+    pendingTimers.add(id);
+  };
 
   type Run = {
     id: string;
@@ -223,7 +233,7 @@ export function ChatPane(props: { selectedId: string | null }) {
     });
     // The list follows the final layout natively; once the layout animation
     // has settled, make sure a following list ends exactly at the bottom.
-    setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
+    later(360, () => following() && list?.scrollToEnd({ animated: true }));
   };
 
   /** Runs a scenario's reply; `at` replaces that message (retry, regenerate). */
@@ -352,6 +362,8 @@ export function ChatPane(props: { selectedId: string | null }) {
     if (run) run.cancelled = true;
     cancelLocal?.();
     stopTicker();
+    for (const id of pendingTimers) clearTimeout(id);
+    pendingTimers.clear();
   });
 
   const jumpToLatest = () => {
@@ -374,7 +386,7 @@ export function ChatPane(props: { selectedId: string | null }) {
       messages.set([...messages(), ...start, user]);
       draft.set("");
       attachment.set(null);
-      model.set(s.model);
+      setModel(s.model);
     });
     toEnd();
     if (offline) {
@@ -463,16 +475,22 @@ export function ChatPane(props: { selectedId: string | null }) {
   const copy = (key: string, text: string) => {
     Clipboard.writeText(text);
     copied.set(key);
-    setTimeout(() => copied() === key && copied.set(null), 1600);
+    later(1600, () => copied() === key && copied.set(null));
   };
 
   // Motion, run natively when the state changes.
   const jump = createAnimatedValue(0);
-  effect(() => void jump.spring(following() ? 0 : 1, motion.settle));
-  const menuValue = createAnimatedValue(0);
-  effect(() => void menuValue.spring(menu() ? 1 : 0, motion.settle));
+  effect(() => {
+    const next = following() ? 0 : 1;
+    if (reduceMotion()) jump.set(next);
+    else jump.spring(next, motion.settle);
+  });
   const bannerValue = createAnimatedValue(0);
-  effect(() => void bannerValue.spring(banner() ? 1 : 0, motion.settle));
+  effect(() => {
+    const next = banner() ? 1 : 0;
+    if (reduceMotion()) bannerValue.set(next);
+    else bannerValue.spring(next, motion.settle);
+  });
 
   const streaming = () => liveId() !== null;
   const canSend = () => !!draft().trim() || !!attachment();
@@ -872,96 +890,6 @@ export function ChatPane(props: { selectedId: string | null }) {
             </View>
           </View>
 
-          {/* The "+" menu: attachments and the scenarios, to replay them. */}
-          <View
-            onPress={() => menu.set(false)}
-            style={{
-              pointerEvents: menu() ? "auto" : "none",
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.45)",
-              opacity: menuValue,
-            }}
-          />
-          <View
-            style={{
-              pointerEvents: menu() ? "auto" : "none",
-              position: "absolute",
-              left: 16,
-              right: 16,
-              bottom: 8,
-              opacity: menuValue,
-              transform: [
-                { translateY: menuValue.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
-                { scale: menuValue.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
-              ],
-            }}
-          >
-            <View
-              style={{
-                borderRadius: radius.card,
-                borderCurve: "continuous",
-                ...finish.menu,
-                borderWidth: 1,
-                paddingVertical: 6,
-                maxHeight: 460,
-                overflow: "hidden",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: colors.faint,
-                  paddingHorizontal: 16,
-                  paddingTop: 8,
-                  paddingBottom: 4,
-                }}
-              >
-                ADD AND REPLAY
-              </Text>
-              <Scroll style={{ flexShrink: 1 }}>
-                <Each of={menuRows}>
-                  {(row, i) => (
-                    <View
-                      onPress={() => {
-                        menu.set(false);
-                        if (row().id === "photo") void choosePhoto();
-                        else if (row().id === "attach")
-                          attachment.set({
-                            image: photo,
-                            file: { name: "trip-notes.pdf", size: "2.4 MB" },
-                          });
-                        else play(row().id);
-                      }}
-                      activeStyle={{ backgroundColor: alpha(colors.text, 0.06) }}
-                      role="button"
-                      accessibilityLabel={row().label}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 12,
-                        height: 48,
-                        paddingHorizontal: 16,
-                      }}
-                    >
-                      <Glyph
-                        name={row().glyph}
-                        size={16}
-                        tint={i() < 2 ? colors.accent : colors.muted}
-                      />
-                      <Text style={{ flex: 1, fontSize: 15, color: colors.text }}>
-                        {row().label}
-                      </Text>
-                    </View>
-                  )}
-                </Each>
-              </Scroll>
-            </View>
-          </View>
         </View>
 
         {/* Suggestions while the conversation is empty. */}
@@ -1062,21 +990,61 @@ export function ChatPane(props: { selectedId: string | null }) {
               }}
             />
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View
-                style={{
-                  transform: [{ rotate: menu() ? "45deg" : "0deg" }],
-                  transitionProperty: "transform",
-                  transitionDuration: 200,
-                  transitionTimingFunction: "ease-out",
-                }}
+              <Menu
+                open={menu()}
+                onOpenChange={(event) => menu.set(event.open)}
+                placement="top"
+                align="start"
+                offset={8}
+                popupClass="border-border bg-popover max-h-96 min-w-64 overflow-hidden rounded-(--radius) border p-1"
+                backdropClass="bg-overlay"
+                trigger={
+                  <View
+                    accessibilityLabel="Add"
+                    focusStyle={focusRing()}
+                    class="border-border bg-secondary size-11 items-center justify-center rounded-full border"
+                    style={{
+                      transform: [{ rotate: menu() ? "45deg" : "0deg" }],
+                      transitionProperty: "transform",
+                      transitionDuration: reduceMotion() ? 0 : 200,
+                    }}
+                  >
+                    <Icon name="plus" size={18} tint={colors.text} />
+                  </View>
+                }
               >
-                <RoundButton
-                  icon="plus"
-                  label="Add"
-                  variant="secondary"
-                  onPress={() => menu.set(!menu())}
-                />
-              </View>
+                <Text class="text-muted-foreground px-3 pb-1 pt-2 text-xs font-medium">
+                  Add and replay
+                </Text>
+                <Scroll class="max-h-80">
+                  <Each of={menuRows} key={(row) => row.id}>
+                    {(row, i) => (
+                      <MenuItem
+                        class="hover:bg-accent active:bg-accent min-h-11 rounded-(--radius) px-3"
+                        accessibilityLabel={row().label}
+                        onSelect={() => {
+                          if (row().id === "photo") void choosePhoto();
+                          else if (row().id === "attach")
+                            attachment.set({
+                              image: photo,
+                              file: { name: "trip-notes.pdf", size: "2.4 MB" },
+                            });
+                          else play(row().id);
+                        }}
+                      >
+                        <View class="flex-row items-center gap-3">
+                          <Glyph
+                            name={row().glyph}
+                            size={16}
+                            tint={i() < 2 ? colors.accent : colors.muted}
+                          />
+                          <Text class="text-popover-foreground text-base">{row().label}</Text>
+                        </View>
+                      </MenuItem>
+                    )}
+                  </Each>
+                </Scroll>
+              </Menu>
               <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 8 }}>
                 <Text style={{ fontSize: 12, color: colors.muted }}>
                   {native ? provider() : model()} · open Context to change

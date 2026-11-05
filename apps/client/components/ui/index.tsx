@@ -73,36 +73,47 @@ export function bindRefresh(refresh: () => void): string | null {
  */
 export function Press(props: {
   onPress?: () => void;
-  onLongPress?: () => void;
   disabled?: boolean;
-  /** How far it shrinks (default 0.97). */
+  /** How far it shrinks (default 0.97). Skipped when reduced motion is on. */
   scale?: number;
   style?: ViewStyle;
+  class?: string;
+  hoverStyle?: ViewStyle;
   role?: "button" | "tab" | "switch" | "link";
   accessibilityLabel?: string;
   accessibilityState?: { selected?: boolean; checked?: boolean; disabled?: boolean };
   hitSlop?: number;
+  tooltip?: JSX.Element;
   children: JSX.Element;
 }) {
   const s = createAnimatedValue(1);
+  const pressIn = () => {
+    if (reduceMotion()) return;
+    s.spring(props.scale ?? 0.97, motion.press);
+  };
+  const pressOut = () => {
+    if (reduceMotion()) s.set(1);
+    else s.spring(1, motion.press);
+  };
   return (
-    <View
+    <BaseButton
       onPress={props.onPress}
-      onLongPress={props.onLongPress}
-      disabled={props.disabled}
-      onPressDown={() => s.spring(props.scale ?? 0.97, motion.press)}
-      onPressUp={() => s.spring(1, motion.press)}
+      disabled={props.disabled || props.accessibilityState?.disabled}
+      selected={props.accessibilityState?.selected}
+      onPressDown={pressIn}
+      onPressUp={pressOut}
       role={props.role ?? "button"}
       accessibilityLabel={props.accessibilityLabel}
-      accessibilityState={props.accessibilityState}
       hitSlop={props.hitSlop}
-      style={[
-        props.style ?? null,
-        { transform: [{ scale: s }], opacity: props.disabled ? 0.4 : 1 },
-      ]}
+      tooltip={props.tooltip}
+      class={props.class}
+      hoverStyle={props.hoverStyle}
+      focusStyle={focusRing()}
+      disabledStyle={{ opacity: 0.4 }}
+      style={[{ minWidth: 44, minHeight: 44 }, props.style ?? null, { transform: [{ scale: s }] }]}
     >
       {props.children}
-    </View>
+    </BaseButton>
   );
 }
 
@@ -128,8 +139,9 @@ export const tabPress = {
  * (40 ms apart). `flex` lets it wrap a page that fills its parent.
  */
 export function Appear(props: { index?: number; flex?: boolean; children: JSX.Element }) {
-  const t = createAnimatedValue(0);
-  t.timing(1, { ...motion.enter, delay: Math.min(8, props.index ?? 0) * 40 });
+  const reduced = reduceMotion();
+  const t = createAnimatedValue(reduced ? 1 : 0);
+  if (!reduced) t.timing(1, { ...motion.enter, delay: Math.min(8, props.index ?? 0) * 40 });
   return (
     <View
       style={{
@@ -395,7 +407,7 @@ export function Button(props: {
   // `nsh/base`'s Button gives the behavior (presses, disabled, the button
   // role); the look below is this UI layer's.
   const scale = createAnimatedValue(1);
-  const variant = () => props.variant ?? "primary";
+  const variant = () => props.variant ?? "secondary";
   const bg = () =>
     props.color ??
     (variant() === "primary"
@@ -406,18 +418,21 @@ export function Button(props: {
           ? "transparent"
           : colors.raised);
   const fg = () =>
-    props.color
-      ? "#ffffff"
-      : variant() === "primary"
-        ? colors.onLight
-        : variant() === "accent"
-          ? colors.onAccent
-          : colors.text;
+    props.color || variant() === "primary"
+      ? colors.onLight
+      : variant() === "accent"
+        ? colors.onAccent
+        : colors.text;
   return (
     <BaseButton
       onPress={props.onPress}
-      onPressDown={() => scale.spring(0.97, motion.press)}
-      onPressUp={() => scale.spring(1, motion.press)}
+      onPressDown={() => {
+        if (!reduceMotion()) scale.spring(0.97, motion.press);
+      }}
+      onPressUp={() => {
+        if (reduceMotion()) scale.set(1);
+        else scale.spring(1, motion.press);
+      }}
       disabled={props.disabled}
       accessibilityLabel={props.label}
       hoverStyle={props.disabled ? undefined : { opacity: 0.88 }}
@@ -430,10 +445,9 @@ export function Button(props: {
       }}
     >
       <View
+        class={small() ? "min-h-8 px-3" : "min-h-11 px-4"}
         style={{
-          height: small() ? 32 : 44,
-          paddingHorizontal: small() ? 12 : 18,
-          borderRadius: small() ? 8 : radius.control,
+          borderRadius: radius.control,
           borderCurve: "continuous",
           flexDirection: "row",
           alignItems: "center",
@@ -454,7 +468,7 @@ export function Button(props: {
         <If when={props.icon}>
           <Icon name={props.icon!} size={small() ? 14 : 16} tint={fg()} />
         </If>
-        <Text style={{ fontSize: small() ? 13 : 15, fontWeight: "600", color: fg() }}>
+        <Text class={small() ? "text-sm font-semibold" : "text-base font-semibold"} style={{ color: fg() }}>
           {props.label}
         </Text>
       </View>
@@ -478,6 +492,7 @@ export function RoundButton(props: {
       disabled={props.disabled}
       scale={0.92}
       accessibilityLabel={props.label}
+      tooltip={<Tip label={props.label} />}
     >
       <View
         style={{
@@ -669,7 +684,7 @@ export function Sheet(props: { open: boolean; onClose: () => void; children: JSX
     <BaseSheet
       open={props.open}
       onOpenChange={(open) => !open && props.onClose()}
-      backdropStyle={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+      backdropStyle={{ backgroundColor: colors.overlay }}
       popupStyle={{
         gap: 12,
         paddingTop: 8,

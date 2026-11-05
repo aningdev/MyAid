@@ -16,71 +16,57 @@ export function DialogueList() {
         }}
         accessibilityLabel="New chat"
         accessibilityState={{ selected: newActive() }}
+        hoverStyle={newActive() ? undefined : hovered()}
       >
         <View
-          hoverStyle={newActive() ? undefined : hovered()}
+          class="min-h-11 flex-row items-center justify-center gap-2"
           style={{
-            height: 40,
             borderRadius: radius.control,
             borderCurve: "continuous",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
             backgroundColor: colors.raised,
             ...finish.raised,
             borderWidth: 1,
             borderColor: newActive() ? colors.accent : colors.border,
-            cursor: "pointer",
           }}
         >
-          <Icon name="plus" size={15} tint={colors.text} />
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>New chat</Text>
+          <Icon name="plus" size={16} tint={colors.text} />
+          <Text class="text-sm font-semibold" style={{ color: colors.text }}>
+            New chat
+          </Text>
         </View>
       </Press>
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: "600",
-          color: colors.faint,
-          letterSpacing: 0.6,
-          paddingHorizontal: 12,
-          paddingTop: 18,
-          paddingBottom: 6,
-        }}
-      >
-        CONVERSATIONS
+      <Text class="text-xs font-semibold px-3 pb-1 pt-4" style={{ color: colors.faint }}>
+        Conversations
       </Text>
-      <Each of={conversations.filter((c) => c.id !== "new")}>
+      <Each of={conversations.filter((c) => c.id !== "new")} key={(row) => row.id}>
         {(row) => {
           const active = () => selectedId() === row().id;
           return (
-            <View
+            <Press
               onPress={() => openMain(row().id)}
-              role="button"
               accessibilityLabel={row().label}
               accessibilityState={{ selected: active() }}
               hoverStyle={active() ? undefined : hovered()}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 9,
-                borderRadius: radius.control,
-                gap: 2,
-                cursor: "pointer",
-                backgroundColor: active() ? colors.raised : "transparent",
-              }}
+              style={{ borderRadius: radius.control }}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: active() ? "600" : "400",
-                  color: colors.text,
-                }}
+              <View
+                class="gap-0.5 px-3 py-2"
+                style={{ backgroundColor: active() ? colors.raised : "transparent" }}
               >
-                {row().label}
-              </Text>
-              <Text style={{ fontSize: 12, color: colors.muted }}>{row().detail}</Text>
-            </View>
+                <Text
+                  class="text-sm"
+                  style={{
+                    fontWeight: active() ? "600" : "400",
+                    color: colors.text,
+                  }}
+                >
+                  {row().label}
+                </Text>
+                <Text class="text-xs" style={{ color: colors.muted }}>
+                  {row().detail}
+                </Text>
+              </View>
+            </Press>
           );
         }}
       </Each>

@@ -3,7 +3,7 @@ import { createNavStack } from "nsh/base";
 
 import { isDesktopLayout } from "../../workspace/layout";
 import { setModuleAtRoot } from "../../workspace/state";
-import { closeContext, openContext, selectItem, selectedId } from "./state";
+import { closeContext, openContext, peekSelectedId, selectItem } from "./state";
 
 export type DialogueRoute =
   | { name: "list" }
@@ -38,7 +38,7 @@ export function openMain(id: string) {
 }
 
 export function openContextPage() {
-  const id = untracked(selectedId);
+  const id = peekSelectedId();
   if (!id) return;
   openContext();
   if (untracked(isDesktopLayout)) return;

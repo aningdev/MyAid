@@ -3,7 +3,7 @@ import { createAnimatedValue } from "nsh";
 import { safeArea } from "nsh";
 import { Dialog, type TextViewImage } from "nsh/base";
 
-import { motion, Press } from "../../components/ui";
+import { colors, motion, Press } from "../../components/ui";
 
 /** The deepest zoom, and where a double tap zooms in to. */
 const MAX_ZOOM = 4;
@@ -127,7 +127,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "rgba(0,0,0,0.92)",
+          backgroundColor: colors.viewer,
         }}
       >
         <View
@@ -167,14 +167,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
               paddingBottom: safeArea().bottom + 20,
             }}
           >
-            <Text
-              style={{
-                fontSize: 14,
-                lineHeight: 20,
-                textAlign: "center",
-                color: "rgba(255,255,255,0.85)",
-              }}
-            >
+            <Text class="text-sm" style={{ textAlign: "center", color: colors.viewerForeground }}>
               {shown()?.alt}
             </Text>
           </View>
@@ -185,12 +178,12 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
           <Press onPress={props.onClose} accessibilityLabel="Close" scale={0.9} hitSlop={8}>
             <View
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "rgba(255,255,255,0.16)",
+                backgroundColor: colors.overlay,
               }}
             >
               <View
@@ -199,7 +192,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
                   width: 16,
                   height: 2,
                   borderRadius: 1,
-                  backgroundColor: "#ffffff",
+                  backgroundColor: colors.viewerForeground,
                   transform: [{ rotate: "45deg" }],
                 }}
               />
@@ -209,7 +202,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
                   width: 16,
                   height: 2,
                   borderRadius: 1,
-                  backgroundColor: "#ffffff",
+                  backgroundColor: colors.viewerForeground,
                   transform: [{ rotate: "-45deg" }],
                 }}
               />

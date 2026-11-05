@@ -45,6 +45,7 @@ export interface Palette {
   line: string;
   text: string;
   muted: string;
+  /** Quieter than `muted` for captions. */
   faint: string;
   /** The accent as a foreground: text, icons, lines, small marks. */
   accent: string;
@@ -67,6 +68,14 @@ export interface Palette {
   danger: string;
   up: string;
   down: string;
+  /** Keyboard focus ring. */
+  ring: string;
+  /** Scrim behind menus and sheets. */
+  overlay: string;
+  /** Full-screen media viewer scrim. */
+  viewer: string;
+  /** Text and icons on `viewer`. */
+  viewerForeground: string;
 }
 
 /** An object whose getters read the theme's tokens. */
@@ -94,7 +103,7 @@ export const colors: Palette = tokens<keyof Palette>({
   line: "border",
   text: "foreground",
   muted: "muted-foreground",
-  faint: "muted-foreground",
+  faint: "faint",
   accent: "primary",
   accentFill: "primary",
   onAccent: "primary-foreground",
@@ -102,12 +111,16 @@ export const colors: Palette = tokens<keyof Palette>({
   onLight: "primary-foreground",
   track: "muted",
   knob: "card",
-  code: "muted",
-  info: "chart-2",
-  warn: "chart-3",
+  code: "foreground",
+  info: "info",
+  warn: "warning",
   danger: "destructive",
-  up: "chart-4",
+  up: "success",
   down: "destructive",
+  ring: "ring",
+  overlay: "overlay",
+  viewer: "viewer",
+  viewerForeground: "viewer-foreground",
 });
 
 /** `color` at opacity `a`. */
@@ -210,6 +223,6 @@ export const hovered = (): ViewStyle => ({ backgroundColor: alpha(colors.text, 0
 export const focusRing = (offset = -2): ViewStyle => ({
   outlineStyle: "solid",
   outlineWidth: 2,
-  outlineColor: colors.info,
+  outlineColor: colors.ring,
   outlineOffset: offset,
 });

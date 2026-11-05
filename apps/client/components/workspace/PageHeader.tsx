@@ -1,7 +1,7 @@
 import type { JSX } from "nsh";
 import { Text, View } from "nsh";
 
-import { colors, hovered, Icon, radius } from "../ui";
+import { colors, hovered, Icon, Press, radius } from "../ui";
 
 /** App-drawn page header (desktops / web NavPage `header` slot). */
 export function WorkspacePageHeader(props: {
@@ -13,40 +13,31 @@ export function WorkspacePageHeader(props: {
   const showBack = () => !props.root && !!props.onBack;
   return (
     <View
+      class="min-h-12 flex-row items-center gap-2 px-3"
       style={{
-        height: 52,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingHorizontal: 12,
         backgroundColor: colors.background,
         borderBottomWidth: 1,
         borderBottomColor: colors.line,
       }}
     >
       <If when={showBack()}>
-        <View
+        <Press
           onPress={props.onBack}
-          role="button"
           accessibilityLabel="Back"
           hitSlop={6}
           hoverStyle={hovered()}
-          style={{
-            height: 32,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 2,
-            paddingLeft: 4,
-            paddingRight: 10,
-            borderRadius: radius.control,
-            cursor: "pointer",
-          }}
+          class="ps-1 pe-2"
+          style={{ borderRadius: radius.control }}
         >
-          <Icon name="back" size={18} tint={colors.accent} />
-          <Text style={{ fontSize: 14, fontWeight: "500", color: colors.accent }}>Back</Text>
-        </View>
+          <View class="flex-row items-center gap-0.5">
+            <Icon name="back" size={18} tint={colors.text} />
+            <Text class="text-sm font-medium" style={{ color: colors.text }}>
+              Back
+            </Text>
+          </View>
+        </Press>
       </If>
-      <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: colors.text }}>
+      <Text class="text-lg font-semibold" style={{ flex: 1, color: colors.text }}>
         {props.title}
       </Text>
       {props.trailing}

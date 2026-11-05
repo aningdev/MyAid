@@ -2,11 +2,10 @@
  * Dialogue module page — owns List|Main|Context (desktop) and mobile NavStack.
  * Shell only mounts this Page; it does not own Dialogue layout.
  */
-import type { JSX } from "nsh";
-import { Animated, cleanup, createAnimatedValue, Easing, effect, Text, untracked, View } from "nsh";
-import { NavPage, NavStack } from "nsh/base";
+import { cleanup, effect, Text, untracked, View } from "nsh";
+import { NavPage, NavStack, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 
-import { colors, header, hovered, Icon, radius } from "../../components/ui";
+import { colors, handleThumb, header, hovered, Icon, Press, radius } from "../../components/ui";
 import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
 import { isDesktopLayout } from "../../workspace/layout";
 import { setModuleAtRoot } from "../../workspace/state";
@@ -30,51 +29,44 @@ const CONTEXT_WIDTH = 320;
 function ContextToggle() {
   const open = () => contextOpen();
   return (
-    <View
+    <Press
       onPress={() => {
         if (untracked(isDesktopLayout)) toggleContext();
         else if (open()) closeContextPage();
         else openContextPage();
       }}
-      role="button"
       accessibilityLabel="Context"
       accessibilityState={{ selected: open() }}
       hoverStyle={hovered()}
-      style={{
-        height: 32,
-        paddingHorizontal: 10,
-        borderRadius: radius.control,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: open() ? colors.raised : "transparent",
-        cursor: "pointer",
-      }}
+      class="px-2"
+      style={{ borderRadius: radius.control }}
     >
-      <Icon name="panel-bottom" size={16} tint={open() ? colors.accent : colors.muted} />
-      <Text style={{ fontSize: 13, fontWeight: "500", color: open() ? colors.text : colors.muted }}>
-        Context
-      </Text>
-    </View>
+      <View
+        class="flex-row items-center gap-1.5"
+        style={{ backgroundColor: open() ? colors.raised : "transparent" }}
+      >
+        <Icon name="panel-bottom" size={16} tint={open() ? colors.accent : colors.muted} />
+        <Text class="text-sm font-medium" style={{ color: open() ? colors.text : colors.muted }}>
+          Context
+        </Text>
+      </View>
+    </Press>
   );
 }
 
 function DesktopMainHeader() {
   return (
     <View
+      class="min-h-12 shrink-0 flex-row items-center gap-2 px-4"
       style={{
-        height: 52,
-        flexShrink: 0,
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 16,
         borderBottomWidth: 1,
         borderBottomColor: colors.line,
         backgroundColor: colors.background,
-        gap: 8,
       }}
     >
-      <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: colors.text }}>Dialogue</Text>
+      <Text class="text-lg font-semibold" style={{ flex: 1, color: colors.text }}>
+        Dialogue
+      </Text>
       <If when={selectedId()}>
         <ContextToggle />
       </If>
@@ -82,66 +74,41 @@ function DesktopMainHeader() {
   );
 }
 
-function ContextPane(props: { children: JSX.Element }) {
-  const slide = createAnimatedValue(untracked(contextOpen) ? 0 : CONTEXT_WIDTH);
-  let first = true;
-  effect(() => {
-    const open = contextOpen();
-    if (first) {
-      first = false;
-      slide.set(open ? 0 : CONTEXT_WIDTH);
-      return;
-    }
-    Animated.timing(slide, {
-      toValue: open ? 0 : CONTEXT_WIDTH,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-    }).start();
-  });
-  return (
-    <View style={{ width: contextOpen() ? CONTEXT_WIDTH : 0, flexShrink: 0, overflow: "hidden" }}>
-      <View
-        style={{
-          width: CONTEXT_WIDTH,
-          flex: 1,
-          transform: [{ translateX: slide }],
-          backgroundColor: colors.inset,
-          borderLeftWidth: 1,
-          borderLeftColor: colors.line,
-        }}
-      >
-        {props.children}
-      </View>
-    </View>
-  );
-}
-
 function DesktopDialogue() {
   return (
-    <View
-      style={{ flex: 1, flexDirection: "row", minHeight: 0, backgroundColor: colors.background }}
+    <ResizablePanelGroup
+      axis="horizontal"
+      handleClass="bg-border"
+      handleThumbClass={handleThumb}
+      handleAccessibilityLabel="Resize panes"
+      style={{ flex: 1, minHeight: 0, backgroundColor: colors.background }}
     >
-      <View
-        style={{
-          width: LIST_WIDTH,
-          flexShrink: 0,
-          backgroundColor: colors.background,
-          borderRightWidth: 1,
-          borderRightColor: colors.line,
-        }}
+      <ResizablePanel
+        size={LIST_WIDTH}
+        minSize={220}
+        maxSize={420}
+        class="border-border bg-background border-r"
       >
         <DialogueList />
-      </View>
-      <View style={{ flex: 1, minWidth: 0, backgroundColor: colors.background }}>
-        <DesktopMainHeader />
-        <View style={{ flex: 1, minHeight: 0 }}>
-          <DialogueMain selectedId={selectedId()} />
+      </ResizablePanel>
+      <ResizablePanel class="bg-background min-w-0">
+        <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: colors.background }}>
+          <DesktopMainHeader />
+          <View style={{ flex: 1, minHeight: 0 }}>
+            <DialogueMain selectedId={selectedId()} />
+          </View>
         </View>
-      </View>
-      <ContextPane>
+      </ResizablePanel>
+      <ResizablePanel
+        size={CONTEXT_WIDTH}
+        minSize={240}
+        maxSize={480}
+        visible={contextOpen()}
+        class="border-border bg-muted border-l"
+      >
         <DialogueContext selectedId={selectedId()} />
-      </ContextPane>
-    </View>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
 
