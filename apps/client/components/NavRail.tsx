@@ -1,7 +1,7 @@
 import { Text, View } from "nsh";
 import { titleBar } from "nsh/desktop";
 
-import { titleTopInset } from "../workspace/layout";
+import { railTopInset } from "../workspace/layout";
 import { modules } from "../workspace/modules";
 import { moduleId, setModule, type ModuleId } from "../workspace/state";
 import { colors, hovered, Icon, Press, radius } from "./ui";
@@ -11,10 +11,10 @@ export const RAIL_WIDTH = 80;
 
 /**
  * Desktop primary module rail — full window height under hidden title bar.
- * paddingTop clears traffic lights; empty band + windowDrag move / zoom the window.
+ * paddingTop clears traffic lights (never thinner than TITLE_CHROME);
+ * empty band + windowDrag move / zoom the window.
  */
 export function NavRail() {
-  const top = titleTopInset();
   return (
     <View
       desktop={{ windowDrag: true }}
@@ -24,7 +24,7 @@ export function NavRail() {
         backgroundColor: colors.inset,
         borderRightWidth: 1,
         borderRightColor: colors.line,
-        paddingTop: top > 0 ? top : 12,
+        paddingTop: railTopInset(),
         paddingBottom: 12,
         alignItems: "center",
         gap: 4,

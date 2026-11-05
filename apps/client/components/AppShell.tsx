@@ -2,7 +2,7 @@
  * Workspace shell: primary nav chrome + ModuleHost.
  * Secondary layout is owned by each module's Page.
  */
-import { Text, View } from "nsh";
+import { effect, Text, View } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
 import { isDesktopLayout, TITLE_CHROME, titleTopInset } from "../workspace/layout";
@@ -13,6 +13,15 @@ import { AppTabBar } from "./TabBar";
 import { colors } from "./ui";
 
 export { isDesktopLayout } from "../workspace/layout";
+
+/** Apply hidden title bar once the shell mounts (matches nsh desktop example). */
+function useHiddenTitleBar() {
+  if (!hasWindow) return;
+  effect(() => {
+    Window.setTitle("MyAid");
+    Window.setTitleBar({ style: "hidden", height: TITLE_CHROME });
+  });
+}
 
 /**
  * Narrow-window title strip (MobileShell when hasWindow; no Rail).
@@ -59,10 +68,7 @@ function ModuleHost() {
  * Traffic lights clear via Rail paddingTop; Win/GTK caption via content paddingTop.
  */
 function DesktopShell() {
-  if (hasWindow) {
-    Window.setTitle("MyAid");
-    Window.setTitleBar({ style: "hidden", height: TITLE_CHROME });
-  }
+  useHiddenTitleBar();
 
   return (
     <View
@@ -93,10 +99,7 @@ function DesktopShell() {
 }
 
 function MobileShell() {
-  if (hasWindow) {
-    Window.setTitle("MyAid");
-    Window.setTitleBar({ style: "hidden", height: TITLE_CHROME });
-  }
+  useHiddenTitleBar();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

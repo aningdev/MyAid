@@ -13,12 +13,22 @@ export const isDesktopLayout = computed(
 export const TITLE_CHROME = 40;
 
 /**
- * Top inset for chrome that sits under traffic lights / caption buttons.
+ * Top inset for full-width chrome (narrow title strip / Win caption pad).
  * True fullscreen reports titleBar all 0 — return 0 (no fake strip).
- * Windowed: at least TITLE_CHROME so icons never sit under the controls.
+ * Windowed: at least TITLE_CHROME so content clears the controls.
  */
 export function titleTopInset(): number {
   const { height, left, right } = titleBar();
   if (height === 0 && left === 0 && right === 0) return 0;
   return Math.max(height, TITLE_CHROME);
+}
+
+/**
+ * Top inset for the desktop NavRail under a hidden title bar.
+ * Always reserves TITLE_CHROME: `titleBar()` can briefly (or while
+ * fullscreen-hover lights show) report 0, and a 12pt fallback lets the
+ * first module icon sit under the traffic lights.
+ */
+export function railTopInset(): number {
+  return Math.max(titleBar().height, TITLE_CHROME);
 }
