@@ -39,7 +39,7 @@ MyAid 通过对话交付结果，用任务与结果跟踪进度，用记忆与�
 
 ## 能力与扩展
 
-- 能力由初始化时模板（或插件派生 preset）决定。
+- 初始化把模板当时映射的 Agent preset id 绑定到该 Bot。未初始化时跟随模板当前的 preset。单独配置某个 Bot 的能力时改用插件侧派生的 preset id，模板引用保持不变。
 - 需授权的工具调用必须可审批；缺少审批 UI 不能默认放行。
 - 产品插件见 `packages/myaid-plugin-*` 与 [DSH_PRINCIPLES.md](DSH_PRINCIPLES.md) §4。
 
