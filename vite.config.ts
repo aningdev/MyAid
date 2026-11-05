@@ -12,7 +12,6 @@ const ignoreLint = [
   "apps/host/**",
   "apps/relay/**",
   "apps/docs/**",
-  "**/*.{test,spec}.{ts,tsx}",
 ];
 
 export default defineConfig({

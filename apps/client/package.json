@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "MYAID_HOST_SOCKET=${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock} nsh run App.tsx",
-    "check": "nsh check App.tsx",
+    "dev": "MYAID_HOST_SOCKET=${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock} nsh run ",
+    "check": "nsh check",
     "build": "nsh build App.tsx --release",
     "test": "nsh test"
   },
