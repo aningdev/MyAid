@@ -44,3 +44,17 @@
 - 助手是桌面持有的独立对象，引用 profile，对应唯一持续对话；桌面写注册表。
 - 模板初始化后固定模板 ID 与工作区；恢复失败保留指针并分类报错。
 - 停止当前执行、撤回输入与停止后台分别处理；归档只阻新输入。
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `aningdev/MyAid` (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
