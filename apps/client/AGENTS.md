@@ -45,7 +45,13 @@
 
 - 新增文件 / 网络 / 进程访问时同步更新 `nsh.json` capabilities。
 - Cookie WebSocket、Unix socket、`SMAppService` 等仅在标准 API 缺口核实后添加；升级后复核可否迁回标准 API。
-- 修改 `src/lib.rs` 导出后跑 `bun run check` / `nsh check` 以刷新声明。
+- 修改 `src/lib.rs` 导出后跑 `vp run @myaid/client#check` / `nsh check` 以刷新声明。
+
+## 开发与打包（NSH CLI）
+
+- 日常：`nsh run --target …`（`dev` / `dev:macos` 等）；只起服务用 `nsh dev --server-only`（`dev:server`）。
+- `MYAID_HOST_SOCKET` **仅本机桌面**脚本注入（`dev` / `dev:macos`）；`dev:ios` / `dev:android` / `dev:web` / Relay 路径不注入。
+- 可安装包：`nsh package`（`package:macos` / `package:web`）。根级 App + Host 组装另议，勿把 client 的 `package:*` 当成成品分发。
 
 ## 状态与验证
 

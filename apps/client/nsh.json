@@ -1,8 +1,9 @@
 {
   "name": "MyAid",
-  "id": "dev.myaid.client",
+  "id": "com.aningdev.myaid",
   "version": "0.1.0",
   "build": 1,
+  "icon": "assets/icon.png",
   "rust": ".",
   "appearance": "system",
   "capabilities": {

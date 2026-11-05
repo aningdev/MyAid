@@ -4,9 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "MYAID_HOST_SOCKET=${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock} nsh run ",
+    "dev": "env MYAID_HOST_SOCKET=\"${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock}\" nsh run App.tsx",
+    "dev:macos": "env MYAID_HOST_SOCKET=\"${MYAID_HOST_SOCKET:-$HOME/.myaid/host/control.sock}\" nsh run App.tsx --target macos",
+    "dev:web": "nsh run App.tsx --target web",
+    "dev:ios": "nsh run App.tsx --target ios",
+    "dev:android": "nsh run App.tsx --target android",
+    "dev:server": "nsh dev App.tsx --server-only",
     "check": "nsh check",
     "build": "nsh build App.tsx --release",
+    "package:macos": "nsh package --target macos",
+    "package:web": "nsh package --target web",
     "test": "nsh test"
   },
   "dependencies": {
