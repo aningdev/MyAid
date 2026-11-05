@@ -45,7 +45,7 @@
 
 - 新增文件 / 网络 / 进程访问时同步更新 `nsh.json` capabilities。
 - Cookie WebSocket、Unix socket、`SMAppService` 等仅在标准 API 缺口核实后添加；升级后复核可否迁回标准 API。
-- 修改 `src/lib.rs` 导出后跑 `vp run check` / `nsh check` 以刷新声明。
+- 修改 `src/lib.rs` 导出后跑 `bun run check` / `nsh check` 以刷新声明。
 
 ## 状态与验证
 

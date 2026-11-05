@@ -24,4 +24,4 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           nsh --version
       - run: bun install --frozen-lockfile
-      - run: bunx vp run check
+      - run: bun run check

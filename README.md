@@ -31,16 +31,16 @@ dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
 
 ```sh
 bun install
-vp run check    # vp check --fix → plugin check → nsh check → cargo check
-vp run dev      # apps/client: nsh run App.tsx（不自动拉起 host/dsh）
-vp run test
-vp run build    # 发布产物：plugin build + nsh build（`--filter client...` 依赖序）
+bun run check   # 或 vp run check：vp check --fix → plugin check → nsh check → cargo check
+bun run dev     # apps/client: nsh run App.tsx（不自动拉起 host/dsh）
+bun run test
+bun run build   # plugin + client（`vp run --filter @myaid/client... build`）
 ```
 
-数据根：`~/.myaid`（`DSH_HOME`）。根任务在 `vite.config.ts` → `run.tasks`（[Run Config](https://viteplus.dev/config/run)）。Git hooks 用官方 Vite+：`prepare` → `vp config --hooks`，[`.vite-hooks/pre-commit`](.vite-hooks/pre-commit) → `vp staged`。完整门禁仍是 `vp run check` / CI。详见 [Commit Hooks](https://viteplus.dev/guide/commit-hooks)。
+数据根：`~/.myaid`（`DSH_HOME`）。根与包的 `package.json` scripts 保留；根脚本用 `vp run pkg#task` / `--filter` 调度包脚本（[Run](https://viteplus.dev/guide/run)）。Git hooks：`prepare` → `vp config --hooks`，[`.vite-hooks/pre-commit`](.vite-hooks/pre-commit) → `vp staged`。完整门禁仍是 `bun run check` / CI。详见 [Commit Hooks](https://viteplus.dev/guide/commit-hooks)。
 
 ```sh
-vp run host:dev
+bun run host:dev
 ```
 
 ## 有意省略
