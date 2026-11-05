@@ -31,7 +31,7 @@
     "vite-plus": "^1.4.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "bun run check"
+    "pre-commit": "vp staged"
   },
   "engines": {
     "bun": ">=1.4.4",

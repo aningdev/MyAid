@@ -37,7 +37,7 @@ bun run test
 bun run build   # 发布产物：plugin build + nsh build
 ```
 
-数据根：`~/.myaid`（`DSH_HOME`）。`pre-commit` 跑同一套 `bun run check`。
+数据根：`~/.myaid`（`DSH_HOME`）。`pre-commit` 跑 `vp staged`（仅 staged 文件）；完整门禁仍是 `bun run check` / CI。
 
 ```sh
 bun run host:dev
