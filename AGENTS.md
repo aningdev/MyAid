@@ -9,7 +9,7 @@
 - 离开 `design/wireframes/`，除非任务明确是线框。
 - 轻量验收：`bun install && bun run check`（`vp check --fix` → plugin `tsc --noEmit` → `nsh check` → `cargo check`）。
 - 根 scripts 用 bun `--cwd` 组合；`apps/client` 直接用官方 `nsh run|check|build|test`。勿再往 `scripts/` 加编排 TS。
-- 工具链版本以根为准：`.bun-version` / `.node-version` / `packageManager` + `engines`；包内 TypeScript 与 `@types/*` 对齐根 `devDependencies`，勿另钉旧版。
+- 工具链版本以根为准：`.bun-version` / `.node-version` / `packageManager` + `engines`；共享 npm 版在 `workspaces.catalog`，包内用 `"catalog:"`，勿另钉旧版。
 
 ## 目录与模块
 

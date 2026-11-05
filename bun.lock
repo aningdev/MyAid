@@ -5,10 +5,10 @@
     "": {
       "name": "@myaid/workspace",
       "devDependencies": {
-        "@types/bun": "1.4.4",
-        "@types/node": "26.6.6",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
         "simple-git-hooks": "^2.13.1",
-        "typescript": "7.1.0-beta",
+        "typescript": "catalog:",
         "vite-plus": "^1.4.0",
       },
     },
@@ -23,10 +23,15 @@
       "name": "@myaid/myaid-plugin-core",
       "version": "0.1.0",
       "devDependencies": {
-        "@types/bun": "1.4.4",
-        "typescript": "7.1.0-beta",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
       },
     },
+  },
+  "catalog": {
+    "@types/bun": "1.4.4",
+    "@types/node": "26.6.6",
+    "typescript": "7.1.0-beta",
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],

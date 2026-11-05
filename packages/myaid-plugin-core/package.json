@@ -20,8 +20,8 @@
     "prepare": "bun run build"
   },
   "devDependencies": {
-    "@types/bun": "1.4.4",
-    "typescript": "7.1.0-beta"
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
   },
   "dsh": {
     "bundle": {

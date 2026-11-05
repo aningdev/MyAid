@@ -3,10 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "@types/bun": "1.4.4",
+      "@types/node": "26.6.6",
+      "typescript": "7.1.0-beta"
+    }
+  },
   "type": "module",
   "scripts": {
     "prepare": "simple-git-hooks",
@@ -17,10 +24,10 @@
     "host:dev": "cargo run --manifest-path apps/host/Cargo.toml -- serve-app"
   },
   "devDependencies": {
-    "@types/bun": "1.4.4",
-    "@types/node": "26.6.6",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "simple-git-hooks": "^2.13.1",
-    "typescript": "7.1.0-beta",
+    "typescript": "catalog:",
     "vite-plus": "^1.4.0"
   },
   "simple-git-hooks": {

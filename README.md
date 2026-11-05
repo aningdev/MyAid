@@ -25,7 +25,7 @@
 | ----------------------------------------- | -------------------------------------------------------------------- |
 | Bun `1.4.4`                               | [`.bun-version`](.bun-version)、`packageManager` / `engines.bun`     |
 | Node `26.13.0`（兼容 `^24.15 \|\| >=26`） | [`.node-version`](.node-version)、[`.nvmrc`](.nvmrc)、`engines.node` |
-| TypeScript `7.1.0-beta`                   | 根与 `packages/*` 统一；`@types/node` / `@types/bun` 同版本          |
+| TypeScript / `@types/node` / `@types/bun` | 根 `workspaces.catalog` 单源；包内 `"catalog:"` 引用                 |
 
 dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
 
