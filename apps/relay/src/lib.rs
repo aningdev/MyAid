@@ -1,9 +1,11 @@
 //! Encrypted frame relay shell with local RelayControl.
 
+mod background_registration;
 mod config;
 pub mod relay_control;
 mod runtime;
 
+pub use background_registration::RelayRegistration;
 pub use config::Config;
 pub type Result<T> = std::result::Result<T, String>;
 pub use relay_control::{

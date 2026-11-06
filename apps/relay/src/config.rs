@@ -8,6 +8,8 @@ pub struct Config {
     pub root: PathBuf,
     pub version: String,
     control_socket: Option<PathBuf>,
+    /// Explicit dev Relay (`serve` / `serve-app`); skips OS registration side effects.
+    pub explicit_dev_relay: bool,
 }
 
 impl Config {
@@ -39,6 +41,7 @@ impl Config {
             root,
             version: env!("CARGO_PKG_VERSION").into(),
             control_socket: None,
+            explicit_dev_relay: true,
         };
         config.prepare()?;
         Ok(config)
@@ -69,6 +72,7 @@ impl Config {
             root: root.ok_or("Missing data root")?,
             version: version.unwrap_or_else(|| env!("CARGO_PKG_VERSION").into()),
             control_socket,
+            explicit_dev_relay: true,
         };
         config.prepare()?;
         Ok(config)

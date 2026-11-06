@@ -4,7 +4,7 @@ use super::{
     MAX_FRAME, PROTOCOL, Request, Status, read_frame,
     transport::{LocalListener, LocalStream, write_endpoint_marker},
 };
-use crate::{Config, Result, generation, private_file};
+use crate::{Config, RelayRegistration, Result, generation, private_file};
 use fs2::FileExt;
 use std::{
     io::{BufReader, Write},
@@ -16,7 +16,11 @@ use std::{
     time::Duration,
 };
 
-fn response(stream: &mut LocalStream, id: &str, value: Result<Status>) -> Result<()> {
+fn response<T: serde::Serialize>(
+    stream: &mut LocalStream,
+    id: &str,
+    value: Result<T>,
+) -> Result<()> {
     let value = match value {
         Ok(value) => serde_json::json!({"version":PROTOCOL,"id":id,"ok":true,"value":value}),
         Err(error) => serde_json::json!({"version":PROTOCOL,"id":id,"ok":false,"error":error}),
@@ -31,7 +35,12 @@ fn response(stream: &mut LocalStream, id: &str, value: Result<Status>) -> Result
         .map_err(|e| e.to_string())
 }
 
-fn handle(mut stream: LocalStream, status: Status, exit: &AtomicBool) -> Result<()> {
+fn handle(
+    mut stream: LocalStream,
+    status: Status,
+    registration: RelayRegistration,
+    exit: &AtomicBool,
+) -> Result<()> {
     if !stream.same_user() {
         return Err("Peer user rejected".into());
     }
@@ -48,6 +57,17 @@ fn handle(mut stream: LocalStream, status: Status, exit: &AtomicBool) -> Result<
     request.validate()?;
     match request.operation.as_str() {
         "status" => response(&mut stream, &request.id, Ok(status.clone())),
+        "registrationQuery" => {
+            response(
+                &mut stream,
+                &request.id,
+                Ok(registration.query_snapshot()),
+            )
+        }
+        "registrationEnable" => {
+            response(&mut stream, &request.id, registration.enable())
+        }
+        "registrationStop" => response(&mut stream, &request.id, registration.stop()),
         "watchStatus" => {
             let mut previous = String::new();
             while !exit.load(Ordering::Acquire) {
@@ -86,6 +106,7 @@ pub fn serve(config: Config, exit: &'static AtomicBool) -> Result<()> {
         generation()?,
         std::process::id(),
     );
+    let registration = RelayRegistration::from_config(&config);
     let active = Arc::new(AtomicUsize::new(0));
     let exit = exit;
     while !exit.load(Ordering::Acquire) {
@@ -98,8 +119,9 @@ pub fn serve(config: Config, exit: &'static AtomicBool) -> Result<()> {
                 }
                 let active = active.clone();
                 let status = status.clone();
+                let registration = registration.clone();
                 thread::spawn(move || {
-                    let _ = handle(stream, status, exit);
+                    let _ = handle(stream, status, registration, exit);
                     active.fetch_sub(1, Ordering::AcqRel);
                 });
             }
