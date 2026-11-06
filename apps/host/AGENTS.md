@@ -5,7 +5,7 @@
 ## 模块与生命周期
 
 - `DshProcess` 独占 dsh 生命周期；公开入口为 `Lifecycle`。内部锁、guardian、环境与日志保持私有。
-- `HostControl` 提供本机管理、连接发现与共享协议；**只调用 `Lifecycle`**，不另建启停策略。
+- `HostControl` 提供本机管理、连接发现与共享协议；**只调用 `Lifecycle`**，不另建启停策略。Background 登记走 `background_registration` 薄适配（macOS `SMAppService` 查询/登记事实；开发态 `serve` / `serve-app` 显式 Host 不触发 OS 登记）。
 - `main.rs` 只装配与分派；`lib.rs` 导出客户端原生适配所需的共享控制 Interface。
 - 控制协议集中在 `host_control/protocol.rs`（含 `recovering` 等相位）；修改时同时核对宿主接收、客户端解码与失败语义。公开 status 与认证连接信息分离。
 

@@ -2,11 +2,13 @@
 //! Modules: `dsh_process`, `host_control`, `bridge`.
 
 pub mod bridge;
+mod background_registration;
 mod config;
 pub mod dsh_process;
 pub mod host_control;
 mod runtime;
 
+pub use background_registration::HostRegistration;
 pub use config::{CliSource, Config, STARTUP_TIMEOUT};
 pub type Result<T> = std::result::Result<T, String>;
 pub use host_control::{

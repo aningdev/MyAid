@@ -23,6 +23,8 @@ pub struct Config {
     pub logs: PathBuf,
     pub version: String,
     pub startup_timeout: Duration,
+    /// Explicit dev Host (`serve` / `serve-app`); skips OS registration side effects.
+    pub explicit_dev_host: bool,
 }
 
 impl Config {
@@ -54,6 +56,7 @@ impl Config {
             cli: CliSource::Official,
             version: pinned_version()?,
             startup_timeout: STARTUP_TIMEOUT,
+            explicit_dev_host: true,
         };
         config.prepare()?;
         Ok(config)
@@ -112,6 +115,7 @@ impl Config {
                 None => pinned_version()?,
             },
             startup_timeout: Duration::from_millis(startup),
+            explicit_dev_host: true,
         };
         config.prepare()?;
         Ok(config)

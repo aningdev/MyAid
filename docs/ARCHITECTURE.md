@@ -6,17 +6,19 @@
 
 ```mermaid
 flowchart LR
-    D[NSH 桌面客户端] -->|SMAppService 登记 / 状态| L[macOS 后台服务]
-    L --> H[App 内 Rust Host]
+    D[NSH 桌面客户端] -->|登记 / 状态| BH[Host Background Service]
+    D -->|登记 / 状态| BR[Relay Background Service]
+    BH --> H[Host 进程 / dsh 生命周期]
     H -->|启停 / 回收| W[唯一官方 dsh web]
     W --> P[web profile / Session / 模型与工具]
-    D -->|本机控制通道| H
+    D -->|HostControl| BH
+    D -->|RelayControl| BR
     D --> C[官方协议客户端]
     C -->|认证后 HTTP / WebSocket| W
     D --> B[(注册表 / 任务真源)]
     C -->|公开插件接口| E[dsh 插件 / myaid-plugin-*]
     W --> E
-    H -.->|加密帧| R[Relay]
+    BR -.->|加密帧| R[Relay 转发]
 ```
 
 实线为单机目标形状；虚线为多端。系统边界：
@@ -96,7 +98,7 @@ apps/client/
 ## 6. 本机控制协议（原则）
 
 - 协议版本常量与帧边界见 `apps/host/src/host_control/protocol.rs`。
-- 操作语义（目标）：`status` / `watchStatus` / `connectionInfo` / `ensureDsh` / `stopDsh` / `restartDsh`；多端另含配对与设备列表。
+- 操作语义（目标）：`status` / `watchStatus` / `connectionInfo` / `ensureDsh` / `stopDsh` / `restartDsh`；Background 登记：`registrationQuery` / `registrationEnable` / `registrationStop`（共享契约，Host 只报告 Host 单元事实，Relay 相位在 Host 侧恒为未登记）；多端另含配对与设备列表。
 - `ensureDsh` 区分 `attach` 与 `userStart`；自动附着不能解除用户停机意图。
 
 ## 7. Relay

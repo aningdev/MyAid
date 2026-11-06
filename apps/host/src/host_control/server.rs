@@ -4,7 +4,7 @@ use super::{
     MAX_FRAME, PROTOCOL, Request, read_frame,
     transport::{LocalListener, LocalStream, write_endpoint_marker},
 };
-use crate::{Config, Result, dsh_process::Lifecycle, private_file};
+use crate::{Config, HostRegistration, Result, dsh_process::Lifecycle, private_file};
 use fs2::FileExt;
 use std::{
     io::{BufReader, Write},
@@ -35,7 +35,12 @@ fn response<T: serde::Serialize>(
         .map_err(|e| e.to_string())
 }
 
-fn handle(mut stream: LocalStream, lifecycle: Lifecycle, exit: &AtomicBool) -> Result<()> {
+fn handle(
+    mut stream: LocalStream,
+    lifecycle: Lifecycle,
+    registration: HostRegistration,
+    exit: &AtomicBool,
+) -> Result<()> {
     if !stream.same_user() {
         return Err("Peer user rejected".into());
     }
@@ -53,6 +58,17 @@ fn handle(mut stream: LocalStream, lifecycle: Lifecycle, exit: &AtomicBool) -> R
     match request.operation.as_str() {
         "status" => response(&mut stream, &request.id, Ok(lifecycle.snapshot())),
         "connectionInfo" => response(&mut stream, &request.id, lifecycle.connection_info()),
+        "registrationQuery" => {
+            response(
+                &mut stream,
+                &request.id,
+                Ok(registration.query_snapshot()),
+            )
+        }
+        "registrationEnable" => {
+            response(&mut stream, &request.id, registration.enable())
+        }
+        "registrationStop" => response(&mut stream, &request.id, registration.stop()),
         "watchStatus" => {
             let mut previous = String::new();
             while !exit.load(Ordering::Acquire) {
@@ -95,7 +111,8 @@ pub fn serve(config: Config, exit: &'static AtomicBool) -> Result<()> {
     }
     let listener = LocalListener::bind(&socket)?;
     write_endpoint_marker(&config.runtime(), &socket)?;
-    let lifecycle = Lifecycle::new(config)?;
+    let lifecycle = Lifecycle::new(config.clone())?;
+    let registration = HostRegistration::from_config(&config);
     let active = Arc::new(AtomicUsize::new(0));
     let monitor_lifecycle = lifecycle.clone();
     let monitor = thread::spawn(move || {
@@ -116,8 +133,9 @@ pub fn serve(config: Config, exit: &'static AtomicBool) -> Result<()> {
                 }
                 let active = active.clone();
                 let lifecycle = lifecycle.clone();
+                let registration = registration.clone();
                 thread::spawn(move || {
-                    let _ = handle(stream, lifecycle, exit);
+                    let _ = handle(stream, lifecycle, registration, exit);
                     active.fetch_sub(1, Ordering::AcqRel);
                 });
             }

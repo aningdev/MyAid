@@ -140,9 +140,17 @@ impl Request {
             return Err("Invalid request ID".into());
         }
         match (self.operation.as_str(), self.source.as_deref()) {
-            ("status" | "watchStatus" | "connectionInfo" | "stopDsh" | "restartDsh", None) => {
-                Ok(())
-            }
+            (
+                "status"
+                | "watchStatus"
+                | "connectionInfo"
+                | "stopDsh"
+                | "restartDsh"
+                | "registrationQuery"
+                | "registrationEnable"
+                | "registrationStop",
+                None,
+            ) => Ok(()),
             ("ensureDsh", Some("attach" | "userStart")) => Ok(()),
             _ => Err("Invalid host operation or arguments".into()),
         }
@@ -232,6 +240,23 @@ pub fn call(socket: &Path, request: &serde_json::Value) -> Result<Status> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registration_operations_validate_without_source() {
+        for op in [
+            "registrationQuery",
+            "registrationEnable",
+            "registrationStop",
+        ] {
+            let request = Request {
+                version: PROTOCOL,
+                id: "1".into(),
+                operation: op.into(),
+                source: None,
+            };
+            assert!(request.validate().is_ok(), "{op}");
+        }
+    }
 
     #[test]
     fn public_status_strips_url() {

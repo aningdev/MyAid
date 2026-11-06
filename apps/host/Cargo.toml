@@ -25,6 +25,11 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_Threading",
 ] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.5"
+objc2-foundation = "0.3.2"
+objc2-service-management = "0.3.2"
+
 [dev-dependencies]
 myaid-relay = { path = "../relay" }
 tempfile = "3"
