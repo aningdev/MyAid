@@ -515,7 +515,10 @@ export function Button(props: {
         <If when={props.icon}>
           <Icon name={props.icon!} size={small() ? 14 : 16} tint={fg()} />
         </If>
-        <Text class={small() ? "text-sm font-semibold" : "text-base font-semibold"} style={{ color: fg() }}>
+        <Text
+          class={small() ? "text-sm font-semibold" : "text-base font-semibold"}
+          style={{ color: fg() }}
+        >
           {props.label}
         </Text>
       </View>

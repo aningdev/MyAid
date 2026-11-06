@@ -237,6 +237,7 @@ pub fn alive(pid: u32) -> bool {
 
 #[cfg(unix)]
 pub fn reset_signals(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
     unsafe {
         command.pre_exec(|| {
             libc::signal(libc::SIGTERM, libc::SIG_DFL);

@@ -6,5 +6,6 @@
   "vitest.configSearchPatternExclude": "{**/node_modules/**,**/vendor/**,**/.*/**,**/*.d.ts,**/references/**}",
   // Override a common user-level include like "~/Code/*{vite,vitest}*.config*"
   // that never matches files inside this workspace folder.
-  "vitest.configSearchPatternInclude": "**/*{vite,vitest}*.config*.{ts,js,mjs,cjs,cts,mts}"
+  "vitest.configSearchPatternInclude": "**/*{vite,vitest}*.config*.{ts,js,mjs,cjs,cts,mts}",
+  "js/ts.tsdk.path": "node_modules/typescript"
 }

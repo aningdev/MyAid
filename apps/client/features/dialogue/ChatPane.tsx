@@ -66,9 +66,7 @@ type User = Extract<Msg, { kind: "user" }>;
 export function ChatPane(props: { selectedId: string | null }) {
   const wide = platform.idiom === "desktop";
   /** Desktop: messages and the composer in a centered column. */
-  const column: ViewStyle = wide
-    ? { width: "100%", maxWidth: 820, alignSelf: "center" }
-    : {};
+  const column: ViewStyle = wide ? { width: "100%", maxWidth: 820, alignSelf: "center" } : {};
   const insets = safeAreaInsets();
   let ids = 0;
   const nextId = () => `m${ids++}`;
@@ -394,10 +392,7 @@ export function ChatPane(props: { selectedId: string | null }) {
         // Replace local run bubble with projected history so reopen/reload match.
         if (view.messages.length) {
           batch(() => {
-            messages.set([
-              { kind: "date", id: nextId(), label: "Today" },
-              ...view.messages,
-            ]);
+            messages.set([{ kind: "date", id: nextId(), label: "Today" }, ...view.messages]);
             liveId.set(null);
             clearLiveSignals();
           });

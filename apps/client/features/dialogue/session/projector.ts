@@ -130,8 +130,7 @@ function applyStreamChunk(chunk: Record<string, unknown>, into: LiveAcc): void {
       kind: "generic",
       state: prev?.state === "done" ? "done" : "pending",
       name: typeof block.name === "string" ? block.name : (prev?.name ?? "tool"),
-      arguments:
-        typeof block.arguments === "string" ? block.arguments : (prev?.arguments ?? ""),
+      arguments: typeof block.arguments === "string" ? block.arguments : (prev?.arguments ?? ""),
       result: prev?.result,
       isError: prev?.isError,
     });
@@ -281,8 +280,7 @@ export class SessionProjector {
       messages: messages.filter(
         (m) =>
           (m.kind === "user" && m.text.length > 0) ||
-          (m.kind === "assistant" &&
-            (m.md.length > 0 || m.tools.length > 0 || !!m.reasoning)),
+          (m.kind === "assistant" && (m.md.length > 0 || m.tools.length > 0 || !!m.reasoning)),
       ),
       running: this.running,
       status: this.status,

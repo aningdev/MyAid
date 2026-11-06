@@ -3,8 +3,8 @@
  * Node `net.connect(path)` accepts Unix sockets and `\\.\pipe\...` named pipes.
  */
 import { spawn } from "node:child_process";
-import { connect } from "node:net";
 import { mkdtemp, rm } from "node:fs/promises";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

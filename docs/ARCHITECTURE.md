@@ -58,11 +58,11 @@ apps/host/src/
 └── bridge/           # 多端阶段
 ```
 
-| Module                     | 原则                                                         |
-| -------------------------- | ------------------------------------------------------------ |
-| `DshProcess` / `Lifecycle` | 独占 CLI、环境、spawn、ready、版本、日志、回收与并发启动归并 |
+| Module                     | 原则                                                                                           |
+| -------------------------- | ---------------------------------------------------------------------------------------------- |
+| `DshProcess` / `Lifecycle` | 独占 CLI、环境、spawn、ready、版本、日志、回收与并发启动归并                                   |
 | `HostControl`              | 本机端点（Unix socket / Windows named pipe）、同用户校验、请求分派、状态订阅；只调 `Lifecycle` |
-| `Bridge`                   | 配对、授权、官方协议转发                                     |
+| `Bridge`                   | 配对、授权、官方协议转发                                                                       |
 
 相位（与 `protocol.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。
 

@@ -18,7 +18,7 @@ export function DialogueMain(props: { selectedId: string | null }) {
         <View
           style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 }}
         >
-          <Text class="text-lg font-semibold text-foreground">Dialogue</Text>
+          <Text class="text-foreground text-lg font-semibold">Dialogue</Text>
           <EmptyHint />
         </View>
       }
@@ -49,7 +49,7 @@ function EmptyHint() {
 
   return (
     <View style={{ gap: 12, alignItems: "center", maxWidth: 360 }}>
-      <Text class="text-sm text-center text-muted-foreground" style={{ lineHeight: 20 }}>
+      <Text class="text-muted-foreground text-center text-sm" style={{ lineHeight: 20 }}>
         {scoped()
           ? `在「${scoped()?.name}」下新建任务，或从左侧选择已有会话。`
           : readyBots().length > 0
@@ -57,7 +57,7 @@ function EmptyHint() {
             : "先到 Bots 导入模板并初始化一个助手，再回来新建任务。"}
       </Text>
       <If when={sessionError()}>
-        <Text class="text-xs text-center text-destructive">{sessionError()}</Text>
+        <Text class="text-destructive text-center text-xs">{sessionError()}</Text>
       </If>
       <If when={scoped()?.status === "ready"}>
         <Button

@@ -326,8 +326,10 @@ export class Connection {
   ): () => void {
     if (!this.ctx) throw new Error("尚未连接后台");
     this.scope(sessionId);
+    // 0.2.2+: follow is passive unless activate is requested; match official Web client.
     const stream = this.remote.session.follow({
       address: { kind: "session", sessionId },
+      activate: true,
       assistantStream: true,
     });
     const id = ++this.followId;

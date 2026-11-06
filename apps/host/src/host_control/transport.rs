@@ -35,9 +35,9 @@ pub fn default_endpoint() -> PathBuf {
 }
 
 pub fn endpoint_name(path: &Path) -> Result<Name<'static>> {
-    let text = path.to_string_lossy();
     #[cfg(windows)]
     {
+        let text = path.to_string_lossy();
         let name = if text.starts_with(r"\\.\pipe\") || text.starts_with("//./pipe/") {
             text.as_ref().to_fs_name::<NamedPipe>()
         } else {
@@ -67,28 +67,48 @@ pub struct LocalStream {
 impl LocalListener {
     pub fn bind(path: &Path) -> Result<Self> {
         let name = endpoint_name(path)?;
-        let mut options = ListenerOptions::new()
+        let options = ListenerOptions::new()
             .name(name)
             .nonblocking(ListenerNonblockingMode::Accept)
             .reclaim_name(true)
             .try_overwrite(true);
-        #[cfg(unix)]
-        {
-            use interprocess::os::unix::local_socket::ListenerOptionsExt;
-            options = options.mode(0o600);
-        }
         #[cfg(windows)]
         {
             // Owner + SYSTEM full access; no World ACE.
             let sddl = U16CString::from_str("D:P(A;;GA;;;OW)(A;;GA;;;SY)")
                 .map_err(|e| e.to_string())?;
             let sd = SecurityDescriptor::deserialize(&sddl).map_err(|e| e.to_string())?;
-            options = options.security_descriptor(sd);
+            let inner = options
+                .security_descriptor(sd)
+                .create_sync()
+                .map_err(|e| format!("无法绑定控制端点：{e}"))?;
+            return Ok(Self { inner });
         }
-        let inner = options
-            .create_sync()
-            .map_err(|e| format!("无法绑定控制端点：{e}"))?;
-        Ok(Self { inner })
+        #[cfg(unix)]
+        {
+            use interprocess::os::unix::local_socket::ListenerOptionsExt;
+            use interprocess::TryClone;
+            use std::os::unix::fs::PermissionsExt;
+
+            // Prefer pre-bind fchmod (no umask race). macOS and older FreeBSD
+            // return Unsupported for socket fchmod — fall back to post-bind chmod.
+            let with_mode = options
+                .try_clone()
+                .map_err(|e| format!("无法绑定控制端点：{e}"))?
+                .mode(0o600);
+            match with_mode.create_sync() {
+                Ok(inner) => Ok(Self { inner }),
+                Err(e) if e.kind() == io::ErrorKind::Unsupported => {
+                    let inner = options
+                        .create_sync()
+                        .map_err(|e| format!("无法绑定控制端点：{e}"))?;
+                    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                        .map_err(|e| format!("无法设置控制端点权限：{e}"))?;
+                    Ok(Self { inner })
+                }
+                Err(e) => Err(format!("无法绑定控制端点：{e}")),
+            }
+        }
     }
 
     pub fn accept(&self) -> io::Result<LocalStream> {
@@ -152,9 +172,10 @@ impl LocalStream {
     pub fn peek_byte(&self) -> io::Result<usize> {
         #[cfg(unix)]
         {
-            use std::os::fd::AsRawFd;
+            use std::os::fd::{AsFd, AsRawFd};
             let fd = match &self.inner {
-                IpStream::UdSocket(s) => s.as_raw_fd(),
+                // interprocess UdSocket Stream exposes AsFd, not AsRawFd.
+                IpStream::UdSocket(s) => s.as_fd().as_raw_fd(),
             };
             let mut byte = [0u8; 1];
             let result = unsafe {
@@ -244,4 +265,23 @@ impl Write for &LocalStream {
 pub fn write_endpoint_marker(runtime: &Path, endpoint: &Path) -> Result<()> {
     let marker = runtime.join("control.endpoint");
     std::fs::write(&marker, endpoint.to_string_lossy().as_bytes()).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bind_owner_only_socket() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("control.sock");
+        let _listener = LocalListener::bind(&path).expect("bind");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).expect("meta").permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "socket should be owner-only");
+        }
+        assert!(path.exists() || cfg!(windows));
+    }
 }

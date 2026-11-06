@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn public_status_strips_url() {
-        let mut status = Status::stopped("0.2.1-rc.5");
+        let mut status = Status::stopped("0.2.2-rc.1");
         status.url = Some("http://127.0.0.1:1/?token=x".into());
         assert!(status.public().url.is_none());
     }

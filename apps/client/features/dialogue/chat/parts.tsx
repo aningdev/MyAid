@@ -217,7 +217,13 @@ function truncate(value: string, max = 80): string {
   return one.length > max ? `${one.slice(0, max - 1)}…` : one;
 }
 
-const monoBody = (): { userSelect: "text"; fontFamily: string; fontSize: number; lineHeight: number; color: string } => ({
+const monoBody = (): {
+  userSelect: "text";
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  color: string;
+} => ({
   userSelect: "text",
   fontFamily: mono,
   fontSize: 12,
@@ -277,8 +283,12 @@ export function ToolCard(props: { tool: Tool }) {
           <Glyph name={head().glyph} size={16} tint={colors.text} />
         </View>
         <View style={{ flex: 1, gap: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>{head().title}</Text>
-          <Text style={{ numberOfLines: 1, fontSize: 13, color: colors.muted }}>{head().detail}</Text>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+            {head().title}
+          </Text>
+          <Text style={{ numberOfLines: 1, fontSize: 13, color: colors.muted }}>
+            {head().detail}
+          </Text>
         </View>
         <If
           when={t().state === "running" || t().state === "pending"}
@@ -347,7 +357,9 @@ function ToolBody(props: { tool: Tool }) {
                       backgroundColor: i() === 0 ? colors.warn : colors.raised,
                     }}
                   />
-                  <Text style={{ fontSize: 11, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+                  <Text
+                    style={{ fontSize: 11, color: colors.faint, fontVariant: ["tabular-nums"] }}
+                  >
                     {(17 + i()) % 24}h
                   </Text>
                 </View>
