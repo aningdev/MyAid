@@ -17,17 +17,19 @@ import {
 } from "../../bots/model";
 import { changeRegistry, ready, registry } from "../../bots/state";
 import { sessionScopeBotId } from "../state";
+import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import {
   ClaimedSessionClient,
   type ApprovalDecision,
   type ApprovalRequest,
+  type FlatModelCatalog,
   type ModelCatalog,
   type SessionTransport,
 } from "./claimed";
 import { buildSessionRoster, relabelRow, withOccupancy, type SessionRow } from "./roster";
 import { TurnProjection, type TurnView } from "./turn";
 
-export type { ApprovalDecision, ApprovalRequest, ModelCatalog, SessionRow };
+export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog, ModelCatalog, SessionRow };
 
 export type HostStatus = {
   phase: string;
@@ -49,7 +51,7 @@ export const hostStatus = signal<HostStatus | null>(null);
 export const hostConnection = signal<HostConnection>("down");
 export const sessionReady = signal(false);
 export const sessionError = signal<string | null>(null);
-export const modelCatalog = signal<ModelCatalog | null>(null);
+export const modelCatalog = signal<FlatModelCatalog | null>(null);
 export const pendingApproval = signal<ApprovalRequest | null>(null);
 export const sessionList = signal<SessionRow[]>([]);
 export const activeSessionId = signal<string | null>(null);

@@ -2,6 +2,7 @@
  * Project official Session follow frames onto Dialogue `Msg` values.
  * Only human-sourced `user/message` events become user bubbles.
  */
+import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import type { Msg, Status, Tool } from "../chat/scripts";
 
 type Event = {
@@ -177,7 +178,7 @@ export class SessionProjector {
   running = false;
   status = "";
 
-  receive(value: unknown): ProjectedChat {
+  receive(value: SessionFollowFrame | unknown): ProjectedChat {
     const frame = object(value);
     if (frame.type === "error") throw new Error(String(frame.error));
     if (frame.type === "snapshot") {

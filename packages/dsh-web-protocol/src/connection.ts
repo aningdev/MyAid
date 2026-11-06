@@ -1,0 +1,62 @@
+/**
+ * Gateway + connection carrier + typert protocol types.
+ * Named exports avoid apply/inject/RemoteStream collisions across client faces.
+ */
+export type * from "@deepseek-ai/dsh-api-gateway/types";
+export type {
+  ClientRemote,
+  RemoteHostFacts,
+  RemoteJournalChange,
+  RemoteJournalFrame,
+  RemoteJournalStreamOptions,
+  RemoteSnapshotStreamOptions,
+  RemoteStreamFactory,
+  RemoteStreamItem,
+  RemoteStreamOptions,
+  TypertGatewayFaultDetails,
+} from "@deepseek-ai/dsh-api-gateway/client";
+export type {
+  ClientConnectionRpc,
+  ClientRequest,
+  ClientTransportHooks,
+  ConnectionGeneration,
+  ConnectionGenerationSource,
+  ConnectionGenerationState,
+  ConnectionHandle,
+  ConnectionHostInfo,
+  ConnectionInstallOptions,
+  ConnectionInteractions,
+  ConnectionLocation,
+  ConnectionLoop,
+  ConnectionRecoveryConfig,
+  ConnectionRpcFailure,
+  ConnectionRpcResult,
+  ConnectionSinks,
+  ConnectionState,
+  ConnectionStateSource,
+  ConnectionWebSocket,
+  ConnectionWebSocketFactory,
+  ContentBlock,
+  MessageId,
+  RpcFetch,
+  RpcMessage,
+  RpcRequest,
+  RpcResponse,
+  RpcResult,
+  ServerResponse,
+  SessionEvent,
+  SessionId,
+  StreamChunk,
+} from "@deepseek-ai/dsh-client-connection/client";
+export type {
+  RemoteErrorCode,
+  RemoteErrorDetailsMap,
+  RemoteFailure,
+  RemoteResult,
+  RemoteStream,
+  RemoteStreamHandle,
+  TypertRemoteInfo,
+  TypertRemoteMap,
+  TypertRemoteMethod,
+  TypertRemoteNamespaceMap,
+} from "@deepseek-ai/dsh-typert-protocol";

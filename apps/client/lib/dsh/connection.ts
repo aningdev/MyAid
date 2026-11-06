@@ -2,6 +2,11 @@
  * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
  * No product workbench UI.
  */
+import type { ApprovalOutcome } from "@myaid/dsh-web-protocol/interaction";
+import type {
+  ModelCatalog as OfficialModelCatalog,
+  SessionFollowFrame,
+} from "@myaid/dsh-web-protocol/session";
 import { fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
 import {
@@ -14,8 +19,13 @@ import {
 } from "./sdk.js";
 import { AuthenticatedSocket } from "./socket";
 
-export type ApprovalDecision = "allowed-once" | "rejected" | "cancelled" | "unavailable";
+/** Official approval outcome vocabulary. */
+export type ApprovalDecision = ApprovalOutcome;
 
+/**
+ * Product UI approval prompt (session-scoped, display-ready).
+ * Distinct from official `ApprovalRequest` / `ApprovalRequestEvent` on the wire.
+ */
 export type ApprovalRequest = {
   sessionId: string;
   toolName: string;
@@ -25,7 +35,8 @@ export type ApprovalRequest = {
   signal?: AbortSignal;
 };
 
-export type CatalogModel = {
+/** One flattened catalog row for product pickers (official wire keeps `groups`). */
+export type FlatCatalogModel = {
   provider: string;
   providerName: string;
   model: string;
@@ -33,11 +44,36 @@ export type CatalogModel = {
   description?: string;
 };
 
-export type ModelCatalog = {
+/** Product view of {@link OfficialModelCatalog} with groups flattened to `models`. */
+export type FlatModelCatalog = {
   default: { provider: string; model: string };
-  models: CatalogModel[];
+  models: FlatCatalogModel[];
   failures: { name: string; message: string }[];
 };
+
+/** @deprecated Use {@link FlatCatalogModel}. */
+export type CatalogModel = FlatCatalogModel;
+/** @deprecated Use {@link FlatModelCatalog}. */
+export type ModelCatalog = FlatModelCatalog;
+
+export function flattenModelCatalog(value: OfficialModelCatalog): FlatModelCatalog {
+  return {
+    default: { provider: value.default.provider, model: value.default.model },
+    models: value.groups.flatMap((group) =>
+      group.models.map((model) => ({
+        provider: group.id,
+        providerName: group.name,
+        model: model.id,
+        name: model.name,
+        ...(model.description ? { description: model.description } : {}),
+      })),
+    ),
+    failures: value.failures.map((failure) => ({
+      name: failure.name,
+      message: failure.message,
+    })),
+  };
+}
 
 const messages: Record<string, string> = {
   "session/provider-credentials-unavailable": "后台没有可用的模型凭据。",
@@ -225,24 +261,9 @@ export class Connection {
     }));
   }
 
-  async modelCatalog(): Promise<ModelCatalog> {
-    const value: any = unwrap(await this.remote.session.modelCatalog());
-    return {
-      default: { provider: value.default.provider, model: value.default.model },
-      models: (value.groups ?? []).flatMap((group: any) =>
-        (group.models ?? []).map((model: any) => ({
-          provider: group.id,
-          providerName: group.name,
-          model: model.id,
-          name: model.name,
-          ...(model.description ? { description: model.description } : {}),
-        })),
-      ),
-      failures: (value.failures ?? []).map((failure: any) => ({
-        name: failure.name,
-        message: failure.message,
-      })),
-    };
+  async modelCatalog(): Promise<FlatModelCatalog> {
+    const value = unwrap(await this.remote.session.modelCatalog()) as OfficialModelCatalog;
+    return flattenModelCatalog(value);
   }
 
   async createSession(request?: {
@@ -311,7 +332,7 @@ export class Connection {
   /** Follow one Session; returns disposer that stops the stream. */
   follow(
     sessionId: string,
-    onFrame: (frame: unknown) => void,
+    onFrame: (frame: SessionFollowFrame) => void,
     onError?: (error: Error) => void,
   ): () => void {
     if (!this.ctx) throw new Error("尚未连接后台");
@@ -326,7 +347,7 @@ export class Connection {
     let closed = false;
     void (async () => {
       try {
-        for await (const frame of stream) {
+        for await (const frame of stream as AsyncIterable<SessionFollowFrame>) {
           if (closed || id !== this.followId) return;
           onFrame(frame);
         }
