@@ -910,7 +910,16 @@ dependencies = [
 name = "myaid-relay"
 version = "0.1.0"
 dependencies = [
+ "fs2",
+ "getrandom 0.3.4",
+ "interprocess",
+ "libc",
  "myaid-background-service",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "widestring",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
