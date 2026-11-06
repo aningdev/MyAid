@@ -140,9 +140,17 @@ impl Request {
             return Err("Invalid request ID".into());
         }
         match (self.operation.as_str(), self.source.as_deref()) {
-            ("status" | "watchStatus" | "connectionInfo" | "stopDsh" | "restartDsh", None) => {
-                Ok(())
-            }
+            (
+                "status"
+                | "watchStatus"
+                | "connectionInfo"
+                | "stopDsh"
+                | "restartDsh"
+                | "registrationQuery"
+                | "registrationEnable"
+                | "registrationStop",
+                None,
+            ) => Ok(()),
             ("ensureDsh", Some("attach" | "userStart")) => Ok(()),
             _ => Err("Invalid host operation or arguments".into()),
         }
@@ -204,6 +212,53 @@ pub fn decode_response(text: &str, id: &str, connection_info: bool) -> Result<St
     Ok(status)
 }
 
+/// One-shot control request whose `value` is arbitrary JSON (registration ops).
+pub fn call_json(socket: &Path, request: &serde_json::Value) -> Result<serde_json::Value> {
+    let validated: Request =
+        serde_json::from_value(request.clone()).map_err(|_| "Invalid request fields")?;
+    validated.validate()?;
+    let mut stream = LocalStream::connect(socket)?;
+    stream
+        .set_read_timeout(Some(Duration::from_secs(30)))
+        .map_err(|e| e.to_string())?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .map_err(|e| e.to_string())?;
+    let bytes = serde_json::to_vec(request).map_err(|e| e.to_string())?;
+    if bytes.len() >= MAX_FRAME {
+        return Err("Request too large".into());
+    }
+    stream
+        .write_all(&bytes)
+        .and_then(|_| stream.write_all(b"\n"))
+        .map_err(|e| e.to_string())?;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let text = read_frame_deadline(&mut stream, deadline)?;
+    decode_response_json(&text, &validated.id)
+}
+
+fn decode_response_json(text: &str, id: &str) -> Result<serde_json::Value> {
+    #[derive(Deserialize)]
+    struct Response {
+        version: u32,
+        id: String,
+        ok: bool,
+        value: Option<serde_json::Value>,
+        error: Option<String>,
+    }
+    let response: Response =
+        serde_json::from_str(text).map_err(|_| "Invalid host response".to_string())?;
+    if response.version != PROTOCOL || response.id != id {
+        return Err("Invalid host response".into());
+    }
+    if !response.ok {
+        return Err(response
+            .error
+            .unwrap_or_else(|| "Host operation failed".into()));
+    }
+    response.value.ok_or_else(|| "Host response value missing".into())
+}
+
 pub fn call(socket: &Path, request: &serde_json::Value) -> Result<Status> {
     let validated: Request =
         serde_json::from_value(request.clone()).map_err(|_| "Invalid request fields")?;
@@ -232,6 +287,23 @@ pub fn call(socket: &Path, request: &serde_json::Value) -> Result<Status> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registration_operations_validate_without_source() {
+        for op in [
+            "registrationQuery",
+            "registrationEnable",
+            "registrationStop",
+        ] {
+            let request = Request {
+                version: PROTOCOL,
+                id: "1".into(),
+                operation: op.into(),
+                source: None,
+            };
+            assert!(request.validate().is_ok(), "{op}");
+        }
+    }
 
     #[test]
     fn public_status_strips_url() {

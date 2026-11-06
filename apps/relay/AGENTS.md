@@ -11,6 +11,7 @@
 ## 模块
 
 - `main.rs` 只装配与进程入口；公开类型与转发逻辑放 `lib.rs`（及后续子模块）。
+- `RelayControl` 提供本机就绪与 **Relay 单元** OS 登记查询/启用/停止（共享契约动词）；走 `background_registration` 薄适配（macOS `SMAppService`；开发态 `serve` 显式 Relay 不触发 OS 登记）。与 Host 存活解耦，不经过 HostControl。
 - 入口集中公开 Interface；连接表、队列与路由实现保持私有。
 
 ## 验证

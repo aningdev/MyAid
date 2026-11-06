@@ -28,6 +28,7 @@
 
 - TSX 持有产品状态、注册表与业务流程；官方协议客户端直连 dsh。
 - Host 控制与系统适配经 Rust 原生模块返回**系统事实**；产品分支由 TypeScript 解释。
+- 产品后台（Background）编排：[`lib/background/`](lib/background/)（HostControl + RelayControl 登记动词）；生命周期 DSH 仍走 [`lib/host/`](lib/host/)。Settings 页展示 Host/Relay 单元状态。
 - dsh 运行准备 / 启停 / ready / 回收由宿主独占；客户端只调用控制接口与展示状态。
 
 ## TSX 与运行时
@@ -59,7 +60,7 @@
 
 - 新增文件 / 网络 / 进程访问时同步更新 `nsh.json` capabilities。`fs.read: ["/"]` 在 Windows 无效（盘符路径不在 `/` 下）；产品数据用 `${homeDir}/.myaid`。
 - Cookie WebSocket、本机控制端点（Unix socket / Windows named pipe）、`SMAppService` 等仅在标准 API 缺口核实后添加；升级后复核可否迁回标准 API。
-- 修改 `src/lib.rs` 导出后跑 `vp run @myaid/client#check` / `nsh check` 以刷新声明。
+- 修改 `src/lib.rs` 导出后跑 `vp run @myaid/client#check` / `nsh check` 以刷新声明。`HostControl` 与 `RelayControl` 原生模块分别对接 Host/Relay 登记与控制面。
 
 ## 开发与打包（NSH CLI + vp）
 

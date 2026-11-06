@@ -6,17 +6,19 @@
 
 ```mermaid
 flowchart LR
-    D[NSH 桌面客户端] -->|SMAppService 登记 / 状态| L[macOS 后台服务]
-    L --> H[App 内 Rust Host]
+    D[NSH 桌面客户端] -->|登记 / 状态| BH[Host Background Service]
+    D -->|登记 / 状态| BR[Relay Background Service]
+    BH --> H[Host 进程 / dsh 生命周期]
     H -->|启停 / 回收| W[唯一官方 dsh web]
     W --> P[web profile / Session / 模型与工具]
-    D -->|本机控制通道| H
+    D -->|HostControl| BH
+    D -->|RelayControl| BR
     D --> C[官方协议客户端]
     C -->|认证后 HTTP / WebSocket| W
     D --> B[(注册表 / 任务真源)]
     C -->|公开插件接口| E[dsh 插件 / myaid-plugin-*]
     W --> E
-    H -.->|加密帧| R[Relay]
+    BR -.->|加密帧| R[Relay 转发]
 ```
 
 实线为单机目标形状；虚线为多端。系统边界：
@@ -33,7 +35,7 @@ flowchart LR
 | ------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell + Dialogue Session 接线；HostControl 原生适配                 |
 | `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | Lifecycle + control socket 已落地；Bridge 空壳                         |
-| `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | 可编译空 crate                                                         |
+| `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | `RelayControl` + macOS/Windows 登记适配；转发面仍骨架                 |
 | `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)         | `myaid-plugin-core` 占位                                               |
 | 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                   | `bun run dev` → `scripts/dev.mjs`（先起 Host 再起 Client）；`host:dev` |
 | `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）    | `.gitmodules`；不参与构建                                              |
@@ -96,12 +98,12 @@ apps/client/
 ## 6. 本机控制协议（原则）
 
 - 协议版本常量与帧边界见 `apps/host/src/host_control/protocol.rs`。
-- 操作语义（目标）：`status` / `watchStatus` / `connectionInfo` / `ensureDsh` / `stopDsh` / `restartDsh`；多端另含配对与设备列表。
+- 操作语义（目标）：`status` / `watchStatus` / `connectionInfo` / `ensureDsh` / `stopDsh` / `restartDsh`；Background 登记：`registrationQuery` / `registrationEnable` / `registrationStop`（共享契约，Host 只报告 Host 单元事实，Relay 相位在 Host 侧恒为未登记）；多端另含配对与设备列表。
 - `ensureDsh` 区分 `attach` 与 `userStart`；自动附着不能解除用户停机意图。
 
 ## 7. Relay
 
-`apps/relay` 只做端到端密文帧转发与有界队列；不持 owner 凭据，不替代执行侧输入队列。
+`apps/relay` 是第二个 **Background Service**（与 Host 对等、存活独立）：`RelayControl` 暴露就绪 `status` / `watchStatus` 与共享登记动词（`registrationQuery` / `registrationEnable` / `registrationStop`），macOS 经薄适配返回 Relay 单元 `SMAppService` 事实；开发态显式 `serve` 不触发 OS 登记。转发面仍只做端到端密文帧与有界队列；不持 owner 凭据，不替代执行侧输入队列。
 
 ## 8. 打包与交付（目标）
 

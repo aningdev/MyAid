@@ -1,3 +1,8 @@
 [workspace]
-members = ["apps/client", "apps/host", "apps/relay"]
+members = [
+    "apps/client",
+    "apps/host",
+    "apps/relay",
+    "crates/myaid-background-service",
+]
 resolver = "3"
