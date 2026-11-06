@@ -5,4 +5,5 @@ edition = "2024"
 publish = false
 
 [dependencies]
+myaid-background-service = { path = "../../crates/myaid-background-service" }
 # axum / tokio land when the relay frame path is implemented.
