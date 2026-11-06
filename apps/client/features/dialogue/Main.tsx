@@ -3,10 +3,9 @@ import { Text, View } from "nsh";
 import { Button } from "../../components/ui";
 import { registry } from "../bots/state";
 import { ChatPane } from "./ChatPane";
-import { openMain } from "./nav";
-import { openBotSessions, openModule } from "./navigate";
-import { createSession, creatingSession, sessionError } from "./session/runtime";
-import { bumpChatEpoch, selectItem, sessionScopeBotId } from "./state";
+import { createAndOpenSession, openBotSessions, openModule } from "./navigate";
+import { creatingSession, sessionError } from "./session/runtime";
+import { sessionScopeBotId } from "./state";
 
 /** Dialogue main: Session chat pane. */
 export function DialogueMain(props: { selectedId: string | null }) {
@@ -34,17 +33,7 @@ function EmptyHint() {
 
   const createFor = (botId: string) => {
     if (creatingSession()) return;
-    void (async () => {
-      try {
-        sessionScopeBotId.set(botId);
-        const id = await createSession(botId);
-        selectItem(id);
-        bumpChatEpoch();
-        openMain(id);
-      } catch {
-        // sessionError surfaces failure
-      }
-    })();
+    void createAndOpenSession(botId).catch(() => undefined);
   };
 
   return (

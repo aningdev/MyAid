@@ -1,5 +1,6 @@
 //! dsh lifecycle ownership. Callers use `Lifecycle`; process details stay private.
 
+mod child;
 mod environment;
 mod guardian;
 mod lifecycle;
@@ -14,12 +15,13 @@ use std::sync::{
     Arc, Mutex,
     atomic::{AtomicU64, Ordering},
 };
+use state::ProcessState;
 
 /// Serializes lifecycle mutations; snapshots remain readable during a slow start.
 #[derive(Clone)]
 pub struct Lifecycle {
     process: Arc<Mutex<DshProcess>>,
-    status: Arc<Mutex<Status>>,
+    state: Arc<Mutex<ProcessState>>,
     attempt: Arc<AtomicU64>,
 }
 
@@ -27,20 +29,26 @@ impl Lifecycle {
     pub fn new(config: Config) -> Result<Self> {
         let process = DshProcess::new(config)?;
         Ok(Self {
-            status: process.status.clone(),
+            state: process.state.clone(),
             attempt: process.attempt.clone(),
             process: Arc::new(Mutex::new(process)),
         })
     }
 
+    /// Public status / watch payload — never includes auth URL.
+    pub fn public_status(&self) -> Status {
+        self.state.lock().unwrap().to_public()
+    }
+
+    /// Alias for [`Self::public_status`].
     pub fn snapshot(&self) -> Status {
-        self.status.lock().unwrap().public()
+        self.public_status()
     }
 
     pub fn connection_info(&self) -> Result<Status> {
-        let state = self.status.lock().unwrap().clone();
+        let state = self.state.lock().unwrap().clone();
         if state.phase == "ready" {
-            Ok(state)
+            Ok(state.to_connection())
         } else {
             Err(state
                 .reason
@@ -53,7 +61,7 @@ impl Lifecycle {
         let mut process = self.process.lock().unwrap();
         // Odd revisions include startup failure cleanup; even revisions are settled.
         if observed % 2 == 1 || observed != self.attempt.load(Ordering::Acquire) {
-            let snapshot = process.snapshot().public();
+            let snapshot = process.public_status();
             if snapshot.phase == "ready" {
                 Ok(snapshot)
             } else {

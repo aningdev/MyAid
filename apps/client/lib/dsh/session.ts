@@ -1,5 +1,5 @@
 /**
- * Narrow Session facade used by Dialogue: connect → create/resume → follow/prompt/cancel.
+ * Thin Connection adapter for Dialogue. Product lifecycle lives in ClaimedSession.
  */
 import { resolveDshLoginUrl } from "../host/control";
 import {
@@ -12,9 +12,6 @@ import {
 
 export type { ApprovalDecision, ApprovalRequest, ModelCatalog };
 export { readableError };
-
-/** Default Session id used on first connect when none is selected. */
-export const PRIMARY_SESSION_ID = "myaid-primary";
 
 let shared: Connection | undefined;
 let sessionId: string | undefined;
@@ -40,15 +37,6 @@ export async function ensureConnected(loginUrl?: string): Promise<Connection> {
   return connection;
 }
 
-/** Resume/create the fixed primary Session (first-run default). */
-export async function ensurePrimarySession(connection?: Connection): Promise<string> {
-  const conn = connection ?? (await ensureConnected());
-  if (sessionId) return sessionId;
-  const created = await conn.createSession({ sessionId: PRIMARY_SESSION_ID });
-  sessionId = created.sessionId;
-  return sessionId;
-}
-
 /** Create a Session in a Bot workspace and make it the followed id. */
 export async function createBoundSession(
   connection: Connection | undefined,
@@ -56,14 +44,6 @@ export async function createBoundSession(
 ): Promise<string> {
   const conn = connection ?? (await ensureConnected());
   const created = await conn.createSession(request);
-  sessionId = created.sessionId;
-  return sessionId;
-}
-
-/** Create a brand-new official Session and make it active. */
-export async function createNewSession(connection?: Connection): Promise<string> {
-  const conn = connection ?? (await ensureConnected());
-  const created = await conn.createSession({});
   sessionId = created.sessionId;
   return sessionId;
 }

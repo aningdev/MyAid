@@ -3,11 +3,10 @@ import { effect, Text, View } from "nsh";
 import { alpha, Button, colors, finish, hovered, Icon, Press, radius } from "../../components/ui";
 import { registry } from "../bots/state";
 import { openMain } from "./nav";
-import { openBotSessions, openModule, openOwningBot } from "./navigate";
+import { createAndOpenSession, openBotSessions, openModule, openOwningBot } from "./navigate";
 import {
   activeSessionId,
   approvalLock,
-  createSession,
   creatingSession,
   pendingApproval,
   refreshSessionList,
@@ -33,16 +32,7 @@ export function DialogueList() {
   const onNew = () => {
     const botId = scopedBot()?.id;
     if (!botId || creatingSession()) return;
-    void (async () => {
-      try {
-        const id = await createSession(botId);
-        selectItem(id);
-        bumpChatEpoch();
-        openMain(id);
-      } catch {
-        // sessionError surfaces failure
-      }
-    })();
+    void createAndOpenSession(botId).catch(() => undefined);
   };
 
   return (

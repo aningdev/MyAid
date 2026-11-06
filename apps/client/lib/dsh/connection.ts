@@ -1,3 +1,8 @@
+/**
+ * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
+ * No product workbench UI.
+ */
+import { fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
 import {
   Context,
@@ -7,10 +12,6 @@ import {
   installConnection,
   sessionRemote,
 } from "./sdk.js";
-/**
- * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
- * No product workbench UI.
- */
 import { AuthenticatedSocket } from "./socket";
 
 export type ApprovalDecision = "allowed-once" | "rejected" | "cancelled" | "unavailable";
@@ -107,49 +108,38 @@ export class Connection {
     const epoch = ++this.epoch;
     const controller = new AbortController();
     this.connecting = controller;
-    const login = new URL(loginUrl);
-    if (login.protocol !== "http:" || login.hostname !== "127.0.0.1") {
-      throw new Error("后台地址必须是本机回环地址");
-    }
-    const token = login.searchParams.get("token");
-    if (!token) throw new Error("启动链接缺少认证令牌");
-    const url = new URL("/connect", login);
-    url.searchParams.set("token", token);
-    url.searchParams.set("interactions", "answer");
-    let response: Response;
+    let login: { origin: string; cookie: string };
     try {
-      response = await fetch(url.toString(), {
-        redirect: "manual",
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
-      });
+      login = await fetchSessionCookie(loginUrl, controller.signal);
     } catch (error) {
-      throw new Error(`认证请求失败：${readableError(error).replaceAll(token, "<已隐藏>")}`);
-    }
-    const cookie = response.headers
-      .getSetCookie()
-      .map((value) => value.split(";", 1)[0])
-      .filter(Boolean)
-      .join("; ");
-    if (response.status !== 302 || !cookie) {
-      throw new Error(`认证失败：后台返回 ${response.status}，未取得 Cookie`);
+      const token = (() => {
+        try {
+          return new URL(loginUrl).searchParams.get("token") ?? "";
+        } catch {
+          return "";
+        }
+      })();
+      const message = readableError(error);
+      throw new Error(token ? message.replaceAll(token, "<已隐藏>") : message);
     }
     if (epoch !== this.epoch) throw new Error("连接已被新的宿主状态替代");
+    const { origin, cookie } = login;
 
     const ctx: any = new Context();
     this.ctx = ctx;
-    this.origin = login.origin;
+    this.origin = origin;
     try {
       installConnection(ctx, {
         interactions: "answer",
         transport: {
-          streamBaseUrl: `${login.origin}/`,
+          streamBaseUrl: `${origin}/`,
           fetch: (input: string | URL, init: RequestInit = {}) => {
             const headers = new Headers(init.headers);
             headers.set("cookie", cookie);
             const signal = init.signal
               ? AbortSignal.any([init.signal, controller.signal])
               : controller.signal;
-            return fetch(new URL(String(input), login.origin).toString(), {
+            return fetch(new URL(String(input), origin).toString(), {
               ...init,
               headers,
               signal,

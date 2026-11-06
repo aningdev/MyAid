@@ -1,6 +1,6 @@
-//! Durable user intent and restart budget owned by the lifecycle module.
+//! Durable user intent and private process state owned by the lifecycle module.
 
-use crate::{Config, Result, private_file};
+use crate::{Config, Result, Status, private_file};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -44,5 +44,57 @@ impl Durable {
         #[cfg(windows)]
         let _ = config;
         Ok(())
+    }
+}
+
+/// Private lifecycle state. Mapped to wire [`Status`] only at the Lifecycle seam.
+#[derive(Debug, Clone)]
+pub(super) struct ProcessState {
+    pub phase: String,
+    pub generation: Option<String>,
+    pub pid: Option<u32>,
+    pub version: String,
+    pub reason: Option<String>,
+    pub blocked: bool,
+    pub url: Option<String>,
+}
+
+impl ProcessState {
+    pub(super) fn stopped(version: impl Into<String>) -> Self {
+        Self {
+            phase: "stopped".into(),
+            generation: None,
+            pid: None,
+            version: version.into(),
+            reason: Some("请明确启动后台".into()),
+            blocked: true,
+            url: None,
+        }
+    }
+
+    /// Wire DTO for public status / watch — never carries auth URL.
+    pub(super) fn to_public(&self) -> Status {
+        Status {
+            phase: self.phase.clone(),
+            generation: self.generation.clone(),
+            pid: self.pid,
+            version: self.version.clone(),
+            reason: self.reason.clone(),
+            blocked: self.blocked,
+            url: None,
+        }
+    }
+
+    /// Wire DTO for connectionInfo — includes ready URL when present.
+    pub(super) fn to_connection(&self) -> Status {
+        Status {
+            phase: self.phase.clone(),
+            generation: self.generation.clone(),
+            pid: self.pid,
+            version: self.version.clone(),
+            reason: self.reason.clone(),
+            blocked: self.blocked,
+            url: self.url.clone(),
+        }
     }
 }

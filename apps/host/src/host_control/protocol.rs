@@ -8,6 +8,7 @@ use std::{
     path::Path,
     time::{Duration, Instant},
 };
+use url::Url;
 
 /// Wire protocol version.
 pub const PROTOCOL: u32 = 1;
@@ -39,6 +40,34 @@ pub struct Status {
     /// Only for `connectionInfo` responses — strip before public status.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+}
+
+/// Parse and assert a dsh ready / connectionInfo login URL.
+pub fn parse_ready_url(raw: &str) -> Result<Url> {
+    let url = Url::parse(raw.trim()).map_err(|_| "Invalid host connection URL")?;
+    if url.scheme() != "http"
+        || url.host_str() != Some("127.0.0.1")
+        || url.port().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || !url
+            .query_pairs()
+            .any(|(key, value)| key == "token" && !value.is_empty())
+    {
+        return Err("Invalid host connection URL".into());
+    }
+    Ok(url)
+}
+
+/// Assert a public status / watch frame (no auth URL).
+pub fn assert_public_status(status: &Status) -> Result<()> {
+    status.validate(false)
+}
+
+/// Assert a connectionInfo frame (ready + valid login URL).
+pub fn assert_connection_info(status: &Status) -> Result<()> {
+    status.validate(true)
 }
 
 impl Status {
@@ -82,19 +111,7 @@ impl Status {
             return Err("Host connection is not ready".into());
         }
         let url = self.url.as_ref().ok_or("Host connection URL missing")?;
-        let url = url::Url::parse(url).map_err(|_| "Invalid host connection URL")?;
-        if url.scheme() != "http"
-            || url.host_str() != Some("127.0.0.1")
-            || url.port().is_none()
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.fragment().is_some()
-            || !url
-                .query_pairs()
-                .any(|(key, value)| key == "token" && !value.is_empty())
-        {
-            return Err("Invalid host connection URL".into());
-        }
+        parse_ready_url(url)?;
         Ok(())
     }
 
@@ -239,5 +256,46 @@ mod tests {
             source: Some("userStart".into()),
         };
         assert!(ok.validate().is_ok());
+    }
+
+    #[test]
+    fn contract_cases_from_shared_fixture() {
+        #[derive(Deserialize)]
+        struct Fixture {
+            cases: Vec<Case>,
+        }
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Case {
+            name: String,
+            kind: String,
+            #[serde(default)]
+            url: Option<String>,
+            #[serde(default)]
+            status: Option<Status>,
+            ok: bool,
+        }
+
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../testdata/host-contract-cases.json"
+        ))
+        .expect("fixture json");
+
+        for case in fixture.cases {
+            let result = match case.kind.as_str() {
+                "readyUrl" => parse_ready_url(case.url.as_deref().unwrap()).map(|_| ()),
+                "publicStatus" => assert_public_status(case.status.as_ref().unwrap()),
+                "connectionInfo" => assert_connection_info(case.status.as_ref().unwrap()),
+                other => panic!("unknown case kind {other}"),
+            };
+            assert_eq!(
+                result.is_ok(),
+                case.ok,
+                "case {} expected ok={} got {:?}",
+                case.name,
+                case.ok,
+                result
+            );
+        }
     }
 }

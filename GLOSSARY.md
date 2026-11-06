@@ -41,6 +41,15 @@ _Avoid_：删除会话、停用 Bot、取消归档
 
 **HostControl**：本机控制通道协议与服务；只承载宿主管理，不承载业务 remote。
 
+**TurnProjection**：Client 内将 Harness Session follow 帧与本地 prompt 生命周期投影为 Dialogue 消息 / live 气泡 / freeze 策略的 module。  
+_Avoid_：ChatPane 内二次解析帧、独立 SessionProjector 对外接口
+
+**ClaimedSession**：认领会话客户端 module：连接、create+claim+follow、prompt/approval、dispose；产品路径不创建未认领 Session。  
+_Avoid_：`myaid-primary`、未认领的固定 Session
+
+**SessionRoster**：产品会话名册 module：认领 × dsh listing × 摘要 × 占用 → 列表行；未认领不进列表。  
+_Avoid_：在 List/Main 内拼装行模型
+
 ## Harness 概念（上游）
 
 **Session**：Harness 持久执行会话与事件日志。产品里的会话是被某个 Bot 认领的一条 Session。  

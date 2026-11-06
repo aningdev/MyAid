@@ -8,6 +8,7 @@ import {
   answerApproval,
   archiveSession,
   connectSession,
+  hostConnection,
   hostStatus,
   modelCatalog,
   pendingApproval,
@@ -36,8 +37,8 @@ export function DialogueContext(_props: { selectedId: string | null }) {
   });
   cleanup(() => {});
 
-  const hostUp = () => hostStatus() !== null;
-  const phase = () => hostStatus()?.phase ?? "unavailable";
+  const hostUp = () => hostConnection() === "up" && hostStatus() !== null;
+  const phase = () => hostStatus()?.phase ?? "未连接";
   const catalog = () => modelCatalog();
   const catalogOptions = () => {
     const items = catalog()?.models ?? [];

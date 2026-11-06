@@ -54,17 +54,17 @@ apps/host/src/
 ├── lib.rs
 ├── config.rs / runtime.rs
 ├── host_control/     # mod + protocol（共享控制契约）
-├── dsh_process/      # Lifecycle 公开入口（实现待填）
+├── dsh_process/      # Lifecycle 公开入口；内部 ProcessState + ChildHandle seam
 └── bridge/           # 多端阶段
 ```
 
-| Module                     | 原则                                                                                           |
-| -------------------------- | ---------------------------------------------------------------------------------------------- |
-| `DshProcess` / `Lifecycle` | 独占 CLI、环境、spawn、ready、版本、日志、回收与并发启动归并                                   |
-| `HostControl`              | 本机端点（Unix socket / Windows named pipe）、同用户校验、请求分派、状态订阅；只调 `Lifecycle` |
-| `Bridge`                   | 配对、授权、官方协议转发                                                                       |
+| Module                     | 原则                                                                                                                       |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `DshProcess` / `Lifecycle` | 独占 CLI、环境、spawn、ready、版本、日志、回收与并发启动归并；内部 `ProcessState`，seam 上映射公开 status / connectionInfo |
+| `HostControl`              | 本机端点（Unix socket / Windows named pipe）、同用户校验、请求分派、状态订阅；只调 `Lifecycle`                             |
+| `Bridge`                   | 配对、授权、官方协议转发                                                                                                   |
 
-相位（与 `protocol.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。
+相位（与 `protocol.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。ready-URL / 相位校验真源：`parse_ready_url` + `Status::validate`（fixture：`apps/host/testdata/host-contract-cases.json`）。
 
 初始化分工：NSH 管注册表 / 草稿 / 工作区；Host 管数据根、CLI、登录环境、profile 首启。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
 

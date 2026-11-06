@@ -1,5 +1,5 @@
 /**
- * Dialogue Session runtime: Host start → Connection → Session follow/prompt.
+ * Dialogue Session runtime shell: signals + Host status around ClaimedSession + TurnProjection.
  * Host control + official dsh SDK load lazily so AppShell / Today stay free of them.
  */
 import { homedir } from "os";
@@ -15,33 +15,19 @@ import {
   releaseClaim,
   renameClaim,
 } from "../../bots/model";
-import { listProductSessions, sessionLabel, workspaceKey } from "../../bots/sessions";
 import { changeRegistry, ready, registry } from "../../bots/state";
 import { sessionScopeBotId } from "../state";
-import { SessionProjector } from "./projector";
+import {
+  ClaimedSessionClient,
+  type ApprovalDecision,
+  type ApprovalRequest,
+  type ModelCatalog,
+  type SessionTransport,
+} from "./claimed";
+import { buildSessionRoster, relabelRow, withOccupancy, type SessionRow } from "./roster";
+import { TurnProjection, type TurnView } from "./turn";
 
-export type ApprovalDecision = "allowed-once" | "rejected" | "cancelled" | "unavailable";
-
-export type ApprovalRequest = {
-  sessionId: string;
-  toolName: string;
-  callId?: string;
-  reason: string;
-  details: string;
-  signal?: AbortSignal;
-};
-
-export type ModelCatalog = {
-  default: { provider: string; model: string };
-  models: {
-    provider: string;
-    providerName: string;
-    model: string;
-    name: string;
-    description?: string;
-  }[];
-  failures: { name: string; message: string }[];
-};
+export type { ApprovalDecision, ApprovalRequest, ModelCatalog, SessionRow };
 
 export type HostStatus = {
   phase: string;
@@ -53,21 +39,14 @@ export type HostStatus = {
   url?: string | null;
 };
 
-export type SessionRow = {
-  id: string;
-  botId: string;
-  botName: string;
-  label: string;
-  detail: string;
-  archived: boolean;
-  missing: boolean;
-  running: boolean;
-};
+/** Client reachability of the Host control socket — not a Host wire phase. */
+export type HostConnection = "up" | "down";
 
 type DshSession = typeof import("../../../lib/dsh/session");
 type HostControlApi = typeof import("../../../lib/host/control");
 
 export const hostStatus = signal<HostStatus | null>(null);
+export const hostConnection = signal<HostConnection>("down");
 export const sessionReady = signal(false);
 export const sessionError = signal<string | null>(null);
 export const modelCatalog = signal<ModelCatalog | null>(null);
@@ -97,12 +76,10 @@ async function failSession(error: unknown): Promise<never> {
 }
 
 let approvalResolve: ((decision: ApprovalDecision) => void) | undefined;
-let followStop: (() => void) | undefined;
-let projector = new SessionProjector();
-let liveAssistantId: string | null = null;
+let turns = new TurnProjection();
+let claimed: ClaimedSessionClient | undefined;
 let dsh: DshSession | undefined;
 let host: HostControlApi | undefined;
-let connectLock: Promise<void> | undefined;
 
 async function loadDsh(): Promise<DshSession> {
   if (!dsh) dsh = await import("../../../lib/dsh/session");
@@ -114,51 +91,43 @@ async function loadHost(): Promise<HostControlApi> {
   return host;
 }
 
-export type SessionView = {
-  messages: ReturnType<SessionProjector["snapshot"]>["messages"];
-  running: boolean;
-  status: string;
-  liveMd: string;
-  liveReason: string;
-  liveTools: ReturnType<SessionProjector["snapshot"]>["liveTools"];
-  liveId: string | null;
-};
+export type SessionView = TurnView;
 
 const listeners = new Set<(view: SessionView) => void>();
 
-function liveBusy(snap: ReturnType<SessionProjector["snapshot"]>): boolean {
-  return !!(snap.liveMd || snap.liveReason || snap.liveTools.length);
-}
-
-function emit() {
-  const snap = projector.snapshot();
-  const view: SessionView = {
-    messages: snap.messages,
-    running: snap.running,
-    status: snap.status,
-    liveMd: snap.liveMd,
-    liveReason: snap.liveReason,
-    liveTools: snap.liveTools,
-    liveId: snap.running && liveBusy(snap) ? liveAssistantId : null,
-  };
+function emit(view: SessionView = turns.snapshot()) {
   for (const listener of listeners) listener(view);
 }
 
 export function subscribeSession(listener: (view: SessionView) => void): () => void {
   listeners.add(listener);
-  const snap = projector.snapshot();
-  listener({
-    messages: snap.messages,
-    running: snap.running,
-    status: snap.status,
-    liveMd: snap.liveMd,
-    liveReason: snap.liveReason,
-    liveTools: snap.liveTools,
-    liveId: liveAssistantId,
-  });
+  listener(turns.snapshot());
   return () => {
     listeners.delete(listener);
   };
+}
+
+/** Start a local prompt turn so freeze waits for a real follow turn. */
+export function beginLocalTurn(assistantId: string): void {
+  turns.beginTurn(assistantId);
+  emit();
+}
+
+export function acknowledgeTurnFreeze(): void {
+  turns.acknowledgeFreeze();
+  emit();
+}
+
+export function cancelLocalTurn(): SessionView {
+  const view = turns.cancel();
+  emit(view);
+  return view;
+}
+
+export function applyTurnError(message: string): SessionView {
+  const view = turns.applyError(message);
+  emit(view);
+  return view;
 }
 
 function rememberSummary(sessionId: string, messages: { kind: string; text?: string }[]) {
@@ -168,23 +137,16 @@ function rememberSummary(sessionId: string, messages: { kind: string; text?: str
   if (summaries.get(sessionId) === text) return;
   summaries.set(sessionId, text);
   const title = claimOwner(untracked(registry), sessionId)?.claim.title ?? null;
-  const label = sessionLabel({ title }, text);
-  sessionList.update((rows) => rows.map((row) => (row.id === sessionId ? { ...row, label } : row)));
+  sessionList.update((rows) => relabelRow(rows, sessionId, title, text));
 }
 
 function noteActivity(sessionId: string, running: boolean) {
+  claimed?.noteActivity(sessionId, running);
   const previous = untracked(occupyingSessionId);
-  if (running) occupyingSessionId.set(sessionId);
-  else if (previous === sessionId) occupyingSessionId.set(null);
-  const next = untracked(occupyingSessionId);
+  const next = claimed?.occupyingSessionId ?? null;
+  occupyingSessionId.set(next);
   if (previous === next) return;
-  sessionList.update((rows) =>
-    rows.map((row) => ({
-      ...row,
-      running: row.id === next,
-      detail: sessionDetail(row, row.id === next),
-    })),
-  );
+  sessionList.update((rows) => withOccupancy(rows, next));
 }
 
 const APPROVAL_HELD = "这条审批还没有答复。";
@@ -218,19 +180,18 @@ export async function refreshHostStatus(): Promise<HostStatus | null> {
     const { hostAccess } = await loadHost();
     if (!(await hostAccess.reachable())) {
       hostStatus.set(null);
+      hostConnection.set("down");
       return null;
     }
     const status = await hostAccess.status();
     hostStatus.set(status);
+    hostConnection.set("up");
     return status;
   } catch (error) {
     const { readableError } = await loadDsh();
-    hostStatus.set({
-      phase: "unavailable",
-      blocked: true,
-      version: "",
-      reason: readableError(error),
-    });
+    hostStatus.set(null);
+    hostConnection.set("down");
+    sessionError.set(readableError(error));
     return null;
   }
 }
@@ -238,78 +199,68 @@ export async function refreshHostStatus(): Promise<HostStatus | null> {
 export async function refreshSessionList(): Promise<SessionRow[]> {
   let listed: { sessionId: string; blank: boolean; updatedAt: number }[] | null = null;
   try {
-    const api = await loadDsh();
-    const connection = api.getConnection();
-    if (connection?.ready) listed = await api.listSessions(connection);
+    const transport = claimed?.getTransport();
+    if (transport?.ready) listed = await transport.listSessions();
   } catch {
     listed = null;
   }
-  const occupying = untracked(occupyingSessionId);
-  const rows = listProductSessions(untracked(registry), listed, untracked(sessionScopeBotId)).map(
-    (item) => ({
-      id: item.sessionId,
-      botId: item.botId,
-      botName: item.botName,
-      label: sessionLabel(item, summaries.get(item.sessionId) ?? null),
-      detail: sessionDetail(item, occupying === item.sessionId),
-      archived: item.archived,
-      missing: item.missing,
-      running: occupying === item.sessionId,
-    }),
-  );
+  const rows = buildSessionRoster({
+    registry: untracked(registry),
+    listed,
+    scopeBotId: untracked(sessionScopeBotId),
+    occupyingSessionId: untracked(occupyingSessionId),
+    summaries,
+  });
   sessionList.set(rows);
   return rows;
 }
 
-function sessionDetail(
-  item: { botName: string; archived: boolean; missing: boolean },
-  running: boolean,
-): string {
-  const bits = [item.botName];
-  if (running) bits.push("执行中");
-  if (item.archived) bits.push("已归档");
-  if (item.missing) bits.push("待核对");
-  return bits.join(" · ");
+function wrapConnection(
+  connection: import("../../../lib/dsh/connection").Connection,
+): SessionTransport {
+  return {
+    get ready() {
+      return connection.ready;
+    },
+    createSession: (request) => connection.createSession(request),
+    listSessions: () => connection.listSessions(),
+    follow: (sessionId, onFrame, onError) => connection.follow(sessionId, onFrame, onError),
+    prompt: (request) => connection.prompt(request),
+    cancel: (sessionId) => connection.cancel(sessionId),
+    modelCatalog: () => connection.modelCatalog(),
+    selectModel: (request) => connection.selectModel(request),
+    approvals: (handler) => connection.approvals(handler),
+    dispose: () => connection.dispose(),
+  };
 }
 
-function beginFollow(
-  connection: {
-    follow: (
-      sessionId: string,
-      onFrame: (frame: unknown) => void,
-      onError?: (error: Error) => void,
-    ) => () => void;
-  },
-  sessionId: string,
-) {
-  followStop?.();
-  projector = new SessionProjector();
-  liveAssistantId = null;
-  activeSessionId.set(sessionId);
-  followStop = connection.follow(
-    sessionId,
-    (frame) => {
-      const view = projector.receive(frame);
+async function ensureClient(): Promise<ClaimedSessionClient> {
+  if (claimed && !claimed.disposed) return claimed;
+  const api = await loadDsh();
+  claimed = new ClaimedSessionClient({
+    connect: async () => wrapConnection(await api.ensureConnected()),
+    claim: async (botId, sessionId) => {
+      const saved = await changeRegistry((reg) => claimSession(reg, botId, sessionId));
+      return !!saved;
+    },
+    registry: () => untracked(registry),
+    summaries: () => summaries,
+    onFrame: (sessionId, frame) => {
+      const view = turns.receive(frame);
       rememberSummary(sessionId, view.messages);
       noteActivity(sessionId, view.running);
-      if (view.running && view.liveMd && !liveAssistantId) {
-        liveAssistantId = `live-${Date.now()}`;
-      }
-      if (!view.running) liveAssistantId = null;
-      emit();
+      emit(view);
     },
-    (error) => {
+    onFollowError: (error) => {
       sessionError.set(error.message);
       sessionReady.set(false);
     },
-  );
-  emit();
+  });
+  return claimed;
 }
 
-function installApprovalHandler(api: {
-  setApprovalHandler(handler: (request: ApprovalRequest) => Promise<ApprovalDecision>): void;
-}) {
-  api.setApprovalHandler(async (request) => {
+function installApprovalHandler(client: ClaimedSessionClient) {
+  client.installApprovalHandler(async (request) => {
     pendingApproval.set(request);
     return await new Promise<ApprovalDecision>((resolve) => {
       approvalResolve = (decision) => {
@@ -321,89 +272,36 @@ function installApprovalHandler(api: {
   });
 }
 
-function occupancyBlock(sessionId: string): string | null {
-  const occupant = untracked(occupyingSessionId);
-  if (!occupant || occupant === sessionId) return null;
-  const reg = untracked(registry);
-  const left = claimOwner(reg, occupant);
-  const right = claimOwner(reg, sessionId);
-  if (!left || !right) return null;
-  if (workspaceKey(left.bot.workspace) !== workspaceKey(right.bot.workspace)) return null;
-  return `工作区正被「${sessionLabel(left.claim, summaries.get(occupant) ?? null)}」占用。`;
-}
-
-async function applyBotModel(
-  connection: {
-    modelCatalog(): Promise<ModelCatalog>;
-    selectModel(request: { sessionId: string; provider: string; model: string }): Promise<void>;
-  },
-  bot: { defaultModel: string | null },
-  sessionId: string,
-) {
-  const want = bot.defaultModel?.trim();
-  if (!want) return;
-  let catalog = untracked(modelCatalog);
-  if (!catalog) {
-    try {
-      catalog = await connection.modelCatalog();
-      modelCatalog.set(catalog);
-    } catch {
-      return;
-    }
-  }
-  const slash = want.indexOf("/");
-  let provider: string | undefined;
-  let model: string | undefined;
-  if (slash > 0) {
-    provider = want.slice(0, slash);
-    model = want.slice(slash + 1);
-  } else {
-    const hits = catalog.models.filter((item) => item.model === want || item.name === want);
-    const hit = hits.length === 1 ? hits[0] : undefined;
-    if (hit) {
-      provider = hit.provider;
-      model = hit.model;
-    }
-  }
-  if (!provider || !model) return;
-  await connection.selectModel({ sessionId, provider, model });
-}
-
 /** Connect to dsh. Follow `sessionId` when one is given; never create a stand-in session. */
 export async function connectSession(sessionId?: string): Promise<void> {
   if (sessionReady() && sessionId && activeSessionId() === sessionId) return;
   if (sessionReady() && !sessionId) return;
-  if (connectLock) {
-    await connectLock;
-    if (sessionReady() && (!sessionId || activeSessionId() === sessionId)) return;
-  }
-  const work = (async () => {
+  try {
     sessionError.set(null);
-    const api = await loadDsh();
-    const connection = await api.ensureConnected();
+    const client = await ensureClient();
+    await client.ensureConnected();
     await refreshHostStatus();
-    installApprovalHandler(api);
+    installApprovalHandler(client);
     if (sessionId) {
       const row = untracked(sessionList).find((item) => item.id === sessionId);
-      if (row?.missing) throw new Error("这条会话待核对，dsh 里已经没有它。");
+      await client.openClaimed(sessionId, !!row?.missing);
+      activeSessionId.set(sessionId);
+      const api = await loadDsh();
       api.setActiveSessionId(sessionId);
-      beginFollow(connection, sessionId);
     } else {
+      client.stopFollow();
+      activeSessionId.set(null);
+      const api = await loadDsh();
       api.setActiveSessionId(undefined);
     }
     try {
-      modelCatalog.set(await connection.modelCatalog());
+      modelCatalog.set(await client.getTransport()!.modelCatalog());
     } catch {
       modelCatalog.set(null);
     }
     sessionReady.set(true);
     await refreshSessionList();
-  })();
-  connectLock = work.finally(() => {
-    connectLock = undefined;
-  });
-  try {
-    await work;
+    emit();
   } catch (error) {
     sessionReady.set(false);
     const api = await loadDsh();
@@ -425,30 +323,30 @@ export async function createSession(botId: string): Promise<string> {
     if (!untracked(ready)) throw new Error("注册表还没准备好。");
     const bot = untracked(registry).bots.find((item) => item.id === botId);
     if (!bot || bot.status !== "ready") throw new Error("初始化之后才能新建会话。");
-    // Share the Dialogue connect lock so we do not dispose an in-flight connect.
     await connectSession();
-    const api = await loadDsh();
-    const connection = api.getConnection();
-    if (!connection?.ready) throw new Error("尚未连接后台");
+    const client = await ensureClient();
     await refreshHostStatus();
-    installApprovalHandler(api);
+    installApprovalHandler(client);
     const preset = presetForBot(untracked(registry), botId);
     const cwd = resolveWorkspace(bot.workspace);
     if (!cwd) throw new Error("这个 Bot 没有工作区。");
-    const id = await api.createBoundSession(connection, {
-      cwd,
+    const id = await client.createClaimed({
+      botId,
+      bot,
       agentPreset: preset,
+      cwd,
     });
-    const saved = await changeRegistry((reg) => claimSession(reg, botId, id));
-    if (!saved) throw new Error("会话已在后台创建，但没有写入这个 Bot。");
-    beginFollow(connection, id);
+    activeSessionId.set(id);
+    const api = await loadDsh();
+    api.setActiveSessionId(id);
     try {
-      modelCatalog.set(await connection.modelCatalog());
+      modelCatalog.set(await client.getTransport()!.modelCatalog());
     } catch {
       modelCatalog.set(null);
     }
     sessionReady.set(true);
     await refreshSessionList();
+    emit();
     return id;
   } catch (error) {
     return await failSession(error);
@@ -501,41 +399,25 @@ export function answerApproval(decision: ApprovalDecision): void {
 export async function promptSession(text: string, sessionId: string): Promise<string> {
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner) throw new Error("这条会话还没有归到 Bot。");
-  if (owner.claim.archived) throw new Error("这条会话已归档。");
-  const occupied = occupancyBlock(sessionId);
-  if (occupied) throw new Error(occupied);
-  const api = await loadDsh();
-  let connection = api.getConnection();
-  if (!connection?.ready) {
-    await connectSession(sessionId);
-    connection = api.getConnection();
-  }
-  if (!connection) throw new Error("尚未连接后台");
-  await applyBotModel(connection, owner.bot, sessionId);
-  const requestId = crypto.randomUUID().replace(/-/g, "");
-  liveAssistantId = `live-${requestId}`;
-  await connection.prompt({ sessionId, requestId, text });
-  return requestId;
+  const client = await ensureClient();
+  return client.prompt({
+    sessionId,
+    text,
+    bot: owner.bot,
+    archived: owner.claim.archived,
+  });
 }
 
 export async function cancelSession(): Promise<void> {
-  const api = await loadDsh();
-  const connection = api.getConnection();
-  if (!connection?.ready) return;
-  const sessionId = api.currentSessionId();
-  if (!sessionId) return;
-  await connection.cancel(sessionId);
+  await claimed?.cancel();
 }
 
 export function resetLocalProjection(): void {
-  projector = new SessionProjector();
-  liveAssistantId = null;
+  turns.reset();
   emit();
 }
 
 export async function disposeRuntime(): Promise<void> {
-  followStop?.();
-  followStop = undefined;
   approvalResolve?.("cancelled");
   approvalResolve = undefined;
   pendingApproval.set(null);
@@ -543,7 +425,10 @@ export async function disposeRuntime(): Promise<void> {
   activeSessionId.set(null);
   occupyingSessionId.set(null);
   sessionList.set([]);
+  if (claimed) await claimed.dispose().catch(() => undefined);
+  claimed = undefined;
   if (dsh) await dsh.disposeSession().catch(() => undefined);
   dsh = undefined;
   host = undefined;
+  turns.reset();
 }

@@ -1,0 +1,90 @@
+{
+  "_comment": "Host+Client contract fixture. Rust: protocol.rs tests include_str this file. Client: lib/host/protocol.test.ts mirrors a minimal subset (NSH cannot read this path).",
+  "cases": [
+    {
+      "name": "valid_ready_url",
+      "kind": "readyUrl",
+      "url": "http://127.0.0.1:9876/?token=secret",
+      "ok": true
+    },
+    {
+      "name": "missing_token",
+      "kind": "readyUrl",
+      "url": "http://127.0.0.1:9876/",
+      "ok": false
+    },
+    {
+      "name": "empty_token",
+      "kind": "readyUrl",
+      "url": "http://127.0.0.1:9876/?token=",
+      "ok": false
+    },
+    {
+      "name": "non_loopback",
+      "kind": "readyUrl",
+      "url": "http://192.168.1.10:9876/?token=secret",
+      "ok": false
+    },
+    {
+      "name": "https_rejected",
+      "kind": "readyUrl",
+      "url": "https://127.0.0.1:9876/?token=secret",
+      "ok": false
+    },
+    {
+      "name": "public_frame_with_url_rejected",
+      "kind": "publicStatus",
+      "status": {
+        "phase": "ready",
+        "generation": "abc",
+        "pid": 42,
+        "version": "0.2.2-rc.1",
+        "reason": null,
+        "blocked": false,
+        "url": "http://127.0.0.1:9876/?token=secret"
+      },
+      "ok": false
+    },
+    {
+      "name": "public_ready_ok",
+      "kind": "publicStatus",
+      "status": {
+        "phase": "ready",
+        "generation": "abc",
+        "pid": 42,
+        "version": "0.2.2-rc.1",
+        "reason": null,
+        "blocked": false
+      },
+      "ok": true
+    },
+    {
+      "name": "connection_info_ok",
+      "kind": "connectionInfo",
+      "status": {
+        "phase": "ready",
+        "generation": "abc",
+        "pid": 42,
+        "version": "0.2.2-rc.1",
+        "reason": null,
+        "blocked": false,
+        "url": "http://127.0.0.1:9876/?token=secret"
+      },
+      "ok": true
+    },
+    {
+      "name": "connection_info_missing_token",
+      "kind": "connectionInfo",
+      "status": {
+        "phase": "ready",
+        "generation": "abc",
+        "pid": 42,
+        "version": "0.2.2-rc.1",
+        "reason": null,
+        "blocked": false,
+        "url": "http://127.0.0.1:9876/"
+      },
+      "ok": false
+    }
+  ]
+}
