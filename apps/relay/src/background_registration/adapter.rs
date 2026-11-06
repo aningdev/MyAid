@@ -2,6 +2,7 @@
 
 use myaid_background_service::UnitRegistration;
 
+#[cfg(any(windows, test))]
 mod windows_facts;
 
 #[cfg(not(any(target_os = "macos", windows)))]
