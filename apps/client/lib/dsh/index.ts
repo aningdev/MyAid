@@ -12,6 +12,8 @@ export { AuthenticatedSocket } from "./socket";
 // Connection / Session pull the prepared Node SDK (`sdk.js`). Import from
 // `./connection` or `./session` deliberately (Dialogue loads them lazily).
 export type {
+  AgentPresetDetail,
+  AgentPresetSummary,
   ApprovalDecision,
   ApprovalRequest,
   CatalogModel,
@@ -21,4 +23,4 @@ export type {
 } from "./connection";
 export { flattenModelCatalog } from "./connection";
 export type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
-export type { ApprovalOutcome } from "@myaid/dsh-web-protocol/interaction";
+export type { ApprovalOutcome, ApprovalRequestEvent } from "@myaid/dsh-web-protocol/interaction";

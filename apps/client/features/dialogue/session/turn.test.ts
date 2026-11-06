@@ -1,52 +1,57 @@
+import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { expect, test } from "nsh/test";
 
 import { TurnProjection } from "./turn";
 
+function frame(value: unknown): SessionFollowFrame {
+  return value as SessionFollowFrame;
+}
+
 function userMessage(seq: number, text: string) {
-  return {
+  return frame({
     type: "event",
     event: {
       seq,
       type: "user/message",
       data: { content: text, source: { kind: "user" } },
     },
-  };
+  });
 }
 
 function turnStart(seq: number) {
-  return { type: "event", event: { seq, type: "turn/start", data: {} } };
+  return frame({ type: "event", event: { seq, type: "turn/start", data: {} } });
 }
 
 function streamChunk(text: string) {
-  return {
+  return frame({
     type: "assistant-stream",
     frame: { type: "chunk", chunk: { type: "text-delta", text } },
-  };
+  });
 }
 
 function streamStart(attemptId = "a1") {
-  return { type: "assistant-stream", frame: { type: "start", attemptId } };
+  return frame({ type: "assistant-stream", frame: { type: "start", attemptId } });
 }
 
 function streamEnd(attemptId = "a1") {
-  return { type: "assistant-stream", frame: { type: "end", attemptId } };
+  return frame({ type: "assistant-stream", frame: { type: "end", attemptId } });
 }
 
 function assistantMessage(seq: number, text: string, tools: unknown[] = []) {
   const content: unknown[] = [{ type: "text", text }];
   for (const tool of tools) content.push(tool);
-  return {
+  return frame({
     type: "event",
     event: {
       seq,
       type: "assistant/message",
       data: { message: { content } },
     },
-  };
+  });
 }
 
 function turnEnd(seq: number, kind: "completed" | "interrupted" | "error" = "completed") {
-  return {
+  return frame({
     type: "event",
     event: {
       seq,
@@ -55,7 +60,7 @@ function turnEnd(seq: number, kind: "completed" | "interrupted" | "error" = "com
         reason: kind === "error" ? { kind: "error", error: { message: "boom" } } : { kind },
       },
     },
-  };
+  });
 }
 
 function toolCall(id: string, name: string) {
@@ -96,15 +101,17 @@ test("multi tool stream keeps tools on the live view until freeze", () => {
   turns.beginTurn("local-3");
   turns.receive(turnStart(1));
   turns.receive(streamStart());
-  turns.receive({
-    type: "assistant-stream",
-    frame: {
-      type: "tool-call-chunks",
-      id: "t1",
-      name: "search",
-      args: ['{"q":"x"}'],
-    },
-  });
+  turns.receive(
+    frame({
+      type: "assistant-stream",
+      frame: {
+        type: "tool-call-chunks",
+        id: "t1",
+        name: "search",
+        args: ['{"q":"x"}'],
+      },
+    }),
+  );
   const live = turns.snapshot();
   expect(live.liveTools.map((t) => ("name" in t ? t.name : ""))).toContain("search");
   turns.receive(assistantMessage(2, "done", [toolCall("t1", "search")]));

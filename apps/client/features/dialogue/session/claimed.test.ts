@@ -1,3 +1,4 @@
+import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { expect, test } from "nsh/test";
 
 import {
@@ -8,7 +9,6 @@ import {
   initializeBot,
   type BotRegistry,
 } from "../../bots/model";
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import {
   ClaimedSessionClient,
   occupancyBlock,
@@ -58,9 +58,10 @@ function fakeTransport(overrides: Partial<SessionTransport> = {}): SessionTransp
       return () => undefined;
     },
     prompt: async (request) => {
-      state.prompts.push(request.text);
+      state.prompts.push(request.text ?? "");
     },
     cancel: async () => undefined,
+    withdrawQueuedPrompt: async () => undefined,
     modelCatalog: async () =>
       ({
         default: { provider: "p", model: "m" },
@@ -68,6 +69,7 @@ function fakeTransport(overrides: Partial<SessionTransport> = {}): SessionTransp
         failures: [],
       }) satisfies FlatModelCatalog,
     selectModel: async () => undefined,
+    selectAgentPreset: async () => "standard",
     approvals: (_handler: (request: ApprovalRequest) => Promise<ApprovalDecision>) => undefined,
     dispose: async () => {
       state.disposed = true;

@@ -5,6 +5,7 @@
 import { homedir } from "os";
 import { join } from "path";
 
+import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { signal, untracked } from "nsh";
 
 import {
@@ -17,7 +18,6 @@ import {
 } from "../../bots/model";
 import { changeRegistry, ready, registry } from "../../bots/state";
 import { sessionScopeBotId } from "../state";
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import {
   ClaimedSessionClient,
   type ApprovalDecision,
@@ -229,6 +229,9 @@ function wrapConnection(
     follow: (sessionId, onFrame, onError) => connection.follow(sessionId, onFrame, onError),
     prompt: (request) => connection.prompt(request),
     cancel: (sessionId) => connection.cancel(sessionId),
+    withdrawQueuedPrompt: (sessionId, itemId) => connection.withdrawQueuedPrompt(sessionId, itemId),
+    selectAgentPreset: (sessionId, agentPreset) =>
+      connection.selectAgentPreset(sessionId, agentPreset),
     modelCatalog: () => connection.modelCatalog(),
     selectModel: (request) => connection.selectModel(request),
     approvals: (handler) => connection.approvals(handler),
@@ -398,7 +401,11 @@ export function answerApproval(decision: ApprovalDecision): void {
   approvalResolve?.(decision);
 }
 
-export async function promptSession(text: string, sessionId: string): Promise<string> {
+export async function promptSession(
+  text: string,
+  sessionId: string,
+  content?: readonly PromptContentPart[],
+): Promise<string> {
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner) throw new Error("这条会话还没有归到 Bot。");
   const client = await ensureClient();
@@ -407,6 +414,7 @@ export async function promptSession(text: string, sessionId: string): Promise<st
     text,
     bot: owner.bot,
     archived: owner.claim.archived,
+    ...(content ? { content } : {}),
   });
 }
 
