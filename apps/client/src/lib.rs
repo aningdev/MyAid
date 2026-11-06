@@ -6,10 +6,12 @@
 
 mod cookie_websocket;
 mod host_control;
+mod relay_control;
 mod shell_demo;
 
 pub use cookie_websocket::{CookieWebSocket, Socket};
 pub use host_control::{HostControl, HostWatch};
+pub use relay_control::RelayControl;
 pub use shell_demo::{Badge, Counter, Format};
 
 use nsh_core::prelude::*;
@@ -24,5 +26,6 @@ fn native(registry: &mut Registry) {
         .module::<CookieWebSocket>()
         .class::<Socket>()
         .module::<HostControl>()
-        .class::<HostWatch>();
+        .class::<HostWatch>()
+        .module::<RelayControl>();
 }

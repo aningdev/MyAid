@@ -50,6 +50,7 @@ impl HostControl {
     /// Issue one validated lifecycle request. Unconfirmed requests are not retried.
     pub async fn request(operation: String, source: String) -> Result<String, String> {
         let socket = socket_path()?;
+        let op = operation.clone();
         let request = serde_json::json!({
             "version": myaid_host::PROTOCOL,
             "id": myaid_host::generation()?,
@@ -57,8 +58,16 @@ impl HostControl {
             "source": if source.is_empty() { None } else { Some(source) }
         });
         tokio::task::spawn_blocking(move || {
-            myaid_host::call(&socket, &request)
-                .and_then(|value| serde_json::to_string(&value).map_err(|e| e.to_string()))
+            let value = match op.as_str() {
+                "registrationQuery" | "registrationEnable" | "registrationStop" => {
+                    myaid_host::call_json(&socket, &request)?
+                }
+                _ => {
+                    let status = myaid_host::call(&socket, &request)?;
+                    serde_json::to_value(status).map_err(|e| e.to_string())?
+                }
+            };
+            serde_json::to_string(&value).map_err(|e| e.to_string())
         })
         .await
         .map_err(|_| "宿主控制任务中断".to_string())?

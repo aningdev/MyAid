@@ -9,7 +9,7 @@ pub use background_registration::RelayRegistration;
 pub use config::Config;
 pub type Result<T> = std::result::Result<T, String>;
 pub use relay_control::{
-    MAX_FRAME, PROTOCOL, Request, Status, assert_public_status, call, decode_response,
+    MAX_FRAME, PROTOCOL, Request, Status, assert_public_status, call, call_json, decode_response,
     default_endpoint, read_frame, serve,
 };
 pub use relay_control::transport::LocalStream;
