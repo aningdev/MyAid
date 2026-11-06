@@ -97,18 +97,24 @@ pub enum BackgroundAvailability {
     Full,
 }
 
+/// Unit has left the pristine `notRegistered` state (enable in flight, blocked, or registered).
+fn unit_affects_background_availability(phase: RegistrationPhase) -> bool {
+    !matches!(phase, RegistrationPhase::NotRegistered)
+}
+
 pub fn background_availability(
     host: RegistrationPhase,
     relay: RegistrationPhase,
 ) -> BackgroundAvailability {
-    match (
-        host.is_registered_with_os(),
-        relay.is_registered_with_os(),
-    ) {
-        (true, true) => BackgroundAvailability::Full,
-        (false, false) => BackgroundAvailability::Off,
-        _ => BackgroundAvailability::Degraded,
+    if host.is_registered_with_os() && relay.is_registered_with_os() {
+        return BackgroundAvailability::Full;
     }
+    let host_active = unit_affects_background_availability(host);
+    let relay_active = unit_affects_background_availability(relay);
+    if !host_active && !relay_active {
+        return BackgroundAvailability::Off;
+    }
+    BackgroundAvailability::Degraded
 }
 
 /// Dual-unit registration query payload for Client orchestration.

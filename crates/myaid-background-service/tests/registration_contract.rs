@@ -61,6 +61,15 @@ fn half_enabled_background_is_degraded_not_off() {
 }
 
 #[test]
+fn pending_on_one_unit_with_other_not_registered_is_degraded() {
+    let snapshot = RegistrationSnapshot::from_phases(
+        RegistrationPhase::PendingApproval,
+        RegistrationPhase::NotRegistered,
+    );
+    assert_eq!(snapshot.availability, BackgroundAvailability::Degraded);
+}
+
+#[test]
 fn unit_registration_carries_optional_reason_for_denied_or_failed() {
     let unit = UnitRegistration {
         unit: ServiceUnit::Relay,
