@@ -2,31 +2,19 @@
  * Deep module: claimed Session lifecycle (connect → create+claim+follow → prompt → dispose).
  * Connection / dsh session helpers stay as adapters behind this interface.
  */
+import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+
+import type {
+  ApprovalDecision,
+  ApprovalRequest,
+  FlatModelCatalog,
+} from "../../../lib/dsh/connection";
 import { claimOwner, type Bot, type BotRegistry } from "../../bots/model";
 import { sessionLabel, workspaceKey } from "../../bots/sessions";
 
-export type ApprovalDecision = "allowed-once" | "rejected" | "cancelled" | "unavailable";
-
-export type ApprovalRequest = {
-  sessionId: string;
-  toolName: string;
-  callId?: string;
-  reason: string;
-  details: string;
-  signal?: AbortSignal;
-};
-
-export type ModelCatalog = {
-  default: { provider: string; model: string };
-  models: {
-    provider: string;
-    providerName: string;
-    model: string;
-    name: string;
-    description?: string;
-  }[];
-  failures: { name: string; message: string }[];
-};
+export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog };
+/** @deprecated Prefer {@link FlatModelCatalog}. */
+export type ModelCatalog = FlatModelCatalog;
 
 /** Minimal transport the ClaimedSession module needs from a Connection adapter. */
 export type SessionTransport = {
@@ -39,13 +27,21 @@ export type SessionTransport = {
   listSessions(): Promise<{ sessionId: string; blank: boolean; updatedAt: number }[]>;
   follow(
     sessionId: string,
-    onFrame: (frame: unknown) => void,
+    onFrame: (frame: SessionFollowFrame) => void,
     onError?: (error: Error) => void,
   ): () => void;
-  prompt(request: { sessionId: string; requestId: string; text: string }): Promise<void>;
+  prompt(request: {
+    sessionId: string;
+    requestId: string;
+    text?: string;
+    content?: readonly PromptContentPart[];
+  }): Promise<void>;
   cancel(sessionId: string): Promise<void>;
-  modelCatalog(): Promise<ModelCatalog>;
+  /** Withdraw a still-pending queued prompt (`session.updateQueue` remove). */
+  withdrawQueuedPrompt(sessionId: string, itemId: string): Promise<void>;
+  modelCatalog(): Promise<FlatModelCatalog>;
   selectModel(request: { sessionId: string; provider: string; model: string }): Promise<void>;
+  selectAgentPreset(sessionId: string, agentPreset: string): Promise<string>;
   approvals(handler: (request: ApprovalRequest) => Promise<ApprovalDecision>): void;
   dispose(): Promise<void>;
 };
@@ -55,7 +51,7 @@ export type ClaimHooks = {
   claim(botId: string, sessionId: string): Promise<boolean>;
   registry(): BotRegistry;
   summaries(): Map<string, string>;
-  onFrame(sessionId: string, frame: unknown): void;
+  onFrame(sessionId: string, frame: SessionFollowFrame): void;
   onFollowError(error: Error): void;
 };
 
@@ -75,7 +71,7 @@ export function occupancyBlock(input: {
 }
 
 export async function resolveBotModel(
-  catalog: ModelCatalog,
+  catalog: FlatModelCatalog,
   want: string | null | undefined,
 ): Promise<{ provider: string; model: string } | null> {
   const trimmed = want?.trim();
@@ -181,6 +177,7 @@ export class ClaimedSessionClient {
     text: string;
     bot: Bot;
     archived: boolean;
+    content?: readonly PromptContentPart[];
   }): Promise<string> {
     this.assertAlive();
     if (input.archived) throw new Error("这条会话已归档。");
@@ -211,7 +208,11 @@ export class ClaimedSessionClient {
       // Model apply is best-effort; prompt still proceeds.
     }
     const requestId = crypto.randomUUID().replace(/-/g, "");
-    await transport.prompt({ sessionId: input.sessionId, requestId, text: input.text });
+    await transport.prompt({
+      sessionId: input.sessionId,
+      requestId,
+      ...(input.content ? { content: input.content } : { text: input.text }),
+    });
     return requestId;
   }
 
@@ -220,6 +221,21 @@ export class ClaimedSessionClient {
     const sessionId = this.sessionId;
     if (!transport?.ready || !sessionId) return;
     await transport.cancel(sessionId);
+  }
+
+  /** Withdraw one queued (not yet running) prompt by message id. */
+  async withdrawQueued(itemId: string): Promise<void> {
+    const transport = this.transport;
+    const sessionId = this.sessionId;
+    if (!transport?.ready || !sessionId) return;
+    await transport.withdrawQueuedPrompt(sessionId, itemId);
+  }
+
+  async selectPreset(agentPreset: string): Promise<string | undefined> {
+    const transport = this.transport;
+    const sessionId = this.sessionId;
+    if (!transport?.ready || !sessionId) return undefined;
+    return transport.selectAgentPreset(sessionId, agentPreset);
   }
 
   noteActivity(sessionId: string, running: boolean): void {

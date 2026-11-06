@@ -1,3 +1,4 @@
+import type { ImageMediaType, PromptContentPart } from "@myaid/dsh-web-protocol/session";
 import {
   batch,
   cleanup,
@@ -81,7 +82,12 @@ export function ChatPane(props: { selectedId: string | null }) {
   const useDsh = () => native && !!props.selectedId;
   const draft = signal("");
   const inputHeight = signal(20);
-  const attachment = signal<{ image: string; file: FileRef } | null>(null);
+  const attachment = signal<{
+    image: string;
+    file: FileRef;
+    blob: Blob;
+    mediaType: ImageMediaType;
+  } | null>(null);
   const menu = signal(false);
   const banner = signal<"offline" | "online" | null>(null);
   const bannerKind = signal<"offline" | "online">("offline");
@@ -220,7 +226,7 @@ export function ChatPane(props: { selectedId: string | null }) {
   };
 
   /** Start a Session reply; `at` replaces that assistant bubble (retry / regenerate). */
-  const replyDsh = async (text: string, at?: string) => {
+  const replyDsh = async (text: string, at?: string, content?: readonly PromptContentPart[]) => {
     if (prompting()) return;
     const id = at ?? nextId();
     thinkStart = performance.now();
@@ -247,7 +253,7 @@ export function ChatPane(props: { selectedId: string | null }) {
     try {
       const sessionId = props.selectedId;
       if (!sessionId) throw new Error("先选择一条会话。");
-      await promptSession(text, sessionId);
+      await promptSession(text, sessionId, content);
     } catch (error) {
       applyTurnError(error instanceof Error ? error.message : String(error));
     }
@@ -381,8 +387,13 @@ export function ChatPane(props: { selectedId: string | null }) {
     toEnd();
   };
 
-  /** Sends the user's message into the official Session. */
-  const submit = async (text: string, image?: string, file?: FileRef) => {
+  /** Sends the user's message into the official Session (text + optional image part). */
+  const submit = async (
+    text: string,
+    image?: string,
+    file?: FileRef,
+    pending?: { blob: Blob; mediaType: ImageMediaType; name?: string },
+  ) => {
     if (prompting()) return;
     menu.set(false);
     following.set(true);
@@ -404,6 +415,15 @@ export function ChatPane(props: { selectedId: string | null }) {
       return;
     }
     if (prompting()) return;
+    let content: PromptContentPart[] | undefined;
+    if (pending) {
+      try {
+        content = await buildPromptContent(text, pending);
+      } catch (error) {
+        showConnectError(error);
+        return;
+      }
+    }
     const user: User = { kind: "user", id: nextId(), text, image, file };
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     batch(() => {
@@ -415,14 +435,19 @@ export function ChatPane(props: { selectedId: string | null }) {
       attachment.set(null);
     });
     toEnd();
-    await replyDsh(text);
+    await replyDsh(text, undefined, content);
   };
 
   const send = () => {
     const text = draft().trim();
     const a = attachment();
     if (!text && !a) return;
-    void submit(text || "（附件）", a?.image, a?.file);
+    void submit(
+      text || "（附件）",
+      a?.image,
+      a?.file,
+      a ? { blob: a.blob, mediaType: a.mediaType, name: a.file.name } : undefined,
+    );
   };
 
   /** Attaches a photo from the system's picker: its bytes stay native, shown through a blob URL. */
@@ -430,11 +455,21 @@ export function ChatPane(props: { selectedId: string | null }) {
     const [picked] = await Picker.pickImages({ maxDimension: 2048, quality: 0.85 });
     if (!picked) return;
     const { file } = picked;
+    const mediaType = asImageMediaType(file.type);
+    if (!mediaType) {
+      showConnectError(new Error("仅支持 PNG / JPEG / WebP / GIF 图片。"));
+      return;
+    }
     const size =
       file.size < 1024 * 1024
         ? `${Math.max(1, Math.round(file.size / 1024))} KB`
         : `${(file.size / 1024 / 1024).toFixed(1)} MB`;
-    attachment.set({ image: URL.createObjectURL(file), file: { name: file.name, size } });
+    attachment.set({
+      image: URL.createObjectURL(file),
+      file: { name: file.name, size },
+      blob: file,
+      mediaType,
+    });
   };
 
   const update = (id: string, change: (m: Assistant) => Assistant) =>
@@ -1064,4 +1099,40 @@ export function ChatPane(props: { selectedId: string | null }) {
   });
 
   return pane;
+}
+
+const IMAGE_MEDIA_TYPES = new Set<ImageMediaType>([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
+
+function asImageMediaType(value: string): ImageMediaType | null {
+  return IMAGE_MEDIA_TYPES.has(value as ImageMediaType) ? (value as ImageMediaType) : null;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function buildPromptContent(
+  text: string,
+  pending: { blob: Blob; mediaType: ImageMediaType; name?: string },
+): Promise<PromptContentPart[]> {
+  const parts: PromptContentPart[] = [];
+  if (text.trim()) parts.push({ type: "text", text });
+  parts.push({
+    type: "image",
+    mediaType: pending.mediaType,
+    data: await blobToBase64(pending.blob),
+    ...(pending.name ? { name: pending.name } : {}),
+  });
+  return parts;
 }

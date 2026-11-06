@@ -1,3 +1,5 @@
+import type { ImageAttachmentRef } from "@myaid/dsh-web-protocol/session";
+
 /**
  * Thin Connection adapter for Dialogue. Product lifecycle lives in ClaimedSession.
  */
@@ -6,11 +8,12 @@ import {
   Connection,
   type ApprovalDecision,
   type ApprovalRequest,
+  type FlatModelCatalog,
   type ModelCatalog,
   readableError,
 } from "./connection";
 
-export type { ApprovalDecision, ApprovalRequest, ModelCatalog };
+export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog, ModelCatalog };
 export { readableError };
 
 let shared: Connection | undefined;
@@ -62,6 +65,45 @@ export async function listAgentPresets(
 > {
   const conn = connection ?? shared ?? (await ensureConnected());
   return conn.listAgentPresets();
+}
+
+export async function readAgentPreset(
+  agentPreset: string,
+  connection?: Connection,
+): Promise<{ agentPreset: string; content: string; name?: string; description?: string }> {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.readAgentPreset(agentPreset);
+}
+
+export async function pickDirectory(connection?: Connection): Promise<string | null> {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.pickDirectory();
+}
+
+export async function describeSettings(connection?: Connection) {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.describeSettings();
+}
+
+export async function listPlugins(connection?: Connection) {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.listPlugins();
+}
+
+export async function uploadFile(
+  request: { sessionId: string; data: string; name?: string },
+  connection?: Connection,
+): Promise<{ receiptId: string }> {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.uploadFile(request);
+}
+
+export async function readAttachment(
+  request: { sessionId: string; attachment: ImageAttachmentRef },
+  connection?: Connection,
+) {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.readAttachment(request);
 }
 
 export function setApprovalHandler(

@@ -1,6 +1,7 @@
 import { botsModule } from "../features/bots";
 import { dialogueModule } from "../features/dialogue";
 import { placeholderModule } from "../features/placeholder";
+import { pluginsModule } from "../features/plugins";
 import { settingsModule } from "../features/settings";
 import type { ModuleId } from "./state";
 import type { WorkspaceModule } from "./types";
@@ -12,7 +13,7 @@ export const modules: WorkspaceModule[] = [
   placeholderModule("outcomes", "Outcomes", "Out", "arrow-up"),
   botsModule,
   placeholderModule("knowledge", "Knowledge", "Know", "storage"),
-  placeholderModule("plugins", "Plugins", "Plug", "sliders"),
+  pluginsModule,
   settingsModule,
 ];
 

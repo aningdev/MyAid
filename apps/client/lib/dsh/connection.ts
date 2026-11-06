@@ -2,6 +2,19 @@
  * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
  * No product workbench UI.
  */
+import type { ApprovalOutcome, ApprovalRequestEvent } from "@myaid/dsh-web-protocol/interaction";
+import type { PluginInfo } from "@myaid/dsh-web-protocol/plugins";
+import type {
+  ImageAttachmentRef,
+  ModelCatalog as OfficialModelCatalog,
+  PromptContentPart,
+  SessionAttachmentValue,
+  SessionCreateRequest,
+  SessionFollowFrame,
+  SessionUpdateQueueRequest,
+} from "@myaid/dsh-web-protocol/session";
+import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
+
 import { fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
 import {
@@ -9,13 +22,37 @@ import {
   Gateway,
   TypertRegistry,
   agentPresetsRemote,
+  fileUploadsRemote,
   installConnection,
+  pluginManagerRemote,
   sessionRemote,
+  settingsRemote,
+  workspaceRemote,
 } from "./sdk.js";
 import { AuthenticatedSocket } from "./socket";
 
-export type ApprovalDecision = "allowed-once" | "rejected" | "cancelled" | "unavailable";
+export type AgentPresetSummary = {
+  id: string;
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  broken?: string;
+};
 
+export type AgentPresetDetail = {
+  agentPreset: string;
+  content: string;
+  name?: string;
+  description?: string;
+};
+
+/** Official approval outcome vocabulary. */
+export type ApprovalDecision = ApprovalOutcome;
+
+/**
+ * Product UI approval prompt (session-scoped, display-ready).
+ * Distinct from official `ApprovalRequest` / `ApprovalRequestEvent` on the wire.
+ */
 export type ApprovalRequest = {
   sessionId: string;
   toolName: string;
@@ -25,7 +62,8 @@ export type ApprovalRequest = {
   signal?: AbortSignal;
 };
 
-export type CatalogModel = {
+/** One flattened catalog row for product pickers (official wire keeps `groups`). */
+export type FlatCatalogModel = {
   provider: string;
   providerName: string;
   model: string;
@@ -33,11 +71,36 @@ export type CatalogModel = {
   description?: string;
 };
 
-export type ModelCatalog = {
+/** Product view of {@link OfficialModelCatalog} with groups flattened to `models`. */
+export type FlatModelCatalog = {
   default: { provider: string; model: string };
-  models: CatalogModel[];
+  models: FlatCatalogModel[];
   failures: { name: string; message: string }[];
 };
+
+/** @deprecated Use {@link FlatCatalogModel}. */
+export type CatalogModel = FlatCatalogModel;
+/** @deprecated Use {@link FlatModelCatalog}. */
+export type ModelCatalog = FlatModelCatalog;
+
+export function flattenModelCatalog(value: OfficialModelCatalog): FlatModelCatalog {
+  return {
+    default: { provider: value.default.provider, model: value.default.model },
+    models: value.groups.flatMap((group) =>
+      group.models.map((model) => ({
+        provider: group.id,
+        providerName: group.name,
+        model: model.id,
+        name: model.name,
+        ...(model.description ? { description: model.description } : {}),
+      })),
+    ),
+    failures: value.failures.map((failure) => ({
+      name: failure.name,
+      message: failure.message,
+    })),
+  };
+}
 
 const messages: Record<string, string> = {
   "session/provider-credentials-unavailable": "后台没有可用的模型凭据。",
@@ -160,9 +223,15 @@ export class Connection {
       await ctx.plugin(Gateway);
       await ctx.remote.$mount(sessionRemote);
       await ctx.remote.$mount(agentPresetsRemote);
+      // Product paths B–D: directory picker, settings, uploads, plugins.
+      await ctx.remote.$mount(workspaceRemote);
+      await ctx.remote.$mount(settingsRemote);
+      await ctx.remote.$mount(fileUploadsRemote);
+      await ctx.remote.$mount(pluginManagerRemote);
       const owner = this;
-      ctx.remote.$on("approval/request", function (this: any, request: any) {
-        return owner.answerApproval(request.agent?.[agentTag] ?? this?.[agentTag], request);
+      ctx.remote.$on("approval/request", function (this: any, request: ApprovalRequestEvent) {
+        const tagged = request.agent as { [agentTag]?: string } | undefined;
+        return owner.answerApproval(tagged?.[agentTag] ?? this?.[agentTag], request);
       });
       if (epoch !== this.epoch || this.ctx !== ctx) throw new Error("连接已被新的宿主状态替代");
       await this.waitForGeneration(ctx, controller.signal);
@@ -210,11 +279,17 @@ export class Connection {
     return this.ctx.remote;
   }
 
-  async listAgentPresets(): Promise<
-    { id: string; name: string; description?: string; isDefault: boolean; broken?: string }[]
-  > {
-    const value: any = unwrap(await this.remote.agentPresets.list());
-    return (value.presets ?? []).map((item: any) => ({
+  async listAgentPresets(): Promise<AgentPresetSummary[]> {
+    const value = unwrap(await this.remote.agentPresets.list()) as {
+      presets?: {
+        id: string;
+        name?: string;
+        description?: string;
+        isDefault?: boolean;
+        broken?: string;
+      }[];
+    };
+    return (value.presets ?? []).map((item) => ({
       id: String(item.id),
       name: typeof item.name === "string" && item.name.trim() ? item.name.trim() : String(item.id),
       ...(typeof item.description === "string" && item.description
@@ -225,24 +300,24 @@ export class Connection {
     }));
   }
 
-  async modelCatalog(): Promise<ModelCatalog> {
-    const value: any = unwrap(await this.remote.session.modelCatalog());
+  async readAgentPreset(agentPreset: string): Promise<AgentPresetDetail> {
+    const value = unwrap(await this.remote.agentPresets.read(agentPreset)) as AgentPresetDetail;
     return {
-      default: { provider: value.default.provider, model: value.default.model },
-      models: (value.groups ?? []).flatMap((group: any) =>
-        (group.models ?? []).map((model: any) => ({
-          provider: group.id,
-          providerName: group.name,
-          model: model.id,
-          name: model.name,
-          ...(model.description ? { description: model.description } : {}),
-        })),
-      ),
-      failures: (value.failures ?? []).map((failure: any) => ({
-        name: failure.name,
-        message: failure.message,
-      })),
+      agentPreset: String(value.agentPreset),
+      content: String(value.content ?? ""),
+      ...(typeof value.name === "string" ? { name: value.name } : {}),
+      ...(typeof value.description === "string" ? { description: value.description } : {}),
     };
+  }
+
+  /** Change composition on an idle Session (same sessionId). Locked while a turn runs. */
+  async selectAgentPreset(sessionId: string, agentPreset: string): Promise<string> {
+    return String(unwrap(await this.remote.agentPresets.select(sessionId, agentPreset)));
+  }
+
+  async modelCatalog(): Promise<FlatModelCatalog> {
+    const value = unwrap(await this.remote.session.modelCatalog()) as OfficialModelCatalog;
+    return flattenModelCatalog(value);
   }
 
   async createSession(request?: {
@@ -250,23 +325,27 @@ export class Connection {
     sessionId?: string;
     agentPreset?: string;
   }): Promise<{ sessionId: string }> {
-    const value: any = unwrap(
-      await this.remote.session.create({
-        ...(request?.cwd ? { cwd: request.cwd } : {}),
-        ...(request?.sessionId ? { sessionId: request.sessionId } : {}),
-        ...(request?.agentPreset ? { agentPreset: request.agentPreset } : {}),
-      }),
-    );
+    const body: SessionCreateRequest = {
+      ...(request?.cwd ? { cwd: request.cwd } : {}),
+      ...(request?.sessionId
+        ? { sessionId: request.sessionId as SessionCreateRequest["sessionId"] }
+        : {}),
+      ...(request?.agentPreset ? { agentPreset: request.agentPreset } : {}),
+    };
+    const value = unwrap(await this.remote.session.create(body)) as { sessionId: string };
     return { sessionId: String(value.sessionId) };
   }
 
   async listSessions(): Promise<
     { sessionId: string; cwd?: string; blank: boolean; updatedAt: number }[]
   > {
-    const items: any[] = [];
+    const items: { sessionId: string; cwd?: string; blank?: boolean; updatedAt?: number }[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < 20; page++) {
-      const value: any = unwrap(await this.remote.session.list(cursor ? { cursor } : {}));
+      const value = unwrap(await this.remote.session.list(cursor ? { cursor } : {})) as {
+        items?: typeof items;
+        cursor?: string;
+      };
       items.push(...(value.items ?? []));
       cursor = typeof value.cursor === "string" ? value.cursor : undefined;
       if (!cursor) break;
@@ -293,13 +372,21 @@ export class Connection {
     );
   }
 
-  async prompt(request: { sessionId: string; requestId: string; text: string }): Promise<void> {
+  async prompt(request: {
+    sessionId: string;
+    requestId: string;
+    text?: string;
+    content?: readonly PromptContentPart[];
+  }): Promise<void> {
+    const content: readonly PromptContentPart[] =
+      request.content ??
+      ([{ type: "text", text: request.text ?? "" }] satisfies PromptContentPart[]);
     unwrap(
       await this.remote.session.prompt({
         sessionId: request.sessionId,
         requestId: request.requestId,
         mode: "queue",
-        content: [{ type: "text", text: request.text }],
+        content,
       }),
     );
   }
@@ -308,10 +395,66 @@ export class Connection {
     unwrap(await this.remote.session.cancel({ sessionId }));
   }
 
+  /** Mutate a still-pending queue item (e.g. withdraw with `{ kind: "remove" }`). */
+  async updateQueue(request: SessionUpdateQueueRequest): Promise<void> {
+    unwrap(await this.remote.session.updateQueue(request));
+  }
+
+  async withdrawQueuedPrompt(sessionId: string, itemId: string): Promise<void> {
+    await this.updateQueue({
+      sessionId: sessionId as SessionUpdateQueueRequest["sessionId"],
+      itemId: itemId as SessionUpdateQueueRequest["itemId"],
+      action: { kind: "remove" },
+    });
+  }
+
+  /** Native directory picker; returns absolute path or null if cancelled. */
+  async pickDirectory(): Promise<string | null> {
+    const value = unwrap(await this.remote.directoryPicker.pick());
+    return typeof value === "string" ? value : null;
+  }
+
+  async describeSettings(): Promise<SettingsDescribeValue> {
+    return unwrap(await this.remote.settings.describe()) as SettingsDescribeValue;
+  }
+
+  async listPlugins(): Promise<PluginInfo[]> {
+    return unwrap(await this.remote.pluginManager.listPlugins()) as PluginInfo[];
+  }
+
+  async uploadFile(request: {
+    sessionId: string;
+    data: string;
+    name?: string;
+  }): Promise<{ receiptId: string }> {
+    this.scope(request.sessionId);
+    const value = unwrap(
+      await this.remote.fileUploads.upload(request.sessionId, {
+        data: request.data,
+        ...(request.name ? { name: request.name } : {}),
+      }),
+    ) as { receiptId: string };
+    return { receiptId: String(value.receiptId) };
+  }
+
+  /** Read one durable image from the attachment store (`session.attachment`). */
+  async readAttachment(request: {
+    sessionId: string;
+    attachment: ImageAttachmentRef;
+  }): Promise<SessionAttachmentValue> {
+    this.scope(request.sessionId);
+    return unwrap(
+      await this.remote.session.attachment({
+        sessionId: request.sessionId,
+        attachment: request.attachment,
+      }),
+    ) as SessionAttachmentValue;
+  }
+
   /** Follow one Session; returns disposer that stops the stream. */
   follow(
     sessionId: string,
-    onFrame: (frame: unknown) => void,
+    onFrame: (frame: SessionFollowFrame) => void,
     onError?: (error: Error) => void,
   ): () => void {
     if (!this.ctx) throw new Error("尚未连接后台");
@@ -326,7 +469,7 @@ export class Connection {
     let closed = false;
     void (async () => {
       try {
-        for await (const frame of stream) {
+        for await (const frame of stream as AsyncIterable<SessionFollowFrame>) {
           if (closed || id !== this.followId) return;
           onFrame(frame);
         }
@@ -367,17 +510,21 @@ export class Connection {
 
   private async answerApproval(
     sessionId: string | undefined,
-    request: any,
+    request: ApprovalRequestEvent,
   ): Promise<ApprovalDecision> {
     if (!sessionId || !this.scopes.has(sessionId)) return "unavailable";
     if (request.signal?.aborted) return "cancelled";
     if (!this.approval) return "unavailable";
     try {
+      const displayZh =
+        request.displayReason && typeof request.displayReason.zh === "string"
+          ? request.displayReason.zh
+          : undefined;
       return await this.approval({
         sessionId,
         toolName: String(request.toolName ?? "工具"),
         ...(request.callId ? { callId: String(request.callId) } : {}),
-        reason: String(request.displayReason?.zh ?? request.reason ?? "需要你的确认"),
+        reason: String(displayZh ?? request.reason ?? "需要你的确认"),
         details: JSON.stringify(
           {
             toolName: request.toolName,

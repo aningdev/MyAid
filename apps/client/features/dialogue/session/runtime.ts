@@ -5,6 +5,7 @@
 import { homedir } from "os";
 import { join } from "path";
 
+import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { signal, untracked } from "nsh";
 
 import {
@@ -21,13 +22,14 @@ import {
   ClaimedSessionClient,
   type ApprovalDecision,
   type ApprovalRequest,
+  type FlatModelCatalog,
   type ModelCatalog,
   type SessionTransport,
 } from "./claimed";
 import { buildSessionRoster, relabelRow, withOccupancy, type SessionRow } from "./roster";
 import { TurnProjection, type TurnView } from "./turn";
 
-export type { ApprovalDecision, ApprovalRequest, ModelCatalog, SessionRow };
+export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog, ModelCatalog, SessionRow };
 
 export type HostStatus = {
   phase: string;
@@ -49,7 +51,7 @@ export const hostStatus = signal<HostStatus | null>(null);
 export const hostConnection = signal<HostConnection>("down");
 export const sessionReady = signal(false);
 export const sessionError = signal<string | null>(null);
-export const modelCatalog = signal<ModelCatalog | null>(null);
+export const modelCatalog = signal<FlatModelCatalog | null>(null);
 export const pendingApproval = signal<ApprovalRequest | null>(null);
 export const sessionList = signal<SessionRow[]>([]);
 export const activeSessionId = signal<string | null>(null);
@@ -227,6 +229,9 @@ function wrapConnection(
     follow: (sessionId, onFrame, onError) => connection.follow(sessionId, onFrame, onError),
     prompt: (request) => connection.prompt(request),
     cancel: (sessionId) => connection.cancel(sessionId),
+    withdrawQueuedPrompt: (sessionId, itemId) => connection.withdrawQueuedPrompt(sessionId, itemId),
+    selectAgentPreset: (sessionId, agentPreset) =>
+      connection.selectAgentPreset(sessionId, agentPreset),
     modelCatalog: () => connection.modelCatalog(),
     selectModel: (request) => connection.selectModel(request),
     approvals: (handler) => connection.approvals(handler),
@@ -396,7 +401,11 @@ export function answerApproval(decision: ApprovalDecision): void {
   approvalResolve?.(decision);
 }
 
-export async function promptSession(text: string, sessionId: string): Promise<string> {
+export async function promptSession(
+  text: string,
+  sessionId: string,
+  content?: readonly PromptContentPart[],
+): Promise<string> {
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner) throw new Error("这条会话还没有归到 Bot。");
   const client = await ensureClient();
@@ -405,6 +414,7 @@ export async function promptSession(text: string, sessionId: string): Promise<st
     text,
     bot: owner.bot,
     archived: owner.claim.archived,
+    ...(content ? { content } : {}),
   });
 }
 

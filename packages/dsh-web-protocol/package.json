@@ -1,0 +1,159 @@
+{
+  "name": "@myaid/dsh-web-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Client-only type re-exports of official dsh web Remote/wire contracts (pinned to supported-dsh.json). Plugins must not depend on this package.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./remotes": {
+      "types": "./src/remotes.ts",
+      "default": "./src/remotes.ts"
+    },
+    "./session": {
+      "types": "./src/session.ts",
+      "default": "./src/session.ts"
+    },
+    "./llm": {
+      "types": "./src/llm.ts",
+      "default": "./src/llm.ts"
+    },
+    "./presets": {
+      "types": "./src/presets.ts",
+      "default": "./src/presets.ts"
+    },
+    "./settings": {
+      "types": "./src/settings.ts",
+      "default": "./src/settings.ts"
+    },
+    "./workspace": {
+      "types": "./src/workspace.ts",
+      "default": "./src/workspace.ts"
+    },
+    "./job": {
+      "types": "./src/job.ts",
+      "default": "./src/job.ts"
+    },
+    "./terminal": {
+      "types": "./src/terminal.ts",
+      "default": "./src/terminal.ts"
+    },
+    "./account": {
+      "types": "./src/account.ts",
+      "default": "./src/account.ts"
+    },
+    "./commands": {
+      "types": "./src/commands.ts",
+      "default": "./src/commands.ts"
+    },
+    "./goals": {
+      "types": "./src/goals.ts",
+      "default": "./src/goals.ts"
+    },
+    "./schedule": {
+      "types": "./src/schedule.ts",
+      "default": "./src/schedule.ts"
+    },
+    "./subagent": {
+      "types": "./src/subagent.ts",
+      "default": "./src/subagent.ts"
+    },
+    "./interaction": {
+      "types": "./src/interaction.ts",
+      "default": "./src/interaction.ts"
+    },
+    "./feedback": {
+      "types": "./src/feedback.ts",
+      "default": "./src/feedback.ts"
+    },
+    "./uploads": {
+      "types": "./src/uploads.ts",
+      "default": "./src/uploads.ts"
+    },
+    "./references": {
+      "types": "./src/references.ts",
+      "default": "./src/references.ts"
+    },
+    "./plugins": {
+      "types": "./src/plugins.ts",
+      "default": "./src/plugins.ts"
+    },
+    "./docs": {
+      "types": "./src/docs.ts",
+      "default": "./src/docs.ts"
+    },
+    "./cordis": {
+      "types": "./src/cordis.ts",
+      "default": "./src/cordis.ts"
+    },
+    "./analytics": {
+      "types": "./src/analytics.ts",
+      "default": "./src/analytics.ts"
+    },
+    "./access": {
+      "types": "./src/access.ts",
+      "default": "./src/access.ts"
+    },
+    "./connection": {
+      "types": "./src/connection.ts",
+      "default": "./src/connection.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-account-controller": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-gateway": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-job-controller": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-remote-access": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-remotes": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-settings-controller": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-terminal-controller": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-workspace-controller": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-workspace-files": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-attachment": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-connection": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-file-upload": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-product-analytics": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-trajectory": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-command-feedback": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-commands": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-cordis-host-runner": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-deepseek-account": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-file-reference": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-goal": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-host-directory-picker": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-host-plugin-inventory": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-jobs": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-message-feedback": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-office-to-pdf": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-permission-presets": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-plugin-manager": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-plugin-market": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-schedule": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-projection": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-reference": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-stats": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-turn-outline": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-settings": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-subagent": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-user-approval": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-user-questions": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-workspace": "0.2.2-rc.1"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

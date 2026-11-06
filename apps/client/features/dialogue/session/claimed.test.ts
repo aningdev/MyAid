@@ -1,3 +1,4 @@
+import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { expect, test } from "nsh/test";
 
 import {
@@ -15,7 +16,7 @@ import {
   type ApprovalDecision,
   type ApprovalRequest,
   type ClaimHooks,
-  type ModelCatalog,
+  type FlatModelCatalog,
   type SessionTransport,
 } from "./claimed";
 
@@ -51,20 +52,24 @@ function fakeTransport(overrides: Partial<SessionTransport> = {}): SessionTransp
     listSessions: async () => [{ sessionId: "s1", blank: false, updatedAt: 1 }],
     follow: (sessionId, onFrame) => {
       state.followed.push(sessionId);
-      queueMicrotask(() => onFrame({ type: "snapshot", records: [] }));
+      queueMicrotask(() =>
+        onFrame({ type: "snapshot", records: [] } as unknown as SessionFollowFrame),
+      );
       return () => undefined;
     },
     prompt: async (request) => {
-      state.prompts.push(request.text);
+      state.prompts.push(request.text ?? "");
     },
     cancel: async () => undefined,
+    withdrawQueuedPrompt: async () => undefined,
     modelCatalog: async () =>
       ({
         default: { provider: "p", model: "m" },
         models: [{ provider: "p", providerName: "P", model: "m", name: "M" }],
         failures: [],
-      }) satisfies ModelCatalog,
+      }) satisfies FlatModelCatalog,
     selectModel: async () => undefined,
+    selectAgentPreset: async () => "standard",
     approvals: (_handler: (request: ApprovalRequest) => Promise<ApprovalDecision>) => undefined,
     dispose: async () => {
       state.disposed = true;
@@ -166,7 +171,7 @@ test("dispose drops transport and rejects later use", async () => {
 });
 
 test("resolveBotModel matches provider/model and unique name", async () => {
-  const catalog: ModelCatalog = {
+  const catalog: FlatModelCatalog = {
     default: { provider: "p", model: "m" },
     models: [
       { provider: "p", providerName: "P", model: "m", name: "Deep" },
