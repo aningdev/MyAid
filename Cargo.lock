@@ -858,6 +858,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "myaid-background-service"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "myaid-host"
 version = "0.1.0"
 dependencies = [
@@ -865,6 +873,7 @@ dependencies = [
  "getrandom 0.3.4",
  "interprocess",
  "libc",
+ "myaid-background-service",
  "myaid-relay",
  "serde",
  "serde_json",
@@ -883,6 +892,7 @@ dependencies = [
  "getrandom 0.3.4",
  "interprocess",
  "libc",
+ "myaid-background-service",
  "serde",
  "serde_json",
  "tempfile",

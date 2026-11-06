@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub struct Config {
     pub root: PathBuf,
     pub version: String,
+    control_socket: Option<PathBuf>,
 }
 
 impl Config {
@@ -15,6 +16,9 @@ impl Config {
     }
 
     pub fn socket(&self) -> PathBuf {
+        if let Some(path) = &self.control_socket {
+            return path.clone();
+        }
         if let Some(path) = std::env::var_os("MYAID_RELAY_SOCKET") {
             return PathBuf::from(path);
         }
@@ -34,6 +38,7 @@ impl Config {
         let config = Self {
             root,
             version: env!("CARGO_PKG_VERSION").into(),
+            control_socket: None,
         };
         config.prepare()?;
         Ok(config)
@@ -42,6 +47,7 @@ impl Config {
     pub fn from_args(args: &[String]) -> Result<Self> {
         let mut root = None;
         let mut version = None;
+        let mut control_socket = None;
         let mut args = args.iter();
         while let Some(key) = args.next() {
             match key.as_str() {
@@ -51,12 +57,18 @@ impl Config {
                 "--version" => {
                     version = Some(args.next().ok_or("Missing version")?.clone());
                 }
+                "--control-socket" => {
+                    control_socket = Some(PathBuf::from(
+                        args.next().ok_or("Missing control socket path")?,
+                    ));
+                }
                 other => return Err(format!("Unknown argument: {other}")),
             }
         }
         let config = Self {
             root: root.ok_or("Missing data root")?,
             version: version.unwrap_or_else(|| env!("CARGO_PKG_VERSION").into()),
+            control_socket,
         };
         config.prepare()?;
         Ok(config)

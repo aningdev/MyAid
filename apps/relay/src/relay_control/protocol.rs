@@ -203,14 +203,13 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let data_root = dir.path().join("data");
         let socket = dir.path().join("control.sock");
-        unsafe {
-            std::env::set_var("MYAID_RELAY_SOCKET", &socket);
-        }
         let config = Config::from_args(&[
             "--data-root".into(),
             data_root.to_string_lossy().into(),
             "--version".into(),
             "0.1.0-test".into(),
+            "--control-socket".into(),
+            socket.to_string_lossy().into(),
         ])
         .expect("config");
         let exit: &'static AtomicBool = Box::leak(Box::new(AtomicBool::new(false)));

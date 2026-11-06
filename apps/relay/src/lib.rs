@@ -13,6 +13,8 @@ pub use relay_control::{
 pub use relay_control::transport::LocalStream;
 pub use runtime::{generation, home_dir, private_dir, private_file};
 
+pub use myaid_background_service as background_service;
+
 #[derive(Debug, Default, Clone)]
 pub struct Relay;
 
@@ -37,16 +39,25 @@ mod tests {
     }
 
     #[test]
+    fn relay_links_shared_registration_contract() {
+        use background_service::{RegistrationOperation, ServiceUnit};
+        assert_eq!(ServiceUnit::Relay, ServiceUnit::Relay);
+        assert_eq!(
+            RegistrationOperation::Stop.wire_name(),
+            "registrationStop"
+        );
+    }
+
+    #[test]
     fn serve_keeps_running_until_exit() {
         let dir = tempfile::tempdir().expect("tempdir");
         let data_root = dir.path().join("data");
         let socket = dir.path().join("control.sock");
-        unsafe {
-            std::env::set_var("MYAID_RELAY_SOCKET", &socket);
-        }
         let config = Config::from_args(&[
             "--data-root".into(),
             data_root.to_string_lossy().into(),
+            "--control-socket".into(),
+            socket.to_string_lossy().into(),
         ])
         .expect("config");
         let exit: &'static AtomicBool = Box::leak(Box::new(AtomicBool::new(false)));
