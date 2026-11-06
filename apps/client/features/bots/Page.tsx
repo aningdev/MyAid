@@ -1,6 +1,6 @@
 /**
  * Bots module: templates map to DSH Agent preset ids, and each Bot is an instance.
- * Shell only mounts this Page.
+ * Shell only mounts this Page. Workspace paths belong to Dialogues, not Bots.
  */
 import { cleanup, effect, Scroll, Text, untracked, View } from "nsh";
 import { NavPage, NavStack } from "nsh/base";
@@ -9,7 +9,7 @@ import { Badge, Button, colors, Field, hovered, mono, radius } from "../../compo
 import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
 import { isDesktopLayout } from "../../workspace/layout";
 import { setModuleAtRoot } from "../../workspace/state";
-import { openBotSessions } from "../dialogue/navigate";
+import { openBotDialogues, openDialogueSessions } from "../dialogue/navigate";
 import {
   answerApproval,
   approvalOwnerBotId,
@@ -24,6 +24,7 @@ import {
   beginTemplate,
   botsNav,
   closeDetail,
+  createEditorDialogue,
   deleteEditorBot,
   editBot,
   editTemplate,
@@ -40,11 +41,11 @@ import {
   resetBotsNavigation,
   saveEditor,
   saving,
+  setEditorDialogueWorkspace,
   setEditorModel,
   setEditorName,
   setEditorPreset,
   setEditorTemplate,
-  setEditorWorkspace,
   type BotsRoute,
   type Editor,
 } from "./state";
@@ -290,6 +291,8 @@ function BotForm() {
       return null;
     }
   };
+  const dialogues = () =>
+    registry().dialogues.filter((item) => item.botId === form()?.id && !item.archived);
   return (
     <If when={form() !== null}>
       <View style={{ gap: 16 }}>
@@ -319,19 +322,6 @@ function BotForm() {
             </Text>
           </If>
         </View>
-        <View style={{ gap: 6 }}>
-          <Field
-            label="工作区"
-            testID={readyBot() ? undefined : "bot-workspace"}
-            value={form()?.workspace ?? ""}
-            placeholder="/path/to/workspace"
-            editable={!readyBot()}
-            onChange={readyBot() ? undefined : setEditorWorkspace}
-          />
-          <If when={!readyBot()}>
-            <Button label="选择目录…" size="small" onPress={() => void pickBotWorkspace()} />
-          </If>
-        </View>
         <Field
           label="默认模型"
           testID="bot-model"
@@ -340,6 +330,55 @@ function BotForm() {
           onChange={setEditorModel}
         />
         <PresetLine binding={binding()} />
+        <If when={readyBot() && form()?.id !== "new"}>
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Dialogue</Text>
+            <Field
+              label="工作区"
+              testID="dialogue-workspace"
+              value={form()?.dialogueWorkspace ?? ""}
+              placeholder="/path/to/workspace"
+              onChange={setEditorDialogueWorkspace}
+            />
+            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+              <Button label="选择目录…" size="small" onPress={() => void pickDialogueWorkspace()} />
+              <Button
+                label="新建 Dialogue"
+                variant="accent"
+                size="small"
+                disabled={writeBlocked() || !(form()?.dialogueWorkspace ?? "").trim()}
+                onPress={() => {
+                  void createEditorDialogue().then((id) => {
+                    if (id) openDialogueSessions(id);
+                  });
+                }}
+              />
+              <Button
+                label="打开 Dialogues"
+                variant="secondary"
+                size="small"
+                onPress={() => {
+                  const id = form()?.id;
+                  if (id) openBotDialogues(id);
+                }}
+              />
+            </View>
+            <If when={dialogues().length > 0}>
+              <View style={{ gap: 4 }}>
+                <Each of={dialogues()}>
+                  {(dialogue) => (
+                    <EntryRow
+                      title={dialogue().workspacePath}
+                      detail={`${dialogue().claims.length} 个 Session`}
+                      selected={false}
+                      onPress={() => openDialogueSessions(dialogue().id)}
+                    />
+                  )}
+                </Each>
+              </View>
+            </If>
+          </View>
+        </If>
         <If when={pendingApproval() && approvalOwnerBotId() === form()?.id}>
           <View style={{ gap: 8 }}>
             <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>
@@ -379,18 +418,7 @@ function BotForm() {
               onPress={() => void initializeEditor()}
             />
           </If>
-          <If when={readyBot() && form()?.id !== "new"}>
-            <Button
-              label="会话"
-              variant="secondary"
-              size="small"
-              onPress={() => {
-                const id = form()?.id;
-                if (id) openBotSessions(id);
-              }}
-            />
-          </If>
-          <If when={stored() && !stored()?.hadSession}>
+          <If when={stored() && !stored()?.hadDialogue}>
             <Button
               label="删除"
               variant="secondary"
@@ -544,9 +572,18 @@ function selectedBot(id: string): boolean {
 
 function botDetail(bot: Bot): string {
   const template = registry().templates.find((item) => item.id === bot.templateId) ?? null;
+  const dialogueIds = new Set(
+    registry()
+      .dialogues.filter((item) => item.botId === bot.id)
+      .map((item) => item.id),
+  );
   const running =
     occupyingSessionId() !== null &&
-    bot.claims.some((claim) => claim.sessionId === occupyingSessionId());
+    registry().dialogues.some(
+      (dialogue) =>
+        dialogueIds.has(dialogue.id) &&
+        dialogue.claims.some((claim) => claim.sessionId === occupyingSessionId()),
+    );
   try {
     const binding = presetBinding(bot, template);
     const base = `${binding.presetId} · ${binding.label}`;
@@ -561,10 +598,8 @@ function previewBot(form: Extract<Editor, { kind: "bot" }>, stored: Bot | undefi
     id: form.id,
     name: form.name,
     templateId: form.templateId,
-    workspace: form.workspace,
     defaultModel: form.defaultModel.trim() ? form.defaultModel : null,
-    claims: stored?.claims ?? [],
-    hadSession: stored?.hadSession ?? false,
+    hadDialogue: stored?.hadDialogue ?? false,
     status: stored?.status ?? "draft",
     boundPresetId: stored?.boundPresetId ?? null,
     derivedPresetId: stored?.derivedPresetId ?? null,
@@ -588,21 +623,16 @@ function botSaveDisabled(): boolean {
 }
 
 function initializeDisabled(): boolean {
-  const current = editor();
-  if (current.kind !== "bot") return true;
-  return botSaveDisabled() || !current.workspace.trim();
+  return botSaveDisabled();
 }
 
-/** Phase B: official `directoryPicker.pick` → store absolute path on the Bot draft. */
-async function pickBotWorkspace(): Promise<void> {
+async function pickDialogueWorkspace(): Promise<void> {
   const current = botEditor();
   if (!current || writeBlocked()) return;
-  const stored = untracked(registry).bots.find((bot) => bot.id === current.id);
-  if (stored?.status === "ready") return;
   try {
     const { pickDirectory } = await import("../../lib/dsh/session");
     const path = await pickDirectory();
-    if (path) setEditorWorkspace(path);
+    if (path) setEditorDialogueWorkspace(path);
   } catch (error) {
     actionError.set(error instanceof Error ? error.message : String(error));
   }

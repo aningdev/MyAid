@@ -54,6 +54,7 @@
 - **永不调用**：官方 `workspace.*` 会话容器（产品用 Dialogue + Claim 代替）、`account.*`（品牌/账号面）。广义 Task / Knowledge / Note 不是 Session Remote；Today/启停走 HostControl。
 - HTTP `/connect` 用标准 `fetch`（可设 Cookie 响应头解析）；勿把认证 URL/token 写入公开 Host status。
 - 产品层级见蓝图：**Bot → Dialogue → Session**。Session 认领到 **Dialogue**（一对一官方 Session）；未认领（含旧 `myaid-primary`）不进产品列表。workspace path 属 Dialogue。gallery demos 仅作演示，不新建 Harness Session。
+- 桌面注册表 `~/.myaid/registry/bots.json` 为 **REGISTRY_VERSION 3**（`templates` + `bots` + `dialogues`）。无 v2→v3 迁移：开发机若仍是旧文件，删除该文件（或整个 `~/.myaid/registry`）后重建即可；解析旧 version 会失败并提示清空。
 - 官方 `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下是 ModuleLoader 产物，**无** ESM `installConnection`。做法：`bun run prepare:sdk` 用 Node 条件打出 `lib/dsh/sdk.js`；`nsh.json` 另设 `resolve.conditions: ["node"]` 作兜底。`dev` / `check` / `build` / `test` 均会先 prepare。
 
 ## 原生接口与权限

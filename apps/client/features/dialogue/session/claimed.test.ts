@@ -4,6 +4,7 @@ import { expect, test } from "nsh/test";
 import {
   claimSession,
   createBot,
+  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -22,15 +23,19 @@ import {
 
 function readyRegistry(): BotRegistry {
   return claimSession(
-    initializeBot(
-      createBot(
-        createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-        { name: "Ada", templateId: "tmpl", workspace: "/work" },
+    createDialogue(
+      initializeBot(
+        createBot(
+          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+          { name: "Ada", templateId: "tmpl" },
+          "bot",
+        ),
         "bot",
       ),
-      "bot",
+      { botId: "bot", workspacePath: "/work" },
+      "dlg",
     ),
-    "bot",
+    "dlg",
     "s1",
   );
 }
@@ -88,8 +93,8 @@ function hooks(
   const frames: unknown[] = [];
   return {
     connect: async () => transport,
-    claim: async (botId, sessionId) => {
-      registry = claimSession(registry, botId, sessionId);
+    claim: async (dialogueId, sessionId) => {
+      registry = claimSession(registry, dialogueId, sessionId);
       return true;
     },
     registry: () => registry,
@@ -117,26 +122,27 @@ test("createClaimed creates then claims then follows in order", async () => {
   });
   const client = new ClaimedSessionClient(
     hooks(registry, transport, {
-      claim: async (botId, sessionId) => {
-        order.push(`claim:${botId}:${sessionId}`);
-        registry = claimSession(registry, botId, sessionId);
+      claim: async (dialogueId, sessionId) => {
+        order.push(`claim:${dialogueId}:${sessionId}`);
+        registry = claimSession(registry, dialogueId, sessionId);
         return true;
       },
     }),
   );
   const bot = registry.bots[0]!;
+  const dialogue = registry.dialogues[0]!;
   const id = await client.createClaimed({
-    botId: bot.id,
+    dialogueId: dialogue.id,
+    dialogue,
     bot,
     agentPreset: "standard",
-    cwd: "/work",
   });
   expect(id).toBe("created");
-  expect(order).toEqual(["create", "claim:bot:created", "follow:created"]);
+  expect(order).toEqual(["create", "claim:dlg:created", "follow:created"]);
 });
 
 test("occupancy blocks same-workspace prompt", () => {
-  const registry = claimSession(readyRegistry(), "bot", "s2");
+  const registry = claimSession(readyRegistry(), "dlg", "s2");
   const message = occupancyBlock({
     occupyingSessionId: "s1",
     targetSessionId: "s2",
@@ -147,7 +153,7 @@ test("occupancy blocks same-workspace prompt", () => {
 });
 
 test("prompt refuses when workspace occupied", async () => {
-  const registry = claimSession(readyRegistry(), "bot", "s2");
+  const registry = claimSession(readyRegistry(), "dlg", "s2");
   const transport = fakeTransport();
   const client = new ClaimedSessionClient(hooks(registry, transport));
   await client.ensureConnected();

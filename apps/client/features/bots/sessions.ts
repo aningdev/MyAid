@@ -8,10 +8,12 @@ export type ListedSession = {
 
 export type ProductSession = {
   sessionId: string;
+  dialogueId: string;
   botId: string;
   botName: string;
-  workspace: string;
+  workspacePath: string;
   title: string | null;
+  /** True when the owning Dialogue is archived. */
   archived: boolean;
   /** True only after dsh has been listed and this claim is absent. */
   missing: boolean;
@@ -23,21 +25,26 @@ export type ProductSession = {
 export function listProductSessions(
   registry: BotRegistry,
   listed: ListedSession[] | null,
-  scopeBotId: string | null,
+  scope: { dialogueId?: string | null; botId?: string | null } = {},
 ): ProductSession[] {
   const known = listed ? new Map(listed.map((item) => [item.sessionId, item])) : null;
   const rows: ProductSession[] = [];
-  for (const bot of registry.bots) {
-    if (scopeBotId && bot.id !== scopeBotId) continue;
-    for (const claim of bot.claims) {
+  const botById = new Map(registry.bots.map((bot) => [bot.id, bot]));
+  for (const dialogue of registry.dialogues) {
+    if (scope.dialogueId && dialogue.id !== scope.dialogueId) continue;
+    if (scope.botId && dialogue.botId !== scope.botId) continue;
+    const bot = botById.get(dialogue.botId);
+    if (!bot) continue;
+    for (const claim of dialogue.claims) {
       const info = known?.get(claim.sessionId);
       rows.push({
         sessionId: claim.sessionId,
+        dialogueId: dialogue.id,
         botId: bot.id,
         botName: bot.name,
-        workspace: bot.workspace,
+        workspacePath: dialogue.workspacePath,
         title: claim.title,
-        archived: claim.archived,
+        archived: dialogue.archived,
         missing: known ? !info : false,
         blank: info?.blank ?? false,
         updatedAt: info?.updatedAt ?? null,
@@ -62,7 +69,7 @@ export function sessionLabel(
 ): string {
   if (session.title) return session.title;
   const text = summary?.trim();
-  if (!text) return "未命名任务";
+  if (!text) return "未命名上下文";
   return text.length > 32 ? `${text.slice(0, 32)}…` : text;
 }
 

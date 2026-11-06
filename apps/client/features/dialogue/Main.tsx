@@ -3,9 +3,14 @@ import { Text, View } from "nsh";
 import { Button } from "../../components/ui";
 import { registry } from "../bots/state";
 import { ChatPane } from "./ChatPane";
-import { createAndOpenSession, openBotSessions, openModule } from "./navigate";
+import {
+  createAndOpenSession,
+  openBotDialogues,
+  openDialogueSessions,
+  openModule,
+} from "./navigate";
 import { creatingSession, sessionError } from "./session/runtime";
-import { sessionScopeBotId } from "./state";
+import { sessionScopeBotId, sessionScopeDialogueId } from "./state";
 
 /** Dialogue main: Session chat pane. */
 export function DialogueMain(props: { selectedId: string | null }) {
@@ -29,50 +34,63 @@ export function DialogueMain(props: { selectedId: string | null }) {
 
 function EmptyHint() {
   const readyBots = () => registry().bots.filter((bot) => bot.status === "ready");
-  const scoped = () => registry().bots.find((bot) => bot.id === sessionScopeBotId()) ?? null;
+  const scopedBot = () => registry().bots.find((bot) => bot.id === sessionScopeBotId()) ?? null;
+  const scopedDialogue = () =>
+    registry().dialogues.find((item) => item.id === sessionScopeDialogueId()) ?? null;
+  const botDialogues = () => {
+    const botId = sessionScopeBotId();
+    if (!botId) return [];
+    return registry().dialogues.filter((item) => item.botId === botId && !item.archived);
+  };
 
-  const createFor = (botId: string) => {
+  const createForDialogue = (dialogueId: string) => {
     if (creatingSession()) return;
-    void createAndOpenSession(botId).catch(() => undefined);
+    void createAndOpenSession(dialogueId).catch(() => undefined);
   };
 
   return (
     <View style={{ gap: 12, alignItems: "center", maxWidth: 360 }}>
       <Text class="text-muted-foreground text-center text-sm" style={{ lineHeight: 20 }}>
-        {scoped()
-          ? `在「${scoped()?.name}」下新建任务，或从左侧选择已有会话。`
-          : readyBots().length > 0
-            ? "选择左侧会话，或在某个就绪的 Bot 下新建任务。"
-            : "先到 Bots 导入模板并初始化一个助手，再回来新建任务。"}
+        {scopedDialogue()
+          ? `在「${scopedDialogue()?.workspacePath}」下新建 Session，或从左侧选择已有会话。`
+          : scopedBot()
+            ? `选择「${scopedBot()?.name}」下的一段 Dialogue，或新建上下文。`
+            : readyBots().length > 0
+              ? "选择左侧会话，或打开某个就绪 Bot 的 Dialogue 列表。"
+              : "先到 Bots 导入模板并初始化一个助手，再回来新建上下文。"}
       </Text>
       <If when={sessionError()}>
         <Text class="text-destructive text-center text-xs">{sessionError()}</Text>
       </If>
-      <If when={scoped()?.status === "ready"}>
+      <If when={scopedDialogue()}>
         <Button
-          label={creatingSession() ? "正在新建…" : "新建任务"}
+          label={creatingSession() ? "正在新建…" : "新建 Session"}
           disabled={creatingSession()}
-          onPress={() => createFor(scoped()!.id)}
+          onPress={() => createForDialogue(scopedDialogue()!.id)}
         />
       </If>
-      <If when={!scoped() && readyBots().length > 0}>
+      <If when={!scopedDialogue() && scopedBot() && botDialogues().length > 0}>
+        <View style={{ gap: 8, alignSelf: "stretch" }}>
+          <Each of={botDialogues()}>
+            {(dialogue) => (
+              <Button
+                label={dialogue().workspacePath}
+                variant="secondary"
+                onPress={() => openDialogueSessions(dialogue().id)}
+              />
+            )}
+          </Each>
+        </View>
+      </If>
+      <If when={!scopedBot() && readyBots().length > 0}>
         <View style={{ gap: 8, alignSelf: "stretch" }}>
           <Each of={readyBots()}>
             {(bot) => (
-              <View style={{ gap: 6 }}>
-                <Button
-                  label={creatingSession() ? "正在新建…" : `在「${bot().name}」下新建`}
-                  variant="secondary"
-                  disabled={creatingSession()}
-                  onPress={() => createFor(bot().id)}
-                />
-                <Button
-                  label={`打开「${bot().name}」的会话列表`}
-                  variant="secondary"
-                  size="small"
-                  onPress={() => openBotSessions(bot().id)}
-                />
-              </View>
+              <Button
+                label={`打开「${bot().name}」的 Dialogues`}
+                variant="secondary"
+                onPress={() => openBotDialogues(bot().id)}
+              />
             )}
           </Each>
         </View>

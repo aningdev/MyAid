@@ -3,6 +3,7 @@ import { expect, test } from "nsh/test";
 import {
   claimSession,
   createBot,
+  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -12,18 +13,22 @@ import { buildSessionRoster, sessionDetail, withOccupancy } from "./roster";
 function readyBot() {
   return claimSession(
     claimSession(
-      initializeBot(
-        createBot(
-          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-          { name: "Ada", templateId: "tmpl", workspace: "/work" },
+      createDialogue(
+        initializeBot(
+          createBot(
+            createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+            { name: "Ada", templateId: "tmpl" },
+            "bot",
+          ),
           "bot",
         ),
-        "bot",
+        { botId: "bot", workspacePath: "/work" },
+        "dlg",
       ),
-      "bot",
+      "dlg",
       "old",
     ),
-    "bot",
+    "dlg",
     "new",
   );
 }
@@ -38,11 +43,25 @@ test("roster marks missing claims and occupancy", () => {
     summaries: new Map([["new", "修复登录"]]),
   });
   expect(rows.map((row) => row.id)).toEqual(["new", "old"]);
+  expect(rows[0]?.dialogueId).toBe("dlg");
+  expect(rows[0]?.workspacePath).toBe("/work");
   expect(rows[0]?.running).toBe(true);
   expect(rows[0]?.label).toBe("修复登录");
   expect(rows[1]?.missing).toBe(true);
   expect(rows[1]?.detail).toContain("待核对");
   expect(rows[1]?.running).toBe(false);
+});
+
+test("scopeDialogueId filters to one Dialogue", () => {
+  const registry = readyBot();
+  const rows = buildSessionRoster({
+    registry,
+    listed: null,
+    scopeDialogueId: "dlg",
+    occupyingSessionId: null,
+    summaries: new Map(),
+  });
+  expect(rows.every((row) => row.dialogueId === "dlg")).toBe(true);
 });
 
 test("unclaimed sessions never appear", () => {
@@ -65,10 +84,15 @@ test("withOccupancy updates running detail", () => {
     [
       {
         id: "a",
+        dialogueId: "dlg",
         botId: "bot",
         botName: "Ada",
+        workspacePath: "/work",
         label: "a",
-        detail: sessionDetail({ botName: "Ada", archived: false, missing: false }, false),
+        detail: sessionDetail(
+          { botName: "Ada", archived: false, missing: false, workspacePath: "/work" },
+          false,
+        ),
         archived: false,
         missing: false,
         running: false,

@@ -1,10 +1,11 @@
 import { expect, test } from "nsh/test";
 
 import {
-  archiveClaim,
+  archiveDialogue,
   assignDerivedPreset,
   claimSession,
   createBot,
+  createDialogue,
   createTemplate,
   deleteBot,
   deleteTemplate,
@@ -27,7 +28,13 @@ function codingDraft() {
     { name: "Coding", presetId: "standard" },
     "tmpl",
   );
-  return createBot(withTemplate, { name: "Ada", templateId: "tmpl", workspace: "/work" }, "bot");
+  return createBot(withTemplate, { name: "Ada", templateId: "tmpl" }, "bot");
+}
+
+function readyWithDialogue() {
+  let registry = initializeBot(codingDraft(), "bot");
+  registry = createDialogue(registry, { botId: "bot", workspacePath: "/work" }, "dlg");
+  return registry;
 }
 
 test("a draft follows the template preset", () => {
@@ -40,7 +47,7 @@ test("a draft follows the template preset", () => {
   expect(registry.bots[0].boundPresetId).toBe(null);
 });
 
-test("initialization binds the template preset at that moment", () => {
+test("initialization binds the template preset without a workspace", () => {
   let registry = codingDraft();
   registry = initializeBot(registry, "bot");
   expect(registry.bots[0].status).toBe("ready");
@@ -50,7 +57,7 @@ test("initialization binds the template preset at that moment", () => {
   registry = updateTemplate(registry, "tmpl", { presetId: "minimal" });
   expect(presetForBot(registry, "bot")).toBe("standard");
 
-  const draft = createBot(registry, { name: "Bea", templateId: "tmpl", workspace: "" }, "bea");
+  const draft = createBot(registry, { name: "Bea", templateId: "tmpl" }, "bea");
   expect(presetForBot(draft, "bea")).toBe("minimal");
 });
 
@@ -61,7 +68,6 @@ test("a derived preset wins and the template reference stays", () => {
   expect(presetBinding(registry.bots[0], registry.templates[0]).label).toBe("单独配置");
   expect(registry.bots[0].templateId).toBe("tmpl");
   expect(() => updateBot(registry, "bot", { templateId: "other" })).toThrow(RegistryRejection);
-  expect(() => updateBot(registry, "bot", { workspace: "/other" })).toThrow(RegistryRejection);
   const renamed = updateBot(registry, "bot", { name: "Ada 2", defaultModel: "deepseek" });
   expect(renamed.bots[0].name).toBe("Ada 2");
   expect(renamed.bots[0].defaultModel).toBe("deepseek");
@@ -76,15 +82,12 @@ test("deleting a template that a bot still uses is refused", () => {
   expect(gone.templates.length).toBe(0);
 });
 
-test("initialization requires a workspace and leaves the draft unchanged on failure", () => {
-  const registry = createBot(
-    createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-    { name: "Ada", templateId: "tmpl" },
-    "bot",
+test("creating a dialogue requires a workspace path", () => {
+  const registry = initializeBot(codingDraft(), "bot");
+  expect(() => createDialogue(registry, { botId: "bot", workspacePath: "  " }, "dlg")).toThrow(
+    RegistryRejection,
   );
-  expect(() => initializeBot(registry, "bot")).toThrow(RegistryRejection);
-  expect(registry.bots[0].status).toBe("draft");
-  expect(registry.bots[0].boundPresetId).toBe(null);
+  expect(registry.dialogues).toHaveLength(0);
 });
 
 test("a corrupt registry is reported and not overwritten", async () => {
@@ -100,27 +103,34 @@ test("a corrupt registry is reported and not overwritten", async () => {
   expect(store.text()).toBe("{");
 });
 
-test("a ready bot claims sessions and cannot be deleted afterwards", () => {
+test("a ready bot creates dialogues, claims sessions, and cannot be deleted afterwards", () => {
   let registry = initializeBot(codingDraft(), "bot");
   expect(deleteBot(registry, "bot").bots).toHaveLength(0);
 
-  registry = claimSession(initializeBot(codingDraft(), "bot"), "bot", "s1");
-  expect(registry.bots[0].hadSession).toBe(true);
-  registry = archiveClaim(registry, "bot", "s1");
-  expect(registry.bots[0].claims[0]?.archived).toBe(true);
-  registry = releaseClaim(registry, "bot", "s1");
-  expect(registry.bots[0].claims).toHaveLength(0);
+  registry = readyWithDialogue();
+  expect(registry.bots[0].hadDialogue).toBe(true);
+  expect(registry.dialogues[0]?.workspacePath).toBe("/work");
+  registry = claimSession(registry, "dlg", "s1");
+  expect(registry.dialogues[0]?.claims).toHaveLength(1);
+  registry = archiveDialogue(registry, "dlg");
+  expect(registry.dialogues[0]?.archived).toBe(true);
+  expect(() => claimSession(registry, "dlg", "s2")).toThrow(RegistryRejection);
+  registry = releaseClaim(registry, "dlg", "s1");
+  expect(registry.dialogues[0]?.claims).toHaveLength(0);
   expect(() => deleteBot(registry, "bot")).toThrow(RegistryRejection);
-  expect(() => claimSession(codingDraft(), "bot", "s2")).toThrow(RegistryRejection);
+  expect(() => claimSession(initializeBot(codingDraft(), "bot"), "missing", "s2")).toThrow(
+    RegistryRejection,
+  );
 });
 
-test("one session belongs to one bot", () => {
-  let registry = claimSession(initializeBot(codingDraft(), "bot"), "bot", "s1");
-  registry = initializeBot(
-    createBot(registry, { name: "Bea", templateId: "tmpl", workspace: "/else" }, "bea"),
-    "bea",
+test("one session belongs to one dialogue", () => {
+  let registry = claimSession(readyWithDialogue(), "dlg", "s1");
+  registry = createDialogue(
+    initializeBot(createBot(registry, { name: "Bea", templateId: "tmpl" }, "bea"), "bea"),
+    { botId: "bea", workspacePath: "/else" },
+    "dlg2",
   );
-  expect(() => claimSession(registry, "bea", "s1")).toThrow(RegistryRejection);
+  expect(() => claimSession(registry, "dlg2", "s1")).toThrow(RegistryRejection);
 });
 
 test("dsh presets become templates keyed by preset id", () => {
@@ -135,33 +145,18 @@ test("dsh presets become templates keyed by preset id", () => {
   expect(renamed.templates.find((item) => item.id === "standard")?.name).toBe("标准");
 });
 
-test("a version 1 session pointer becomes one claim", () => {
+test("legacy registry versions are rejected", () => {
   const parsed = parseRegistry(
     JSON.stringify({
-      version: 1,
+      version: 2,
       templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
-      bots: [
-        {
-          id: "bot",
-          name: "Ada",
-          templateId: "tmpl",
-          workspace: "/work",
-          defaultModel: null,
-          sessionId: "s1",
-          status: "ready",
-          boundPresetId: "standard",
-          derivedPresetId: null,
-        },
-      ],
+      bots: [],
+      dialogues: [],
     }),
   );
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok) return;
-  expect(parsed.registry.version).toBe(2);
-  expect(parsed.registry.bots[0]?.claims).toEqual([
-    { sessionId: "s1", title: null, archived: false },
-  ]);
-  expect(parsed.registry.bots[0]?.hadSession).toBe(true);
+  expect(parsed.ok).toBe(false);
+  if (parsed.ok) return;
+  expect(parsed.message).toContain("bots.json");
 });
 
 test("a missing registry starts empty and commits stay serial", async () => {
@@ -170,6 +165,7 @@ test("a missing registry starts empty and commits stay serial", async () => {
   const loaded = await repo.load();
   expect(loaded.corrupt).toBe(null);
   expect(loaded.registry.templates).toHaveLength(0);
+  expect(loaded.registry.dialogues).toHaveLength(0);
 
   await Promise.all([
     repo.commit((registry) => createTemplate(registry, { name: "A", presetId: "one" }, "a")),
@@ -179,4 +175,5 @@ test("a missing registry starts empty and commits stay serial", async () => {
   expect(parsed.ok).toBe(true);
   if (!parsed.ok) return;
   expect(parsed.registry.templates.map((item) => item.id).sort()).toEqual(["a", "b"]);
+  expect(parsed.registry.version).toBe(3);
 });
