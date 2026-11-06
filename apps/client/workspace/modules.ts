@@ -10,7 +10,7 @@ export const modules: WorkspaceModule[] = [
   placeholderModule("today", "Today", "Today", "spark"),
   dialogueModule,
   placeholderModule("tasks", "Tasks", "Tasks", "check"),
-  placeholderModule("outcomes", "Outcomes", "Out", "arrow-up"),
+  placeholderModule("deliverables", "Deliverables", "Deliv", "arrow-up"),
   botsModule,
   placeholderModule("knowledge", "Knowledge", "Know", "storage"),
   pluginsModule,

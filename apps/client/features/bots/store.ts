@@ -33,7 +33,7 @@ export function memoryStore(initial: string | null = null): RegistryStore & {
   };
 }
 
-/** `~/.myaid/registry/bots.json`, beside the dsh profile rather than inside a preset patch. */
+/** `~/.myaid/registry/bots.json` (v3: templates + bots + dialogues). Beside the dsh profile, not inside a preset patch. */
 export function defaultRegistryPath(): string {
   return join(homedir(), ".myaid", "registry", "bots.json");
 }

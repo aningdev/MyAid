@@ -1,6 +1,6 @@
 /**
  * Deep module: claimed Session lifecycle (connect → create+claim+follow → prompt → dispose).
- * Connection / dsh session helpers stay as adapters behind this interface.
+ * Sessions are claimed to a Dialogue; Bot supplies the Agent preset.
  */
 import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 
@@ -9,7 +9,7 @@ import type {
   ApprovalRequest,
   FlatModelCatalog,
 } from "../../../lib/dsh/connection";
-import { claimOwner, type Bot, type BotRegistry } from "../../bots/model";
+import { claimOwner, type Bot, type BotRegistry, type Dialogue } from "../../bots/model";
 import { sessionLabel, workspaceKey } from "../../bots/sessions";
 
 export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog };
@@ -48,7 +48,7 @@ export type SessionTransport = {
 
 export type ClaimHooks = {
   connect(): Promise<SessionTransport>;
-  claim(botId: string, sessionId: string): Promise<boolean>;
+  claim(dialogueId: string, sessionId: string): Promise<boolean>;
   registry(): BotRegistry;
   summaries(): Map<string, string>;
   onFrame(sessionId: string, frame: SessionFollowFrame): void;
@@ -66,7 +66,9 @@ export function occupancyBlock(input: {
   const left = claimOwner(input.registry, occupant);
   const right = claimOwner(input.registry, input.targetSessionId);
   if (!left || !right) return null;
-  if (workspaceKey(left.bot.workspace) !== workspaceKey(right.bot.workspace)) return null;
+  if (workspaceKey(left.dialogue.workspacePath) !== workspaceKey(right.dialogue.workspacePath)) {
+    return null;
+  }
   return `工作区正被「${sessionLabel(left.claim, input.summaries.get(occupant) ?? null)}」占用。`;
 }
 
@@ -146,21 +148,21 @@ export class ClaimedSessionClient {
     this.sessionId = undefined;
   }
 
-  /** Create Harness Session, claim to Bot, follow. */
+  /** Create Harness Session, claim to Dialogue, follow. */
   async createClaimed(input: {
-    botId: string;
+    dialogueId: string;
+    dialogue: Dialogue;
     bot: Bot;
     agentPreset: string;
-    cwd: string;
   }): Promise<string> {
     this.assertAlive();
     const transport = await this.ensureConnected();
     const created = await transport.createSession({
-      cwd: input.cwd,
+      cwd: input.dialogue.workspacePath,
       agentPreset: input.agentPreset,
     });
-    const saved = await this.hooks.claim(input.botId, created.sessionId);
-    if (!saved) throw new Error("会话已在后台创建，但没有写入这个 Bot。");
+    const saved = await this.hooks.claim(input.dialogueId, created.sessionId);
+    if (!saved) throw new Error("会话已在后台创建，但没有写入这段 Dialogue。");
     this.beginFollow(created.sessionId);
     return created.sessionId;
   }
@@ -180,7 +182,7 @@ export class ClaimedSessionClient {
     content?: readonly PromptContentPart[];
   }): Promise<string> {
     this.assertAlive();
-    if (input.archived) throw new Error("这条会话已归档。");
+    if (input.archived) throw new Error("这段 Dialogue 已归档，不能继续输入。");
     const blocked = occupancyBlock({
       occupyingSessionId: this.occupyingSessionId,
       targetSessionId: input.sessionId,

@@ -5,6 +5,7 @@ import { isDesktopLayout } from "../../workspace/layout";
 import { setModuleAtRoot } from "../../workspace/state";
 import {
   createBot,
+  createDialogue,
   createTemplate,
   deleteBot,
   deleteTemplate,
@@ -28,8 +29,9 @@ export type Editor =
       id: string;
       name: string;
       templateId: string;
-      workspace: string;
       defaultModel: string;
+      /** Draft path used only when creating a Dialogue from the Bot form. */
+      dialogueWorkspace: string;
     };
 
 const opened = openRepository();
@@ -86,8 +88,8 @@ export function beginBot(): void {
     id: "new",
     name: "",
     templateId: template.id,
-    workspace: "",
     defaultModel: "",
+    dialogueWorkspace: "",
   });
   actionError.set(null);
   showDetail();
@@ -101,8 +103,8 @@ export function editBot(id: string): void {
     id: bot.id,
     name: bot.name,
     templateId: bot.templateId,
-    workspace: bot.workspace,
     defaultModel: bot.defaultModel ?? "",
+    dialogueWorkspace: "",
   });
   actionError.set(null);
   showDetail();
@@ -125,13 +127,10 @@ export function setEditorTemplate(templateId: string): void {
   });
 }
 
-export function setEditorWorkspace(workspace: string): void {
-  editor.update((current) => {
-    if (current.kind !== "bot") return current;
-    const bot = untracked(registry).bots.find((item) => item.id === current.id);
-    if (bot?.status === "ready") return current;
-    return { ...current, workspace };
-  });
+export function setEditorDialogueWorkspace(dialogueWorkspace: string): void {
+  editor.update((current) =>
+    current.kind === "bot" ? { ...current, dialogueWorkspace } : current,
+  );
 }
 
 export function setEditorModel(defaultModel: string): void {
@@ -156,7 +155,7 @@ export async function saveEditor(): Promise<void> {
     return;
   }
   const saved = current.id === "new" ? next.bots[next.bots.length - 1] : findBot(next, current.id);
-  if (saved) syncBot(saved);
+  if (saved) syncBot(saved, current.dialogueWorkspace);
 }
 
 export async function initializeEditor(): Promise<void> {
@@ -168,7 +167,24 @@ export async function initializeEditor(): Promise<void> {
   });
   if (!next) return;
   const saved = current.id === "new" ? next.bots[next.bots.length - 1] : findBot(next, current.id);
-  if (saved) syncBot(saved);
+  if (saved) syncBot(saved, current.dialogueWorkspace);
+}
+
+/** Create a Dialogue under the Bot currently in the editor. */
+export async function createEditorDialogue(): Promise<string | null> {
+  const current = untracked(editor);
+  if (current.kind !== "bot" || current.id === "new" || !canWrite()) return null;
+  const workspacePath = current.dialogueWorkspace.trim();
+  if (!workspacePath) {
+    actionError.set("新建 Dialogue 需要工作区路径。");
+    return null;
+  }
+  const botId = current.id;
+  const next = await commit((reg) => createDialogue(reg, { botId, workspacePath }));
+  if (!next) return null;
+  const created = next.dialogues.filter((item) => item.botId === botId).at(-1);
+  syncBot(findBot(next, botId)!, "");
+  return created?.id ?? null;
 }
 
 export async function removeTemplate(): Promise<void> {
@@ -282,7 +298,6 @@ function applyBot(reg: BotRegistry, current: Extract<Editor, { kind: "bot" }>): 
   const input = {
     name: current.name,
     templateId: current.templateId,
-    workspace: current.workspace,
     defaultModel: current.defaultModel.trim() ? current.defaultModel : null,
   };
   if (current.id === "new") return createBot(reg, input);
@@ -296,14 +311,14 @@ function botIdAfter(reg: BotRegistry, current: Extract<Editor, { kind: "bot" }>)
   return created.id;
 }
 
-function syncBot(bot: BotRegistry["bots"][number]): void {
+function syncBot(bot: BotRegistry["bots"][number], dialogueWorkspace = ""): void {
   editor.set({
     kind: "bot",
     id: bot.id,
     name: bot.name,
     templateId: bot.templateId,
-    workspace: bot.workspace,
     defaultModel: bot.defaultModel ?? "",
+    dialogueWorkspace,
   });
 }
 

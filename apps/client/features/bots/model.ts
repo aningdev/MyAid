@@ -1,6 +1,6 @@
-/** Desktop registry: a Bot is an instance of a product template, and the template maps to a DSH Agent preset id. */
+/** Desktop registry: Bot → Dialogue → Session (claim). Bot capability = Agent preset. */
 
-export const REGISTRY_VERSION = 2 as const;
+export const REGISTRY_VERSION = 3 as const;
 
 export type BotTemplate = {
   id: string;
@@ -11,22 +11,19 @@ export type BotTemplate = {
 
 export type BotStatus = "draft" | "ready";
 
-/** A Harness Session owned by one Bot. The event log stays in dsh. */
+/** A Harness Session claimed to one Dialogue. The event log stays in dsh. */
 export type SessionClaim = {
   sessionId: string;
   title: string | null;
-  archived: boolean;
 };
 
 export type Bot = {
   id: string;
   name: string;
   templateId: string;
-  workspace: string;
   defaultModel: string | null;
-  claims: SessionClaim[];
-  /** Stays true after a missing session is released, so the Bot cannot be deleted. */
-  hadSession: boolean;
+  /** Stays true after any Dialogue existed, so the Bot cannot be deleted. */
+  hadDialogue: boolean;
   status: BotStatus;
   /** Preset id captured from the template at initialization. */
   boundPresetId: string | null;
@@ -34,27 +31,39 @@ export type Bot = {
   derivedPresetId: string | null;
 };
 
+/** Long-running thread with a Bot; binds one workspace path. */
+export type Dialogue = {
+  id: string;
+  botId: string;
+  workspacePath: string;
+  archived: boolean;
+  claims: SessionClaim[];
+};
+
 export type BotRegistry = {
   version: typeof REGISTRY_VERSION;
   templates: BotTemplate[];
   bots: Bot[];
+  dialogues: Dialogue[];
 };
 
 export type RegistryIssue =
   | { code: "corrupt" }
   | { code: "invalid"; reason: string }
-  | { code: "not-found"; kind: "template" | "bot"; id: string }
+  | { code: "unsupported-version"; version: unknown }
+  | { code: "not-found"; kind: "template" | "bot" | "dialogue"; id: string }
   | { code: "missing-template"; templateId: string }
   | { code: "template-in-use"; templateId: string }
   | { code: "not-draft"; botId: string }
-  | { code: "empty-workspace"; botId: string }
-  | { code: "frozen"; botId: string; field: "templateId" | "workspace" }
+  | { code: "empty-workspace"; dialogueId?: string }
+  | { code: "frozen"; kind: "bot" | "dialogue"; id: string; field: "templateId" | "workspacePath" }
   | { code: "empty-name" }
   | { code: "empty-preset" }
   | { code: "duplicate-id"; id: string }
   | { code: "not-ready"; botId: string }
+  | { code: "dialogue-archived"; dialogueId: string }
   | { code: "session-claimed"; sessionId: string }
-  | { code: "bot-has-sessions"; botId: string }
+  | { code: "bot-has-dialogues"; botId: string }
   | { code: "claim-not-found"; sessionId: string };
 
 export class RegistryRejection extends Error {
@@ -72,7 +81,7 @@ export type ParseResult = { ok: true; registry: BotRegistry } | { ok: false; mes
 export type PresetBindingLabel = "跟随模板" | "已绑定" | "单独配置";
 
 export function emptyRegistry(): BotRegistry {
-  return { version: REGISTRY_VERSION, templates: [], bots: [] };
+  return { version: REGISTRY_VERSION, templates: [], bots: [], dialogues: [] };
 }
 
 export function newId(): string {
@@ -85,6 +94,8 @@ export function rejectionMessage(issue: RegistryIssue): string {
       return "注册表已损坏，未覆盖文件。";
     case "invalid":
       return issue.reason;
+    case "unsupported-version":
+      return "注册表版本过旧或无法读取，请删除 ~/.myaid/registry/bots.json 后重建。";
     case "not-found":
       return "找不到这条记录。";
     case "missing-template":
@@ -94,9 +105,11 @@ export function rejectionMessage(issue: RegistryIssue): string {
     case "not-draft":
       return "这个 Bot 已经初始化。";
     case "empty-workspace":
-      return "初始化前要填写工作区。";
+      return "创建 Dialogue 前要填写工作区路径。";
     case "frozen":
-      return issue.field === "templateId" ? "初始化后不能改模板。" : "初始化后不能改工作区。";
+      return issue.field === "templateId"
+        ? "初始化后不能改模板。"
+        : "创建后不能改 Dialogue 工作区。";
     case "empty-name":
       return "名称不能为空。";
     case "empty-preset":
@@ -104,13 +117,15 @@ export function rejectionMessage(issue: RegistryIssue): string {
     case "duplicate-id":
       return "标识已存在。";
     case "not-ready":
-      return "初始化之后才能新建会话。";
+      return "初始化之后才能新建 Dialogue。";
+    case "dialogue-archived":
+      return "这段 Dialogue 已归档。";
     case "session-claimed":
-      return "这条会话已经属于一个 Bot。";
-    case "bot-has-sessions":
-      return "这个 Bot 已经有过会话。";
+      return "这条会话已经认领到一段 Dialogue。";
+    case "bot-has-dialogues":
+      return "这个 Bot 已经有过 Dialogue。";
     case "claim-not-found":
-      return "找不到这条会话。";
+      return "找不到这条会话认领。";
   }
 }
 
@@ -209,7 +224,6 @@ export function createBot(
   input: {
     name: string;
     templateId: string;
-    workspace?: string;
     defaultModel?: string | null;
   },
   id: string = newId(),
@@ -222,10 +236,8 @@ export function createBot(
     id,
     name: requireName(input.name),
     templateId: template.id,
-    workspace: input.workspace?.trim() ?? "",
     defaultModel: blankToNull(input.defaultModel ?? null),
-    claims: [],
-    hadSession: false,
+    hadDialogue: false,
     status: "draft",
     boundPresetId: null,
     derivedPresetId: null,
@@ -239,7 +251,6 @@ export function updateBot(
   patch: {
     name?: string;
     templateId?: string;
-    workspace?: string;
     defaultModel?: string | null;
   },
 ): BotRegistry {
@@ -247,97 +258,127 @@ export function updateBot(
   let templateId = bot.templateId;
   if (patch.templateId !== undefined && patch.templateId !== bot.templateId) {
     if (bot.status === "ready") {
-      throw new RegistryRejection({ code: "frozen", botId: id, field: "templateId" });
+      throw new RegistryRejection({
+        code: "frozen",
+        kind: "bot",
+        id,
+        field: "templateId",
+      });
     }
     templateId = requireTemplate(registry, patch.templateId).id;
-  }
-  let workspace = bot.workspace;
-  if (patch.workspace !== undefined && patch.workspace.trim() !== bot.workspace) {
-    if (bot.status === "ready") {
-      throw new RegistryRejection({ code: "frozen", botId: id, field: "workspace" });
-    }
-    workspace = patch.workspace.trim();
   }
   const next: Bot = {
     ...bot,
     name: patch.name === undefined ? bot.name : requireName(patch.name),
     templateId,
-    workspace,
     defaultModel:
       patch.defaultModel === undefined ? bot.defaultModel : blankToNull(patch.defaultModel),
   };
   return replaceBot(registry, next);
 }
 
-/** Bind the template's preset id. Does not contact dsh and does not allocate a derived preset. */
+/** Bind the template's preset id. Does not contact dsh and does not require a workspace. */
 export function initializeBot(registry: BotRegistry, botId: string): BotRegistry {
   const bot = mustBot(registry, botId);
   if (bot.status !== "draft") throw new RegistryRejection({ code: "not-draft", botId });
   const template = templateById(registry, bot.templateId);
   if (!template)
     throw new RegistryRejection({ code: "missing-template", templateId: bot.templateId });
-  const workspace = bot.workspace.trim();
-  if (!workspace) throw new RegistryRejection({ code: "empty-workspace", botId });
   return replaceBot(registry, {
     ...bot,
-    workspace,
     status: "ready",
     boundPresetId: template.presetId,
   });
 }
 
-/** Claim a new Harness Session for a ready Bot. */
-export function claimSession(registry: BotRegistry, botId: string, sessionId: string): BotRegistry {
-  const bot = mustBot(registry, botId);
-  if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId });
+/** Create a Dialogue under a ready Bot. Workspace path is required and frozen afterwards. */
+export function createDialogue(
+  registry: BotRegistry,
+  input: { botId: string; workspacePath: string },
+  id: string = newId(),
+): BotRegistry {
+  const bot = mustBot(registry, input.botId);
+  if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId: bot.id });
+  if (registry.dialogues.some((item) => item.id === id)) {
+    throw new RegistryRejection({ code: "duplicate-id", id });
+  }
+  const workspacePath = input.workspacePath.trim();
+  if (!workspacePath) throw new RegistryRejection({ code: "empty-workspace" });
+  const dialogue: Dialogue = {
+    id,
+    botId: bot.id,
+    workspacePath,
+    archived: false,
+    claims: [],
+  };
+  return {
+    ...replaceBot(registry, { ...bot, hadDialogue: true }),
+    dialogues: [...registry.dialogues, dialogue],
+  };
+}
+
+export function archiveDialogue(registry: BotRegistry, dialogueId: string): BotRegistry {
+  const dialogue = mustDialogue(registry, dialogueId);
+  return replaceDialogue(registry, { ...dialogue, archived: true });
+}
+
+/** Claim a new Harness Session for an active Dialogue. */
+export function claimSession(
+  registry: BotRegistry,
+  dialogueId: string,
+  sessionId: string,
+): BotRegistry {
+  const dialogue = mustDialogue(registry, dialogueId);
+  if (dialogue.archived)
+    throw new RegistryRejection({ code: "dialogue-archived", dialogueId: dialogue.id });
+  const bot = mustBot(registry, dialogue.botId);
+  if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId: bot.id });
   const id = sessionId.trim();
   if (!id) throw new RegistryRejection({ code: "invalid", reason: "Session id 不能为空。" });
   if (claimOwner(registry, id))
     throw new RegistryRejection({ code: "session-claimed", sessionId: id });
-  return replaceBot(registry, {
-    ...bot,
-    hadSession: true,
-    claims: [...bot.claims, { sessionId: id, title: null, archived: false }],
+  return replaceDialogue(registry, {
+    ...dialogue,
+    claims: [...dialogue.claims, { sessionId: id, title: null }],
   });
 }
 
 export function renameClaim(
   registry: BotRegistry,
-  botId: string,
+  dialogueId: string,
   sessionId: string,
   title: string | null,
 ): BotRegistry {
-  return mapClaim(registry, botId, sessionId, (claim) => ({
+  return mapClaim(registry, dialogueId, sessionId, (claim) => ({
     ...claim,
     title: blankToNull(title),
   }));
 }
 
-/** Mark the claim archived. Caller must refuse this while that session is executing. */
-export function archiveClaim(registry: BotRegistry, botId: string, sessionId: string): BotRegistry {
-  return mapClaim(registry, botId, sessionId, (claim) => ({ ...claim, archived: true }));
-}
-
 /**
  * Drop a claim whose Harness Session is already gone.
- * `hadSession` stays set. Caller must not use this while dsh still has the session.
+ * `hadDialogue` on the Bot stays set. Caller must not use this while dsh still has the session.
  */
-export function releaseClaim(registry: BotRegistry, botId: string, sessionId: string): BotRegistry {
-  const bot = mustBot(registry, botId);
-  if (!bot.claims.some((claim) => claim.sessionId === sessionId)) {
+export function releaseClaim(
+  registry: BotRegistry,
+  dialogueId: string,
+  sessionId: string,
+): BotRegistry {
+  const dialogue = mustDialogue(registry, dialogueId);
+  if (!dialogue.claims.some((claim) => claim.sessionId === sessionId)) {
     throw new RegistryRejection({ code: "claim-not-found", sessionId });
   }
-  return replaceBot(registry, {
-    ...bot,
-    claims: bot.claims.filter((claim) => claim.sessionId !== sessionId),
+  return replaceDialogue(registry, {
+    ...dialogue,
+    claims: dialogue.claims.filter((claim) => claim.sessionId !== sessionId),
   });
 }
 
-/** Delete a Bot that has never claimed a session. */
+/** Delete a Bot that has never had a Dialogue. */
 export function deleteBot(registry: BotRegistry, botId: string): BotRegistry {
   const bot = mustBot(registry, botId);
-  if (bot.hadSession || bot.claims.length > 0) {
-    throw new RegistryRejection({ code: "bot-has-sessions", botId });
+  if (bot.hadDialogue || registry.dialogues.some((item) => item.botId === botId)) {
+    throw new RegistryRejection({ code: "bot-has-dialogues", botId });
   }
   return { ...registry, bots: registry.bots.filter((item) => item.id !== botId) };
 }
@@ -345,12 +386,19 @@ export function deleteBot(registry: BotRegistry, botId: string): BotRegistry {
 export function claimOwner(
   registry: BotRegistry,
   sessionId: string,
-): { bot: Bot; claim: SessionClaim } | null {
-  for (const bot of registry.bots) {
-    const claim = bot.claims.find((item) => item.sessionId === sessionId);
-    if (claim) return { bot, claim };
+): { bot: Bot; dialogue: Dialogue; claim: SessionClaim } | null {
+  for (const dialogue of registry.dialogues) {
+    const claim = dialogue.claims.find((item) => item.sessionId === sessionId);
+    if (!claim) continue;
+    const bot = registry.bots.find((item) => item.id === dialogue.botId);
+    if (!bot) continue;
+    return { bot, dialogue, claim };
   }
   return null;
+}
+
+export function dialoguesForBot(registry: BotRegistry, botId: string): Dialogue[] {
+  return registry.dialogues.filter((item) => item.botId === botId);
 }
 
 /** Record a per-bot preset id. The caller has registered that preset on the plugin side. */
@@ -374,12 +422,21 @@ export function parseRegistry(text: string): ParseResult {
   } catch {
     return { ok: false, message: "注册表不是 JSON。" };
   }
-  if (!isRecord(value) || (value.version !== 1 && value.version !== REGISTRY_VERSION)) {
-    return { ok: false, message: "注册表版本无法读取。" };
+  if (!isRecord(value)) {
+    return { ok: false, message: "注册表不是对象。" };
   }
-  const legacy = value.version === 1;
-  if (!Array.isArray(value.templates) || !Array.isArray(value.bots)) {
-    return { ok: false, message: "注册表缺少模板或 Bot 列表。" };
+  if (value.version !== REGISTRY_VERSION) {
+    return {
+      ok: false,
+      message: rejectionMessage({ code: "unsupported-version", version: value.version }),
+    };
+  }
+  if (
+    !Array.isArray(value.templates) ||
+    !Array.isArray(value.bots) ||
+    !Array.isArray(value.dialogues)
+  ) {
+    return { ok: false, message: "注册表缺少模板、Bot 或 Dialogue 列表。" };
   }
   const templates: BotTemplate[] = [];
   const templateIds = new Set<string>();
@@ -392,22 +449,40 @@ export function parseRegistry(text: string): ParseResult {
   }
   const bots: Bot[] = [];
   const botIds = new Set<string>();
-  const sessionIds = new Set<string>();
   for (const item of value.bots) {
-    const parsed = parseBot(item, legacy);
+    const parsed = parseBot(item);
     if (typeof parsed === "string") return { ok: false, message: parsed };
     if (botIds.has(parsed.id)) return { ok: false, message: "Bot id 重复。" };
     if (!templateIds.has(parsed.templateId)) {
       return { ok: false, message: "Bot 引用了不存在的模板。" };
     }
+    botIds.add(parsed.id);
+    bots.push(parsed);
+  }
+  const dialogues: Dialogue[] = [];
+  const dialogueIds = new Set<string>();
+  const sessionIds = new Set<string>();
+  for (const item of value.dialogues) {
+    const parsed = parseDialogue(item);
+    if (typeof parsed === "string") return { ok: false, message: parsed };
+    if (dialogueIds.has(parsed.id)) return { ok: false, message: "Dialogue id 重复。" };
+    if (!botIds.has(parsed.botId)) {
+      return { ok: false, message: "Dialogue 引用了不存在的 Bot。" };
+    }
     for (const claim of parsed.claims) {
       if (sessionIds.has(claim.sessionId)) return { ok: false, message: "Session id 重复。" };
       sessionIds.add(claim.sessionId);
     }
-    botIds.add(parsed.id);
-    bots.push(parsed);
+    dialogueIds.add(parsed.id);
+    dialogues.push(parsed);
   }
-  return { ok: true, registry: { version: REGISTRY_VERSION, templates, bots } };
+  for (const bot of bots) {
+    const hasDialogue = dialogues.some((item) => item.botId === bot.id);
+    if (hasDialogue && !bot.hadDialogue) {
+      return { ok: false, message: "Bot 项无效：存在 Dialogue 但 hadDialogue 为 false。" };
+    }
+  }
+  return { ok: true, registry: { version: REGISTRY_VERSION, templates, bots, dialogues } };
 }
 
 function parseTemplate(value: unknown): BotTemplate | string {
@@ -420,17 +495,16 @@ function parseTemplate(value: unknown): BotTemplate | string {
   return { id, name: name.trim(), presetId: presetId.trim() };
 }
 
-function parseBot(value: unknown, legacy: boolean): Bot | string {
+function parseBot(value: unknown): Bot | string {
   if (!isRecord(value)) return "Bot 项无效。";
   const id = readRequiredString(value, "id");
   const name = readRequiredString(value, "name");
   const templateId = readRequiredString(value, "templateId");
-  const workspace = readRequiredString(value, "workspace");
   const status = value.status;
   const defaultModel = readNullableString(value, "defaultModel");
   const boundPresetId = readNullableString(value, "boundPresetId");
   const derivedPresetId = readNullableString(value, "derivedPresetId");
-  if (!id || !name?.trim() || !templateId || workspace === undefined) return "Bot 项无效。";
+  if (!id || !name?.trim() || !templateId) return "Bot 项无效。";
   if (status !== "draft" && status !== "ready") return "Bot 项无效。";
   if (defaultModel === undefined || boundPresetId === undefined || derivedPresetId === undefined) {
     return "Bot 项无效。";
@@ -438,46 +512,50 @@ function parseBot(value: unknown, legacy: boolean): Bot | string {
   if (status === "ready" && !blankToNull(boundPresetId) && !blankToNull(derivedPresetId)) {
     return "Bot 项无效。";
   }
-  const claims = legacy ? legacyClaims(value) : parseClaims(value.claims);
-  if (typeof claims === "string") return claims;
-  const hadSession = legacy ? claims.length > 0 : value.hadSession;
-  if (typeof hadSession !== "boolean") return "Bot 项无效。";
-  if (claims.length > 0 && !hadSession) return "Bot 项无效。";
+  if (typeof value.hadDialogue !== "boolean") return "Bot 项无效。";
   return {
     id,
     name: name.trim(),
     templateId,
-    workspace,
     defaultModel: blankToNull(defaultModel),
-    claims,
-    hadSession,
+    hadDialogue: value.hadDialogue,
     status,
     boundPresetId: blankToNull(boundPresetId),
     derivedPresetId: blankToNull(derivedPresetId),
   };
 }
 
-function legacyClaims(value: Record<string, unknown>): SessionClaim[] | string {
-  const sessionId = readNullableString(value, "sessionId");
-  if (sessionId === undefined) return "Bot 项无效。";
-  const id = blankToNull(sessionId);
-  if (!id) return [];
-  return [{ sessionId: id, title: null, archived: false }];
+function parseDialogue(value: unknown): Dialogue | string {
+  if (!isRecord(value)) return "Dialogue 项无效。";
+  const id = readRequiredString(value, "id");
+  const botId = readRequiredString(value, "botId");
+  const workspacePath = readRequiredString(value, "workspacePath");
+  if (!id || !botId || workspacePath === undefined) return "Dialogue 项无效。";
+  if (!workspacePath.trim()) return "Dialogue 项无效。";
+  if (typeof value.archived !== "boolean") return "Dialogue 项无效。";
+  const claims = parseClaims(value.claims);
+  if (typeof claims === "string") return claims;
+  return {
+    id,
+    botId,
+    workspacePath: workspacePath.trim(),
+    archived: value.archived,
+    claims,
+  };
 }
 
 function parseClaims(value: unknown): SessionClaim[] | string {
-  if (!Array.isArray(value)) return "Bot 项无效。";
+  if (!Array.isArray(value)) return "Dialogue 项无效。";
   const claims: SessionClaim[] = [];
   const seen = new Set<string>();
   for (const item of value) {
-    if (!isRecord(item)) return "Bot 项无效。";
+    if (!isRecord(item)) return "Dialogue 项无效。";
     const sessionId = readRequiredString(item, "sessionId")?.trim();
     const title = readNullableString(item, "title");
-    if (!sessionId || title === undefined || typeof item.archived !== "boolean")
-      return "Bot 项无效。";
-    if (seen.has(sessionId)) return "Bot 项无效。";
+    if (!sessionId || title === undefined) return "Dialogue 项无效。";
+    if (seen.has(sessionId)) return "Dialogue 项无效。";
     seen.add(sessionId);
-    claims.push({ sessionId, title: blankToNull(title), archived: item.archived });
+    claims.push({ sessionId, title: blankToNull(title) });
   }
   return claims;
 }
@@ -518,28 +596,41 @@ function mustBot(registry: BotRegistry, id: string): Bot {
   return bot;
 }
 
+function mustDialogue(registry: BotRegistry, id: string): Dialogue {
+  const dialogue = registry.dialogues.find((item) => item.id === id);
+  if (!dialogue) throw new RegistryRejection({ code: "not-found", kind: "dialogue", id });
+  return dialogue;
+}
+
 function templateById(registry: BotRegistry, id: string): BotTemplate | null {
   return registry.templates.find((item) => item.id === id) ?? null;
 }
 
 function mapClaim(
   registry: BotRegistry,
-  botId: string,
+  dialogueId: string,
   sessionId: string,
   change: (claim: SessionClaim) => SessionClaim,
 ): BotRegistry {
-  const bot = mustBot(registry, botId);
-  if (!bot.claims.some((claim) => claim.sessionId === sessionId)) {
+  const dialogue = mustDialogue(registry, dialogueId);
+  if (!dialogue.claims.some((claim) => claim.sessionId === sessionId)) {
     throw new RegistryRejection({ code: "claim-not-found", sessionId });
   }
-  return replaceBot(registry, {
-    ...bot,
-    claims: bot.claims.map((claim) => (claim.sessionId === sessionId ? change(claim) : claim)),
+  return replaceDialogue(registry, {
+    ...dialogue,
+    claims: dialogue.claims.map((claim) => (claim.sessionId === sessionId ? change(claim) : claim)),
   });
 }
 
 function replaceBot(registry: BotRegistry, bot: Bot): BotRegistry {
   return { ...registry, bots: registry.bots.map((item) => (item.id === bot.id ? bot : item)) };
+}
+
+function replaceDialogue(registry: BotRegistry, dialogue: Dialogue): BotRegistry {
+  return {
+    ...registry,
+    dialogues: registry.dialogues.map((item) => (item.id === dialogue.id ? dialogue : item)),
+  };
 }
 
 function blankToNull(value: string | null): string | null {

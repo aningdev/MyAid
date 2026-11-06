@@ -60,20 +60,20 @@ export function DialogueContext(_props: { selectedId: string | null }) {
           SESSION
         </Text>
         <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
-          {owned()?.claim.title || (selectedId() ? "未命名任务" : "未选择会话")}
+          {owned()?.claim.title || (selectedId() ? "未命名上下文" : "未选择会话")}
         </Text>
         <Text style={{ fontSize: 13, color: colors.muted }}>
           {owned()
-            ? `${owned()?.bot.name}${owned()?.claim.archived ? " · 已归档" : ""}`
+            ? `${owned()?.bot.name} · ${owned()?.dialogue.workspacePath}${owned()?.dialogue.archived ? " · 已归档" : ""}`
             : sessionReady()
               ? "选择一条已认领的会话"
               : "正在连接后台…"}
         </Text>
         <If when={owned()}>
           <Field
-            label="任务名"
+            label="上下文名"
             value={owned()?.claim.title ?? ""}
-            placeholder="未命名任务"
+            placeholder="未命名上下文"
             onChange={(value) => {
               const id = selectedId();
               if (id) void renameSession(id, value);
@@ -89,9 +89,9 @@ export function DialogueContext(_props: { selectedId: string | null }) {
                 if (botId) openOwningBot(botId);
               }}
             />
-            <If when={!owned()?.claim.archived}>
+            <If when={!owned()?.dialogue.archived}>
               <Button
-                label="归档"
+                label="归档 Dialogue"
                 variant="secondary"
                 size="small"
                 onPress={() => {

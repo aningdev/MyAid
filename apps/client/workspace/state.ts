@@ -5,7 +5,7 @@ export type ModuleId =
   | "today"
   | "dialogue"
   | "tasks"
-  | "outcomes"
+  | "deliverables"
   | "bots"
   | "knowledge"
   | "plugins"

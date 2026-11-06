@@ -5,19 +5,19 @@
 import { homedir } from "os";
 import { join } from "path";
 
-import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
 import { signal, untracked } from "nsh";
 
 import {
+  archiveDialogue,
   claimOwner,
   claimSession,
   presetForBot,
-  archiveClaim,
   releaseClaim,
   renameClaim,
 } from "../../bots/model";
 import { changeRegistry, ready, registry } from "../../bots/state";
-import { sessionScopeBotId } from "../state";
+import { sessionScopeBotId, sessionScopeDialogueId } from "../state";
 import {
   ClaimedSessionClient,
   type ApprovalDecision,
@@ -157,6 +157,7 @@ const APPROVAL_HELD = "这条审批还没有答复。";
 export function approvalLock(target: {
   sessionId?: string | null;
   botId?: string | null;
+  dialogueId?: string | null;
   allSessions?: boolean;
 }): boolean {
   const pending = untracked(pendingApproval);
@@ -164,7 +165,9 @@ export function approvalLock(target: {
   const owner = claimOwner(untracked(registry), pending.sessionId);
   const sameSession = target.sessionId === undefined || target.sessionId === pending.sessionId;
   const sameBot = target.botId === undefined || target.botId === owner?.bot.id;
-  if (target.allSessions || !sameSession || !sameBot) {
+  const sameDialogue =
+    target.dialogueId === undefined || target.dialogueId === owner?.dialogue.id;
+  if (target.allSessions || !sameSession || !sameBot || !sameDialogue) {
     sessionError.set(APPROVAL_HELD);
     return true;
   }
@@ -175,6 +178,12 @@ export function approvalOwnerBotId(): string | null {
   const pending = untracked(pendingApproval);
   if (!pending) return null;
   return claimOwner(untracked(registry), pending.sessionId)?.bot.id ?? null;
+}
+
+export function approvalOwnerDialogueId(): string | null {
+  const pending = untracked(pendingApproval);
+  if (!pending) return null;
+  return claimOwner(untracked(registry), pending.sessionId)?.dialogue.id ?? null;
 }
 
 export async function refreshHostStatus(): Promise<HostStatus | null> {
@@ -209,6 +218,7 @@ export async function refreshSessionList(): Promise<SessionRow[]> {
   const rows = buildSessionRoster({
     registry: untracked(registry),
     listed,
+    scopeDialogueId: untracked(sessionScopeDialogueId),
     scopeBotId: untracked(sessionScopeBotId),
     occupyingSessionId: untracked(occupyingSessionId),
     summaries,
@@ -244,8 +254,8 @@ async function ensureClient(): Promise<ClaimedSessionClient> {
   const api = await loadDsh();
   claimed = new ClaimedSessionClient({
     connect: async () => wrapConnection(await api.ensureConnected()),
-    claim: async (botId, sessionId) => {
-      const saved = await changeRegistry((reg) => claimSession(reg, botId, sessionId));
+    claim: async (dialogueId, sessionId) => {
+      const saved = await changeRegistry((reg) => claimSession(reg, dialogueId, sessionId));
       return !!saved;
     },
     registry: () => untracked(registry),
@@ -316,9 +326,9 @@ export async function connectSession(sessionId?: string): Promise<void> {
   }
 }
 
-/** Create a session for a ready Bot, claim it, and follow it. */
-export async function createSession(botId: string): Promise<string> {
-  if (untracked(creatingSession)) throw new Error("正在新建任务。");
+/** Create a session for an active Dialogue, claim it, and follow it. */
+export async function createSession(dialogueId: string): Promise<string> {
+  if (untracked(creatingSession)) throw new Error("正在新建上下文。");
   if (approvalLock({ sessionId: "\0" })) {
     throw new Error(untracked(sessionError) ?? APPROVAL_HELD);
   }
@@ -326,20 +336,23 @@ export async function createSession(botId: string): Promise<string> {
   creatingSession.set(true);
   try {
     if (!untracked(ready)) throw new Error("注册表还没准备好。");
-    const bot = untracked(registry).bots.find((item) => item.id === botId);
+    const dialogue = untracked(registry).dialogues.find((item) => item.id === dialogueId);
+    if (!dialogue) throw new Error("找不到这段 Dialogue。");
+    if (dialogue.archived) throw new Error("这段 Dialogue 已归档。");
+    const bot = untracked(registry).bots.find((item) => item.id === dialogue.botId);
     if (!bot || bot.status !== "ready") throw new Error("初始化之后才能新建会话。");
     await connectSession();
     const client = await ensureClient();
     await refreshHostStatus();
     installApprovalHandler(client);
-    const preset = presetForBot(untracked(registry), botId);
-    const cwd = resolveWorkspace(bot.workspace);
-    if (!cwd) throw new Error("这个 Bot 没有工作区。");
+    const preset = presetForBot(untracked(registry), bot.id);
+    const cwd = resolveWorkspace(dialogue.workspacePath);
+    if (!cwd) throw new Error("这段 Dialogue 没有工作区路径。");
     const id = await client.createClaimed({
-      botId,
+      dialogueId: dialogue.id,
+      dialogue: { ...dialogue, workspacePath: cwd },
       bot,
       agentPreset: preset,
-      cwd,
     });
     activeSessionId.set(id);
     const api = await loadDsh();
@@ -367,15 +380,21 @@ export async function openSession(sessionId: string): Promise<void> {
   await connectSession(sessionId);
 }
 
-export async function archiveSession(sessionId: string): Promise<void> {
+/** Archive the Dialogue that owns this session (product default). */
+export async function archiveOwningDialogue(sessionId: string): Promise<void> {
   if (untracked(occupyingSessionId) === sessionId) {
     sessionError.set("正在执行，先停止或等这轮结束。");
     return;
   }
   const owner = claimOwner(untracked(registry), sessionId);
-  if (!owner || owner.claim.archived) return;
-  const saved = await changeRegistry((reg) => archiveClaim(reg, owner.bot.id, sessionId));
+  if (!owner || owner.dialogue.archived) return;
+  const saved = await changeRegistry((reg) => archiveDialogue(reg, owner.dialogue.id));
   if (saved) await refreshSessionList();
+}
+
+/** @deprecated Prefer {@link archiveOwningDialogue}. */
+export async function archiveSession(sessionId: string): Promise<void> {
+  await archiveOwningDialogue(sessionId);
 }
 
 export async function releaseMissingSession(sessionId: string): Promise<void> {
@@ -386,14 +405,18 @@ export async function releaseMissingSession(sessionId: string): Promise<void> {
   }
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner) return;
-  const saved = await changeRegistry((reg) => releaseClaim(reg, owner.bot.id, sessionId));
+  const saved = await changeRegistry((reg) =>
+    releaseClaim(reg, owner.dialogue.id, sessionId),
+  );
   if (saved) await refreshSessionList();
 }
 
 export async function renameSession(sessionId: string, title: string): Promise<void> {
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner) return;
-  const saved = await changeRegistry((reg) => renameClaim(reg, owner.bot.id, sessionId, title));
+  const saved = await changeRegistry((reg) =>
+    renameClaim(reg, owner.dialogue.id, sessionId, title),
+  );
   if (saved) await refreshSessionList();
 }
 
@@ -407,13 +430,13 @@ export async function promptSession(
   content?: readonly PromptContentPart[],
 ): Promise<string> {
   const owner = claimOwner(untracked(registry), sessionId);
-  if (!owner) throw new Error("这条会话还没有归到 Bot。");
+  if (!owner) throw new Error("这条会话还没有认领到 Dialogue。");
   const client = await ensureClient();
   return client.prompt({
     sessionId,
     text,
     bot: owner.bot,
-    archived: owner.claim.archived,
+    archived: owner.dialogue.archived,
     ...(content ? { content } : {}),
   });
 }

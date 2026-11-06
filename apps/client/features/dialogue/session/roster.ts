@@ -12,8 +12,10 @@ import {
 
 export type SessionRow = {
   id: string;
+  dialogueId: string;
   botId: string;
   botName: string;
+  workspacePath: string;
   label: string;
   detail: string;
   archived: boolean;
@@ -22,10 +24,10 @@ export type SessionRow = {
 };
 
 export function sessionDetail(
-  item: Pick<ProductSession, "botName" | "archived" | "missing">,
+  item: Pick<ProductSession, "botName" | "archived" | "missing" | "workspacePath">,
   running: boolean,
 ): string {
-  const bits = [item.botName];
+  const bits = [item.botName, item.workspacePath];
   if (running) bits.push("执行中");
   if (item.archived) bits.push("已归档");
   if (item.missing) bits.push("待核对");
@@ -36,16 +38,22 @@ export function sessionDetail(
 export function buildSessionRoster(input: {
   registry: BotRegistry;
   listed: ListedSession[] | null;
-  scopeBotId: string | null;
+  scopeDialogueId?: string | null;
+  scopeBotId?: string | null;
   occupyingSessionId: string | null;
   summaries: Map<string, string>;
 }): SessionRow[] {
-  return listProductSessions(input.registry, input.listed, input.scopeBotId).map((item) => {
+  return listProductSessions(input.registry, input.listed, {
+    dialogueId: input.scopeDialogueId ?? null,
+    botId: input.scopeBotId ?? null,
+  }).map((item) => {
     const running = input.occupyingSessionId === item.sessionId;
     return {
       id: item.sessionId,
+      dialogueId: item.dialogueId,
       botId: item.botId,
       botName: item.botName,
+      workspacePath: item.workspacePath,
       label: sessionLabel(item, input.summaries.get(item.sessionId) ?? null),
       detail: sessionDetail(item, running),
       archived: item.archived,

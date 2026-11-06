@@ -14,21 +14,19 @@ test("creates a bot instance and binds its template preset", async () => {
 
   await app.press("新建 Bot");
   await app.type("id:bot-name", "Ada");
-  await app.type("id:bot-workspace", "/work");
   expect(app.texts()).toContain("跟随模板");
   expect(app.texts()).toContain("standard");
 
   await app.press("保存");
   expect(app.texts()).toContain("跟随模板");
-  expect(app.value("id:bot-workspace")).toBe("/work");
 
   await app.press("初始化");
   await app.waitFor("已绑定");
   expect(app.texts()).toContain("standard");
-  expect(app.texts()).toContain("/work");
   expect(app.texts()).not.toContain("跟随模板");
-  expect(app.value("id:bot-workspace")).toBe(null);
   expect(app.shows("初始化")).toBe(false);
+  expect(app.shows("新建 Dialogue")).toBe(true);
+  expect(app.shows("打开 Dialogues")).toBe(true);
 });
 
 test("mobile stack returns to the bot list", async () => {
@@ -43,10 +41,9 @@ test("mobile stack returns to the bot list", async () => {
   await app.waitFor("新建 Bot");
   await app.press("新建 Bot");
   await app.type("id:bot-name", "Ada");
-  await app.type("id:bot-workspace", "/work");
   await app.press("初始化");
   await app.waitFor("已绑定");
   expect(app.texts()).not.toContain("跟随模板");
-  expect(app.value("id:bot-workspace")).toBe(null);
   expect(app.texts()).toContain("standard");
+  expect(app.shows("新建 Dialogue")).toBe(true);
 });
