@@ -2,6 +2,7 @@
  * Deep module: follow frames + local turn lifecycle → Dialogue messages / live / freeze.
  * SessionProjector stays as internal frame parser; freeze / turned races live here.
  */
+import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import type { Msg, Status, Tool } from "../chat/scripts";
 import { SessionProjector, type ProjectedChat } from "./projector";
 
@@ -53,7 +54,7 @@ export class TurnProjection {
     this.pendingFreeze = null;
   }
 
-  receive(frame: unknown): TurnView {
+  receive(frame: SessionFollowFrame | unknown): TurnView {
     const snap = this.projector.receive(frame);
     return this.afterSnap(snap);
   }

@@ -6,11 +6,12 @@ import {
   Connection,
   type ApprovalDecision,
   type ApprovalRequest,
+  type FlatModelCatalog,
   type ModelCatalog,
   readableError,
 } from "./connection";
 
-export type { ApprovalDecision, ApprovalRequest, ModelCatalog };
+export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog, ModelCatalog };
 export { readableError };
 
 let shared: Connection | undefined;

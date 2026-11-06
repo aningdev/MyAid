@@ -9,6 +9,7 @@
 - 经 `cordis.patch.yml` + `package.json` → `dsh.bundle` 声明式装配进官方 `web` profile。
 - 开发 / Host 用绝对路径 `--patch` 指向打包产物 `lib/index.js`（或官方 `dsh plugin add`）。
 - 共享 profile 的全局插件开关不伪装成「每助手差异」；派生组合真源在插件侧。
+- **禁止**依赖 [`@myaid/dsh-web-protocol`](dsh-web-protocol)（该包仅给 NSH Client 用）。插件按官方 Cordis / Host 推荐方式直依 `@deepseek-ai/dsh-*`（如 `dsh-agent`、`dsh-tools`、`dsh-session`、自建 `@Remote`）。
 
 ## 工具链（vp）
 
