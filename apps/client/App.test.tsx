@@ -14,5 +14,7 @@ test("shows workspace chrome", async () => {
 test("opens Dialogue from primary navigation", async () => {
   const app = await open("./App.tsx", desktop);
   await app.press("label:Dialogue");
-  expect(app.texts().some((t) => t.includes("新建对话"))).toBe(true);
+  expect(
+    app.texts().some((t) => t.includes("还没有认领的会话") || t.includes("全部会话")),
+  ).toBe(true);
 });

@@ -2,7 +2,8 @@
  * Deep module: claimed Session lifecycle (connect → create+claim+follow → prompt → dispose).
  * Connection / dsh session helpers stay as adapters behind this interface.
  */
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+
 import type {
   ApprovalDecision,
   ApprovalRequest,
@@ -29,10 +30,18 @@ export type SessionTransport = {
     onFrame: (frame: SessionFollowFrame) => void,
     onError?: (error: Error) => void,
   ): () => void;
-  prompt(request: { sessionId: string; requestId: string; text: string }): Promise<void>;
+  prompt(request: {
+    sessionId: string;
+    requestId: string;
+    text?: string;
+    content?: readonly PromptContentPart[];
+  }): Promise<void>;
   cancel(sessionId: string): Promise<void>;
+  /** Withdraw a still-pending queued prompt (`session.updateQueue` remove). */
+  withdrawQueuedPrompt(sessionId: string, itemId: string): Promise<void>;
   modelCatalog(): Promise<FlatModelCatalog>;
   selectModel(request: { sessionId: string; provider: string; model: string }): Promise<void>;
+  selectAgentPreset(sessionId: string, agentPreset: string): Promise<string>;
   approvals(handler: (request: ApprovalRequest) => Promise<ApprovalDecision>): void;
   dispose(): Promise<void>;
 };
@@ -168,6 +177,7 @@ export class ClaimedSessionClient {
     text: string;
     bot: Bot;
     archived: boolean;
+    content?: readonly PromptContentPart[];
   }): Promise<string> {
     this.assertAlive();
     if (input.archived) throw new Error("这条会话已归档。");
@@ -198,7 +208,11 @@ export class ClaimedSessionClient {
       // Model apply is best-effort; prompt still proceeds.
     }
     const requestId = crypto.randomUUID().replace(/-/g, "");
-    await transport.prompt({ sessionId: input.sessionId, requestId, text: input.text });
+    await transport.prompt({
+      sessionId: input.sessionId,
+      requestId,
+      ...(input.content ? { content: input.content } : { text: input.text }),
+    });
     return requestId;
   }
 
@@ -207,6 +221,21 @@ export class ClaimedSessionClient {
     const sessionId = this.sessionId;
     if (!transport?.ready || !sessionId) return;
     await transport.cancel(sessionId);
+  }
+
+  /** Withdraw one queued (not yet running) prompt by message id. */
+  async withdrawQueued(itemId: string): Promise<void> {
+    const transport = this.transport;
+    const sessionId = this.sessionId;
+    if (!transport?.ready || !sessionId) return;
+    await transport.withdrawQueuedPrompt(sessionId, itemId);
+  }
+
+  async selectPreset(agentPreset: string): Promise<string | undefined> {
+    const transport = this.transport;
+    const sessionId = this.sessionId;
+    if (!transport?.ready || !sessionId) return undefined;
+    return transport.selectAgentPreset(sessionId, agentPreset);
   }
 
   noteActivity(sessionId: string, running: boolean): void {

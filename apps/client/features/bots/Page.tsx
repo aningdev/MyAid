@@ -2,7 +2,7 @@
  * Bots module: templates map to DSH Agent preset ids, and each Bot is an instance.
  * Shell only mounts this Page.
  */
-import { cleanup, effect, Scroll, Text, View } from "nsh";
+import { cleanup, effect, Scroll, Text, untracked, View } from "nsh";
 import { NavPage, NavStack } from "nsh/base";
 
 import { Badge, Button, colors, Field, hovered, mono, radius } from "../../components/ui";
@@ -319,14 +319,19 @@ function BotForm() {
             </Text>
           </If>
         </View>
-        <Field
-          label="工作区"
-          testID={readyBot() ? undefined : "bot-workspace"}
-          value={form()?.workspace ?? ""}
-          placeholder="/path/to/workspace"
-          editable={!readyBot()}
-          onChange={readyBot() ? undefined : setEditorWorkspace}
-        />
+        <View style={{ gap: 6 }}>
+          <Field
+            label="工作区"
+            testID={readyBot() ? undefined : "bot-workspace"}
+            value={form()?.workspace ?? ""}
+            placeholder="/path/to/workspace"
+            editable={!readyBot()}
+            onChange={readyBot() ? undefined : setEditorWorkspace}
+          />
+          <If when={!readyBot()}>
+            <Button label="选择目录…" size="small" onPress={() => void pickBotWorkspace()} />
+          </If>
+        </View>
         <Field
           label="默认模型"
           testID="bot-model"
@@ -586,4 +591,19 @@ function initializeDisabled(): boolean {
   const current = editor();
   if (current.kind !== "bot") return true;
   return botSaveDisabled() || !current.workspace.trim();
+}
+
+/** Phase B: official `directoryPicker.pick` → store absolute path on the Bot draft. */
+async function pickBotWorkspace(): Promise<void> {
+  const current = botEditor();
+  if (!current || writeBlocked()) return;
+  const stored = untracked(registry).bots.find((bot) => bot.id === current.id);
+  if (stored?.status === "ready") return;
+  try {
+    const { pickDirectory } = await import("../../lib/dsh/session");
+    const path = await pickDirectory();
+    if (path) setEditorWorkspace(path);
+  } catch (error) {
+    actionError.set(error instanceof Error ? error.message : String(error));
+  }
 }
