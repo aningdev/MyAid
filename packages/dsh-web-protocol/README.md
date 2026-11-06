@@ -16,7 +16,29 @@ import type { ApprovalOutcome } from "@myaid/dsh-web-protocol/interaction";
 import type { SessionFollowFrame, ModelCatalog } from "@myaid/dsh-web-protocol/session";
 ```
 
-Prefer **domain subpaths** (`/session`, `/settings`, …). The root entry re-exports the remotes facade plus **namespace** aliases (`Session`, `Llm`, …). Product DTOs that reshape wire must use **different names** (e.g. `FlatModelCatalog` vs official `ModelCatalog`).
+Prefer **domain subpaths** (`/session`, `/settings`, …). The root entry re-exports the remotes facade plus **namespace** aliases (`Session`, `Llm`, …) to avoid cross-domain name collisions; subpaths remain the stable import style.
+
+Product DTOs that reshape wire (for example a flattened model list) must use **different names** from official types (e.g. `FlatModelCatalog` vs `ModelCatalog`).
+
+## What is included
+
+Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companions:
+
+| Subpath                                                                                  | Coverage                                                                 |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `/remotes`                                                                               | `dsh-api-remotes` client facade                                          |
+| `/session`                                                                               | session-controller, session, projection, stats, turn-outline, attachment |
+| `/llm`                                                                                   | llm remote + message/content types                                       |
+| `/presets`                                                                               | agent-preset-registry, permission-presets                                |
+| `/settings`                                                                              | settings-controller, settings, credentials                               |
+| `/workspace`                                                                             | workspace-controller, workspace-files, workspace, directory-picker       |
+| `/job` `/terminal` `/account` `/commands` `/goals`                                       | matching controllers                                                     |
+| `/schedule` `/subagent`                                                                  | remote(+client); no dedicated `./types`                                  |
+| `/interaction`                                                                           | user-questions, user-approval                                            |
+| `/feedback` `/uploads` `/references` `/plugins` `/docs` `/cordis` `/analytics` `/access` | remaining remotes                                                        |
+| `/connection`                                                                            | gateway, client-connection, typert-protocol                              |
+
+**Excluded:** official Web GUI / brand packages, Host webserver/frontend runtimes, tool execution plane (`dsh-tool-*`), experimental remotes, stdio `@deepseek-ai/dsh-sdk-protocol`. For `dsh-client-ui-*`, only `./remote` (and `./types` when present) — never UI modules.
 
 ## Product module → Remote → phase
 
@@ -52,6 +74,7 @@ Dialogue prompt path accepts `PromptContentPart` (text / image / file receipt). 
 2. Full `SessionFollowFrame` → projector mapping coverage.
 3. `userQuestions` / `permissionPresets` when product UI needs them.
 4. Keep `lib/dsh/connection.ts` a thin facade (auth, epoch, unwrap, product DTO maps).
+5. Plugin Host contracts: use `@deepseek-ai/dsh-agent`, `dsh-tools`, `dsh-session` per upstream docs — **no** MyAid host-protocol wrapper.
 
 Upstream read-only: `references/deepseek-harness/docs/api-gateway.md`, `docs/subsystems/web-client.md`.
 
