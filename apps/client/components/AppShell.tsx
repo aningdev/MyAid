@@ -20,15 +20,7 @@ function useHiddenTitleBar() {
 function DesktopShell() {
   useHiddenTitleBar();
   return (
-    <View
-      style={{
-        flex: 1,
-        minHeight: 0,
-        backgroundColor: colors.inset,
-        paddingTop: titleTopInset(),
-        paddingRight: titleBar().right,
-      }}
-    >
+    <View style={{ flex: 1, minHeight: 0, backgroundColor: colors.inset }}>
       <Shell />
     </View>
   );
@@ -60,7 +52,7 @@ function MobileShell() {
           Workspace Shell
         </Text>
         <Text class="text-sm" style={{ color: colors.muted, textAlign: "center" }}>
-          Desktop empty shell only. Widen the window for Navigator | Workbench.
+          Desktop empty shell only. Widen the window for the side Navigator and Workbench.
         </Text>
       </View>
     </View>

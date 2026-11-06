@@ -24,14 +24,14 @@ export function Workbench() {
         onLayoutChange={(e) => setDockLayout(e.layout)}
         onPanelRemove={(e) => onPanelRemove(e.panel)}
         onPanelActiveChange={(e) => onPanelActiveChange(e.panel, e.active)}
-        groupClass="flex-1 overflow-hidden border border-line bg-background"
+        groupClass="flex-1 overflow-hidden bg-background"
         tabBarClass="flex-row"
         tabClass="group flex-1"
         contentClass="flex-1"
         handleAccessibilityLabel="Resize panels"
-        handleClass="basis-px bg-line"
+        handleClass="basis-px bg-border"
         handleThumbClass={handleThumb}
-        dropIndicatorClass="rounded-lg border-2 border-brand bg-brand-tint"
+        dropIndicatorClass="rounded-lg border-2 border-primary bg-primary/10"
         renderTab={(tab) => <PanelChrome tab={tab} area={area} />}
         renderPanel={(panel) => <SlotPlaceholder address={panelContents()[panel.id] ?? null} />}
         renderEmpty={(_placement) => (

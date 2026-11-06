@@ -10,7 +10,19 @@ export {
   withActivatedPanel,
   type DockNode,
 } from "./dock";
-export { isDesktopLayout, TITLE_CHROME, titleTopInset } from "./layout";
+export {
+  isDesktopLayout,
+  NAV_DEFAULT_WIDTH,
+  NAV_MAX_WIDTH,
+  NAV_MIN_WIDTH,
+  navOpen,
+  navWidth,
+  setNavOpen,
+  setNavWidth,
+  TITLE_CHROME,
+  titleTopInset,
+  toggleNavOpen,
+} from "./layout";
 export {
   NAV_DEFAULT_EXPANDED,
   NAV_TREE_ITEMS,

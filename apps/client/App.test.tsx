@@ -1,20 +1,27 @@
 import { expect, open, test } from "nsh/test";
 
-/** Headless iOS draws the system tab bar without text nodes. */
+/** Wide enough for the desktop shell on both desktop (700) and other (900) idioms. */
 const desktop = { platform: "web" as const, width: 1100, height: 800 };
 
-test("shows workspace chrome", async () => {
-  // Headless iOS draws the system tab bar without text nodes, so the rail
-  // labels are checked on a desktop-width web viewport.
+test("shows the side navigator", async () => {
   const app = await open("./App.tsx", desktop);
   const texts = app.texts();
-  expect(texts.some((t) => t.includes("Today") || t.includes("Chat"))).toBe(true);
+  expect(texts.some((t) => t.includes("Collapse"))).toBe(true);
+  expect(texts.some((t) => t.includes("Favorites"))).toBe(true);
 });
 
-test("opens Dialogue from primary navigation", async () => {
+test("collapses the navigator to a drag strip", async () => {
   const app = await open("./App.tsx", desktop);
-  await app.press("label:Dialogue");
-  expect(app.texts().some((t) => t.includes("还没有认领的会话") || t.includes("全部会话"))).toBe(
-    true,
-  );
+  await app.press("label:Collapse navigator");
+  const texts = app.texts();
+  expect(texts.some((t) => t.includes("Expand"))).toBe(true);
+  expect(texts.some((t) => t.includes("Collapse"))).toBe(false);
+  expect(texts.some((t) => t.includes("Favorites"))).toBe(false);
+});
+
+test("narrow window keeps the placeholder", async () => {
+  const app = await open("./App.tsx", { platform: "web" as const, width: 600, height: 800 });
+  const texts = app.texts();
+  expect(texts.some((t) => t.includes("Workspace Shell"))).toBe(true);
+  expect(texts.some((t) => t.includes("Collapse"))).toBe(false);
 });

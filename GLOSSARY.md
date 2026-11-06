@@ -61,10 +61,10 @@ _Avoid_：ProductService、统一聊天接口、权威会话存储、Relay
 
 ## Client 壳（交互空壳）
 
-**Workspace Shell（工作区壳）** _[C]_：Client 桌面交互壳 = 顶层 **Resizable** 两栏 **Navigator | Workbench**；不拥有域数据。  
-_Avoid_：图标轨 SideNav、旧 AppShell / 单 Module 整页挂载、与 Dialogue 的 workspace path 混名
+**Workspace Shell（工作区壳）** _[C]_：Client 桌面交互壳 = **左侧可收缩 Navigator** + **右侧 Workbench**；不拥有域数据。  
+_Avoid_：左侧图标轨 SideNav、旧 AppShell / 单 Module 整页挂载、与 Dialogue 的 workspace path 混名
 
-**Navigator（导航树）** _[C]_：左侧可调宽栏内的多级树（`nsh/base` Tree）；节点是导航地址投影。顶层分区（空壳序）：Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings。  
+**Navigator（导航树）** _[C]_：左侧可调宽多级树（`nsh/base` Tree），可收缩只留顶部拖拽条；节点是导航地址投影。顶层分区（空壳序）：Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings。  
 _Avoid_：手写树行、DockArea left dock、把树当成第二套域模型、顶层根名叫 Pin
 
 **Favorites（收藏）** _[C]_：Navigator 顶层分区；Nav address 的快捷入口。  

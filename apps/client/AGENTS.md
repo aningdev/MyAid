@@ -18,9 +18,11 @@
 
 ## 工作台（Workspace Shell）
 
-- 壳入口 [`AppShell.tsx`](components/AppShell.tsx) → [`shell/`](components/shell/)：UI 与状态同目录；顶层 **Navigator | Workbench**；**不挂** `features/*`。
-- **Navigator**：`nsh/base` **Tree** + [`fixtures.ts`](components/shell/fixtures.ts)。
-- **Workbench**：`nsh/base` **DockArea**（仅 center）；独立 Panel 可拖/拆/缩放/放大/关；内容为地址占位。
+- 壳入口 [`AppShell.tsx`](components/AppShell.tsx) → [`shell/`](components/shell/)：UI 与状态同目录；**左侧可收缩 Navigator + 右侧 Workbench**；**不挂** `features/*`。
+- **Navigator**：水平 `ResizablePanel`（默认 232、最小 160、最大 480，宽度只留在本次运行）。顶行 44pt 承接隐藏标题栏（可拖拽，左侧让出 `titleBar().left`，右侧 Collapse / Expand）。下面是 `nsh/base` **Tree** + [`fixtures.ts`](components/shell/fixtures.ts)。收起后左栏离开横排，右侧顶部只留 44pt 拖拽条和 Expand。`⌘B` 与按钮同一命令。
+- **Workbench**：`nsh/base` **DockArea**（仅 center）；独立 Panel 可拖/拆/缩放/放大/关；内容为地址占位。展开时从窗口上沿起排。
+- 桌面隐藏标题栏高度 44。桌面整窗不再为标题栏下推，也不预留 `titleBar().right`。
+- 配色沿用 `colors.inset` / `colors.background`。
 - 窄屏本阶段占位。
 
 ## 前端职责

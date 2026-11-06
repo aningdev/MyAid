@@ -11,7 +11,7 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
   return (
     <View
       testID={`tab-${tab.panel}`}
-      class="border-line h-9 flex-row items-center gap-1 border-b px-2"
+      class="border-border h-9 flex-row items-center gap-1 border-b px-2"
       style={{ backgroundColor: tab.active ? colors.raised : colors.inset }}
     >
       <Text
@@ -55,7 +55,7 @@ function ChromeBtn(props: {
     <Button
       onPress={props.onPress}
       accessibilityLabel={props.label}
-      class="hover:bg-hover size-7 items-center justify-center rounded-md active:opacity-70"
+      class="hover:bg-accent size-7 items-center justify-center rounded-md active:opacity-70"
     >
       <Icon name={props.icon} size={13} tint={colors.muted} />
     </Button>

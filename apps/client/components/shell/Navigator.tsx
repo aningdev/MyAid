@@ -1,13 +1,44 @@
 /**
- * Navigator Tree — styling follows nsh docs / gallery Tree pattern
- * (https://nsh.dev/elements/tree.md): itemClass + renderItem chevron/label only.
+ * Navigator tree body (nsh/base Tree).
+ * The sidebar header and collapse control live in Shell.
  */
-import { signal, Text, View } from "nsh";
+import { signal, View } from "nsh";
 import { Tree } from "nsh/base";
 
-import { colors } from "../ui";
-import { NAV_DEFAULT_EXPANDED, NAV_TREE_ITEMS } from "./fixtures";
+import { colors, TreeRow, treeItemClass, type IconName } from "../ui";
+import { NAV_DEFAULT_EXPANDED, NAV_TREE_ITEMS, navKindForId } from "./fixtures";
 import { activateNavItem } from "./state";
+
+const SECTION_ICON: Record<string, IconName> = {
+  favorites: "star",
+  mail: "lists",
+  task: "check",
+  knowledge: "scroll",
+  bots: "spark",
+  dialogues: "chat",
+  spaces: "sidebar",
+  settings: "sliders",
+};
+
+function navIcon(id: string): IconName {
+  if (id.startsWith("root:")) return SECTION_ICON[id.slice("root:".length)] ?? "lists";
+  switch (navKindForId(id)) {
+    case "favorite":
+      return "star";
+    case "bot":
+      return "spark";
+    case "dialogue":
+      return "chat";
+    case "session":
+      return "code";
+    case "setting":
+      return "sliders";
+    case "space":
+      return "sidebar";
+    default:
+      return "lists";
+  }
+}
 
 const expandedState = signal<string[]>([...NAV_DEFAULT_EXPANDED]);
 const selectedState = signal<string | null>(null);
@@ -15,15 +46,6 @@ const selectedState = signal<string | null>(null);
 export function Navigator() {
   return (
     <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: colors.inset }}>
-      <View
-        class="min-h-10 shrink-0 justify-center px-3"
-        desktop={{ windowDrag: true }}
-        style={{ borderBottomWidth: 1, borderBottomColor: colors.line }}
-      >
-        <Text class="text-sm font-semibold" style={{ color: colors.text }}>
-          Navigator
-        </Text>
-      </View>
       <Tree
         class="flex-1"
         items={NAV_TREE_ITEMS}
@@ -33,18 +55,10 @@ export function Navigator() {
         onSelectedChange={({ selected }) => selectedState.set(selected)}
         onAction={({ id }) => activateNavItem(id)}
         accessibilityLabel="Navigator"
-        listClass="p-1"
-        itemClass="group h-8 rounded-md hover:bg-accent selected:bg-primary/10 focus:outline-2 focus:-outline-offset-2 focus:outline-ring disabled:opacity-50"
+        listClass="p-1.5"
+        itemClass={treeItemClass}
         renderItem={(entry) => (
-          <View
-            class="h-8 flex-row items-center gap-2"
-            style={{ paddingLeft: 8 + entry.depth * 16 }}
-          >
-            <Text class="text-muted-foreground w-3 transition-transform group-aria-expanded:rotate-90">
-              {entry.folder ? "›" : ""}
-            </Text>
-            <Text class="text-foreground text-sm">{entry.label}</Text>
-          </View>
+          <TreeRow entry={entry} icon={navIcon(entry.id)} tint={colors.muted} />
         )}
       />
     </View>
