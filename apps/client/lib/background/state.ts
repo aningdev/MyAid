@@ -24,27 +24,54 @@ export const productBackgroundState = signal<ProductBackgroundState>({
   error: null,
 });
 
+let backgroundStateGeneration = 0;
+
+function beginBackgroundStateMutation(): number {
+  backgroundStateGeneration += 1;
+  return backgroundStateGeneration;
+}
+
+function applyBackgroundStateIfCurrent(
+  generation: number,
+  next: ProductBackgroundState,
+): ProductBackgroundState {
+  if (generation !== backgroundStateGeneration) {
+    return productBackgroundState();
+  }
+  productBackgroundState.set(next);
+  return next;
+}
+
+/** Tests reset generation so stale-write cases stay deterministic. */
+export function resetProductBackgroundStateForTests(): void {
+  backgroundStateGeneration = 0;
+  productBackgroundState.set({
+    runnable: isRunnableTarget(),
+    view: null,
+    error: null,
+  });
+}
+
 export async function refreshProductBackgroundState(): Promise<ProductBackgroundState> {
+  const generation = beginBackgroundStateMutation();
   const runnable = isRunnableTarget();
   if (!runnable) {
-    const next: ProductBackgroundState = { runnable: false, view: null, error: null };
-    productBackgroundState.set(next);
-    return next;
+    return applyBackgroundStateIfCurrent(generation, {
+      runnable: false,
+      view: null,
+      error: null,
+    });
   }
   try {
     const view = await queryProductBackground();
-    const next: ProductBackgroundState = { runnable: true, view, error: null };
-    productBackgroundState.set(next);
-    return next;
+    return applyBackgroundStateIfCurrent(generation, { runnable: true, view, error: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const next: ProductBackgroundState = {
+    return applyBackgroundStateIfCurrent(generation, {
       runnable: true,
       view: null,
       error: message,
-    };
-    productBackgroundState.set(next);
-    return next;
+    });
   }
 }
 
@@ -53,16 +80,18 @@ export async function loadProductBackgroundState(): Promise<ProductBackgroundSta
 }
 
 export async function enableBackgroundFromState(): Promise<ProductBackgroundState> {
+  const generation = beginBackgroundStateMutation();
   if (!isRunnableTarget()) {
     return productBackgroundState();
   }
   try {
     const view = await enableProductBackground();
-    const next: ProductBackgroundState = { runnable: true, view, error: null };
-    productBackgroundState.set(next);
-    return next;
+    return applyBackgroundStateIfCurrent(generation, { runnable: true, view, error: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (generation !== backgroundStateGeneration) {
+      return productBackgroundState();
+    }
     const next: ProductBackgroundState = {
       ...productBackgroundState(),
       error: message,
@@ -73,16 +102,18 @@ export async function enableBackgroundFromState(): Promise<ProductBackgroundStat
 }
 
 export async function stopBackgroundFromState(): Promise<ProductBackgroundState> {
+  const generation = beginBackgroundStateMutation();
   if (!isRunnableTarget()) {
     return productBackgroundState();
   }
   try {
     const view = await stopProductBackground();
-    const next: ProductBackgroundState = { runnable: true, view, error: null };
-    productBackgroundState.set(next);
-    return next;
+    return applyBackgroundStateIfCurrent(generation, { runnable: true, view, error: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (generation !== backgroundStateGeneration) {
+      return productBackgroundState();
+    }
     const next: ProductBackgroundState = {
       ...productBackgroundState(),
       error: message,

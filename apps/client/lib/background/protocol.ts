@@ -47,14 +47,20 @@ export function isRegisteredWithOs(phase: RegistrationPhase): boolean {
   return phase === "registered";
 }
 
+function unitAffectsBackgroundAvailability(phase: RegistrationPhase): boolean {
+  return phase !== "notRegistered";
+}
+
 export function backgroundAvailability(
   host: RegistrationPhase,
   relay: RegistrationPhase,
 ): BackgroundAvailability {
-  const h = isRegisteredWithOs(host);
-  const r = isRegisteredWithOs(relay);
-  if (h && r) return "full";
-  if (!h && !r) return "off";
+  if (isRegisteredWithOs(host) && isRegisteredWithOs(relay)) {
+    return "full";
+  }
+  if (!unitAffectsBackgroundAvailability(host) && !unitAffectsBackgroundAvailability(relay)) {
+    return "off";
+  }
   return "degraded";
 }
 
@@ -94,7 +100,7 @@ export function decodeRegistrationSnapshot(raw: string): RegistrationSnapshot {
   return value;
 }
 
-/** Desktop targets may orchestrate OS Background Services; mobile does not run them. */
+/** Desktop targets may orchestrate OS Background Services; Linux deferred per ADR-0002. */
 export function backgroundServicesRunnable(target: string): boolean {
-  return target === "macos" || target === "windows" || target === "linux";
+  return target === "macos" || target === "windows";
 }

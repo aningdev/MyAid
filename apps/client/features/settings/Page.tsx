@@ -8,10 +8,11 @@ import {
   productBackgroundState,
   refreshProductBackgroundState,
   stopBackgroundFromState,
+  type RegistrationPhase,
 } from "../../lib/background";
 import type { WorkspaceModule } from "../../workspace/types";
 
-function phaseLabel(phase: string | undefined): string {
+function phaseLabel(phase: RegistrationPhase | undefined): string {
   if (!phase) return "—";
   switch (phase) {
     case "notRegistered":

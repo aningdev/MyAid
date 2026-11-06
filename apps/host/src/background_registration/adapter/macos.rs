@@ -1,4 +1,9 @@
 //! macOS ServiceManagement facts for the Host LaunchAgent plist.
+//!
+//! `SMAppServiceStatus` only exposes NotRegistered, Enabled, RequiresApproval, and NotFound
+//! (Apple ServiceManagement). There is no distinct OS status for policy denial; product
+//! `RegistrationPhase::Denied` is mapped on Windows (`StartupApproval::DisabledByPolicy`) only.
+//! User revocation after registration surfaces as RequiresApproval → `PendingApproval`.
 
 use myaid_background_service::{RegistrationPhase, ServiceUnit, UnitRegistration};
 use objc2_foundation::NSString;

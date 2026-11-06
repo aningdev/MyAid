@@ -2,6 +2,7 @@ import { expect, test } from "nsh/test";
 
 import {
   backgroundAvailability,
+  backgroundServicesRunnable,
   decodeRegistrationSnapshot,
   decodeUnitRegistration,
   mergeProductRegistration,
@@ -28,8 +29,17 @@ function snapshot(
 test("backgroundAvailability matches ADR-0002 half-enabled as degraded", () => {
   expect(backgroundAvailability("registered", "notRegistered")).toBe("degraded");
   expect(backgroundAvailability("notRegistered", "registered")).toBe("degraded");
+  expect(backgroundAvailability("pendingApproval", "notRegistered")).toBe("degraded");
+  expect(backgroundAvailability("notRegistered", "pendingApproval")).toBe("degraded");
   expect(backgroundAvailability("registered", "registered")).toBe("full");
   expect(backgroundAvailability("notRegistered", "notRegistered")).toBe("off");
+});
+
+test("backgroundServicesRunnable excludes Linux until adapters ship", () => {
+  expect(backgroundServicesRunnable("macos")).toBe(true);
+  expect(backgroundServicesRunnable("windows")).toBe(true);
+  expect(backgroundServicesRunnable("linux")).toBe(false);
+  expect(backgroundServicesRunnable("ios")).toBe(false);
 });
 
 test("mergeProductRegistration takes host facts from HostControl and relay from RelayControl", () => {
