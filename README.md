@@ -1,60 +1,58 @@
 # MyAid
 
-个人助理操作系统空壳：通过对话交付结果，用任务与结果跟踪进度，用记忆与知识认识你，用插件扩展双手。
+English | [中文](README.zh.md)
 
-- **DSH 原则**：官方 `dsh` / Cordis / Host 边界——见 [docs/DSH_PRINCIPLES.md](docs/DSH_PRINCIPLES.md)。
-- **客户端布局**为官方 NSH **mixed**（`App.tsx` + 根级 Rust crate）。
-- **不含** DeepSeek 产品品牌内容；不迁入官方 harness Web GUI。
+MyAid is an **all-in-one personal assistant**: one place for the parts of life and work where people and AI operate together—mail, broad **Tasks**, knowledge, notes, and more—connected through **Bots** and **Dialogues**.
 
-## 仓库形状
+- **Capability base:** official DeepSeek Harness (`dsh`) for execution, tools, plugins, and approvals.
+- **Multi-end shell:** Native Shell (NSH) for desktop and future mobile UI.
+- **Desktop home, local ops, linkable ends:** the app runs on **one desktop**; data and execution stay **on that machine**; other devices **link back** to it (NSH clients + Relay). **Host** plus official **`dsh web`** (web profile) own the local run; closing the UI need not tear down that home once you enable background.
 
-| 位置                      | 职责                                                                                          |
-| ------------------------- | --------------------------------------------------------------------------------------------- |
-| `apps/client`             | NSH mixed 客户端（`nsh.json` `"rust": "."`）                                                  |
-| `apps/host`               | Rust Host：dsh 生命周期与 HostControl（原则级协议桩）                                         |
-| `apps/relay`              | 多端密文转发（空壳）                                                                          |
-| `packages/myaid-plugin-*` | Cordis / 声明式 bundle 插件占位                                                               |
-| `docs/`                   | [DSH 原则](docs/DSH_PRINCIPLES.md) · [架构](docs/ARCHITECTURE.md) · [蓝图](docs/BLUEPRINT.md) |
-| `references/`             | 上游 submodule（只读）                                                                        |
+## What it is for
 
-## 开发与运行
+- **Connect everyday domains** — mail, Tasks, knowledge, and notes are first-class; Dialogues drive them and jump back from them.
+- **Talk with a Bot** — a **Bot** is a contact-like assistant whose abilities are a (often derived) **Agent preset**; a **Dialogue** is a long thread with that Bot (e.g. one per project workspace); a **Session** is one context scene inside that Dialogue (= one harness Session).
+- **Stay in control of identity** — Bots own preset/capabilities; Dialogues own workspace path; Sessions are claimed to a Dialogue.
+- **Keep the desktop reachable** — Host (and later Relay) can stay as OS Background Services so other ends can link when the window is closed; you explicitly enable that.
+- **Extend hands with plugins** — skills attach on the shared `web` profile / derived presets via Cordis bundles.
 
-产品主路径为 **macOS**（NSH 桌面 + `SMAppService`）。**Windows** 已支持 Host 控制通道联调（named pipe `\\.\pipe\myaid-host`）；不承诺 NSH Windows 桌面窗体或成品后台登记。另需 Rust、NSH **0.4.0**、`vp`（vite-plus）。版本钉以仓库文件为准，勿臆造：
+## How the pieces fit (product view)
 
-| 钉                         | 现状                                       |
-| -------------------------- | ------------------------------------------ |
-| Bun `1.4.4`                | [`.bun-version`](.bun-version)             |
-| TypeScript / `@types/node` | 根 `workspaces.catalog`；包内 `"catalog:"` |
+| Piece                                    | Role for you                                                                                             |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Client (NSH)**                         | Multi-end control surface: domains, Bots, Dialogues, approvals, background                               |
+| **Host**                                 | Local Background Service: `dsh web` lifecycle, discovery, Bridge                                         |
+| **`dsh web`** (product nickname: Runner) | Official execution plane on the web profile: Sessions, tools, events — _Runner is not a DSH proper noun_ |
+| **Plugins**                              | Capability packs that extend what assistants can do                                                      |
+| **Relay** (target)                       | Ciphertext link so other devices reach the desktop home                                                  |
 
-（未钉 `packageManager` / `engines` / `.node-version`；CI 自行指定 Node。）
+Product rules: [docs/BLUEPRINT.md](docs/BLUEPRINT.md). Terms: [GLOSSARY.md](GLOSSARY.md). Map: [docs/BOT_SESSION_MAP.md](docs/BOT_SESSION_MAP.md).
 
-dsh 本机认证见 [docs/DSH_CLIENT_AUTH.md](docs/DSH_CLIENT_AUTH.md)。
+## Platforms
 
-```sh
-bun install
-bun run check   # 或 vp run check：vp check --fix → plugin check → nsh check → cargo check
-bun run dev     # scripts/dev.mjs：探测/拉起 Host，再起 NSH Client
-bun run test
-bun run build   # plugin + client（`vp run --filter @myaid/client... build`）
-```
+- **Home:** one macOS desktop (NSH + optional `SMAppService` so the local home stays up).
+- **Also:** Windows Host control-channel bring-up for development; full Windows desktop product and finished background registration are not promised yet.
+- **Linkable ends:** mobile NSH clients via Relay; Bot and credentials stay on the desktop home.
 
-数据根：`~/.myaid`（`DSH_HOME`）。根与包的 `package.json` scripts 保留；根脚本用 `vp run pkg#task` / `--filter` 调度包脚本（[Run](https://viteplus.dev/guide/run)）。Git hooks：已有 [`.vite-hooks/pre-commit`](.vite-hooks/pre-commit) → `vp staged`（根未挂 `prepare` → `vp config --hooks`）。完整门禁仍是 `bun run check` / CI。详见 [Commit Hooks](https://viteplus.dev/guide/commit-hooks)。
+## Documentation
 
-`bun run dev` 会确保 Host 控制端点可用，再启动客户端；打开 Dialogue / 发消息时会自动 `ensureDsh(userStart)` 拉起官方后台。默认端点：Unix `~/.myaid/host/control.sock`，Windows `\\.\pipe\myaid-host`（可用 `MYAID_HOST_SOCKET` 覆盖）。仅起 Client：`bun run dev:client`。仅起 Host：`bun run host:dev`。
+| Doc                                        | About                                     |
+| ------------------------------------------ | ----------------------------------------- |
+| [BLUEPRINT](docs/BLUEPRINT.md)             | Product goals and business rules          |
+| [ARCHITECTURE](docs/ARCHITECTURE.md)       | Assembly and seams                        |
+| [DSH_PRINCIPLES](docs/DSH_PRINCIPLES.md)   | Official `dsh` / Cordis / Host boundaries |
+| [DSH_CLIENT_AUTH](docs/DSH_CLIENT_AUTH.md) | Local auth / Cookie WebSocket notes       |
+| [GLOSSARY](GLOSSARY.md)                    | Product vs harness vocabulary             |
 
-```sh
-# 冒烟：apps/host/scripts/smoke-control.sh（Unix）或 bun apps/host/scripts/smoke-control.mjs
-```
+MyAid does **not** ship DeepSeek product branding or the official harness Web GUI; it reuses the official execution plane and builds its own control UI on NSH.
 
-客户端 `dev` / `dev:macos` 已注入 `MYAID_HOST_SOCKET`；Dialogue 主会话经 Host `connectionInfo` 连接官方 Session。
+## Developers
 
-## 有意省略
-
-- 不迁入官方 harness Web GUI / 审批 / 模型设置页（客户端已有 AppShell / Dialogue 壳与认证库，非完整业务）
-- 无产品线框目录；线框任务另开，不混进本仓库主路径
-
-## 参考 submodule
+Contributor constraints: [AGENTS.md](AGENTS.md). Doc layout: [docs/AGENTS.md](docs/AGENTS.md). Per-unit contracts and commands: [apps/client](apps/client/README.md), [apps/host](apps/host/README.md), [apps/relay](apps/relay/README.md), [packages/](packages/README.md).
 
 ```sh
 git submodule update --init references/deepseek-harness references/nsh references/waku references/lorca
+bun install
+bun run dev      # Host + Client
+bun run check
 ```

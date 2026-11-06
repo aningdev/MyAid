@@ -1,6 +1,8 @@
 # `@myaid/dsh-web-protocol`
 
-**Client-only** TypeScript re-exports of official `dsh web` Typert Remote / wire contracts.
+English | [中文](README.zh.md)
+
+**Client-only** TypeScript re-exports of official `dsh web` Typert Remote / wire contracts. Index: [packages/README.md](../README.md).
 
 - **Consumer:** [`apps/client`](../../apps/client) only.
 - **Plugins (`myaid-plugin-*`):** do **not** depend on this package. Use official `@deepseek-ai/dsh-*` Host / Cordis forms directly.
@@ -42,16 +44,16 @@ Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companio
 
 ## Product module → Remote → phase
 
-| Product                              | Remotes / types                                                                                                                                                              | Phase               | Notes                            |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------- |
-| Dialogue                             | `session` (`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`); `SessionFollowFrame`; `approval/request` → `ApprovalOutcome` | A (now)             | Claimed Session loop             |
-| Bots                                 | `agentPresets` (`list`/`read`/`select`); `session.create`                                                                                                                    | A                   | Claims stay in desktop registry  |
-| Bot workspace path                   | `directoryPicker` only                                                                                                                                                       | B                   | Store path on Bot; pass as `cwd` |
-| Settings                             | `settings`, `credentials`                                                                                                                                                    | B                   | UI prefs stay local — never dsh  |
-| Attachments                          | `fileUploads`, `session.attachment`, `PromptContentPart`                                                                                                                     | C                   | After text-first                 |
-| Plugins nav                          | `pluginManager` (+ market/inventory later)                                                                                                                                   | D                   | Enablement UI only               |
-| Terminal / Jobs / Goals / …          | matching remotes                                                                                                                                                             | on demand           | Not required for dialogue loop   |
-| Tasks / Outcomes / Knowledge / Today | —                                                                                                                                                                            | not Session Remotes | Today = HostControl              |
+| Product                         | Remotes / types                                                                                                                                                              | Phase               | Notes                                    |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------- |
+| Dialogue                        | `session` (`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`); `SessionFollowFrame`; `approval/request` → `ApprovalOutcome` | A (now)             | Claim Session → Dialogue loop            |
+| Bots                            | `agentPresets` (`list`/`read`/`select`); `session.create`                                                                                                                    | A                   | Claims stay in desktop registry          |
+| Bot workspace path              | `directoryPicker` only                                                                                                                                                       | B                   | Store path on Bot; pass as `cwd`         |
+| Settings                        | `settings`, `credentials`                                                                                                                                                    | B                   | UI prefs stay local — never dsh          |
+| Attachments                     | `fileUploads`, `session.attachment`, `PromptContentPart`                                                                                                                     | C                   | After text-first                         |
+| Plugins nav                     | `pluginManager` (+ market/inventory later)                                                                                                                                   | D                   | Enablement UI only                       |
+| Terminal / Jobs / Goals / …     | matching remotes                                                                                                                                                             | on demand           | Not required for dialogue loop           |
+| Task / Knowledge / Note / Today | —                                                                                                                                                                            | not Session Remotes | Today = HostControl; Task is life-domain |
 
 ## Never call from MyAid Client
 

@@ -54,5 +54,5 @@ const result = await smokeDshAuthTransport();
 
 ## 有意未做
 
-- 按蓝图把会话认领到 Bot。未认领的 Session 不进入产品列表。
+- 按蓝图把 Session 认领到 **Dialogue**（Dialogue 属 Bot）。未认领的 Session 不进入产品列表。
 - Bridge / Relay / `SMAppService` 成品登记。

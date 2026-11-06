@@ -1,8 +1,12 @@
 # @myaid/myaid-plugin-core
 
-MyAid 能力插件空壳。家族约定见 [packages/AGENTS.md](../AGENTS.md)；原则见 [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md) §4。
+English | [中文](README.zh.md)
 
-本包尚未暴露业务 Remote。开发 / Host 用绝对路径 `--patch` 指向 `lib/index.js`。
+MyAid capability plugin shell (Cordis / declarative `dsh.bundle`). Family rules: [packages/AGENTS.md](../AGENTS.md). Principles: [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md) §4. Index: [packages/README.md](../README.md).
+
+This package does not yet expose product Remotes. Dev / Host load it with an absolute `--patch` path to `lib/index.js` (or official `dsh plugin add`).
+
+## Commands
 
 ```sh
 vp run @myaid/myaid-plugin-core#build
@@ -10,4 +14,4 @@ vp run @myaid/myaid-plugin-core#test
 vp run @myaid/myaid-plugin-core#check
 ```
 
-Harness 机制结论见 [docs/research/HARNESS_PRINCIPLES.md](../../docs/research/HARNESS_PRINCIPLES.md)。
+Harness mechanism notes: [docs/research/HARNESS_PRINCIPLES.md](../../docs/research/HARNESS_PRINCIPLES.md).

@@ -33,9 +33,9 @@ flowchart LR
 
 | 位置                      | 职责                                                            | 现状                                                                   |
 | ------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell + Dialogue Session 接线；HostControl 原生适配                 |
+| `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell；Bot → Dialogue → Session 接线；HostControl 原生适配          |
 | `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | Lifecycle + control socket 已落地；Bridge 空壳                         |
-| `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | `RelayControl` + macOS/Windows 登记适配；转发面仍骨架                 |
+| `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | `RelayControl` + macOS/Windows 登记适配；转发面仍骨架                  |
 | `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)         | `myaid-plugin-core` 占位                                               |
 | 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                   | `bun run dev` → `scripts/dev.mjs`（先起 Host 再起 Client）；`host:dev` |
 | `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）    | `.gitmodules`；不参与构建                                              |
@@ -68,7 +68,7 @@ apps/host/src/
 
 相位（与 `protocol.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。ready-URL / 相位校验真源：`parse_ready_url` + `Status::validate`（fixture：`apps/host/testdata/host-contract-cases.json`）。
 
-初始化分工：NSH 管注册表 / 草稿 / 工作区；Host 管数据根、CLI、登录环境、profile 首启。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
+初始化分工：NSH 管注册表 / 草稿 / Dialogue 的 workspace path；Host 管数据根、CLI、登录环境、profile 首启。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
 
 ## 4. Cordis / 插件装配
 

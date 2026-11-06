@@ -2,11 +2,14 @@
 
 始终加载的工程护栏。领域与 DSH 真源在指针后的文档；改行为先读目标，勿在此复述。
 
+写或改文档前读 [docs/AGENTS.md](docs/AGENTS.md)（分层、三件套、必有清单）。
+
 ## 何时读什么
 
 - **产品行为 / 对象模型**：[BLUEPRINT](docs/BLUEPRINT.md)；Bot / 会话 / DSH 映射图见 [BOT_SESSION_MAP](docs/BOT_SESSION_MAP.md)；用词以 [GLOSSARY](GLOSSARY.md) 为准（见 [domain](docs/agents/domain.md)）。
 - **DSH / Host / profile / 协议**：[DSH_PRINCIPLES](docs/DSH_PRINCIPLES.md) 与 [ARCHITECTURE](docs/ARCHITECTURE.md)；能力面对照只读 [references/deepseek-harness](references/deepseek-harness)。
-- **Client**：[apps/client/AGENTS.md](apps/client/AGENTS.md)。改 UI、布局、组件或 TSX 前读 [Design Guides](references/nsh/website/docs/design-guides.md)，再读 [Coding Guides](references/nsh/website/docs/coding-guides.md)；示例对照 gallery / `nsh-gallery-ui`，类型以 `.nsh/types/` 为准。
+- **单元契约**（职责 / 命令）：各 [`apps/*/README`](apps/client/README.md)、[`packages/`](packages/README.md)、[`crates/`](crates/myaid-background-service/README.md)。
+- **Client**：[apps/client/AGENTS.md](apps/client/AGENTS.md)（改 UI 前先 Design Guides，再 Coding Guides）。
 - **Host**：[apps/host/AGENTS.md](apps/host/AGENTS.md)。
 - **Relay**：[apps/relay/AGENTS.md](apps/relay/AGENTS.md)。
 - **Plugin**（`myaid-plugin-*`）：[packages/AGENTS.md](packages/AGENTS.md)。
@@ -25,8 +28,7 @@
 - 轻量验收：`bun install && bun run check`（与 CI 同；`vp run check` 等价）。细节以根 `package.json` 为准。
 - Git hooks：已有 `.vite-hooks/pre-commit` → `vp staged`；不绑全量 `check`。
 - Client 应用生命周期走官方 `nsh run|check|build|test|package`；工作区编排仍用 `vp run @myaid/client#…`。勿在 `apps/client/scripts/` 加应用编排 TS；仓库根 `scripts/dev.mjs`（Host+Client 联调）例外。
-- **NSH 示例组件与样式**：Client UI 对照 `references/nsh/examples/nsh-gallery-ui`、`examples/gallery`，再落到 [`apps/client/components/ui`](apps/client/components/ui/)；设计与编码以 Client 条的两份指南为准，细则见 client AGENTS。
-- **dsh web 能力**：Session / 工具 / preset / Remote 优先复用官方 `dsh web` 与已装插件；实现前对照 `references/deepseek-harness` 的能力面与插件形态，产品缺口才新建 `myaid-plugin-*`。细则见 DSH_PRINCIPLES §4 与 packages AGENTS。
+- **dsh web 能力**：Session / 工具 / preset / Remote 优先复用官方 `dsh web` 与已装插件；产品缺口才新建 `myaid-plugin-*`。细则见 DSH_PRINCIPLES §4 与 [packages/AGENTS.md](packages/AGENTS.md)；Client UI 细则见 [apps/client/AGENTS.md](apps/client/AGENTS.md)。
 - 工具链版本以仓库实有文件为准：仅 [`.bun-version`](.bun-version)；共享 npm 版用 `workspaces.catalog` + `"catalog:"`。
 - 按领域与职责分目录；入口公开 Interface，实现私有。拆分保持策略与状态的**唯一所有者**。
 - JS：Bun workspace + 唯一 `bun.lock`。Rust：Cargo。

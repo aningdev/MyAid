@@ -1,11 +1,10 @@
 # @myaid/client
 
-NSH **mixed** app: TSX entry (`App.tsx`) plus a Rust crate at this directory (`Cargo.toml`, `src/lib.rs`;
-`nsh.json` `"rust": "."`). Layout matches `nsh init --template mixed`
-([project structure](https://nsh.dev/docs/project-structure.md), [CLI](https://nsh.dev/docs/cli.md),
-[packaging](https://nsh.dev/docs/packaging.md)).
+English | [中文](README.zh.md)
 
-Bundle id: `com.aningdev.myaid`（见 `nsh.json`）。
+NSH **mixed** desktop/mobile client: TSX entry (`App.tsx`) plus a Rust crate in this directory (`Cargo.toml`, `src/lib.rs`; `nsh.json` `"rust": "."`). Layout matches `nsh init --template mixed` ([project structure](https://nsh.dev/docs/project-structure.md), [CLI](https://nsh.dev/docs/cli.md), [packaging](https://nsh.dev/docs/packaging.md)).
+
+Bundle id: `com.aningdev.myaid` (see `nsh.json`). Constraints: [AGENTS.md](AGENTS.md). Architecture / DSH: [ARCHITECTURE](../../docs/ARCHITECTURE.md), [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md).
 
 ```text
 apps/client/
@@ -17,9 +16,9 @@ apps/client/
 └── assets/
 ```
 
-## 命令
+## Commands
 
-根目录用 `vp run`（勿用 `bun --cwd`）：
+From the repo root with `vp run` (do not use `bun --cwd`):
 
 ```sh
 vp run @myaid/client#check
@@ -30,19 +29,19 @@ vp run @myaid/client#dev:ios
 vp run @myaid/client#dev:android
 vp run @myaid/client#dev:server       # nsh dev --server-only
 vp run @myaid/client#test
-vp run @myaid/client#build            # bytecode（nsh build）
+vp run @myaid/client#build            # bytecode (nsh build)
 vp run @myaid/client#package:macos    # .nsh/out/MyAid.app
 vp run @myaid/client#package:web
 ```
 
-- 日常改 UI：`nsh run --target …`（`dev` / `dev:macos` / `dev:web` …）。
-- 只起服务、自己连模拟器或已开宿主：`dev:server`。
-- `package:macos` 产出 NSH 可安装 `.app`，**不是**根级成品（App + Host + `SMAppService` 组装另议）。
+- Day-to-day UI: `nsh run --target …` via the `dev*` scripts above.
+- Service only (attach your own simulator/host): `dev:server`.
+- `package:macos` produces an NSH-installable `.app`, **not** the finished App + Host + `SMAppService` product.
 
-## Host socket（仅本机桌面）
+## Host socket (local desktop only)
 
-日常联调请从**仓库根** `bun run dev`：先确保 Host，再起本包 `dev`。  
-`MYAID_HOST_SOCKET` 由根 `scripts/dev.mjs` 与本包 `dev` / `dev:macos`（经 `scripts/run-with-host-socket.mjs`）注入；Unix 默认 `~/.myaid/host/control.sock`，Windows 默认 `\\.\pipe\myaid-host`，可覆盖。  
-`dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` **不注入**——移动端经 Relay，不走本机 Host 控制通道。
+Prefer repo-root `bun run dev`: ensure Host, then start this package's `dev`.  
+`MYAID_HOST_SOCKET` is injected by root `scripts/dev.mjs` and this package's `dev` / `dev:macos` (via `scripts/run-with-host-socket.mjs`); Unix default `~/.myaid/host/control.sock`, Windows `\\.\pipe\myaid-host`.  
+`dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` do **not** inject — mobile goes through Relay, not the local Host control channel.
 
-dsh 本机认证（NSH 0.4 仍需 CookieWebSocket）：见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
+Local dsh auth (NSH 0.4 still needs CookieWebSocket): [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md).

@@ -51,9 +51,9 @@
 - TS：[`lib/dsh/`](lib/dsh/) — `AuthenticatedSocket`、Connection/Session Facade、`smokeDshAuthTransport`。Host 控制：[`lib/host/`](lib/host/) + 原生 `HostControl`。说明见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
 - **dsh web wire 类型**：从 [`@myaid/dsh-web-protocol`](../../packages/dsh-web-protocol)（及 `/session`、`/interaction` 等子路径）引用官方 Remote/DTO；版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐。产品视图 DTO（如扁平 `FlatModelCatalog`）须与官方同名类型区分。不从 `references/` 拷贝类型。
 - **模块 × Remote**：Dialogue/Bots → 已挂 `session` + `agentPresets`（含 `updateQueue` / `read` / `select`）；工作区选路径 → `directoryPicker`；Settings → `settings`/`credentials`；附件 → `fileUploads` + `session.attachment`；Plugins → `pluginManager`。详情与阶段见 [`packages/dsh-web-protocol/README.md`](../../packages/dsh-web-protocol/README.md)。
-- **永不调用**：官方 `workspace.*` 会话容器（认领表代替）、`account.*`（品牌/账号面）。Tasks/Outcomes/Knowledge 不是 Session Remote；Today/启停走 HostControl。
+- **永不调用**：官方 `workspace.*` 会话容器（产品用 Dialogue + Claim 代替）、`account.*`（品牌/账号面）。广义 Task / Knowledge / Note 不是 Session Remote；Today/启停走 HostControl。
 - HTTP `/connect` 用标准 `fetch`（可设 Cookie 响应头解析）；勿把认证 URL/token 写入公开 Host status。
-- 产品会话按蓝图认领到 Bot，一条会话一条官方 Session。未认领的 Session（包括旧的 `myaid-primary`）不进入产品列表。gallery demos 仅作演示，不新建 Harness Session。
+- 产品层级见蓝图：**Bot → Dialogue → Session**。Session 认领到 **Dialogue**（一对一官方 Session）；未认领（含旧 `myaid-primary`）不进产品列表。workspace path 属 Dialogue。gallery demos 仅作演示，不新建 Harness Session。
 - 官方 `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下是 ModuleLoader 产物，**无** ESM `installConnection`。做法：`bun run prepare:sdk` 用 Node 条件打出 `lib/dsh/sdk.js`；`nsh.json` 另设 `resolve.conditions: ["node"]` 作兜底。`dev` / `check` / `build` / `test` 均会先 prepare。
 
 ## 原生接口与权限

@@ -1,6 +1,6 @@
 # MyAid 插件约束
 
-补充[根约束](../AGENTS.md)。适用于 `packages/myaid-plugin-*`。读 [DSH_PRINCIPLES](../docs/DSH_PRINCIPLES.md) §4、[ARCHITECTURE](../docs/ARCHITECTURE.md) §4；机制背景见 [HARNESS_PRINCIPLES](../docs/research/HARNESS_PRINCIPLES.md)。
+补充[根约束](../AGENTS.md)。适用于 `packages/myaid-plugin-*`。包索引见 [README.md](README.md)。写文档前读 [docs/AGENTS.md](../docs/AGENTS.md)。读 [DSH_PRINCIPLES](../docs/DSH_PRINCIPLES.md) §4、[ARCHITECTURE](../docs/ARCHITECTURE.md) §4；机制背景见 [HARNESS_PRINCIPLES](../docs/research/HARNESS_PRINCIPLES.md)。
 
 ## 职责
 
