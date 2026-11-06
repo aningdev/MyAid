@@ -1,15 +1,10 @@
 import { untracked } from "nsh";
 
-import { setModule, type ModuleId } from "../../workspace/state";
 import { editBot, registry } from "../bots/state";
+import { setModule, type ModuleId } from "../moduleHost";
 import { openMain } from "./nav";
 import { approvalLock, approvalOwnerBotId, createSession } from "./session/runtime";
-import {
-  bumpChatEpoch,
-  selectItem,
-  sessionScopeBotId,
-  sessionScopeDialogueId,
-} from "./state";
+import { bumpChatEpoch, selectItem, sessionScopeBotId, sessionScopeDialogueId } from "./state";
 
 /** Primary navigation. A pending approval can move only between its session and its bot. */
 export function openModule(id: ModuleId): void {

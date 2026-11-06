@@ -5,10 +5,8 @@
 import { cleanup, effect, Scroll, Text, untracked, View } from "nsh";
 import { NavPage, NavStack } from "nsh/base";
 
+import { isDesktopLayout } from "../../components/shell";
 import { Badge, Button, colors, Field, hovered, mono, radius } from "../../components/ui";
-import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
-import { isDesktopLayout } from "../../workspace/layout";
-import { setModuleAtRoot } from "../../workspace/state";
 import { openBotDialogues, openDialogueSessions } from "../dialogue/navigate";
 import {
   answerApproval,
@@ -17,6 +15,8 @@ import {
   pendingApproval,
   sessionError,
 } from "../dialogue/session/runtime";
+import { setModuleAtRoot } from "../moduleHost";
+import { FeaturePageHeader } from "../pageChrome";
 import { presetBinding, type Bot, type BotTemplate, type PresetBindingLabel } from "./model";
 import {
   actionError,
@@ -99,7 +99,7 @@ function MobileBots() {
       {(route: BotsRoute) => {
         if (route.name === "list") {
           return (
-            <NavPage title="Bots" header={<WorkspacePageHeader title="Bots" root />}>
+            <NavPage title="Bots" header={<FeaturePageHeader title="Bots" root />}>
               <BotsList />
             </NavPage>
           );
@@ -108,7 +108,7 @@ function MobileBots() {
           <NavPage
             title={editorTitle()}
             onDismiss={() => onDetailDismiss()}
-            header={<WorkspacePageHeader title={editorTitle()} onBack={() => closeDetail()} />}
+            header={<FeaturePageHeader title={editorTitle()} onBack={() => closeDetail()} />}
           >
             <BotsDetail />
           </NavPage>

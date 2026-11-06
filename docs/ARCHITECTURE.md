@@ -82,9 +82,8 @@ apps/host/src/
 ```text
 apps/client/
 ├── App.tsx / App.test.tsx
-├── components/          # AppShell、导航、ui 基础层
-├── features/            # 业务域（如 dialogue）
-├── workspace/           # 模块注册与工作台状态
+├── components/          # AppShell、shell/（空壳 UI+状态）、ui/
+├── features/            # 业务域（主路径可不挂）
 ├── lib/dsh/             # Cookie 认证 + AuthenticatedSocket
 ├── assets/
 ├── nsh.json             # "rust": "."

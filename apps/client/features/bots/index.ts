@@ -1,4 +1,4 @@
-import type { WorkspaceModule } from "../../workspace/types";
+import type { WorkspaceModule } from "../moduleHost";
 import { BotsPage } from "./Page";
 
 export const botsModule: WorkspaceModule = {

@@ -2,7 +2,7 @@ import { mount } from "nsh";
 
 import { AppShell } from "./components/AppShell";
 
-/** MyAid client: four-pane workspace shell. */
+/** Empty shell only — no features mounted. */
 function App() {
   return <AppShell />;
 }

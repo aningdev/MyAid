@@ -59,6 +59,29 @@ _Avoid_：ProductService、统一聊天接口、权威会话存储、Relay
 
 **Client（交互客户端）**：NSH 桌面（及未来移动）应用；桌面写注册表，移动端只读快照。
 
+## Client 壳（交互空壳）
+
+**Workspace Shell（工作区壳）** _[C]_：Client 桌面交互壳 = 顶层 **Resizable** 两栏 **Navigator | Workbench**；不拥有域数据。  
+_Avoid_：图标轨 SideNav、旧 AppShell / 单 Module 整页挂载、与 Dialogue 的 workspace path 混名
+
+**Navigator（导航树）** _[C]_：左侧可调宽栏内的多级树（`nsh/base` Tree）；节点是导航地址投影。顶层分区（空壳序）：Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings。  
+_Avoid_：手写树行、DockArea left dock、把树当成第二套域模型、顶层根名叫 Pin
+
+**Favorites（收藏）** _[C]_：Navigator 顶层分区；Nav address 的快捷入口。  
+_Avoid_：Pin（留给各树内置顶）、Space
+
+**Space（空间）** _[C]_：已保存的 Workbench 布局快照（DockArea center 切分树 + 各 Panel 的 Nav address）；打开替换 Workbench。  
+_Avoid_：裸名 Workspace、Window（易与 OS 窗混淆）、Favorites
+
+**Workbench（工作台）** _[C]_：右侧可调宽栏内的多面板区（`DockArea` center）；独立 Panel 可拖、拆、缩放、放大、关闭。  
+_Avoid_：裸名 Workspace（易与 workspace path / DSH Workspace 混淆）、固定宫格、本阶段多窗多台
+
+**Panel（面板）** _[C]_：Workbench 内一块可聚焦的内容宿主；持有一个导航地址（或空插槽）。  
+_Avoid_：Module 整页独占、把 Panel 当成域对象
+
+**Nav address（导航地址）** _[C]_：Navigator 节点与 Panel 内容的稳定身份（域根 + 路径 + 对象引用）；激活叶子默认替换活动 Panel 的地址，同地址则聚焦已有 Panel。  
+_Avoid_：路由实现细节、把地址当成 Registry 真源
+
 **Plugin（插件）** _[A]_：Cordis / 声明式 bundle 装配的能力包（`packages/myaid-plugin-*` 或上游插件）。可进入共用 `web` profile 或某 Bot 派生 preset 的 `plugins`。
 
 **Relay**：一个 Background Service；多端密文帧转发；不持 owner 凭据。  

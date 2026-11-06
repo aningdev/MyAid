@@ -2,8 +2,7 @@ import { Text, View } from "nsh";
 
 import { colors } from "../components/ui";
 import type { IconName } from "../components/ui";
-import type { ModuleId } from "../workspace/state";
-import type { WorkspaceModule } from "../workspace/types";
+import type { ModuleId, WorkspaceModule } from "./moduleHost";
 
 /** Blank full-bleed module page with a title so chrome/tests have a text node. */
 function BlankPage(props: { title: string }) {

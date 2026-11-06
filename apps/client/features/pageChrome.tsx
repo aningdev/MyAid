@@ -1,10 +1,13 @@
+/**
+ * Dormant feature page chrome (features are not mounted by the empty shell).
+ * Kept here so components/ stays shell-only.
+ */
 import type { JSX } from "nsh";
 import { Text, View } from "nsh";
 
-import { colors, hovered, Icon, Press, radius } from "../ui";
+import { colors, hovered, Icon, Press, radius } from "../components/ui";
 
-/** App-drawn page header (desktops / web NavPage `header` slot). */
-export function WorkspacePageHeader(props: {
+export function FeaturePageHeader(props: {
   title: string;
   root?: boolean;
   onBack?: () => void;

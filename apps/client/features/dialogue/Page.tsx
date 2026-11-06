@@ -5,10 +5,10 @@
 import { cleanup, effect, Text, untracked, View } from "nsh";
 import { NavPage, NavStack, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 
+import { isDesktopLayout } from "../../components/shell";
 import { colors, handleThumb, header, hovered, Icon, Press, radius } from "../../components/ui";
-import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
-import { isDesktopLayout } from "../../workspace/layout";
-import { setModuleAtRoot } from "../../workspace/state";
+import { setModuleAtRoot } from "../moduleHost";
+import { FeaturePageHeader } from "../pageChrome";
 import { DialogueContext } from "./Context";
 import { DialogueList } from "./List";
 import { DialogueMain } from "./Main";
@@ -123,7 +123,7 @@ function MobileDialogue() {
               <NavPage
                 title="Dialogue"
                 headerStyle={header.headerStyle}
-                header={<WorkspacePageHeader title="Dialogue" root />}
+                header={<FeaturePageHeader title="Dialogue" root />}
               >
                 <DialogueList />
               </NavPage>
@@ -135,7 +135,7 @@ function MobileDialogue() {
                 headerStyle={header.headerStyle}
                 onDismiss={() => setModuleAtRoot(true)}
                 header={
-                  <WorkspacePageHeader
+                  <FeaturePageHeader
                     title="Dialogue"
                     onBack={() => popDialogue()}
                     trailing={<ContextToggle />}
@@ -151,7 +151,7 @@ function MobileDialogue() {
                 title="Context"
                 headerStyle={header.headerStyle}
                 onDismiss={onContextDismiss}
-                header={<WorkspacePageHeader title="Context" onBack={() => closeContextPage()} />}
+                header={<FeaturePageHeader title="Context" onBack={() => closeContextPage()} />}
               >
                 <DialogueContext selectedId={route.selectedId} />
               </NavPage>

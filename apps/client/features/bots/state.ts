@@ -1,8 +1,8 @@
 import { platform, signal, untracked } from "nsh";
 import { createNavStack } from "nsh/base";
 
-import { isDesktopLayout } from "../../workspace/layout";
-import { setModuleAtRoot } from "../../workspace/state";
+import { isDesktopLayout } from "../../components/shell";
+import { setModuleAtRoot } from "../moduleHost";
 import {
   createBot,
   createDialogue,

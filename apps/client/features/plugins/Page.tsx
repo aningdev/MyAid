@@ -6,7 +6,7 @@ import type { PluginInfo } from "@myaid/dsh-web-protocol/plugins";
 import { effect, Scroll, signal, Text, View } from "nsh";
 
 import { Button, colors } from "../../components/ui";
-import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
+import { FeaturePageHeader } from "../pageChrome";
 
 const loading = signal(false);
 const error = signal<string | null>(null);
@@ -50,7 +50,7 @@ export function PluginsPage() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <WorkspacePageHeader title="Plugins" />
+      <FeaturePageHeader title="Plugins" />
       <Scroll style={{ flex: 1 }} contentStyle={{ padding: 16, gap: 12 }}>
         <Text style={{ fontSize: 13, lineHeight: 20, color: colors.muted }}>
           官方插件清单来自 dsh pluginManager。产品能力扩展写在 myaid-plugin-*，不要依赖

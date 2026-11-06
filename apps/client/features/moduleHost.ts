@@ -1,6 +1,12 @@
-import { signal, untracked } from "nsh";
+/**
+ * Stubs for the retired Module host (NavRail / moduleId).
+ * Features are not mounted by the empty shell; these keep dormant code typechecking.
+ */
+import type { JSX } from "nsh";
+import { signal } from "nsh";
 
-/** Primary workspace modules (Nav Rail / Tab Bar). */
+import type { IconName } from "../components/ui";
+
 export type ModuleId =
   | "today"
   | "dialogue"
@@ -11,13 +17,15 @@ export type ModuleId =
   | "plugins"
   | "settings";
 
-/** Active primary module. Default Today = blank home page. */
-const moduleIdState = signal<ModuleId>("today");
+export type WorkspaceModule = {
+  id: ModuleId;
+  label: string;
+  shortLabel: string;
+  icon: IconName;
+  Page: () => JSX.Element;
+};
 
-/**
- * Whether the active module is at its root (TabBar visible on mobile).
- * Modules that push internal pages set this false; shell only reads it.
- */
+const moduleIdState = signal<ModuleId>("today");
 const moduleAtRootState = signal(true);
 
 export function moduleId() {
@@ -29,7 +37,6 @@ export function moduleAtRoot() {
 }
 
 export function setModule(id: ModuleId) {
-  if (untracked(moduleIdState) === id) return;
   moduleIdState.set(id);
   moduleAtRootState.set(true);
 }

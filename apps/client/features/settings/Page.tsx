@@ -6,7 +6,6 @@ import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
 import { effect, Scroll, signal, Text, View } from "nsh";
 
 import { Button, colors } from "../../components/ui";
-import { WorkspacePageHeader } from "../../components/workspace/PageHeader";
 import {
   enableBackgroundFromState,
   loadProductBackgroundState,
@@ -15,6 +14,7 @@ import {
   stopBackgroundFromState,
   type RegistrationPhase,
 } from "../../lib/background";
+import { FeaturePageHeader } from "../pageChrome";
 
 function phaseLabel(phase: RegistrationPhase | undefined): string {
   if (!phase) return "—";
@@ -76,7 +76,7 @@ export function SettingsPage() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <WorkspacePageHeader title="Settings" root />
+      <FeaturePageHeader title="Settings" root />
       <Scroll style={{ flex: 1 }} contentStyle={{ padding: 16, gap: 16 }}>
         <View style={{ gap: 12 }}>
           <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>产品后台</Text>

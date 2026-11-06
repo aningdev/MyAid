@@ -13,16 +13,15 @@
 ## 布局（NSH mixed）
 
 - 本目录是官方 **mixed** 应用：`App.tsx` 为 TSX 入口，`nsh.json` `"rust": "."`，Rust 在同级 `Cargo.toml` / `src/lib.rs`（`#[native_module("myaid/native")]`）。
-- 产品 TSX 模块放 `components/`（及按需子目录）；功能域放 `features/`；工作台状态放 `workspace/`；静态资源放 `assets/`。
+- 产品 TSX 放 `components/`（壳在 `components/shell/`，样式层在 `components/ui/`）；功能域放 `features/`（主路径可不挂）；静态资源放 `assets/`。
 - 保持 NSH mixed 目录，不另起平行 `frontend/{ui,application,infrastructure}` 树，除非架构文档明确改判。
 
-## 工作台（模块页宿主）
+## 工作台（Workspace Shell）
 
-- 壳（[`components/AppShell.tsx`](components/AppShell.tsx)）只做：窗口标题栏、一级 `NavRail` / `AppTabBar`、按 `moduleId` 挂载一个 **`module.Page`**。
-- **二次布局属各业务**：不要在壳层假定 List|Main|Context。Dialogue 在 [`features/dialogue/Page.tsx`](features/dialogue/Page.tsx) 内自管桌面三栏与移动内栈。
-- 模块注册：[`workspace/modules.ts`](workspace/modules.ts)；契约：[`workspace/types.ts`](workspace/types.ts)（`Page`）。
-- 移动底栏显隐跟 [`moduleAtRoot`](workspace/state.ts)；模块进入内部页时自行 `setModuleAtRoot(false)`。
-- 默认一级模块为 `today`（空白页），不默认进入 Dialogue 布局。
+- 壳入口 [`AppShell.tsx`](components/AppShell.tsx) → [`shell/`](components/shell/)：UI 与状态同目录；顶层 **Navigator | Workbench**；**不挂** `features/*`。
+- **Navigator**：`nsh/base` **Tree** + [`fixtures.ts`](components/shell/fixtures.ts)。
+- **Workbench**：`nsh/base` **DockArea**（仅 center）；独立 Panel 可拖/拆/缩放/放大/关；内容为地址占位。
+- 窄屏本阶段占位。
 
 ## 前端职责
 

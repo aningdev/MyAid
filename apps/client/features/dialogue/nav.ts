@@ -1,8 +1,8 @@
 import { untracked } from "nsh";
 import { createNavStack } from "nsh/base";
 
-import { isDesktopLayout } from "../../workspace/layout";
-import { setModuleAtRoot } from "../../workspace/state";
+import { isDesktopLayout } from "../../components/shell";
+import { setModuleAtRoot } from "../moduleHost";
 import { closeContext, openContext, peekSelectedId, selectItem } from "./state";
 
 export type DialogueRoute =

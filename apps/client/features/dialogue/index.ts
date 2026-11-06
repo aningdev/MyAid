@@ -1,4 +1,4 @@
-import type { WorkspaceModule } from "../../workspace/types";
+import type { WorkspaceModule } from "../moduleHost";
 import { DialoguePage } from "./Page";
 
 export const dialogueModule: WorkspaceModule = {
