@@ -101,7 +101,7 @@ apps/client/
 
 ## 7. Relay
 
-`apps/relay` 只做端到端密文帧转发与有界队列；不持 owner 凭据，不替代执行侧输入队列。
+`apps/relay` 是第二个 **Background Service**（与 Host 对等、存活独立）：`RelayControl` 暴露就绪 `status` / `watchStatus` 与共享登记动词（`registrationQuery` / `registrationEnable` / `registrationStop`），macOS 经薄适配返回 Relay 单元 `SMAppService` 事实；开发态显式 `serve` 不触发 OS 登记。转发面仍只做端到端密文帧与有界队列；不持 owner 凭据，不替代执行侧输入队列。
 
 ## 8. 打包与交付（目标）
 

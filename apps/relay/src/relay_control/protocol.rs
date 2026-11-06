@@ -98,7 +98,11 @@ impl Request {
             return Err("Invalid request ID".into());
         }
         match self.operation.as_str() {
-            "status" | "watchStatus" => Ok(()),
+            "status"
+            | "watchStatus"
+            | "registrationQuery"
+            | "registrationEnable"
+            | "registrationStop" => Ok(()),
             _ => Err("Invalid relay operation or arguments".into()),
         }
     }
@@ -191,6 +195,22 @@ mod tests {
         thread,
         time::Duration,
     };
+
+    #[test]
+    fn registration_operations_validate_without_extra_fields() {
+        for op in [
+            "registrationQuery",
+            "registrationEnable",
+            "registrationStop",
+        ] {
+            let request = Request {
+                version: PROTOCOL,
+                id: "r1".into(),
+                operation: op.into(),
+            };
+            assert!(request.validate().is_ok(), "op {op}");
+        }
+    }
 
     #[test]
     fn ready_status_validates() {
