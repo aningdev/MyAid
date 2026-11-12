@@ -9,7 +9,7 @@ import {
   openDialogueSessions,
   openModule,
 } from "./navigate";
-import { creatingSession, sessionError } from "./session/runtime";
+import { controllerFor, creatingSession, sessionError } from "./session/runtime";
 import { sessionScopeBotId, sessionScopeDialogueId } from "./state";
 
 /** Dialogue main: Session chat pane. */
@@ -27,7 +27,7 @@ export function DialogueMain(props: { selectedId: string | null }) {
         </View>
       }
     >
-      {(id) => <ChatPane selectedId={id()} />}
+      {(id) => <ChatPane controller={controllerFor(id())} />}
     </If>
   );
 }

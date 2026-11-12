@@ -44,6 +44,8 @@ function row(overrides: Partial<SessionRow> = {}): SessionRow {
     archived: false,
     missing: false,
     running: false,
+    unread: false,
+    attention: false,
     ...overrides,
   };
 }
@@ -107,6 +109,24 @@ test("without a roster row a claim falls back to its own title", () => {
   expect(labels(section(nav.items, "root:dialogues").children?.[0]?.children)).toEqual([
     "未命名上下文",
   ]);
+});
+
+test("Session status decorates the leaf and both ancestor rows", () => {
+  const nav = projectNav({
+    registry: registered(),
+    rows: [row({ running: true, unread: true, attention: true })],
+  });
+  for (const id of ["bots:bot/dlg/s1", "dialogues:dlg/s1"]) {
+    expect(nav.statuses.get(id)).toEqual({ working: true, unread: true, attention: true });
+  }
+  for (const id of ["bots:bot/dlg", "bots:bot", "dialogues:dlg"]) {
+    expect(nav.statuses.get(id)).toEqual({ working: true, unread: true, attention: true });
+  }
+});
+
+test("a quiet Session adds no decoration to its ancestors", () => {
+  const nav = projectNav({ registry: registered(), rows: [row()] });
+  expect(nav.statuses.size).toBe(0);
 });
 
 test("an empty registry offers the new-Bot draft instead of rows", () => {

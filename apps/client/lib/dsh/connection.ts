@@ -154,7 +154,6 @@ export class Connection {
     typert: any;
   };
   private scopes = new Map<string, Scope>();
-  private followId = 0;
   private approval?: (request: ApprovalRequest) => Promise<ApprovalDecision>;
   ready = false;
   origin = "";
@@ -337,9 +336,24 @@ export class Connection {
   }
 
   async listSessions(): Promise<
-    { sessionId: string; cwd?: string; blank: boolean; updatedAt: number }[]
+    {
+      sessionId: string;
+      cwd?: string;
+      blank: boolean;
+      updatedAt: number;
+      /** Host-reported Agent state, also for Sessions this Client does not follow. */
+      running?: boolean;
+      agentAvailable?: boolean;
+    }[]
   > {
-    const items: { sessionId: string; cwd?: string; blank?: boolean; updatedAt?: number }[] = [];
+    const items: {
+      sessionId: string;
+      cwd?: string;
+      blank?: boolean;
+      updatedAt?: number;
+      running?: boolean;
+      agentAvailable?: boolean;
+    }[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < 20; page++) {
       const value = unwrap(await this.remote.session.list(cursor ? { cursor } : {})) as {
@@ -355,6 +369,10 @@ export class Connection {
       ...(typeof item.cwd === "string" ? { cwd: item.cwd } : {}),
       blank: item.blank === true,
       updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : 0,
+      running: item.running === true,
+      ...(typeof item.agentAvailable === "boolean"
+        ? { agentAvailable: item.agentAvailable }
+        : {}),
     }));
   }
 
@@ -451,7 +469,11 @@ export class Connection {
     ) as SessionAttachmentValue;
   }
 
-  /** Follow one Session; returns disposer that stops the stream. */
+  /**
+   * Follow one Session; returns a disposer that stops only this stream.
+   * Concurrent follows each keep their own stream — a newer follow never
+   * drops an older one's frames.
+   */
   follow(
     sessionId: string,
     onFrame: (frame: SessionFollowFrame) => void,
@@ -459,25 +481,26 @@ export class Connection {
   ): () => void {
     if (!this.ctx) throw new Error("尚未连接后台");
     this.scope(sessionId);
-    // 0.2.2+: follow is passive unless activate is requested; match official Web client.
+    // `activate` requests background Agent activation for this Session (the
+    // official Web client always sends it); it is not view focus, so every
+    // followed Session may ask for it concurrently.
     const stream = this.remote.session.follow({
       address: { kind: "session", sessionId },
       activate: true,
       assistantStream: true,
     });
-    const id = ++this.followId;
     let closed = false;
     void (async () => {
       try {
         for await (const frame of stream as AsyncIterable<SessionFollowFrame>) {
-          if (closed || id !== this.followId) return;
+          if (closed) return;
           onFrame(frame);
         }
-        if (!closed && id === this.followId) {
+        if (!closed) {
           onError?.(new Error("后台历史流已结束，正在重新连接。"));
         }
       } catch (error) {
-        if (!closed && id === this.followId) {
+        if (!closed) {
           onError?.(new Error(`后台历史流中断：${readableError(error)}`));
         }
       }

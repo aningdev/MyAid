@@ -5,21 +5,11 @@ import { openAddress } from "../../components/shell/state";
 import { registry } from "../bots/state";
 import { setModule, type ModuleId } from "../moduleHost";
 import { openMain } from "./nav";
-import { approvalLock, approvalOwnerBotId, createSession } from "./session/runtime";
+import { createSession } from "./session/runtime";
 import { bumpChatEpoch, selectItem, sessionScopeBotId, sessionScopeDialogueId } from "./state";
 
-/** Primary navigation. A pending approval can move only between its session and its bot. */
+/** Primary navigation. An approval stays with its own Session; it never blocks moving. */
 export function openModule(id: ModuleId): void {
-  const owner = approvalOwnerBotId();
-  if (owner) {
-    if (id === "bots") {
-      if (approvalLock({ botId: owner })) return;
-      openOwningBot(owner);
-      return;
-    }
-    approvalLock({ allSessions: true });
-    return;
-  }
   if (id === "dialogue") {
     sessionScopeBotId.set(null);
     sessionScopeDialogueId.set(null);
@@ -32,7 +22,6 @@ export function openModule(id: ModuleId): void {
 export function openBotDialogues(botId: string): void {
   const bot = untracked(registry).bots.find((item) => item.id === botId);
   if (!bot || bot.status !== "ready") return;
-  if (approvalLock({ botId })) return;
   sessionScopeBotId.set(botId);
   sessionScopeDialogueId.set(null);
   selectItem(null);
@@ -48,7 +37,6 @@ export function openBotSessions(botId: string): void {
 export function openDialogueSessions(dialogueId: string): void {
   const dialogue = untracked(registry).dialogues.find((item) => item.id === dialogueId);
   if (!dialogue) return;
-  if (approvalLock({ dialogueId })) return;
   sessionScopeBotId.set(dialogue.botId);
   sessionScopeDialogueId.set(dialogueId);
   selectItem(null);
@@ -57,7 +45,6 @@ export function openDialogueSessions(dialogueId: string): void {
 
 /** Show a Bot in the Workbench (its Panel), whatever the keyboard was on. */
 export function openOwningBot(botId: string): void {
-  if (approvalLock({ botId })) return;
   const bot = untracked(registry).bots.find((item) => item.id === botId);
   if (!bot) return;
   openAddress(botAddress(bot));

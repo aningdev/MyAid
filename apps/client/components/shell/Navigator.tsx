@@ -11,7 +11,7 @@ import { Button, Tree, type TreeEntry, type TreeRef } from "nsh/base";
 
 import { colors, Icon, TreeRow, treeItemClass } from "../ui";
 import { NAV_DEFAULT_EXPANDED } from "./fixtures";
-import { navActionForId, navItemIdForAddress, navItems, navKindForId } from "./navData";
+import { navActionForId, navItemIdForAddress, navItems, navKindForId, navStatusForId } from "./navData";
 import { navKindIcon } from "./navIcons";
 import { activateNavItem, activeAddress, openNewBotDraft } from "./state";
 
@@ -90,6 +90,7 @@ export function Navigator() {
               depth={entry.depth - 1}
               icon={navKindIcon(navKindForId(entry.id))}
               tint={colors.muted}
+              status={navStatusForId(entry.id)}
             />
           )
         }

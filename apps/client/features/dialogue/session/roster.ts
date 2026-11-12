@@ -1,5 +1,5 @@
 /**
- * Deep module: claim × dsh listing × summary × occupancy → SessionRow.
+ * Deep module: claim × dsh listing × summary × controller status → SessionRow.
  * Pure assembly; callers subscribe to rows and issue create/open elsewhere.
  */
 import type { BotRegistry } from "../../bots/model";
@@ -9,6 +9,13 @@ import {
   type ListedSession,
   type ProductSession,
 } from "../../bots/sessions";
+
+/** Live status a SessionController (or a finished off-screen turn) reports. */
+export type SessionStatus = {
+  running: boolean;
+  unread: boolean;
+  attention: boolean;
+};
 
 export type SessionRow = {
   id: string;
@@ -21,6 +28,10 @@ export type SessionRow = {
   archived: boolean;
   missing: boolean;
   running: boolean;
+  /** A reply finished while no Panel showed this Session. */
+  unread: boolean;
+  /** An approval is waiting for this Session. */
+  attention: boolean;
 };
 
 export function sessionDetail(
@@ -40,14 +51,18 @@ export function buildSessionRoster(input: {
   listed: ListedSession[] | null;
   scopeDialogueId?: string | null;
   scopeBotId?: string | null;
-  occupyingSessionId: string | null;
   summaries: Map<string, string>;
 }): SessionRow[] {
+  const listedRunning = new Map(
+    (input.listed ?? []).map((item) => [item.sessionId, item.running === true]),
+  );
   return listProductSessions(input.registry, input.listed, {
     dialogueId: input.scopeDialogueId ?? null,
     botId: input.scopeBotId ?? null,
   }).map((item) => {
-    const running = input.occupyingSessionId === item.sessionId;
+    // Host list state covers Sessions this Client does not follow; a
+    // controller's own state is applied later and wins over it.
+    const running = listedRunning.get(item.sessionId) ?? false;
     return {
       id: item.sessionId,
       dialogueId: item.dialogueId,
@@ -59,6 +74,26 @@ export function buildSessionRoster(input: {
       archived: item.archived,
       missing: item.missing,
       running,
+      unread: false,
+      attention: false,
+    };
+  });
+}
+
+/** Row decorations from live controller state; a followed Session's state wins over the listing. */
+export function withStatuses(
+  rows: readonly SessionRow[],
+  statuses: ReadonlyMap<string, SessionStatus>,
+): SessionRow[] {
+  return rows.map((row) => {
+    const status = statuses.get(row.id);
+    const running = status ? status.running : row.running;
+    return {
+      ...row,
+      running,
+      unread: status?.unread ?? false,
+      attention: status?.attention ?? false,
+      detail: sessionDetail(row, running),
     };
   });
 }
@@ -90,6 +125,8 @@ export function rosterForDialogue(input: {
       archived: item.archived,
       missing: false,
       running: false,
+      unread: false,
+      attention: false,
     }));
   return [...unlisted, ...known];
 }
@@ -103,16 +140,4 @@ export function relabelRow(
 ): SessionRow[] {
   const label = sessionLabel({ title }, summary);
   return rows.map((row) => (row.id === sessionId ? { ...row, label } : row));
-}
-
-/** Refresh running flags after occupancy changes. */
-export function withOccupancy(rows: SessionRow[], occupyingSessionId: string | null): SessionRow[] {
-  return rows.map((row) => {
-    const running = row.id === occupyingSessionId;
-    return {
-      ...row,
-      running,
-      detail: sessionDetail(row, running),
-    };
-  });
 }

@@ -46,29 +46,19 @@ import {
   ToolCard,
 } from "./chat/parts";
 import { type FileRef, type Msg, type Tool } from "./chat/scripts";
-import {
-  acknowledgeTurnFreeze,
-  applyTurnError,
-  beginLocalTurn,
-  cancelLocalTurn,
-  cancelSession,
-  connectSession,
-  openSession,
-  promptSession,
-  resetLocalProjection,
-  sessionError,
-  sessionReady,
-  subscribeSession,
-} from "./session/runtime";
+import type { SessionController } from "./session/controller";
+import { sessionError, sessionReady } from "./session/runtime";
 import { chatEpoch, model as chatModel, openContext } from "./state";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
 type User = Extract<Msg, { kind: "user" }>;
 
 /**
- * Dialogue main pane — renders TurnProjection; does not own freeze / frame policy.
+ * Dialogue main pane — renders one SessionController's TurnProjection; the
+ * controller owns frames, turn freeze, approvals and the shared draft.
  */
-export function ChatPane(props: { selectedId: string | null }) {
+export function ChatPane(props: { controller: SessionController }) {
+  const controller = (): SessionController => props.controller;
   const wide = platform.idiom === "desktop";
   /** Desktop: messages and the composer in a centered column. */
   const column: ViewStyle = wide ? { width: "100%", maxWidth: 820, alignSelf: "center" } : {};
@@ -79,8 +69,9 @@ export function ChatPane(props: { selectedId: string | null }) {
   const messages = signal<Msg[]>([]);
   const model = chatModel;
   const native = platform.idiom === "desktop" && platform.os !== "web";
-  const useDsh = () => native && !!props.selectedId;
-  const draft = signal("");
+  const useDsh = () => native;
+  const draft = () => controller().draft();
+  const setDraft = (value: string) => controller().draft.set(value);
   const inputHeight = signal(20);
   const attachment = signal<{
     image: string;
@@ -188,7 +179,7 @@ export function ChatPane(props: { selectedId: string | null }) {
       clearLiveSignals();
       prompting.set(false);
     });
-    acknowledgeTurnFreeze();
+    controller().acknowledgeFreeze();
     setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
   };
 
@@ -249,137 +240,161 @@ export function ChatPane(props: { selectedId: string | null }) {
         at ? messages().map((m) => (m.id === at ? placeholder : m)) : [...messages(), placeholder],
       );
     });
-    beginLocalTurn(id);
+    controller().beginLocalTurn(id);
     try {
-      const sessionId = props.selectedId;
-      if (!sessionId) throw new Error("先选择一条会话。");
-      await promptSession(text, sessionId, content);
+      await controller().prompt(text, content);
     } catch (error) {
-      applyTurnError(error instanceof Error ? error.message : String(error));
+      controller().applyError(error instanceof Error ? error.message : String(error));
     }
   };
 
   const stop = () => {
     if (!prompting()) return;
-    if (useDsh()) void cancelSession();
-    cancelLocalTurn();
+    if (useDsh()) void controller().cancel();
+    controller().cancelLocalTurn();
   };
 
-  // Project official Session follow frames into the primary pane.
+  // Clear the local projection before a new controller's view is read.
   effect(() => {
-    if (!useDsh()) return;
-    const stopSub = subscribeSession((view) => {
-      const busy = !!(view.liveMd || view.liveReason || view.liveTools.length);
-
-      if (view.pendingFreeze) {
-        flushLive();
-        stopTicker();
-        const freeze = view.pendingFreeze;
-        if (freeze.messages.length) {
-          commitProjected(freeze.messages);
-        } else {
-          const seconds =
-            thinkSeconds ??
-            (view.liveReason || liveReason()
-              ? Math.max(1, Math.round((performance.now() - thinkStart) / 1000))
-              : 1);
-          const id = liveId() ?? nextId();
-          const final: Assistant = {
-            kind: "assistant",
-            id,
-            model: model(),
-            script: "dsh",
-            reasoning:
-              view.liveReason || liveReason()
-                ? { text: view.liveReason || liveReason(), seconds, open: false }
-                : undefined,
-            tools: (view.liveTools.length ? view.liveTools : liveTools()).map((t) =>
-              t.state === "done" ? t : ({ ...t, state: "cancelled" } as Tool),
-            ),
-            md: view.liveMd || liveMd(),
-            status: freeze.status,
-            error: freeze.error,
-          };
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          batch(() => {
-            messages.set(messages().map((m) => (m.id === id ? final : m)));
-            liveId.set(null);
-            clearLiveSignals();
-            prompting.set(false);
-          });
-          acknowledgeTurnFreeze();
-          setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
-        }
-        return;
-      }
-
-      if (!prompting()) {
-        if (!view.messages.length && !busy) return;
-        const projected: Msg[] = [{ kind: "date", id: nextId(), label: "Today" }, ...view.messages];
-        if (view.running && busy) {
-          const live: Assistant = {
-            kind: "assistant",
-            id: view.liveId ?? `live-${Date.now()}`,
-            model: model(),
-            script: "dsh",
-            reasoning: view.liveReason
-              ? { text: view.liveReason, seconds: 1, open: true }
-              : undefined,
-            tools: view.liveTools,
-            md: view.liveMd,
-            status: "done",
-          };
-          batch(() => {
-            messages.set([...projected, live]);
-            liveId.set(live.id);
-            liveMd.set(view.liveMd);
-            liveReason.set(view.liveReason);
-            liveTools.set(view.liveTools);
-          });
-        } else {
-          batch(() => {
-            messages.set(projected);
-            liveId.set(null);
-            clearLiveSignals();
-          });
-        }
-        return;
-      }
-
-      if (view.liveTools.length) liveTools.set(view.liveTools);
-      if (view.liveReason) {
-        pendingReason = view.liveReason;
-        noteReasoning(view.liveReason);
-        queueLive();
-      }
-      if (view.liveMd) {
-        if (view.liveReason || liveReason()) noteReasoningDone();
-        pendingMd = view.liveMd;
-        queueLive();
-      }
-    });
-    cleanup(stopSub);
-  });
-
-  effect(() => {
-    const id = props.selectedId;
+    const current = controller();
+    current.sessionId;
     chatEpoch();
-    if (!useDsh() || !id) return;
-    resetLocalProjection();
     stopTicker();
     messages.set([]);
     liveId.set(null);
     clearLiveSignals();
     prompting.set(false);
-    void openSession(id).catch(() => undefined);
+  });
+
+  // Project this controller's frames into the pane.
+  effect(() => {
+    if (!useDsh()) return;
+    const current = controller();
+    current.mount();
+    cleanup(() => current.unmount());
+  });
+
+  effect(() => {
+    if (!useDsh()) return;
+    const view = controller().view();
+    const busy = !!(view.liveMd || view.liveReason || view.liveTools.length);
+
+    if (view.pendingFreeze) {
+      flushLive();
+      stopTicker();
+      const freeze = view.pendingFreeze;
+      if (freeze.messages.length) {
+        commitProjected(freeze.messages);
+      } else {
+        const seconds =
+          thinkSeconds ??
+          (view.liveReason || liveReason()
+            ? Math.max(1, Math.round((performance.now() - thinkStart) / 1000))
+            : 1);
+        const id = liveId() ?? nextId();
+        const final: Assistant = {
+          kind: "assistant",
+          id,
+          model: model(),
+          script: "dsh",
+          reasoning:
+            view.liveReason || liveReason()
+              ? { text: view.liveReason || liveReason(), seconds, open: false }
+              : undefined,
+          tools: (view.liveTools.length ? view.liveTools : liveTools()).map((t) =>
+            t.state === "done" ? t : ({ ...t, state: "cancelled" } as Tool),
+          ),
+          md: view.liveMd || liveMd(),
+          status: freeze.status,
+          error: freeze.error,
+        };
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        batch(() => {
+          messages.set(messages().map((m) => (m.id === id ? final : m)));
+          liveId.set(null);
+          clearLiveSignals();
+          prompting.set(false);
+        });
+        controller().acknowledgeFreeze();
+        setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
+      }
+      return;
+    }
+
+    if (!prompting()) {
+      if (!view.messages.length && !busy) return;
+      const projected: Msg[] = [{ kind: "date", id: nextId(), label: "Today" }, ...view.messages];
+      if (view.running && busy) {
+        const live: Assistant = {
+          kind: "assistant",
+          id: view.liveId ?? `live-${Date.now()}`,
+          model: model(),
+          script: "dsh",
+          reasoning: view.liveReason
+            ? { text: view.liveReason, seconds: 1, open: true }
+            : undefined,
+          tools: view.liveTools,
+          md: view.liveMd,
+          status: "done",
+        };
+        batch(() => {
+          messages.set([...projected, live]);
+          liveId.set(live.id);
+          liveMd.set(view.liveMd);
+          liveReason.set(view.liveReason);
+          liveTools.set(view.liveTools);
+        });
+      } else {
+        batch(() => {
+          messages.set(projected);
+          liveId.set(null);
+          clearLiveSignals();
+        });
+      }
+      return;
+    }
+
+    if (!view.running && !busy) {
+      // Another Pane consumed this turn's freeze first: settle this Pane from
+      // the durable messages instead of keeping its local placeholder.
+      if (view.messages.length) {
+        commitProjected(view.messages);
+        return;
+      }
+      const failure = controller().error();
+      if (failure) {
+        showConnectError(new Error(failure));
+        return;
+      }
+      batch(() => {
+        liveId.set(null);
+        clearLiveSignals();
+        prompting.set(false);
+      });
+      controller().acknowledgeFreeze();
+      return;
+    }
+
+    if (view.liveTools.length) liveTools.set(view.liveTools);
+    if (view.liveReason) {
+      pendingReason = view.liveReason;
+      noteReasoning(view.liveReason);
+      queueLive();
+    }
+    if (view.liveMd) {
+      if (view.liveReason || liveReason()) noteReasoningDone();
+      pendingMd = view.liveMd;
+      queueLive();
+    }
   });
 
   cleanup(stopTicker);
 
   effect(() => {
     const err = sessionError();
-    if (useDsh() && err && prompting()) {
-      applyTurnError(err);
+    const local = controller().error();
+    if (useDsh() && (local || err) && prompting()) {
+      controller().applyError(local ?? err!);
     }
   });
 
@@ -402,18 +417,8 @@ export function ChatPane(props: { selectedId: string | null }) {
       banner.set("offline");
       return;
     }
-    // Connect before mutating local messages so the idle follow snapshot
-    // cannot wipe the just-added user bubble / freeze a pending run.
-    if (!props.selectedId) {
-      showConnectError(new Error("先选择一条会话。"));
-      return;
-    }
-    try {
-      if (!sessionReady()) await connectSession(props.selectedId);
-    } catch (error) {
-      showConnectError(error);
-      return;
-    }
+    // The controller connects before prompting; mutate local messages first so
+    // an idle follow snapshot cannot wipe the just-added user bubble.
     if (prompting()) return;
     let content: PromptContentPart[] | undefined;
     if (pending) {
@@ -431,7 +436,7 @@ export function ChatPane(props: { selectedId: string | null }) {
         ? []
         : [{ kind: "date", id: nextId(), label: "Today" }];
       messages.set([...messages(), ...start, user]);
-      draft.set("");
+      setDraft("");
       attachment.set(null);
     });
     toEnd();
@@ -488,19 +493,7 @@ export function ChatPane(props: { selectedId: string | null }) {
     const text = promptBefore(m.id);
     if (!text) return;
     following.set(true);
-    void (async () => {
-      if (!props.selectedId) {
-        showConnectError(new Error("先选择一条会话。"), m.id);
-        return;
-      }
-      try {
-        if (!sessionReady()) await connectSession(props.selectedId);
-      } catch (error) {
-        showConnectError(error, m.id);
-        return;
-      }
-      await replyDsh(text, m.id);
-    })();
+    void replyDsh(text, m.id);
   };
   const retry = (m: Assistant) => regenerate(m);
   const copy = (key: string, text: string) => {
@@ -1000,7 +993,7 @@ export function ChatPane(props: { selectedId: string | null }) {
           >
             <Input
               value={draft()}
-              onChange={(e) => draft.set(e.value)}
+              onChange={(e) => setDraft(e.value)}
               multiline
               // Return sends on desktops, as in chat apps there (Shift+Return
               // adds a line); phones keep return for line breaks.
@@ -1043,11 +1036,13 @@ export function ChatPane(props: { selectedId: string | null }) {
               </View>
               <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 8 }}>
                 <Text style={{ fontSize: 12, color: colors.muted }}>
-                  {sessionReady()
-                    ? "Session connected"
-                    : sessionError()
-                      ? "Context 中启动 Host / 后台"
-                      : "Open Context to connect"}
+                  {controller().error()
+                    ? controller().error()
+                    : sessionReady()
+                      ? "Session connected"
+                      : sessionError()
+                        ? "Context 中启动 Host / 后台"
+                        : "Open Context to connect"}
                 </Text>
               </View>
               <If
@@ -1085,18 +1080,6 @@ export function ChatPane(props: { selectedId: string | null }) {
       </View>
     </View>
   );
-  // Clear local projection when selection / epoch changes.
-  effect(() => {
-    props.selectedId;
-    chatEpoch();
-    stop();
-    batch(() => {
-      messages.set([]);
-      attachment.set(null);
-      menu.set(false);
-      draft.set("");
-    });
-  });
 
   return pane;
 }

@@ -1,4 +1,3 @@
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { expect, test } from "nsh/test";
 
 import {
@@ -41,30 +40,18 @@ function readyRegistry(): BotRegistry {
 }
 
 function fakeTransport(overrides: Partial<SessionTransport> = {}): SessionTransport & {
-  prompts: string[];
-  followed: string[];
   disposed: boolean;
 } {
   const state = {
-    prompts: [] as string[],
-    followed: [] as string[],
     disposed: false,
     ready: true,
   };
   const transport: SessionTransport & typeof state = {
     ...state,
     createSession: async () => ({ sessionId: "new-session" }),
-    listSessions: async () => [{ sessionId: "s1", blank: false, updatedAt: 1 }],
-    follow: (sessionId, onFrame) => {
-      state.followed.push(sessionId);
-      queueMicrotask(() =>
-        onFrame({ type: "snapshot", records: [] } as unknown as SessionFollowFrame),
-      );
-      return () => undefined;
-    },
-    prompt: async (request) => {
-      state.prompts.push(request.text ?? "");
-    },
+    listSessions: async () => [{ sessionId: "s1", blank: false, updatedAt: 1, running: false }],
+    follow: () => () => undefined,
+    prompt: async () => undefined,
     cancel: async () => undefined,
     withdrawQueuedPrompt: async () => undefined,
     modelCatalog: async () =>
@@ -90,7 +77,6 @@ function hooks(
   transport: SessionTransport,
   extras: Partial<ClaimHooks> = {},
 ): ClaimHooks {
-  const frames: unknown[] = [];
   return {
     connect: async () => transport,
     claim: async (dialogueId, sessionId) => {
@@ -98,16 +84,11 @@ function hooks(
       return true;
     },
     registry: () => registry,
-    summaries: () => new Map(),
-    onFrame: (_sessionId, frame) => {
-      frames.push(frame);
-    },
-    onFollowError: () => undefined,
     ...extras,
   };
 }
 
-test("createClaimed creates then claims then follows in order", async () => {
+test("createClaimed creates then claims, and leaves following to the Session controller", async () => {
   let registry = readyRegistry();
   const order: string[] = [];
   const transport = fakeTransport({
@@ -138,31 +119,27 @@ test("createClaimed creates then claims then follows in order", async () => {
     agentPreset: "standard",
   });
   expect(id).toBe("created");
-  expect(order).toEqual(["create", "claim:dlg:created", "follow:created"]);
+  expect(order).toEqual(["create", "claim:dlg:created"]);
+  expect(client.getTransport()?.ready).toBe(true);
 });
 
-test("occupancy blocks same-workspace prompt", () => {
+test("occupancy blocks another running Session in the same workspace", () => {
   const registry = claimSession(readyRegistry(), "dlg", "s2");
   const message = occupancyBlock({
-    occupyingSessionId: "s1",
+    occupyingSessionIds: ["s1"],
     targetSessionId: "s2",
     registry,
     summaries: new Map([["s1", "busy"]]),
   });
   expect(message).toContain("占用");
-});
-
-test("prompt refuses when workspace occupied", async () => {
-  const registry = claimSession(readyRegistry(), "dlg", "s2");
-  const transport = fakeTransport();
-  const client = new ClaimedSessionClient(hooks(registry, transport));
-  await client.ensureConnected();
-  client.occupyingSessionId = "s1";
-  const bot = registry.bots[0]!;
-  await expect(
-    client.prompt({ sessionId: "s2", text: "hi", bot, archived: false }),
-  ).rejects.toThrow(/占用/);
-  expect(transport.prompts).toEqual([]);
+  expect(
+    occupancyBlock({
+      occupyingSessionIds: ["s1"],
+      targetSessionId: "s1",
+      registry,
+      summaries: new Map(),
+    }),
+  ).toBe(null);
 });
 
 test("dispose drops transport and rejects later use", async () => {

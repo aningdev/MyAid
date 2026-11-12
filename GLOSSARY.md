@@ -103,14 +103,17 @@ _Avoid_：RelayControl、业务 Remote
 **RelayControl**：Relay 的本机控制通道协议与服务；查询/登记事实与就绪状态；不承载业务 remote，不解密载荷。  
 _Avoid_：HostControl、把 Relay 启停塞进 HostControl
 
-**TurnProjection**：Client 内将 Harness Session follow 帧与本地 prompt 生命周期投影为 Dialogue UI 消息 / live 气泡 / freeze 策略的 module。  
+**TurnProjection**：Client 内将 Harness Session follow 帧与本地 prompt 生命周期投影为 Dialogue UI 消息 / live 气泡 / freeze 策略的 module；每个 **SessionController** 持有一个。  
 _Avoid_：ChatPane 内二次解析帧、独立 SessionProjector 对外接口
 
-**ClaimedSession**：认领 Session 的客户端 module：连接、create+claim+follow、prompt/approval、dispose；产品路径不创建未认领 Session。（实现名；认领目标应对齐 Dialogue——见映射图。）  
-_Avoid_：`myaid-primary`、未认领的固定 Session
+**SessionController**：按 Session 的运行时 module：持有该 Session 的 follow 订阅、**TurnProjection**、草稿、审批、运行 / 错误状态，提供 prompt / cancel / withdraw；由 registry 按 sessionId 惰性创建，无 Panel 且未运行（也无待审批）时释放，运行中的留在后台把回复跑完。  
+_Avoid_：全局单例 runtime、ChatPane 自持帧解析、把 controller 当产品对象
 
-**SessionRoster**：产品 Session 名册 module：认领 × dsh listing × 摘要 × 占用 → 列表行；未认领不进列表。  
-_Avoid_：在 List/Main 内拼装行模型
+**ClaimedSession**：认领 Session 的客户端 module：一条共享连接（connect / 重连）、create + claim、dispose；产品路径不创建未认领 Session。follow / prompt / approval 属 **SessionController**。（实现名；认领目标应对齐 Dialogue——见映射图。）  
+_Avoid_：`myaid-primary`、未认领的固定 Session、把连接复制到每个 controller
+
+**SessionRoster**：产品 Session 名册 module：认领 × dsh listing × 摘要 → 列表行，再把 **SessionController** / 未读状态投影到行；未认领不进列表。  
+_Avoid_：在 List/Main 内拼装行模型、把状态点做成第二套会话模型
 
 ## Harness 概念（上游，桶 A）
 

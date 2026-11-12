@@ -53,7 +53,16 @@ export async function createBoundSession(
 
 export async function listSessions(
   connection?: Connection,
-): Promise<{ sessionId: string; cwd?: string; blank: boolean; updatedAt: number }[]> {
+): Promise<
+  {
+    sessionId: string;
+    cwd?: string;
+    blank: boolean;
+    updatedAt: number;
+    running?: boolean;
+    agentAvailable?: boolean;
+  }[]
+> {
   const conn = connection ?? shared ?? (await ensureConnected());
   return conn.listSessions();
 }

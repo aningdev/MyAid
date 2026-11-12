@@ -12,10 +12,7 @@ import {
   openOwningBot,
 } from "./navigate";
 import {
-  activeSessionId,
-  approvalLock,
   creatingSession,
-  pendingApproval,
   refreshSessionList,
   releaseMissingSession,
   sessionError,
@@ -51,7 +48,6 @@ export function DialogueList() {
     !!scopeDialogue() &&
     !scopeDialogue()?.archived &&
     scopedBot()?.status === "ready" &&
-    !pendingApproval() &&
     !creatingSession();
 
   const onNewSession = () => {
@@ -62,7 +58,7 @@ export function DialogueList() {
 
   const onNewDialogue = () => {
     const bot = scopedBot();
-    if (!bot || bot.status !== "ready" || pendingApproval()) return;
+    if (!bot || bot.status !== "ready") return;
     void createDialogueFromPicker(bot.id);
   };
 
@@ -98,11 +94,7 @@ export function DialogueList() {
         </If>
 
         <If
-          when={
-            !sessionScopeDialogueId() &&
-            scopedBot()?.status === "ready" &&
-            !pendingApproval()
-          }
+          when={!sessionScopeDialogueId() && scopedBot()?.status === "ready"}
         >
           <Press onPress={onNewDialogue} accessibilityLabel="新上下文">
             <View
@@ -236,7 +228,7 @@ export function DialogueList() {
         >
           <Each of={rows()}>
             {(row) => {
-              const active = () => selectedId() === row().id || activeSessionId() === row().id;
+              const active = () => selectedId() === row().id;
               return (
                 <View
                   style={{
@@ -250,7 +242,6 @@ export function DialogueList() {
                   <View
                     onPress={() => {
                       if (row().missing) return;
-                      if (approvalLock({ sessionId: row().id })) return;
                       selectItem(row().id);
                       bumpChatEpoch();
                       openMain(row().id);

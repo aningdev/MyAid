@@ -1,12 +1,14 @@
 /**
- * Dialogue Session runtime shell: signals + Host status around ClaimedSession + TurnProjection.
- * Host control + official dsh SDK load lazily so AppShell / Today stay free of them.
+ * Dialogue Session runtime: the shared Host connection, the SessionRoster and
+ * the per-Session controllers. A Panel reads its own SessionController; a
+ * reply keeps streaming when that Panel is gone (controllers for running
+ * Sessions stay alive, and mark the Session unread when the reply lands).
+ * Host control + official dsh SDK load lazily so AppShell / Today stay free.
  */
 import { homedir } from "os";
 import { join } from "path";
 
-import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
-import { signal, untracked } from "nsh";
+import { computed, signal, untracked } from "nsh";
 
 import {
   archiveDialogue,
@@ -17,6 +19,7 @@ import {
   renameClaim,
 } from "../../bots/model";
 import { changeRegistry, ready, registry } from "../../bots/state";
+import type { ListedSession } from "../../bots/sessions";
 import { sessionScopeBotId, sessionScopeDialogueId } from "../state";
 import {
   ClaimedSessionClient,
@@ -26,10 +29,18 @@ import {
   type ModelCatalog,
   type SessionTransport,
 } from "./claimed";
-import { buildSessionRoster, relabelRow, withOccupancy, type SessionRow } from "./roster";
-import { TurnProjection, type TurnView } from "./turn";
+import { SessionRegistry, type SessionController } from "./controller";
+import {
+  buildSessionRoster,
+  relabelRow,
+  withStatuses,
+  type SessionRow,
+  type SessionStatus,
+} from "./roster";
+import type { TurnView } from "./turn";
 
 export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog, ModelCatalog, SessionRow };
+export type { SessionController, SessionStatus };
 
 export type HostStatus = {
   phase: string;
@@ -49,18 +60,48 @@ type HostControlApi = typeof import("../../../lib/host/control");
 
 export const hostStatus = signal<HostStatus | null>(null);
 export const hostConnection = signal<HostConnection>("down");
+/** The shared Connection is up and serving this Client. */
 export const sessionReady = signal(false);
+/** Connection-level error; per-Session errors live on the controller. */
 export const sessionError = signal<string | null>(null);
 export const modelCatalog = signal<FlatModelCatalog | null>(null);
-export const pendingApproval = signal<ApprovalRequest | null>(null);
-export const sessionList = signal<SessionRow[]>([]);
-export const activeSessionId = signal<string | null>(null);
-/** Session that is executing, including after the view follows another session. */
-export const occupyingSessionId = signal<string | null>(null);
 /** True while createSession is talking to dsh / writing the claim. */
 export const creatingSession = signal(false);
 
 const summaries = new Map<string, string>();
+const rosterBase = signal<SessionRow[]>([]);
+/** Controller membership / unread / running / approval changed. */
+const changeTick = signal(0);
+let listedSessions: ListedSession[] | null = null;
+
+const sessionControllers = new SessionRegistry({
+  ensureTransport: () => connectTransport(),
+  transport: () => claimed?.getTransport(),
+  registry: () => untracked(registry),
+  summaries: () => summaries,
+  onChange: () => {
+    changeTick.update((value) => value + 1);
+    // A controller can exist before the first dsh listing (a Panel mounted
+    // first): keep the Navigator's rows from going stale-empty.
+    if (untracked(rosterBase).length === 0) rebuildRoster();
+  },
+  onView: (sessionId, view) => rememberSummary(sessionId, view.messages),
+});
+
+const sessionStatuses = computed<ReadonlyMap<string, SessionStatus>>(() => {
+  changeTick();
+  return sessionControllers.statuses();
+});
+
+/** Roster rows, decorated with the live per-Session status. */
+export const sessionList = computed<SessionRow[]>(() =>
+  withStatuses(rosterBase(), sessionStatuses()),
+);
+
+let claimed: ClaimedSessionClient | undefined;
+let connectWork: Promise<void> | undefined;
+let dsh: DshSession | undefined;
+let host: HostControlApi | undefined;
 
 function resolveWorkspace(path: string): string {
   const trimmed = path.trim();
@@ -69,19 +110,6 @@ function resolveWorkspace(path: string): string {
   if (trimmed.startsWith("~/")) return join(homedir(), trimmed.slice(2));
   return trimmed;
 }
-
-async function failSession(error: unknown): Promise<never> {
-  const api = await loadDsh();
-  const message = api.readableError(error);
-  sessionError.set(message);
-  throw error instanceof Error ? error : new Error(message);
-}
-
-let approvalResolve: ((decision: ApprovalDecision) => void) | undefined;
-let turns = new TurnProjection();
-let claimed: ClaimedSessionClient | undefined;
-let dsh: DshSession | undefined;
-let host: HostControlApi | undefined;
 
 async function loadDsh(): Promise<DshSession> {
   if (!dsh) dsh = await import("../../../lib/dsh/session");
@@ -93,97 +121,42 @@ async function loadHost(): Promise<HostControlApi> {
   return host;
 }
 
-export type SessionView = TurnView;
-
-const listeners = new Set<(view: SessionView) => void>();
-
-function emit(view: SessionView = turns.snapshot()) {
-  for (const listener of listeners) listener(view);
+async function failSession(error: unknown): Promise<never> {
+  const api = await loadDsh();
+  const message = api.readableError(error);
+  sessionError.set(message);
+  throw error instanceof Error ? error : new Error(message);
 }
 
-export function subscribeSession(listener: (view: SessionView) => void): () => void {
-  listeners.add(listener);
-  listener(turns.snapshot());
-  return () => {
-    listeners.delete(listener);
-  };
+/** The controller for one Session: created on first ask, reused by every Panel showing it. */
+export function controllerFor(sessionId: string): SessionController {
+  return sessionControllers.controllerFor(sessionId);
 }
 
-/** Start a local prompt turn so freeze waits for a real follow turn. */
-export function beginLocalTurn(assistantId: string): void {
-  turns.beginTurn(assistantId);
-  emit();
+/** Approvals waiting anywhere, for product surfaces outside a Session Panel. */
+export function hasPendingApproval(): boolean {
+  return [...sessionStatuses().values()].some((status) => status.attention);
 }
 
-export function acknowledgeTurnFreeze(): void {
-  turns.acknowledgeFreeze();
-  emit();
+export function pendingApprovalFor(sessionId: string | null): ApprovalRequest | null {
+  return sessionId ? (sessionControllers.peek(sessionId)?.pendingApproval() ?? null) : null;
 }
 
-export function cancelLocalTurn(): SessionView {
-  const view = turns.cancel();
-  emit(view);
-  return view;
+export function answerApprovalForSession(sessionId: string, decision: ApprovalDecision): void {
+  sessionControllers.peek(sessionId)?.answerApproval(decision);
 }
 
-export function applyTurnError(message: string): SessionView {
-  const view = turns.applyError(message);
-  emit(view);
-  return view;
-}
-
-function rememberSummary(sessionId: string, messages: { kind: string; text?: string }[]) {
+function rememberSummary(
+  sessionId: string,
+  messages: readonly { kind: string; text?: string }[],
+): void {
   const first = messages.find((message) => message.kind === "user" && message.text?.trim());
   if (!first?.text) return;
   const text = first.text.trim();
   if (summaries.get(sessionId) === text) return;
   summaries.set(sessionId, text);
   const title = claimOwner(untracked(registry), sessionId)?.claim.title ?? null;
-  sessionList.update((rows) => relabelRow(rows, sessionId, title, text));
-}
-
-function noteActivity(sessionId: string, running: boolean) {
-  claimed?.noteActivity(sessionId, running);
-  const previous = untracked(occupyingSessionId);
-  const next = claimed?.occupyingSessionId ?? null;
-  occupyingSessionId.set(next);
-  if (previous === next) return;
-  sessionList.update((rows) => withOccupancy(rows, next));
-}
-
-const APPROVAL_HELD = "这条审批还没有答复。";
-
-/** Block navigation that would leave the session waiting on approval. Returns true when blocked. */
-export function approvalLock(target: {
-  sessionId?: string | null;
-  botId?: string | null;
-  dialogueId?: string | null;
-  allSessions?: boolean;
-}): boolean {
-  const pending = untracked(pendingApproval);
-  if (!pending) return false;
-  const owner = claimOwner(untracked(registry), pending.sessionId);
-  const sameSession = target.sessionId === undefined || target.sessionId === pending.sessionId;
-  const sameBot = target.botId === undefined || target.botId === owner?.bot.id;
-  const sameDialogue =
-    target.dialogueId === undefined || target.dialogueId === owner?.dialogue.id;
-  if (target.allSessions || !sameSession || !sameBot || !sameDialogue) {
-    sessionError.set(APPROVAL_HELD);
-    return true;
-  }
-  return false;
-}
-
-export function approvalOwnerBotId(): string | null {
-  const pending = untracked(pendingApproval);
-  if (!pending) return null;
-  return claimOwner(untracked(registry), pending.sessionId)?.bot.id ?? null;
-}
-
-export function approvalOwnerDialogueId(): string | null {
-  const pending = untracked(pendingApproval);
-  if (!pending) return null;
-  return claimOwner(untracked(registry), pending.sessionId)?.dialogue.id ?? null;
+  rosterBase.update((rows) => relabelRow(rows, sessionId, title, text));
 }
 
 export async function refreshHostStatus(): Promise<HostStatus | null> {
@@ -207,24 +180,28 @@ export async function refreshHostStatus(): Promise<HostStatus | null> {
   }
 }
 
+function rebuildRoster(): void {
+  rosterBase.set(
+    buildSessionRoster({
+      registry: untracked(registry),
+      listed: listedSessions,
+      scopeDialogueId: untracked(sessionScopeDialogueId),
+      scopeBotId: untracked(sessionScopeBotId),
+      summaries,
+    }),
+  );
+}
+
 export async function refreshSessionList(): Promise<SessionRow[]> {
-  let listed: { sessionId: string; blank: boolean; updatedAt: number }[] | null = null;
   try {
     const transport = claimed?.getTransport();
-    if (transport?.ready) listed = await transport.listSessions();
+    if (transport?.ready) listedSessions = await transport.listSessions();
+    else listedSessions = null;
   } catch {
-    listed = null;
+    listedSessions = null;
   }
-  const rows = buildSessionRoster({
-    registry: untracked(registry),
-    listed,
-    scopeDialogueId: untracked(sessionScopeDialogueId),
-    scopeBotId: untracked(sessionScopeBotId),
-    occupyingSessionId: untracked(occupyingSessionId),
-    summaries,
-  });
-  sessionList.set(rows);
-  return rows;
+  rebuildRoster();
+  return untracked(sessionList);
 }
 
 function wrapConnection(
@@ -249,89 +226,86 @@ function wrapConnection(
   };
 }
 
+function onGenerationChange(up: boolean): void {
+  if (!up) {
+    sessionReady.set(false);
+    sessionError.set("后台连接已断开。");
+    sessionControllers.connectionLost();
+    return;
+  }
+  sessionReady.set(true);
+  sessionError.set(null);
+  sessionControllers.connectionRestored();
+  void refreshSessionList().catch(() => undefined);
+}
+
 async function ensureClient(): Promise<ClaimedSessionClient> {
   if (claimed && !claimed.disposed) return claimed;
   const api = await loadDsh();
   claimed = new ClaimedSessionClient({
-    connect: async () => wrapConnection(await api.ensureConnected()),
+    connect: async () => {
+      const connection = await api.ensureConnected();
+      connection.approvals((request) =>
+        sessionControllers.controllerFor(request.sessionId).requestApproval(request),
+      );
+      connection.onGenerationChange = (up) => onGenerationChange(up);
+      return wrapConnection(connection);
+    },
     claim: async (dialogueId, sessionId) => {
       const saved = await changeRegistry((reg) => claimSession(reg, dialogueId, sessionId));
       return !!saved;
     },
     registry: () => untracked(registry),
-    summaries: () => summaries,
-    onFrame: (sessionId, frame) => {
-      const view = turns.receive(frame);
-      rememberSummary(sessionId, view.messages);
-      noteActivity(sessionId, view.running);
-      emit(view);
-    },
-    onFollowError: (error) => {
-      sessionError.set(error.message);
-      sessionReady.set(false);
-    },
   });
   return claimed;
 }
 
-function installApprovalHandler(client: ClaimedSessionClient) {
-  client.installApprovalHandler(async (request) => {
-    pendingApproval.set(request);
-    return await new Promise<ApprovalDecision>((resolve) => {
-      approvalResolve = (decision) => {
-        approvalResolve = undefined;
-        pendingApproval.set(null);
-        resolve(decision);
-      };
-    });
-  });
-}
-
-/** Connect to dsh. Follow `sessionId` when one is given; never create a stand-in session. */
-export async function connectSession(sessionId?: string): Promise<void> {
-  if (sessionReady() && sessionId && activeSessionId() === sessionId) return;
-  if (sessionReady() && !sessionId) return;
-  try {
+/**
+ * Connect the one shared Connection (idempotent, concurrent callers share it).
+ * The optional id is accepted for legacy callers; following is per controller.
+ */
+export function connectSession(_sessionId?: string): Promise<void> {
+  if (sessionReady() && claimed?.getTransport()?.ready) return Promise.resolve();
+  if (connectWork) return connectWork;
+  const work = (async () => {
     sessionError.set(null);
     const client = await ensureClient();
-    await client.ensureConnected();
+    // A dead transport is being replaced: tell controllers before their
+    // stale follow streams are dropped, so a shown Session re-follows.
+    const previous = client.getTransport();
+    if (previous && !previous.ready) sessionControllers.connectionLost();
+    const transport = await client.ensureConnected();
     await refreshHostStatus();
-    installApprovalHandler(client);
-    if (sessionId) {
-      const row = untracked(sessionList).find((item) => item.id === sessionId);
-      await client.openClaimed(sessionId, !!row?.missing);
-      activeSessionId.set(sessionId);
-      const api = await loadDsh();
-      api.setActiveSessionId(sessionId);
-    } else {
-      client.stopFollow();
-      activeSessionId.set(null);
-      const api = await loadDsh();
-      api.setActiveSessionId(undefined);
-    }
     try {
-      modelCatalog.set(await client.getTransport()!.modelCatalog());
+      modelCatalog.set(await transport.modelCatalog());
     } catch {
       modelCatalog.set(null);
     }
     sessionReady.set(true);
+    sessionControllers.connectionRestored();
     await refreshSessionList();
-    emit();
-  } catch (error) {
-    sessionReady.set(false);
-    const api = await loadDsh();
-    const message = api.readableError(error);
-    sessionError.set(message);
-    throw error instanceof Error ? error : new Error(message);
-  }
+  })();
+  connectWork = work
+    .catch(async (error) => {
+      sessionReady.set(false);
+      await failSession(error);
+    })
+    .finally(() => {
+      connectWork = undefined;
+    });
+  return connectWork;
 }
 
-/** Create a session for an active Dialogue, claim it, and follow it. */
+async function connectTransport(): Promise<SessionTransport> {
+  await connectSession();
+  const transport = claimed?.getTransport();
+  if (!transport?.ready) throw new Error("尚未连接后台");
+  return transport;
+}
+
+/** Create a session for an active Dialogue, claim it. The Panel that opens it follows. */
 export async function createSession(dialogueId: string): Promise<string> {
   if (untracked(creatingSession)) throw new Error("正在新建上下文。");
-  if (approvalLock({ sessionId: "\0" })) {
-    throw new Error(untracked(sessionError) ?? APPROVAL_HELD);
-  }
   sessionError.set(null);
   creatingSession.set(true);
   try {
@@ -343,8 +317,6 @@ export async function createSession(dialogueId: string): Promise<string> {
     if (!bot || bot.status !== "ready") throw new Error("初始化之后才能新建会话。");
     await connectSession();
     const client = await ensureClient();
-    await refreshHostStatus();
-    installApprovalHandler(client);
     const preset = presetForBot(untracked(registry), bot.id);
     const cwd = resolveWorkspace(dialogue.workspacePath);
     if (!cwd) throw new Error("这段 Dialogue 没有工作区路径。");
@@ -354,17 +326,7 @@ export async function createSession(dialogueId: string): Promise<string> {
       bot,
       agentPreset: preset,
     });
-    activeSessionId.set(id);
-    const api = await loadDsh();
-    api.setActiveSessionId(id);
-    try {
-      modelCatalog.set(await client.getTransport()!.modelCatalog());
-    } catch {
-      modelCatalog.set(null);
-    }
-    sessionReady.set(true);
     await refreshSessionList();
-    emit();
     return id;
   } catch (error) {
     return await failSession(error);
@@ -373,16 +335,9 @@ export async function createSession(dialogueId: string): Promise<string> {
   }
 }
 
-/** Switch follow target to an existing claimed Session. */
-export async function openSession(sessionId: string): Promise<void> {
-  if (approvalLock({ sessionId })) return;
-  if (activeSessionId() === sessionId && sessionReady()) return;
-  await connectSession(sessionId);
-}
-
 /** Archive the Dialogue that owns this session (product default). */
 export async function archiveOwningDialogue(sessionId: string): Promise<void> {
-  if (untracked(occupyingSessionId) === sessionId) {
+  if (sessionControllers.peek(sessionId)?.running()) {
     sessionError.set("正在执行，先停止或等这轮结束。");
     return;
   }
@@ -420,48 +375,16 @@ export async function renameSession(sessionId: string, title: string): Promise<v
   if (saved) await refreshSessionList();
 }
 
-export function answerApproval(decision: ApprovalDecision): void {
-  approvalResolve?.(decision);
-}
-
-export async function promptSession(
-  text: string,
-  sessionId: string,
-  content?: readonly PromptContentPart[],
-): Promise<string> {
-  const owner = claimOwner(untracked(registry), sessionId);
-  if (!owner) throw new Error("这条会话还没有认领到 Dialogue。");
-  const client = await ensureClient();
-  return client.prompt({
-    sessionId,
-    text,
-    bot: owner.bot,
-    archived: owner.dialogue.archived,
-    ...(content ? { content } : {}),
-  });
-}
-
-export async function cancelSession(): Promise<void> {
-  await claimed?.cancel();
-}
-
-export function resetLocalProjection(): void {
-  turns.reset();
-  emit();
-}
-
 export async function disposeRuntime(): Promise<void> {
-  approvalResolve?.("cancelled");
-  approvalResolve = undefined;
-  pendingApproval.set(null);
+  sessionControllers.disposeAll();
   sessionReady.set(false);
-  activeSessionId.set(null);
-  occupyingSessionId.set(null);
-  sessionList.set([]);
+  sessionError.set(null);
+  rosterBase.set([]);
+  listedSessions = null;
+  summaries.clear();
   if (claimed) await claimed.dispose().catch(() => undefined);
   claimed = undefined;
   if (dsh) await dsh.disposeSession().catch(() => undefined);
   dsh = undefined;
   host = undefined;
-  turns.reset();
 }

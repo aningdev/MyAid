@@ -4,6 +4,8 @@ export type ListedSession = {
   sessionId: string;
   blank: boolean;
   updatedAt: number;
+  /** Host-reported Agent state, also for Sessions this Client does not follow. */
+  running?: boolean;
 };
 
 export type ProductSession = {

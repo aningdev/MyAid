@@ -27,7 +27,32 @@ export type NavProjection = {
   actions: Map<string, NavAction>;
   /** Addresses by their id, for panels and titles that only know the id. */
   addresses: Map<string, NavAddress>;
+  /** Row decoration by item id, aggregated from the Sessions under it. */
+  statuses: Map<string, NavStatus>;
 };
+
+/** What a tree row shows about the Sessions under it (a projection, not a second model). */
+export type NavStatus = {
+  working: boolean;
+  unread: boolean;
+  attention: boolean;
+};
+
+const EMPTY_STATUS: NavStatus = { working: false, unread: false, attention: false };
+
+function mergeStatus(
+  into: Map<string, NavStatus>,
+  itemId: string,
+  status: NavStatus,
+): void {
+  if (!status.working && !status.unread && !status.attention) return;
+  const current = into.get(itemId) ?? EMPTY_STATUS;
+  into.set(itemId, {
+    working: current.working || status.working,
+    unread: current.unread || status.unread,
+    attention: current.attention || status.attention,
+  });
+}
 
 export type NavInput = {
   registry: BotRegistry;
@@ -46,6 +71,7 @@ function section(id: string, label: string, children: TreeItem[]): TreeItem {
 export function projectNav(input: NavInput): NavProjection {
   const actions = new Map<string, NavAction>();
   const addresses = new Map<string, NavAddress>();
+  const statuses = new Map<string, NavStatus>();
 
   const addressAction = (itemId: string, address: NavAddress): NavAction => {
     actions.set(itemId, { type: "address", address });
@@ -54,10 +80,17 @@ export function projectNav(input: NavInput): NavProjection {
   };
 
   const labels = new Map(input.rows.map((row) => [row.id, row.label]));
+  const rows = new Map(input.rows.map((row) => [row.id, row]));
   const botName = (id: string) => input.registry.bots.find((bot) => bot.id === id)?.name ?? "";
   const labelOf = (claim: SessionClaim) => labels.get(claim.sessionId) ?? sessionLabel(claim, null);
+  const statusOf = (sessionId: string): NavStatus => {
+    const row = rows.get(sessionId);
+    return row
+      ? { working: row.running, unread: row.unread, attention: row.attention }
+      : EMPTY_STATUS;
+  };
 
-  const sessionLeaves = (itemPrefix: string, dialogue: Dialogue): TreeItem[] =>
+  const sessionLeaves = (itemPrefix: string, dialogue: Dialogue, ancestors: string[]): TreeItem[] =>
     dialogue.claims.map((claim) => {
       const label = labelOf(claim);
       const address = sessionAddress({
@@ -68,6 +101,9 @@ export function projectNav(input: NavInput): NavProjection {
       });
       const itemId = `${itemPrefix}/${claim.sessionId}`;
       addressAction(itemId, address);
+      const status = statusOf(claim.sessionId);
+      mergeStatus(statuses, itemId, status);
+      for (const ancestor of ancestors) mergeStatus(statuses, ancestor, status);
       return { id: itemId, label };
     });
 
@@ -102,7 +138,10 @@ export function projectNav(input: NavInput): NavProjection {
               return {
                 id: `bots:${bot.id}/${dialogue.id}`,
                 label,
-                children: sessionLeaves(`bots:${bot.id}/${dialogue.id}`, dialogue),
+                children: sessionLeaves(`bots:${bot.id}/${dialogue.id}`, dialogue, [
+                  `bots:${bot.id}/${dialogue.id}`,
+                  `bots:${bot.id}`,
+                ]),
               };
             });
           return { id: `bots:${bot.id}`, label: bot.name, children };
@@ -124,7 +163,9 @@ export function projectNav(input: NavInput): NavProjection {
       return {
         id: `dialogues:${dialogue.id}`,
         label: address.title,
-        children: sessionLeaves(`dialogues:${dialogue.id}`, dialogue),
+        children: sessionLeaves(`dialogues:${dialogue.id}`, dialogue, [
+          `dialogues:${dialogue.id}`,
+        ]),
       };
     }),
   );
@@ -154,7 +195,7 @@ export function projectNav(input: NavInput): NavProjection {
     parked("settings"),
   ];
 
-  return { items, actions, addresses };
+  return { items, actions, addresses, statuses };
 }
 
 const projection = computed(() => projectNav({ registry: registry(), rows: sessionList() }));
@@ -184,4 +225,9 @@ export function navKindForId(id: string): NavAddress["kind"] | "section" | "fold
   if (action?.type === "space") return "space";
   if (action?.type === "address") return action.address.kind;
   return "folder";
+}
+
+/** Working / unread / attention decoration for one Navigator row. */
+export function navStatusForId(id: string): NavStatus | undefined {
+  return projection().statuses.get(id);
 }

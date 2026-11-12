@@ -32,6 +32,8 @@ export function TreeRow(props: {
   icon?: IconName;
   tint?: string;
   detail?: string;
+  /** Live Session status, aggregated for folders. */
+  status?: TreeStatus;
   /** Indent level to draw instead of `entry.depth` (e.g. rows under a section header). */
   depth?: number;
 }) {
@@ -59,6 +61,7 @@ export function TreeRow(props: {
       {props.detail ? (
         <Text style={{ fontSize: 12, color: colors.faint }}>{props.detail}</Text>
       ) : null}
+      {props.status ? <TreeStatusDot status={props.status} /> : null}
       <If when={props.entry.folder}>
         <View
           class="opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 group-aria-expanded:opacity-100 motion-reduce:transition-none"
@@ -73,5 +76,32 @@ export function TreeRow(props: {
         </View>
       </If>
     </View>
+  );
+}
+
+export type TreeStatus = {
+  working: boolean;
+  unread: boolean;
+  attention: boolean;
+};
+
+/**
+ * One trailing dot: an approval outranks a running turn, which outranks an
+ * unread reply. The dot is the row's only status mark; the Chat Pane carries
+ * the detail, and the dot keeps a label for screen readers.
+ */
+function TreeStatusDot(props: { status: TreeStatus }) {
+  const kind = () =>
+    props.status.attention
+      ? { color: colors.warn, label: "等待审批", testID: "nav-status-attention" }
+      : props.status.working
+        ? { color: colors.up, label: "正在执行", testID: "nav-status-working" }
+        : { color: colors.accent, label: "有未读回复", testID: "nav-status-unread" };
+  return (
+    <View
+      accessibilityLabel={kind().label}
+      testID={kind().testID}
+      style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: kind().color }}
+    />
   );
 }

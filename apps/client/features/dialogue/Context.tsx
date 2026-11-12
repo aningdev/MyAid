@@ -5,13 +5,13 @@ import { claimOwner } from "../bots/model";
 import { registry } from "../bots/state";
 import { openOwningBot } from "./navigate";
 import {
-  answerApproval,
+  answerApprovalForSession,
   archiveSession,
   connectSession,
   hostConnection,
   hostStatus,
   modelCatalog,
-  pendingApproval,
+  pendingApprovalFor,
   refreshHostStatus,
   renameSession,
   sessionError,
@@ -52,6 +52,7 @@ export function DialogueContext(_props: { selectedId: string | null }) {
     const id = selectedId();
     return id ? claimOwner(registry(), id) : null;
   };
+  const pending = () => pendingApprovalFor(selectedId());
 
   return (
     <View style={{ flex: 1, padding: 16, gap: 16 }}>
@@ -134,7 +135,7 @@ export function DialogueContext(_props: { selectedId: string | null }) {
           </If>
         </View>
 
-        <If when={pendingApproval()}>
+        <If when={pending()}>
           <View
             style={{
               gap: 8,
@@ -146,12 +147,25 @@ export function DialogueContext(_props: { selectedId: string | null }) {
             }}
           >
             <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>
-              需要审批：{pendingApproval()?.toolName}
+              需要审批：{pending()?.toolName}
             </Text>
-            <Text style={{ fontSize: 12, color: colors.muted }}>{pendingApproval()?.reason}</Text>
+            <Text style={{ fontSize: 12, color: colors.muted }}>{pending()?.reason}</Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button label="允许一次" onPress={() => answerApproval("allowed-once")} />
-              <Button label="拒绝" variant="secondary" onPress={() => answerApproval("rejected")} />
+              <Button
+                label="允许一次"
+                onPress={() => {
+                  const id = selectedId();
+                  if (id) answerApprovalForSession(id, "allowed-once");
+                }}
+              />
+              <Button
+                label="拒绝"
+                variant="secondary"
+                onPress={() => {
+                  const id = selectedId();
+                  if (id) answerApprovalForSession(id, "rejected");
+                }}
+              />
             </View>
           </View>
         </If>

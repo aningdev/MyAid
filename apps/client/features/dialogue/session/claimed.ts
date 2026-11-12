@@ -1,6 +1,7 @@
 /**
- * Deep module: claimed Session lifecycle (connect → create+claim+follow → prompt → dispose).
- * Sessions are claimed to a Dialogue; Bot supplies the Agent preset.
+ * Deep module: claimed Session lifecycle — one shared Connection, and the
+ * create + claim path that binds a Harness Session to a Dialogue.
+ * Following a Session and running its turns belong to its SessionController.
  */
 import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 
@@ -16,7 +17,7 @@ export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog };
 /** @deprecated Prefer {@link FlatModelCatalog}. */
 export type ModelCatalog = FlatModelCatalog;
 
-/** Minimal transport the ClaimedSession module needs from a Connection adapter. */
+/** Minimal transport the claim / follow modules need from a Connection adapter. */
 export type SessionTransport = {
   ready: boolean;
   createSession(request: {
@@ -24,7 +25,16 @@ export type SessionTransport = {
     agentPreset?: string;
     sessionId?: string;
   }): Promise<{ sessionId: string }>;
-  listSessions(): Promise<{ sessionId: string; blank: boolean; updatedAt: number }[]>;
+  /** `running` is Host-reported Agent state, present for Sessions not followed here too. */
+  listSessions(): Promise<
+    {
+      sessionId: string;
+      blank: boolean;
+      updatedAt: number;
+      running?: boolean;
+      cwd?: string;
+    }[]
+  >;
   follow(
     sessionId: string,
     onFrame: (frame: SessionFollowFrame) => void,
@@ -50,26 +60,30 @@ export type ClaimHooks = {
   connect(): Promise<SessionTransport>;
   claim(dialogueId: string, sessionId: string): Promise<boolean>;
   registry(): BotRegistry;
-  summaries(): Map<string, string>;
-  onFrame(sessionId: string, frame: SessionFollowFrame): void;
-  onFollowError(error: Error): void;
 };
 
+/**
+ * Same-workspace guard used before a prompt: two Sessions may run side by
+ * side, but two in one workspace would fight over it.
+ */
 export function occupancyBlock(input: {
-  occupyingSessionId: string | null;
+  occupyingSessionIds: readonly string[];
   targetSessionId: string;
   registry: BotRegistry;
   summaries: Map<string, string>;
 }): string | null {
-  const occupant = input.occupyingSessionId;
-  if (!occupant || occupant === input.targetSessionId) return null;
-  const left = claimOwner(input.registry, occupant);
   const right = claimOwner(input.registry, input.targetSessionId);
-  if (!left || !right) return null;
-  if (workspaceKey(left.dialogue.workspacePath) !== workspaceKey(right.dialogue.workspacePath)) {
-    return null;
+  if (!right) return null;
+  for (const occupant of input.occupyingSessionIds) {
+    if (occupant === input.targetSessionId) continue;
+    const left = claimOwner(input.registry, occupant);
+    if (!left) continue;
+    if (workspaceKey(left.dialogue.workspacePath) !== workspaceKey(right.dialogue.workspacePath)) {
+      continue;
+    }
+    return `工作区正被「${sessionLabel(left.claim, input.summaries.get(occupant) ?? null)}」占用。`;
   }
-  return `工作区正被「${sessionLabel(left.claim, input.summaries.get(occupant) ?? null)}」占用。`;
+  return null;
 }
 
 export async function resolveBotModel(
@@ -87,13 +101,10 @@ export async function resolveBotModel(
   return hit ? { provider: hit.provider, model: hit.model } : null;
 }
 
-/** Owns one Connection + followed claimed Session. */
+/** Owns the one shared Connection and claims created Sessions to a Dialogue. */
 export class ClaimedSessionClient {
   private transport: SessionTransport | undefined;
-  private sessionId: string | undefined;
-  private followStop: (() => void) | undefined;
   private connectLock: Promise<void> | undefined;
-  occupyingSessionId: string | null = null;
   disposed = false;
 
   constructor(private readonly hooks: ClaimHooks) {}
@@ -102,16 +113,12 @@ export class ClaimedSessionClient {
     return this.transport;
   }
 
-  currentSessionId(): string | undefined {
-    return this.sessionId;
-  }
-
   async ensureConnected(): Promise<SessionTransport> {
     this.assertAlive();
     if (this.transport?.ready) return this.transport;
     if (this.connectLock) {
       await this.connectLock;
-      if (this.transport?.ready) return this.transport;
+      if (this.transport?.ready) return this.transport as SessionTransport;
     }
     const work = (async () => {
       if (this.transport) await this.transport.dispose().catch(() => undefined);
@@ -129,30 +136,7 @@ export class ClaimedSessionClient {
     return this.transport;
   }
 
-  installApprovalHandler(handler: (request: ApprovalRequest) => Promise<ApprovalDecision>): void {
-    this.transport?.approvals(handler);
-  }
-
-  beginFollow(sessionId: string): void {
-    this.assertAlive();
-    const transport = this.transport;
-    if (!transport?.ready) throw new Error("尚未连接后台");
-    this.followStop?.();
-    this.sessionId = sessionId;
-    this.followStop = transport.follow(
-      sessionId,
-      (frame) => this.hooks.onFrame(sessionId, frame),
-      (error) => this.hooks.onFollowError(error),
-    );
-  }
-
-  stopFollow(): void {
-    this.followStop?.();
-    this.followStop = undefined;
-    this.sessionId = undefined;
-  }
-
-  /** Create Harness Session, claim to Dialogue, follow. */
+  /** Create the Harness Session, claim it to the Dialogue. Following starts per SessionController. */
   async createClaimed(input: {
     dialogueId: string;
     dialogue: Dialogue;
@@ -167,94 +151,11 @@ export class ClaimedSessionClient {
     });
     const saved = await this.hooks.claim(input.dialogueId, created.sessionId);
     if (!saved) throw new Error("会话已在后台创建，但没有写入这段 Dialogue。");
-    this.beginFollow(created.sessionId);
     return created.sessionId;
-  }
-
-  async openClaimed(sessionId: string, missing: boolean): Promise<void> {
-    this.assertAlive();
-    if (missing) throw new Error("这条会话待核对，dsh 里已经没有它。");
-    await this.ensureConnected();
-    this.beginFollow(sessionId);
-  }
-
-  async prompt(input: {
-    sessionId: string;
-    text: string;
-    bot: Bot;
-    archived: boolean;
-    content?: readonly PromptContentPart[];
-  }): Promise<string> {
-    this.assertAlive();
-    if (input.archived) throw new Error("这段 Dialogue 已归档，不能继续输入。");
-    const blocked = occupancyBlock({
-      occupyingSessionId: this.occupyingSessionId,
-      targetSessionId: input.sessionId,
-      registry: this.hooks.registry(),
-      summaries: this.hooks.summaries(),
-    });
-    if (blocked) throw new Error(blocked);
-    let transport = this.transport;
-    if (!transport?.ready) {
-      await this.openClaimed(input.sessionId, false);
-      transport = this.transport;
-    }
-    if (!transport) throw new Error("尚未连接后台");
-    try {
-      const catalog = await transport.modelCatalog();
-      const selected = await resolveBotModel(catalog, input.bot.defaultModel);
-      if (selected) {
-        await transport.selectModel({
-          sessionId: input.sessionId,
-          provider: selected.provider,
-          model: selected.model,
-        });
-      }
-    } catch {
-      // Model apply is best-effort; prompt still proceeds.
-    }
-    const requestId = crypto.randomUUID().replace(/-/g, "");
-    await transport.prompt({
-      sessionId: input.sessionId,
-      requestId,
-      ...(input.content ? { content: input.content } : { text: input.text }),
-    });
-    return requestId;
-  }
-
-  async cancel(): Promise<void> {
-    const transport = this.transport;
-    const sessionId = this.sessionId;
-    if (!transport?.ready || !sessionId) return;
-    await transport.cancel(sessionId);
-  }
-
-  /** Withdraw one queued (not yet running) prompt by message id. */
-  async withdrawQueued(itemId: string): Promise<void> {
-    const transport = this.transport;
-    const sessionId = this.sessionId;
-    if (!transport?.ready || !sessionId) return;
-    await transport.withdrawQueuedPrompt(sessionId, itemId);
-  }
-
-  async selectPreset(agentPreset: string): Promise<string | undefined> {
-    const transport = this.transport;
-    const sessionId = this.sessionId;
-    if (!transport?.ready || !sessionId) return undefined;
-    return transport.selectAgentPreset(sessionId, agentPreset);
-  }
-
-  noteActivity(sessionId: string, running: boolean): void {
-    if (running) this.occupyingSessionId = sessionId;
-    else if (this.occupyingSessionId === sessionId) this.occupyingSessionId = null;
   }
 
   async dispose(): Promise<void> {
     this.disposed = true;
-    this.followStop?.();
-    this.followStop = undefined;
-    this.sessionId = undefined;
-    this.occupyingSessionId = null;
     const transport = this.transport;
     this.transport = undefined;
     if (transport) await transport.dispose().catch(() => undefined);

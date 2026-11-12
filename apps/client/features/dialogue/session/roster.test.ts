@@ -8,7 +8,7 @@ import {
   emptyRegistry,
   initializeBot,
 } from "../../bots/model";
-import { buildSessionRoster, sessionDetail, withOccupancy } from "./roster";
+import { buildSessionRoster, sessionDetail, withStatuses, type SessionRow } from "./roster";
 
 function readyBot() {
   return claimSession(
@@ -33,13 +33,15 @@ function readyBot() {
   );
 }
 
-test("roster marks missing claims and occupancy", () => {
+test("roster marks missing claims and Host-reported running", () => {
   const registry = readyBot();
   const rows = buildSessionRoster({
     registry,
-    listed: [{ sessionId: "new", blank: true, updatedAt: 20 }],
+    listed: [
+      { sessionId: "new", blank: true, updatedAt: 20, running: true },
+      { sessionId: "old", blank: false, updatedAt: 10, running: false },
+    ],
     scopeBotId: "bot",
-    occupyingSessionId: "new",
     summaries: new Map([["new", "修复登录"]]),
   });
   expect(rows.map((row) => row.id)).toEqual(["new", "old"]);
@@ -47,9 +49,39 @@ test("roster marks missing claims and occupancy", () => {
   expect(rows[0]?.workspacePath).toBe("/work");
   expect(rows[0]?.running).toBe(true);
   expect(rows[0]?.label).toBe("修复登录");
-  expect(rows[1]?.missing).toBe(true);
-  expect(rows[1]?.detail).toContain("待核对");
+  expect(rows[0]?.unread).toBe(false);
+  expect(rows[0]?.attention).toBe(false);
   expect(rows[1]?.running).toBe(false);
+});
+
+test("a controller's status wins over the listing and carries unread / attention", () => {
+  const registry = readyBot();
+  const rows = buildSessionRoster({
+    registry,
+    listed: [{ sessionId: "new", blank: false, updatedAt: 20, running: true }],
+    summaries: new Map(),
+  });
+  const decorated = withStatuses(
+    rows,
+    new Map([
+      ["new", { running: false, unread: true, attention: true }],
+      ["old", { running: true, unread: false, attention: false }],
+    ]),
+  );
+  expect(decorated[0]).toMatchObject({ running: false, unread: true, attention: true });
+  expect(decorated[0]?.detail).not.toContain("执行中");
+  expect(decorated[1]).toMatchObject({ running: true, unread: false, attention: false });
+});
+
+test("missing claims are marked and never running", () => {
+  const registry = readyBot();
+  const rows = buildSessionRoster({
+    registry,
+    listed: [{ sessionId: "new", blank: false, updatedAt: 20 }],
+    summaries: new Map(),
+  });
+  expect(rows.find((row) => row.id === "old")?.missing).toBe(true);
+  expect(rows.find((row) => row.id === "old")?.running).toBe(false);
 });
 
 test("scopeDialogueId filters to one Dialogue", () => {
@@ -58,7 +90,6 @@ test("scopeDialogueId filters to one Dialogue", () => {
     registry,
     listed: null,
     scopeDialogueId: "dlg",
-    occupyingSessionId: null,
     summaries: new Map(),
   });
   expect(rows.every((row) => row.dialogueId === "dlg")).toBe(true);
@@ -73,33 +104,40 @@ test("unclaimed sessions never appear", () => {
       { sessionId: "stranger", blank: false, updatedAt: 99 },
     ],
     scopeBotId: null,
-    occupyingSessionId: null,
     summaries: new Map(),
   });
   expect(rows.every((row) => row.id !== "stranger")).toBe(true);
 });
 
-test("withOccupancy updates running detail", () => {
-  const rows = withOccupancy(
-    [
-      {
-        id: "a",
-        dialogueId: "dlg",
-        botId: "bot",
-        botName: "Ada",
-        workspacePath: "/work",
-        label: "a",
-        detail: sessionDetail(
-          { botName: "Ada", archived: false, missing: false, workspacePath: "/work" },
-          false,
-        ),
-        archived: false,
-        missing: false,
-        running: false,
-      },
-    ],
-    "a",
+test("sessionDetail names the running state", () => {
+  const detail = sessionDetail(
+    { botName: "Ada", archived: false, missing: false, workspacePath: "/work" },
+    true,
   );
-  expect(rows[0]?.running).toBe(true);
-  expect(rows[0]?.detail).toContain("执行中");
+  expect(detail).toContain("执行中");
+});
+
+test("withStatuses leaves un-followed rows as the listing reported them", () => {
+  const row: SessionRow = {
+    id: "a",
+    dialogueId: "dlg",
+    botId: "bot",
+    botName: "Ada",
+    workspacePath: "/work",
+    label: "a",
+    detail: sessionDetail(
+      { botName: "Ada", archived: false, missing: false, workspacePath: "/work" },
+      true,
+    ),
+    archived: false,
+    missing: false,
+    running: true,
+    unread: false,
+    attention: false,
+  };
+  expect(withStatuses([row], new Map())[0]).toMatchObject({
+    running: true,
+    unread: false,
+    attention: false,
+  });
 });

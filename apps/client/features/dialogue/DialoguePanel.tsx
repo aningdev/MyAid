@@ -12,7 +12,12 @@ import { sessionLabel } from "../bots/sessions";
 import { ready, registry } from "../bots/state";
 import { createAndOpenSession } from "./navigate";
 import { rosterForDialogue } from "./session/roster";
-import { creatingSession, pendingApproval, sessionError, sessionList } from "./session/runtime";
+import {
+  creatingSession,
+  hasPendingApproval,
+  sessionError,
+  sessionList,
+} from "./session/runtime";
 
 export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
   const dialogue = () => registry().dialogues.find((item) => item.id === props.dialogueId) ?? null;
@@ -88,7 +93,7 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
                 disabled={!canCreate()}
                 onPress={() => void createSession()}
               />
-              <If when={!!pendingApproval()}>
+              <If when={hasPendingApproval()}>
                 <Text style={{ fontSize: 12, color: colors.warn, alignSelf: "center" }}>
                   有审批没答复，先到那条会话里处理。
                 </Text>
