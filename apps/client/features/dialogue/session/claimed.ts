@@ -8,12 +8,18 @@ import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-proto
 import type {
   ApprovalDecision,
   ApprovalRequest,
+  CommandOutcome,
   FlatModelCatalog,
+  InventoryEntry,
+  InventoryPreset,
+  SessionUsage,
+  SkillSummary,
 } from "../../../lib/dsh/connection";
 import { claimOwner, type Bot, type BotRegistry, type Dialogue } from "../../bots/model";
 import { sessionLabel, workspaceKey } from "../../bots/sessions";
 
 export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog };
+export type { CommandOutcome, InventoryEntry, InventoryPreset, SessionUsage, SkillSummary };
 /** @deprecated Prefer {@link FlatModelCatalog}. */
 export type ModelCatalog = FlatModelCatalog;
 
@@ -65,8 +71,29 @@ export type SessionTransport = {
     name?: string;
   }): Promise<{ receiptId: string }>;
   modelCatalog(): Promise<FlatModelCatalog>;
-  selectModel(request: { sessionId: string; provider: string; model: string }): Promise<void>;
+  selectModel(request: {
+    sessionId: string;
+    provider: string;
+    model: string;
+    reasoningEffort?: string;
+  }): Promise<void>;
   selectAgentPreset(sessionId: string, agentPreset: string): Promise<string>;
+  /** Context occupancy and token totals of one Session (`session.projections`). */
+  sessionUsage?(sessionId: string): Promise<SessionUsage>;
+  /** One slash command (the Inspector's Compact runs `/compact`). */
+  executeCommand?(sessionId: string, line: string): Promise<CommandOutcome>;
+  /** The user-invocable skills of one Session's composition (`skills.list`). */
+  listSkills?(sessionId: string): Promise<SkillSummary[]>;
+  /** Loader plugins and every preset's composition (`pluginInventory.list`). */
+  pluginInventory?(): Promise<{
+    entries: InventoryEntry[];
+    presets: InventoryPreset[];
+    managementAvailable: boolean;
+  }>;
+  /** Whether the Host can hand a path to the desktop's file manager. */
+  canReveal?(): Promise<boolean>;
+  /** Show a path in the Finder (`session.openWorkspacePath`, action `reveal`). */
+  revealPath?(path: string): Promise<void>;
   approvals(handler: (request: ApprovalRequest) => Promise<ApprovalDecision>): void;
   dispose(): Promise<void>;
 };

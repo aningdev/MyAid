@@ -67,3 +67,29 @@ test("a page before the window lands above it, in order", () => {
   expect(chat.olderHasMore).toBe(false);
   expect(projector.firstSeq()).toBe(4);
 });
+
+test("deliverables come from the turn's presented files, one row per path", () => {
+  const projector = new SessionProjector();
+  const snap = projector.receive(
+    frame({
+      type: "snapshot",
+      hasMore: false,
+      records: [
+        event(1, "deliverables/presented", {
+          turn: 1,
+          files: [{ path: "report.md", description: "the report" }],
+        }),
+        event(2, "deliverables/presented", { turn: 2, files: [{ path: "/work/slide.pdf" }] }),
+        // A later declaration of the same file updates its note, not its row.
+        event(3, "deliverables/presented", {
+          turn: 3,
+          files: [{ path: "report.md", description: "final" }],
+        }),
+      ],
+    }),
+  );
+  expect(snap.deliverables).toEqual([
+    { path: "report.md", description: "final" },
+    { path: "/work/slide.pdf" },
+  ]);
+});

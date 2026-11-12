@@ -20,8 +20,14 @@ export type SessionClaim = {
 export type Bot = {
   id: string;
   name: string;
+  /** One line on what this Bot is for (Bot Settings › Profile). */
+  description: string | null;
   templateId: string;
   defaultModel: string | null;
+  /** Default reasoning effort id of the selected model (`Runs with`). */
+  defaultThinking: string | null;
+  /** Workspace path offered when this Bot starts its next Dialogue. */
+  defaultWorkspacePath: string | null;
   /** Stays true after any Dialogue existed, so the Bot cannot be deleted. */
   hadDialogue: boolean;
   status: BotStatus;
@@ -223,8 +229,11 @@ export function createBot(
   registry: BotRegistry,
   input: {
     name: string;
+    description?: string | null;
     templateId: string;
     defaultModel?: string | null;
+    defaultThinking?: string | null;
+    defaultWorkspacePath?: string | null;
   },
   id: string = newId(),
 ): BotRegistry {
@@ -235,8 +244,11 @@ export function createBot(
   const bot: Bot = {
     id,
     name: requireName(input.name),
+    description: blankToNull(input.description ?? null),
     templateId: template.id,
     defaultModel: blankToNull(input.defaultModel ?? null),
+    defaultThinking: blankToNull(input.defaultThinking ?? null),
+    defaultWorkspacePath: blankToNull(input.defaultWorkspacePath ?? null),
     hadDialogue: false,
     status: "draft",
     boundPresetId: null,
@@ -250,8 +262,11 @@ export function updateBot(
   id: string,
   patch: {
     name?: string;
+    description?: string | null;
     templateId?: string;
     defaultModel?: string | null;
+    defaultThinking?: string | null;
+    defaultWorkspacePath?: string | null;
   },
 ): BotRegistry {
   const bot = mustBot(registry, id);
@@ -270,9 +285,18 @@ export function updateBot(
   const next: Bot = {
     ...bot,
     name: patch.name === undefined ? bot.name : requireName(patch.name),
+    description: patch.description === undefined ? bot.description : blankToNull(patch.description),
     templateId,
     defaultModel:
       patch.defaultModel === undefined ? bot.defaultModel : blankToNull(patch.defaultModel),
+    defaultThinking:
+      patch.defaultThinking === undefined
+        ? bot.defaultThinking
+        : blankToNull(patch.defaultThinking),
+    defaultWorkspacePath:
+      patch.defaultWorkspacePath === undefined
+        ? bot.defaultWorkspacePath
+        : blankToNull(patch.defaultWorkspacePath),
   };
   return replaceBot(registry, next);
 }
@@ -504,9 +528,20 @@ function parseBot(value: unknown): Bot | string {
   const defaultModel = readNullableString(value, "defaultModel");
   const boundPresetId = readNullableString(value, "boundPresetId");
   const derivedPresetId = readNullableString(value, "derivedPresetId");
+  // Preferences added after v3 shipped: absent in older files, read as null.
+  const description = readOptionalString(value, "description");
+  const defaultThinking = readOptionalString(value, "defaultThinking");
+  const defaultWorkspacePath = readOptionalString(value, "defaultWorkspacePath");
   if (!id || !name?.trim() || !templateId) return "Bot 项无效。";
   if (status !== "draft" && status !== "ready") return "Bot 项无效。";
   if (defaultModel === undefined || boundPresetId === undefined || derivedPresetId === undefined) {
+    return "Bot 项无效。";
+  }
+  if (
+    description === undefined ||
+    defaultThinking === undefined ||
+    defaultWorkspacePath === undefined
+  ) {
     return "Bot 项无效。";
   }
   if (status === "ready" && !blankToNull(boundPresetId) && !blankToNull(derivedPresetId)) {
@@ -516,8 +551,11 @@ function parseBot(value: unknown): Bot | string {
   return {
     id,
     name: name.trim(),
+    description: blankToNull(description),
     templateId,
     defaultModel: blankToNull(defaultModel),
+    defaultThinking: blankToNull(defaultThinking),
+    defaultWorkspacePath: blankToNull(defaultWorkspacePath),
     hadDialogue: value.hadDialogue,
     status,
     boundPresetId: blankToNull(boundPresetId),
@@ -652,6 +690,15 @@ function readNullableString(
   const value = record[key];
   if (value === null) return null;
   return typeof value === "string" ? value : undefined;
+}
+
+/** A field that may be absent entirely (added after the first v3 files): `null` when missing. */
+function readOptionalString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null | undefined {
+  if (!(key in record)) return null;
+  return readNullableString(record, key);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

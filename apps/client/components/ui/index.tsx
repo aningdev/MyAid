@@ -18,6 +18,7 @@ import {
   token,
 } from "nsh";
 import { Button as BaseButton, Input, Sheet as BaseSheet, Switch, Tooltip } from "nsh/base";
+import type { Placement } from "nsh/base";
 
 import { Icon, type IconName } from "./icons";
 import {
@@ -721,14 +722,24 @@ export function Meter(props: { value: number; tone?: Tone; marker?: number }) {
 }
 
 /**
- * A panel at the bottom over a dimmed backdrop while `open` (`nsh/base`'s
- * `Sheet`, in the gallery's look); a press on the backdrop, Escape or the
- * back button closes it (`onClose`: set `open` to false).
+ * A panel over a dimmed backdrop while `open` (`nsh/base`'s `Sheet`, in the
+gallery's look); a press on the backdrop, Escape or the back button closes it
+(`onClose`: set `open` to false). `side` places it: bottom by default, `top`
+for a desktop sheet-like form, left / right for a panel.
  */
-export function Sheet(props: { open: boolean; onClose: () => void; children: JSX.Element }) {
+export function Sheet(props: {
+  open: boolean;
+  onClose: () => void;
+  side?: Placement;
+  /** Extra panel style (a width, a maximum height), over the shared look. */
+  popupStyle?: ViewStyle;
+  children: JSX.Element;
+}) {
+  const top = () => props.side === "top";
   return (
     <BaseSheet
       open={props.open}
+      side={props.side}
       onOpenChange={(open) => !open && props.onClose()}
       backdropStyle={{ backgroundColor: colors.overlay }}
       popupStyle={{
@@ -736,20 +747,24 @@ export function Sheet(props: { open: boolean; onClose: () => void; children: JSX
         paddingTop: 8,
         paddingHorizontal: 16,
         paddingBottom: safeArea().bottom + 16,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+        ...(top()
+          ? { borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingTop: 16 }
+          : { borderTopLeftRadius: 16, borderTopRightRadius: 16 }),
         backgroundColor: colors.surface,
+        ...props.popupStyle,
       }}
     >
-      <View
-        style={{
-          width: 36,
-          height: 5,
-          borderRadius: 3,
-          alignSelf: "center",
-          backgroundColor: colors.raised,
-        }}
-      />
+      <If when={!top()}>
+        <View
+          style={{
+            width: 36,
+            height: 5,
+            borderRadius: 3,
+            alignSelf: "center",
+            backgroundColor: colors.raised,
+          }}
+        />
+      </If>
       {props.children}
     </BaseSheet>
   );

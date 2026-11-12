@@ -48,6 +48,8 @@ Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companio
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------- |
 | Dialogue                        | `session` (`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`); `SessionFollowFrame`; `approval/request` → `ApprovalOutcome` | A (now)             | Claim Session → Dialogue loop            |
 | Bots                            | `agentPresets` (`list`/`read`/`select`); `session.create`                                                                                                                    | A                   | Claims stay in desktop registry          |
+| Bot settings                    | `skills.list`; `pluginInventory.list`; `agentPresets.read`                                                                                                                   | B4                  | Reads only: preset bodies have no Remote |
+| Inspector                       | `session.projections` (`contextPressure` / `tokenUsage`); `session.canOpenWorkspacePath` / `openWorkspacePath`; `commands.execute` (`/compact`)                              | B4                  | Cost is not exposed → no row             |
 | Bot workspace path              | `directoryPicker` only                                                                                                                                                       | B                   | Store path on Bot; pass as `cwd`         |
 | Settings                        | `settings`, `credentials`                                                                                                                                                    | B                   | UI prefs stay local — never dsh          |
 | Attachments                     | `fileUploads`, `session.attachment`, `PromptContentPart`                                                                                                                     | C                   | After text-first                         |
@@ -64,7 +66,7 @@ Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companio
 
 ## Client mount status (`lib/dsh/connection.ts`)
 
-Always mounted in `Connection.connect`: `session` (+ `skills` / `fileReferences`), `agentPresets`, `directoryPicker` (via workspace-controller), `settings` (+ `credentials`), `fileUploads`, `pluginManager`.
+Always mounted in `Connection.connect`: `session` (+ `skills` / `fileReferences`), `agentPresets`, `directoryPicker` (via workspace-controller), `settings` (+ `credentials`), `fileUploads`, `pluginManager`, `pluginInventory`, `commands`.
 
 Dialogue prompt path accepts `PromptContentPart` (text / image / file receipt). Image send uses inline image parts; `fileUploads.upload` stages non-image files; `session.attachment` reads durable images back.
 

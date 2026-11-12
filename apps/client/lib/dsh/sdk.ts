@@ -9,3 +9,5 @@ export { default as workspaceRemote } from "@deepseek-ai/dsh-api-workspace-contr
 export { default as settingsRemote } from "@deepseek-ai/dsh-api-settings-controller/remote";
 export { default as fileUploadsRemote } from "@deepseek-ai/dsh-client-file-upload/remote";
 export { default as pluginManagerRemote } from "@deepseek-ai/dsh-plugin-manager/remote";
+export { default as pluginInventoryRemote } from "@deepseek-ai/dsh-host-plugin-inventory/remote";
+export { default as commandsRemote } from "@deepseek-ai/dsh-commands/remote";

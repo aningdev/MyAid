@@ -169,6 +169,14 @@ export type ProjectedChat = {
   liveTools: Tool[];
   /** The opening window was not the whole log: older pages can be read. */
   olderHasMore: boolean;
+  /** Files the turn declared with dsh's `present` tool, newest last. */
+  deliverables: Deliverable[];
+};
+
+/** One file a Session's turn declared as a deliverable (`deliverables/presented`). */
+export type Deliverable = {
+  path: string;
+  description?: string;
 };
 
 /** Disposable view of Harness history projected to Dialogue messages. */
@@ -323,7 +331,32 @@ export class SessionProjector {
       liveReason: this.liveReasonText,
       liveTools,
       olderHasMore: this.hasMore,
+      deliverables: this.deliverables(),
     };
+  }
+
+  /**
+   * Deliverables in the loaded window, in the order their turns declared them.
+   * One row per path: a later declaration of the same file updates its note.
+   */
+  private deliverables(): Deliverable[] {
+    const byPath = new Map<string, Deliverable>();
+    for (const event of this.events) {
+      if (event.type !== "deliverables/presented") continue;
+      if (!Array.isArray(event.data.files)) continue;
+      for (const item of event.data.files) {
+        const file = object(item);
+        const path = typeof file.path === "string" ? file.path.trim() : "";
+        if (!path) continue;
+        byPath.set(path, {
+          path,
+          ...(typeof file.description === "string" && file.description
+            ? { description: file.description }
+            : {}),
+        });
+      }
+    }
+    return [...byPath.values()];
   }
 
   private resetLive(): void {

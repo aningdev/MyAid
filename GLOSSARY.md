@@ -85,6 +85,12 @@ _Avoid_：Module 整页独占、把 Panel 当成域对象
 **Nav address（导航地址）** _[C]_：Navigator 节点与 Panel 内容的稳定身份（域根 + 路径 + 对象引用）；激活叶子默认替换活动 Panel 的地址，同地址则聚焦已有 Panel。  
 _Avoid_：路由实现细节、把地址当成 Registry 真源
 
+**Inspector（面板侧栏）** _[C]_：Session **Panel** 右侧可收起的窄栏，讲这条会话「在跟谁、花了多少」：Bot / template / preset、Dialogue 与工作区、本会话的 **Deliverable**、上下文与 token 用量（含 dsh 的 Compact），以及通往 **Bot Settings** 的入口。属于 Panel，不属于 Session（同一 Session 的两个 Panel 各自开关）；不拥有域数据。  
+_Avoid_：DSH 官方 Web GUI 的 Inspector、把 Inspector 当第二个 Navigator、把用量/交付物另存一份产品数据
+
+**Bot Settings（助手设置）** _[C]_：Client 壳里的一个 sheet，编辑某个 **Bot** 的 Profile / Runs with / Skills / Plugins；改成注册表偏好（名称、说明、模型、思考档、默认工作区），能力仍是那个 **Agent Preset**。  
+_Avoid_：第二个 Bot 编辑器页、把 preset 正文写进注册表、把全局插件开关伪装成每 Bot 差异
+
 **Plugin（插件）** _[A]_：Cordis / 声明式 bundle 装配的能力包（`packages/myaid-plugin-*` 或上游插件）。可进入共用 `web` profile 或某 Bot 派生 preset 的 `plugins`。
 
 **Relay**：一个 Background Service；多端密文帧转发；不持 owner 凭据。  

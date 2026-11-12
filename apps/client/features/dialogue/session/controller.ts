@@ -46,6 +46,7 @@ function emptyView(): TurnView {
     liveTools: [],
     liveId: null,
     olderHasMore: false,
+    deliverables: [],
     pendingFreeze: null,
   };
 }
@@ -53,6 +54,18 @@ function emptyView(): TurnView {
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+/**
+ * A `session.follow` stream can end under a Client that did nothing wrong: the
+ * dsh gateway pings every 2 s and terminates a peer that misses two pongs, and
+ * NSH's standard `websocket` stops reading the network while eight messages
+ * wait unread — a long render between reads (a large reply, a slow frame) makes
+ * the socket look dead. The Host's connection reconnects by itself; the follow
+ * stream does not, so it is re-opened here: three tries, 300 ms doubling.
+ */
+const FOLLOW_RETRIES = 3;
+const FOLLOW_RETRY_BASE_MS = 300;
+const FOLLOW_RETRY_MAX_MS = 4_000;
 
 /** What a SessionController needs from the product runtime. */
 export type SessionControllerHost = {
@@ -107,6 +120,8 @@ export class SessionController {
   private prompting = false;
   private approvals: PendingApproval[] = [];
   private disposed = false;
+  private followRetry: ReturnType<typeof setTimeout> | undefined;
+  private followRetries = 0;
 
   constructor(
     readonly sessionId: string,
@@ -288,6 +303,8 @@ export class SessionController {
             sessionId: this.sessionId,
             provider: selected.provider,
             model: selected.model,
+            // The Bot's thinking level (Bot Settings › Runs with), when it set one.
+            ...(owner.bot.defaultThinking ? { reasoningEffort: owner.bot.defaultThinking } : {}),
           });
         }
       } catch {
@@ -394,6 +411,7 @@ export class SessionController {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.cancelFollowRetry();
     this.stopFollow();
     this.clearApprovals();
     this.host.onDispose(this.sessionId);
@@ -431,6 +449,8 @@ export class SessionController {
 
   private receive(frame: Parameters<TurnProjection["receive"]>[0]): void {
     const wasRunning = untracked(this.running);
+    // A frame proves the stream serves this Session again: the retries start over.
+    this.followRetries = 0;
     const view = this.turns.receive(frame);
     this.publish(view);
     this.host.onView(this.sessionId, view);
@@ -464,8 +484,35 @@ export class SessionController {
       this.host.onStatusChange(this.sessionId);
     }
     this.error.set(error.message);
+    this.scheduleFollowRetry();
     if (wasRunning) this.finished();
     else this.maybeDispose();
+  }
+
+  /**
+   * Re-open a failed follow stream for a Session still worth following (a Panel
+   * shows it, or its turn runs). The error stays visible until a frame lands.
+   */
+  private scheduleFollowRetry(): void {
+    if (this.disposed || this.followRetry !== undefined) return;
+    if (this.mounts === 0 && !untracked(this.running) && !this.prompting) return;
+    this.followRetries += 1;
+    if (this.followRetries > FOLLOW_RETRIES) return;
+    const delay = Math.min(
+      FOLLOW_RETRY_MAX_MS,
+      FOLLOW_RETRY_BASE_MS * 2 ** (this.followRetries - 1),
+    );
+    this.followRetry = setTimeout(() => {
+      this.followRetry = undefined;
+      if (this.disposed) return;
+      void this.start();
+    }, delay);
+  }
+
+  private cancelFollowRetry(): void {
+    if (this.followRetry === undefined) return;
+    clearTimeout(this.followRetry);
+    this.followRetry = undefined;
   }
 
   private fail(message: string): void {

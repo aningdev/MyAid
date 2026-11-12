@@ -51,9 +51,7 @@ export async function createBoundSession(
   return sessionId;
 }
 
-export async function listSessions(
-  connection?: Connection,
-): Promise<
+export async function listSessions(connection?: Connection): Promise<
   {
     sessionId: string;
     cwd?: string;
@@ -82,6 +80,44 @@ export async function readAgentPreset(
 ): Promise<{ agentPreset: string; content: string; name?: string; description?: string }> {
   const conn = connection ?? shared ?? (await ensureConnected());
   return conn.readAgentPreset(agentPreset);
+}
+
+export async function selectModel(
+  request: { sessionId: string; provider: string; model: string; reasoningEffort?: string },
+  connection?: Connection,
+): Promise<void> {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.selectModel(request);
+}
+
+export async function sessionUsage(sessionId: string, connection?: Connection) {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.sessionUsage(sessionId);
+}
+
+export async function listSkills(sessionId: string, connection?: Connection) {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.listSkills(sessionId);
+}
+
+export async function executeCommand(sessionId: string, line: string, connection?: Connection) {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.executeCommand(sessionId, line);
+}
+
+export async function pluginInventory(connection?: Connection) {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.pluginInventory();
+}
+
+export async function canRevealPath(connection?: Connection): Promise<boolean> {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.canRevealPath();
+}
+
+export async function revealPath(path: string, connection?: Connection): Promise<void> {
+  const conn = connection ?? shared ?? (await ensureConnected());
+  return conn.revealPath(path);
 }
 
 export async function pickDirectory(connection?: Connection): Promise<string | null> {

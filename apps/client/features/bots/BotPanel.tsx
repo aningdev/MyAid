@@ -30,6 +30,7 @@ import {
   type BotTemplate,
   type PresetBindingLabel,
 } from "./model";
+import { openBotSettings } from "./settings";
 import {
   actionError,
   changeRegistry,
@@ -72,7 +73,7 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
     name.set(bot?.name ?? "");
     templateId.set(bot?.templateId ?? "");
     model.set(bot?.defaultModel ?? "");
-    workspace.set("");
+    workspace.set(bot?.defaultWorkspacePath ?? "");
   });
 
   const templates = () => registry().templates;
@@ -92,8 +93,11 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
     return {
       id: props.botId ?? "new",
       name: name(),
+      description: bot?.description ?? null,
       templateId: chosenTemplateId(),
       defaultModel: model().trim() ? model() : null,
+      defaultThinking: bot?.defaultThinking ?? null,
+      defaultWorkspacePath: bot?.defaultWorkspacePath ?? null,
       hadDialogue: bot?.hadDialogue ?? false,
       status: bot?.status ?? "draft",
       boundPresetId: bot?.boundPresetId ?? null,
@@ -351,6 +355,14 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
               size="small"
               disabled={writeBlocked()}
               onPress={() => void remove()}
+            />
+          </If>
+          <If when={!!props.botId}>
+            <Button
+              label="Bot Settings…"
+              variant="secondary"
+              size="small"
+              onPress={() => openBotSettings(props.botId!)}
             />
           </If>
         </View>

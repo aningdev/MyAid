@@ -6,6 +6,7 @@
 import { effect, Text, View } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
+import { BotSettings } from "../features/bots/BotSettings";
 import { isDesktopLayout, Shell, TITLE_CHROME, titleTopInset } from "./shell";
 import { colors } from "./ui";
 
@@ -26,6 +27,8 @@ function DesktopShell() {
   return (
     <View style={{ flex: 1, minHeight: 0, backgroundColor: colors.inset }}>
       <Shell />
+      {/* One sheet for every Bot Settings entry point (Inspector, Bot Panel). */}
+      <BotSettings />
     </View>
   );
 }

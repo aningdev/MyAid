@@ -6,6 +6,7 @@ import { effect, keymap, View } from "nsh";
 import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { titleBar } from "nsh/desktop";
 
+import { toggleInspectorOfActivePanel } from "../../features/inspector/state";
 import { colors, handleThumb, Icon } from "../ui";
 import { startShell } from "./host";
 import { HostFooter } from "./HostFooter";
@@ -35,6 +36,8 @@ export function Shell() {
   keymap.bind("mod+w", closeActivePanel);
   keymap.bind("mod+[", () => focusPanel(-1));
   keymap.bind("mod+]", () => focusPanel(1));
+  // ⌥⌘I: the active Panel's Inspector (a Session Panel's right side).
+  keymap.bind("alt+mod+i", toggleInspectorOfActivePanel);
   return (
     <View
       style={{

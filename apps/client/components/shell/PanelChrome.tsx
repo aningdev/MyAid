@@ -1,6 +1,7 @@
 import { Text, View } from "nsh";
 import { Button, type DockAreaRef, type DockTab } from "nsh/base";
 
+import { inspectorOpen, toggleInspector } from "../../features/inspector/state";
 import { colors, Icon, type IconName } from "../ui";
 import { navKindIcon } from "./navIcons";
 import { activePanelId, panelContents, panelTitle, splitPanel } from "./state";
@@ -45,6 +46,14 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
             : "flex-row items-center opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none"
         }
       >
+        <If when={address()?.kind === "session"}>
+          <ChromeBtn
+            label={inspectorOpen(tab.panel) ? "Hide Inspector" : "Show Inspector"}
+            icon="panel-right"
+            active={inspectorOpen(tab.panel)}
+            onPress={() => toggleInspector(tab.panel)}
+          />
+        </If>
         <ChromeBtn
           label={`Split ${title()} right`}
           icon="panel-right"
@@ -72,14 +81,20 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
   );
 }
 
-function ChromeBtn(props: { label: string; icon: IconName; onPress: () => void }) {
+function ChromeBtn(props: {
+  label: string;
+  icon: IconName;
+  active?: boolean;
+  onPress: () => void;
+}) {
   return (
     <Button
       onPress={props.onPress}
       accessibilityLabel={props.label}
+      selected={props.active}
       class="hover:bg-accent size-7 items-center justify-center rounded-md"
     >
-      <Icon name={props.icon} size={13} tint={colors.muted} />
+      <Icon name={props.icon} size={13} tint={props.active ? colors.accent : colors.muted} />
     </Button>
   );
 }

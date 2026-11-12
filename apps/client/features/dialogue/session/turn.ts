@@ -5,7 +5,9 @@
 import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 
 import type { Msg, Status, Tool } from "../chat/scripts";
-import { SessionProjector, type ProjectedChat } from "./projector";
+import { SessionProjector, type Deliverable, type ProjectedChat } from "./projector";
+
+export type { Deliverable };
 
 export type FreezeOutcome = {
   status: Status;
@@ -23,6 +25,8 @@ export type TurnView = {
   liveId: string | null;
   /** The follow window does not reach the first event: older pages can be read. */
   olderHasMore: boolean;
+  /** Files this Session declared as deliverables inside the loaded window. */
+  deliverables: Deliverable[];
   /** When set, the pane should commit the live bubble then call acknowledgeFreeze(). */
   pendingFreeze: FreezeOutcome | null;
 };
@@ -151,6 +155,7 @@ export class TurnProjection {
       liveTools: snap.liveTools,
       liveId: this.local?.id ?? (snap.running && busy ? this.liveAssistantId : null),
       olderHasMore: snap.olderHasMore,
+      deliverables: snap.deliverables,
       pendingFreeze: this.pendingFreeze,
     };
   }

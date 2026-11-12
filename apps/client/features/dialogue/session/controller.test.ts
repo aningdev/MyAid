@@ -41,13 +41,18 @@ function readyRegistry(): BotRegistry {
   );
 }
 
-type Stream = { closed: boolean; onFrame: (frame: SessionFollowFrame) => void };
+type Stream = {
+  closed: boolean;
+  onFrame: (frame: SessionFollowFrame) => void;
+  onError?: (error: Error) => void;
+};
 
 function fakeTransport(): SessionTransport & {
   streams: Map<string, Stream[]>;
   prompts: string[];
   push(sessionId: string, frame: unknown): void;
   closed(sessionId: string): number;
+  fail(sessionId: string, error: Error): void;
 } {
   const streams = new Map<string, Stream[]>();
   const prompts: string[] = [];
@@ -56,6 +61,7 @@ function fakeTransport(): SessionTransport & {
     prompts: string[];
     push(sessionId: string, frame: unknown): void;
     closed(sessionId: string): number;
+    fail(sessionId: string, error: Error): void;
   } = {
     ready: true,
     streams,
@@ -66,8 +72,8 @@ function fakeTransport(): SessionTransport & {
     sessionQueue: async () => [],
     renameSession: async () => undefined,
     uploadFile: async () => ({ receiptId: "receipt" }),
-    follow: (sessionId, onFrame) => {
-      const stream: Stream = { closed: false, onFrame };
+    follow: (sessionId, onFrame, onError) => {
+      const stream: Stream = { closed: false, onFrame, onError };
       streams.set(sessionId, [...(streams.get(sessionId) ?? []), stream]);
       return () => {
         stream.closed = true;
@@ -95,6 +101,11 @@ function fakeTransport(): SessionTransport & {
     },
     closed(sessionId) {
       return (streams.get(sessionId) ?? []).filter((stream) => stream.closed).length;
+    },
+    fail(sessionId, error) {
+      for (const stream of streams.get(sessionId) ?? []) {
+        if (!stream.closed) stream.onError?.(error);
+      }
     },
   };
   return transport;
@@ -391,4 +402,39 @@ test("older history is read from the page before the follow window", async () =>
   ).toEqual(["older", "newer"]);
   expect(controller.view().olderHasMore).toBe(false);
   expect(controller.olderLoading()).toBe(false);
+});
+
+test("a follow stream that drops mid-turn is re-followed and the turn settles", async () => {
+  const { transport, controllers } = setup();
+  const controller = controllers.controllerFor("s1");
+  controller.mount();
+  await settled();
+  transport.push("s1", snapshot());
+  transport.push("s1", turnStart(1));
+  expect(controller.running()).toBe(true);
+
+  // The Host dropped the stream mid-turn (the mux heartbeat, a stalled read):
+  // the controller says so, then re-opens the follow by itself.
+  transport.fail("s1", new Error("后台历史流中断"));
+  expect(controller.error()).toBe("后台历史流中断");
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(transport.streams.get("s1")?.length).toBe(2);
+  // Re-following is not itself an error: the notice went with the retry.
+  expect(controller.error()).toBe(null);
+
+  // The recovered stream's snapshot holds the finished exchange.
+  transport.push(
+    "s1",
+    snapshot([
+      { seq: 1, type: "user/message", data: { content: "hi", source: { kind: "user" } } },
+      {
+        seq: 2,
+        type: "assistant/message",
+        data: { message: { content: [{ type: "text", text: "hello there" }] } },
+      },
+    ]),
+  );
+  expect(controller.view().messages.map((message) => message.kind)).toEqual(["user", "assistant"]);
+  expect(controller.running()).toBe(false);
+  expect(transport.streams.get("s1")?.length).toBe(2);
 });

@@ -177,3 +177,43 @@ test("a missing registry starts empty and commits stay serial", async () => {
   expect(parsed.registry.templates.map((item) => item.id).sort()).toEqual(["a", "b"]);
   expect(parsed.registry.version).toBe(3);
 });
+
+test("Bot preferences — description, thinking, default workspace — round-trip and stay optional", () => {
+  let registry = createBot(
+    createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+    {
+      name: "Ada",
+      description: "Keeps the release branch tidy",
+      templateId: "tmpl",
+      defaultModel: "deepseek/deepseek-chat",
+      defaultThinking: "high",
+      defaultWorkspacePath: "/work/myaid",
+    },
+    "bot",
+  );
+  registry = updateBot(registry, "bot", { defaultThinking: "low" });
+  const parsed = parseRegistry(serialize(registry));
+  expect(parsed.ok).toBe(true);
+  const bot = parsed.ok ? parsed.registry.bots[0] : undefined;
+  expect(bot?.description).toBe("Keeps the release branch tidy");
+  expect(bot?.defaultThinking).toBe("low");
+  expect(bot?.defaultWorkspacePath).toBe("/work/myaid");
+
+  // A v3 file written before these preferences existed still loads, as null.
+  const older = JSON.parse(serialize(registry)) as {
+    bots: Record<string, unknown>[];
+  };
+  delete older.bots[0]!.description;
+  delete older.bots[0]!.defaultThinking;
+  delete older.bots[0]!.defaultWorkspacePath;
+  const legacy = parseRegistry(JSON.stringify(older));
+  expect(legacy.ok).toBe(true);
+  const restored = legacy.ok ? legacy.registry.bots[0] : undefined;
+  expect(restored?.description).toBe(null);
+  expect(restored?.defaultThinking).toBe(null);
+  expect(restored?.defaultWorkspacePath).toBe(null);
+});
+
+function serialize(registry: ReturnType<typeof emptyRegistry>): string {
+  return `${JSON.stringify(registry, null, 2)}\n`;
+}

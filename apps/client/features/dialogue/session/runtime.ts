@@ -249,6 +249,12 @@ function wrapConnection(
       connection.selectAgentPreset(sessionId, agentPreset),
     modelCatalog: () => connection.modelCatalog(),
     selectModel: (request) => connection.selectModel(request),
+    sessionUsage: (sessionId) => connection.sessionUsage(sessionId),
+    executeCommand: (sessionId, line) => connection.executeCommand(sessionId, line),
+    listSkills: (sessionId) => connection.listSkills(sessionId),
+    pluginInventory: () => connection.pluginInventory(),
+    canReveal: () => connection.canRevealPath(),
+    revealPath: (path) => connection.revealPath(path),
     approvals: (handler) => connection.approvals(handler),
     dispose: () => connection.dispose(),
   };
@@ -420,6 +426,11 @@ export async function renameSession(sessionId: string, title: string): Promise<v
     void transport.renameSession(sessionId, trimmed).catch(() => undefined);
   }
   await refreshSessionList();
+}
+
+/** The shared transport, for surfaces that read Session facts but own no controller. */
+export function sessionTransport(): SessionTransport | undefined {
+  return claimed?.getTransport();
 }
 
 export async function disposeRuntime(): Promise<void> {

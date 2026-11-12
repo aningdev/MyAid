@@ -28,6 +28,22 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 
 `ws` 规则的握手在 NSH 里按 `GET` 的 `http`（或 `ws`）URL 校验，所以两条写法都放行同一 mux；未授权的 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝（`websocket.connect` 的 promise 直接 reject）。
 
+## 已知限制：mux 心跳与阻塞的读取
+
+`session.follow` 在长回复中途曾自己重连（W1 的现场）。实测（本机 `dsh` 0.2.2-rc.1 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
+
+| 一侧            | 行为                                                                                                            | 出处                                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| dsh gateway     | 每 2s 给每个 mux socket 发 ping，连续 2 次未收到 pong（也接受「收到的任何帧」与「未立即完成的写」）就 terminate | `packages/api/gateway/src/index.ts` `DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 2_000`、`MAX_MISSED_HEARTBEATS = 2` |
+| NSH `websocket` | 「8 条消息或 8 MiB 未被 read 时，连接停止从网络读取」；协议层不再看到 ping                                      | 安装版 `.nsh/types/websocket.d.ts`                                                                                 |
+
+于是：JS 侧一次 ≳4s 的阻塞（大回复的整段重排、一次长渲染），且其间积压 ≥8 帧未读，mux 就会被判死 → 官方 connection 退避重连 → 新 generation → 各 Panel 的 follow 以 **snapshot** 重开（不是 live 帧）。只有 2 帧积压时同样阻塞 10s，socket 存活（实测），所以触发条件是「队列满 + 阻塞」，不是单纯空闲。
+
+两侧都在按设计工作，根治要么 dsh 心跳容忍慢读，要么 NSH 在队列满时仍答 ping：记为上游缺口，Client 侧只能减小暴露面并自愈 ——
+
+- ChatPane 把 live 文本按帧合批（`requestAnimationFrame`）；
+- `SessionController` 在 follow 流异常结束时自动重开（3 次、300ms 起翻倍，`.controller.test.ts` 覆盖），错误提示随成功重连消失。官方 connection 的 socket 重连不属 Client。
+
 ## 本地跑通
 
 ```sh
