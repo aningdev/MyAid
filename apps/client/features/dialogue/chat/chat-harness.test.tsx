@@ -16,6 +16,12 @@ const PNG = Uint8Array.from(
   ),
   (char) => char.charCodeAt(0),
 );
+/** The bytes a dropped or pasted document comes with. */
+const NOTES = new TextEncoder().encode("# notes\n");
+/** A read the app is not allowed to make, as `fs` refuses one. */
+const denial = () => {
+  throw Object.assign(new Error("not granted"), { code: "ERR_ACCESS_DENIED" });
+};
 const send = "label:Send";
 const pill = "label:Jump to the latest message";
 
@@ -123,17 +129,28 @@ test("the draft stays while Panels switch", async () => {
   await app.waitFor("text:half a thought");
 });
 
-test("a pasted image becomes a chip on the composer", async () => {
+/** The headless runner has no filesystem: the app reads `file:` URLs through a stand-in. */
+const readable = (bytes: Uint8Array) => ({
+  readFile: () => bytes,
+  "default.readFile": () => bytes,
+});
+
+test("the paperclip attaches the files the open dialog returns", async () => {
+  const app = await chat();
+  app.onPick(() => [{ name: "notes.md", type: "text/markdown", data: NOTES }]);
+
+  await app.press("label:Attach files");
+  await app.waitFor("label:Remove notes.md");
+  expect(app.texts()).toContain("notes.md");
+  expect(app.picks().length).toBe(1);
+});
+
+test("a pasted or dropped file the app may read lands as a chip", async () => {
+  // The picker's bytes need no grant; a `file:` URL's do (`fs.read`), and
+  // this stand-in is the grant the app has.
   const app = await open("./chat-harness.tsx", {
     ...desktop,
-    // The headless runner has no filesystem: the app reads the pasted
-    // `file:` URL's bytes through this stand-in instead.
-    modules: {
-      "fs/promises": {
-        readFile: () => PNG,
-        "default.readFile": () => PNG,
-      },
-    },
+    modules: { "fs/promises": readable(PNG) },
   });
   await app.waitFor("text:Message Ada");
 
@@ -147,4 +164,34 @@ test("a pasted image becomes a chip on the composer", async () => {
   // A drop of a local file lands as a chip too.
   await app.dropFiles("id:chat", ["file:///tmp/dropped-notes.md"]);
   await app.waitFor("label:Remove dropped-notes.md");
+  // Read, so the dialog was never needed.
+  expect(app.picks().length).toBe(0);
+});
+
+test("a dropped file the app cannot read comes through the open dialog", async () => {
+  const app = await open("./chat-harness.tsx", {
+    ...desktop,
+    // A path outside `capabilities.fs.read`: nsh.json grants the app's data.
+    modules: { "fs/promises": { readFile: denial, "default.readFile": denial } },
+  });
+  await app.waitFor("text:Message Ada");
+  app.onPick(() => [{ name: "dropped-notes.md", type: "text/markdown", data: NOTES }]);
+
+  await app.dropFiles("id:chat", ["file:///tmp/dropped-notes.md"]);
+  await app.waitFor("label:Remove dropped-notes.md");
+  expect(app.picks().length).toBe(1);
+  expect(app.picks()[0]?.kind).toBe("files");
+});
+
+test("a dropped file the app cannot read, with the dialog closed, says how to attach", async () => {
+  const app = await open("./chat-harness.tsx", {
+    ...desktop,
+    modules: { "fs/promises": { readFile: denial, "default.readFile": denial } },
+  });
+  await app.waitFor("text:Message Ada");
+  app.onPick(() => null);
+
+  await app.dropFiles("id:chat", ["file:///tmp/dropped-notes.md"]);
+  await app.waitFor("text:Nothing was attached: MyAid reads local files through the open dialog.");
+  expect(app.count("label:Remove dropped-notes.md")).toBe(0);
 });

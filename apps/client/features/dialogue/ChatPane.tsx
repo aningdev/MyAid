@@ -25,9 +25,10 @@ import { BotMark } from "../bots/BotMark";
 import { claimOwner } from "../bots/model";
 import { registry } from "../bots/state";
 import { ApprovalCard } from "./chat/ApprovalCard";
+import { attachDropped } from "./chat/attach";
 import { ChatHeader } from "./chat/ChatHeader";
 import { Composer } from "./chat/Composer";
-import { blobToBase64, filesFromUrls } from "./chat/files";
+import { blobToBase64 } from "./chat/files";
 import { type RowHandlers } from "./chat/MessageRow";
 import { buildRows, toggleKey } from "./chat/rows";
 import type { Msg, Tool } from "./chat/scripts";
@@ -606,9 +607,8 @@ export function ChatPane(props: { controller: SessionController }) {
 
   const drop = async (uris: readonly string[], types: readonly string[]) => {
     dragging.set(false);
-    const { files, failed } = await filesFromUrls(uris, types);
-    if (failed.length > 0) dropTrouble.set(`Could not read ${failed.join(", ")}.`);
-    else dropTrouble.set(null);
+    const { files, notice } = await attachDropped(uris, types);
+    dropTrouble.set(notice);
     if (files.length > 0) controller().attachFiles(files);
   };
 

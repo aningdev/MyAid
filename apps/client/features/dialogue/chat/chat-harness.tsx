@@ -7,6 +7,7 @@
  * - "slow …": a reply that streams a word every 40 ms (Stop, queued prompts);
  * - "tools …": a reply with three tool calls and their results;
  * - "long …": eighteen finished exchanges, to scroll a transcript;
+ * - "numbered …": a reply that is one 22-item ordered list (marker width);
  * - "replay …": a turn the client missed: a snapshot with its finished
  *   exchange and no live frames;
  * - anything else: a short reply, in three chunks.
@@ -41,6 +42,13 @@ const BOT = "bot";
 const DIALOGUE = "dlg";
 const FIRST = "s1";
 const SECOND = "s2";
+
+/** A 22-item ordered list: markers 10 to 22 take two digits, which the indent must hold. */
+export const NUMBERED_COUNT = 22;
+const NUMBERED = Array.from({ length: NUMBERED_COUNT }, (_, index) => {
+  const number = index + 1;
+  return `${number}. Item ${number} of ${NUMBERED_COUNT} in this numbered list.`;
+}).join("\n");
 
 const SLOW_WORDS = [
   "This",
@@ -157,6 +165,13 @@ function scriptedTransport(): SessionTransport {
             { type: "text", text: "Read three files. **Done.**" },
           ],
         },
+      });
+      event(sessionId, "turn/end", { reason: { kind: "completed" } });
+      return;
+    }
+    if (first === "numbered") {
+      event(sessionId, "assistant/message", {
+        message: { content: [{ type: "text", text: NUMBERED }] },
       });
       event(sessionId, "turn/end", { reason: { kind: "completed" } });
       return;

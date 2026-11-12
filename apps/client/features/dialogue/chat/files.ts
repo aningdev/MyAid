@@ -1,6 +1,11 @@
 /**
  * Files the composer takes from outside the app: the system's file picker,
  * a paste, a drop. Their bytes stay in the app; only a sent file leaves.
+ *
+ * A drop or a paste of files copied in Finder hands over `file:` URLs, whose
+ * bytes are read through `fs`; `nsh.json` grants reads of the app's own data
+ * only, so a path from the user's folders is refused (`ERR_ACCESS_DENIED`)
+ * and `attachDropped` takes the same files through the open dialog instead.
  */
 import fs from "fs/promises";
 
@@ -49,21 +54,21 @@ export async function fileFromUrl(url: string, mediaType = ""): Promise<File> {
   return new File([bytes], name, type ? { type } : undefined);
 }
 
-/** The files a set of `file:` URLs name, and the ones that could not be read. */
+/** The files a set of `file:` URLs names, and the names whose bytes did not come. */
 export async function filesFromUrls(
   uris: readonly string[],
   types: readonly string[] = [],
-): Promise<{ files: File[]; failed: string[] }> {
+): Promise<{ files: File[]; unread: string[] }> {
   const files: File[] = [];
-  const failed: string[] = [];
+  const unread: string[] = [];
   for (const [index, uri] of uris.entries()) {
     try {
       files.push(await fileFromUrl(uri, types[index] ?? ""));
     } catch {
-      failed.push(nameFromUrl(uri));
+      unread.push(nameFromUrl(uri));
     }
   }
-  return { files, failed };
+  return { files, unread };
 }
 
 /** A Blob's bytes as base64, what a prompt's image part carries. */

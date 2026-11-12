@@ -3,6 +3,7 @@ import { TextView, type TextViewImage } from "nsh/base";
 
 import { colors } from "../../../components/ui";
 import { ImageViewer } from "../ImageViewer";
+import { orderedListIndent } from "./markdownLists";
 
 /**
  * A reply's Markdown, shown by `TextView` at a chat's scale (its default
@@ -18,6 +19,10 @@ import { ImageViewer } from "../ImageViewer";
  * a long press highlights it and offers Copy. Code blocks carry
  * `TextView`'s built-in copy action. A press on an image opens it in an
  * `ImageViewer` (mounted on the first press, kept for its fade out).
+ *
+ * An ordered list that counts past 9 renders with its marker column
+ * measured (`orderedListIndent`): nsh's fixed indent clipped the first
+ * digit of `10.` and up.
  */
 export function Markdown(props: {
   md: string;
@@ -27,6 +32,11 @@ export function Markdown(props: {
 }) {
   const viewing = signal<TextViewImage | null>(null);
   const used = signal(false);
+  /** `orderedList`'s style, only where the default indent would clip a marker. */
+  const listStyle = () => {
+    const indent = orderedListIndent(props.md);
+    return indent === null ? {} : { orderedList: { paddingLeft: indent } };
+  };
   return (
     <>
       <TextView
@@ -44,6 +54,9 @@ export function Markdown(props: {
           code: { color: colors.code },
           codeBlockCode: { color: colors.code },
           link: { color: colors.accent },
+          // Measured, not fixed: a list that reaches 10 needs a wider marker
+          // column than one that stops at 9.
+          ...listStyle(),
         }}
         codeBlockActions={[{ id: "copy", label: "Copy code" }]}
         onImagePress={(event) => {

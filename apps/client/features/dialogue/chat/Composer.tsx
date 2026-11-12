@@ -23,7 +23,7 @@ import { Input, Menu, MenuItem } from "nsh/base";
 
 import { alpha, colors, finish, Press, radius, RoundButton } from "../../../components/ui";
 import type { Attachment, SessionController } from "../session/controller";
-import { filesFromUrls } from "./files";
+import { attachDropped } from "./attach";
 import { composerFocusRequest, takeComposerFocus } from "./focus";
 import { Glyph } from "./glyphs";
 import { ensurePreferences, sendKey, sendKeyLabel, setSendKey, type SendKey } from "./prefs";
@@ -72,11 +72,12 @@ export function Composer(props: {
     controller().attachFiles(files);
   };
 
-  /** Files from a paste or a drop, whose `file:` URLs have to be read first. */
+  /** Files a paste or a drop named as `file:` URLs (`attach` reads them). */
   const attachUrls = async (urls: readonly string[], types: readonly string[] = []) => {
-    const { files, failed } = await filesFromUrls(urls, types);
-    if (failed.length > 0) trouble.set(`Could not read ${failed.join(", ")}.`);
+    const { files, notice } = await attachDropped(urls, types);
     attach(files);
+    // A file that did not come through says why, after the chips that did.
+    trouble.set(notice);
   };
 
   const chooseFiles = async () => {
