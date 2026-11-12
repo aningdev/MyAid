@@ -12,8 +12,10 @@ export { isDesktopLayout } from "./shell";
 function useHiddenTitleBar() {
   if (!hasWindow) return;
   effect(() => {
-    Window.setTitle("MyAid");
-    Window.setTitleBar({ style: "hidden", height: TITLE_CHROME });
+    Window.get("main")?.set({
+      title: "MyAid",
+      titleBar: { style: "hidden", height: TITLE_CHROME },
+    });
   });
 }
 
