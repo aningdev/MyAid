@@ -1,7 +1,7 @@
 import { Text, View } from "nsh";
 import { DockArea, type DockAreaRef, type DockPanel } from "nsh/base";
 
-import { colors, handleThumb } from "../ui";
+import { alpha, colors, handleThumb } from "../ui";
 import { PanelChrome } from "./PanelChrome";
 import { SlotPlaceholder } from "./SlotPlaceholder";
 import {
@@ -57,7 +57,7 @@ function PanelBody(props: { panel: DockPanel }) {
       class="min-h-0 min-w-0 flex-1"
       style={{
         borderWidth: 1,
-        borderColor: active() ? colors.accent : "transparent",
+        borderColor: active() ? alpha(colors.ring, 0.6) : "transparent",
       }}
     >
       <SlotPlaceholder panelId={props.panel.id} />
