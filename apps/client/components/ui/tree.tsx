@@ -30,9 +30,12 @@ export function TreeRow(props: {
   icon?: IconName;
   tint?: string;
   detail?: string;
+  /** Indent level to draw instead of `entry.depth` (e.g. rows under a section header). */
+  depth?: number;
 }) {
   const desktop = platform.idiom === "desktop";
   const height = desktop ? 28 : 44;
+  const depth = props.depth ?? props.entry.depth;
   return (
     <View
       style={{
@@ -41,7 +44,7 @@ export function TreeRow(props: {
         alignItems: "center",
         gap: 6,
         paddingRight: 8,
-        paddingLeft: 4 + props.entry.depth * treeIndent,
+        paddingLeft: 4 + depth * treeIndent,
       }}
     >
       <View

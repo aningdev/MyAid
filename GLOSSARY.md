@@ -64,8 +64,11 @@ _Avoid_：ProductService、统一聊天接口、权威会话存储、Relay
 **Workspace Shell（工作区壳）** _[C]_：Client 桌面交互壳 = **左侧可收缩 Navigator** + **右侧 Workbench**；不拥有域数据。  
 _Avoid_：左侧图标轨 SideNav、旧 AppShell / 单 Module 整页挂载、与 Dialogue 的 workspace path 混名
 
-**Navigator（导航树）** _[C]_：左侧可调宽多级树（`nsh/base` Tree），可收缩只留顶部拖拽条；节点是导航地址投影。顶层分区（空壳序）：Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings。  
-_Avoid_：手写树行、DockArea left dock、把树当成第二套域模型、顶层根名叫 Pin
+**Navigator（导航树）** _[C]_：左侧可调宽多级树（`nsh/base` Tree），可收缩只留顶部拖拽条；节点是导航地址投影（**去哪里**的目录，不是已打开内容的清单）。由若干 **Navigator Section** 纵向组成（空壳序）：Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings。  
+_Avoid_：手写树行、DockArea left dock、把树当成第二套域模型、顶层根名叫 Pin、把 Navigator 当成已打开 Panel 列表
+
+**Navigator Section（导航分区）** _[C]_：Navigator 的一个顶层分组；以分区标题呈现，可整体折叠，其下是该域的可展开树。集合与顺序固定。  
+_Avoid_：区块 / Block（Rex 中 block 指 pane，易与 Panel 混淆）、Module、Space
 
 **Favorites（收藏）** _[C]_：Navigator 顶层分区；Nav address 的快捷入口。  
 _Avoid_：Pin（留给各树内置顶）、Space

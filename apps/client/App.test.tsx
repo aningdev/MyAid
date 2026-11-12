@@ -25,3 +25,14 @@ test("narrow window keeps the placeholder", async () => {
   expect(texts.some((t) => t.includes("Workspace Shell"))).toBe(true);
   expect(texts.some((t) => t.includes("Collapse"))).toBe(false);
 });
+
+test("navigator shows sections with default-expanded contents", async () => {
+  const app = await open("./App.tsx", desktop);
+  const texts = app.texts();
+  for (const section of ["Favorites", "Mail", "Bots", "Dialogues", "Settings"]) {
+    expect(texts.some((t) => t === section)).toBe(true);
+  }
+  // Bots is expanded by default; Mail is collapsed.
+  expect(texts.some((t) => t === "Coder")).toBe(true);
+  expect(texts.some((t) => t === "Personal")).toBe(false);
+});
