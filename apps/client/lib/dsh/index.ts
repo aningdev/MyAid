@@ -1,12 +1,4 @@
-export {
-  assertStandardCookieHandshakeBlocked,
-  fetchSessionCookie,
-  muxWebSocketUrl,
-  openAuthenticatedMux,
-  resolveLoginUrl,
-  smokeDshAuthTransport,
-  type DshLogin,
-} from "./auth";
+export { fetchSessionCookie, muxWebSocketUrl, resolveLoginUrl, type DshLogin } from "./auth";
 export { AuthenticatedSocket } from "./socket";
 
 // Connection / Session pull the prepared Node SDK (`sdk.js`). Import from

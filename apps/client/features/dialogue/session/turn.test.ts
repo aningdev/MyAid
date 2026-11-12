@@ -1,7 +1,8 @@
 import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { expect, test } from "nsh/test";
 
-import { TurnProjection } from "./turn";
+import type { Msg } from "../chat/scripts";
+import { freezeMessages, TurnProjection } from "./turn";
 
 function frame(value: unknown): SessionFollowFrame {
   return value as SessionFollowFrame;
@@ -119,6 +120,26 @@ test("multi tool stream keeps tools on the live view until freeze", () => {
   expect(done.pendingFreeze?.status).toBe("done");
   const assistant = done.pendingFreeze?.messages.find((m) => m.kind === "assistant");
   expect(assistant && assistant.kind === "assistant" && assistant.tools.length).toBeTruthy();
+});
+
+test("a completed turn is committed once, a stopped one keeps its live reply", () => {
+  const asked: Msg = { kind: "user", id: "u1", text: "hi" };
+  const reply: Msg = {
+    kind: "assistant",
+    id: "a2",
+    model: "Deep",
+    script: "dsh",
+    tools: [],
+    md: "hello",
+    status: "done",
+  };
+  const live: Msg = { ...reply, id: "m1" };
+
+  // dsh recorded the reply: appending the pane's copy would show it twice.
+  expect(freezeMessages([asked, reply], live)).toEqual([asked, reply]);
+  // A stopped turn kept the user's message alone: its live reply comes after.
+  expect(freezeMessages([asked], live)).toEqual([asked, live]);
+  expect(freezeMessages([asked], null)).toEqual([asked]);
 });
 
 test("idle snapshot without a local turn does not freeze", () => {

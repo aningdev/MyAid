@@ -43,6 +43,16 @@ function mapFreezeStatus(status: string): Status {
   return "done";
 }
 
+/**
+ * The messages a finished turn commits: its durable page, plus the pane's
+ * live reply only when that page does not hold it (a stopped or failed turn,
+ * where dsh kept the user's message alone).
+ */
+export function freezeMessages(durable: readonly Msg[], live: Msg | null): Msg[] {
+  if (!live) return [...durable];
+  return durable[durable.length - 1]?.kind === "assistant" ? [...durable] : [...durable, live];
+}
+
 /** Owns projection + when a local prompt may freeze into history. */
 export class TurnProjection {
   private projector = new SessionProjector();

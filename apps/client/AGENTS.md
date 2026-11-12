@@ -53,8 +53,8 @@
 
 ## dsh 认证传输
 
-- NSH **0.4** 标准 `websocket.connect` **仍拒绝** Cookie 握手头；官方 `/api/remote.mux` 必须经原生 [`CookieWebSocket`](src/cookie_websocket/)（导出在 `myaid/native`）。
-- TS：[`lib/dsh/`](lib/dsh/) — `AuthenticatedSocket`、Connection/Session Facade、`smokeDshAuthTransport`。Host 控制：[`lib/host/`](lib/host/) + 原生 `HostControl`。说明见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
+- 认证 WS 用标准 `websocket` 模块：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包成官方 dsh 要的 EventTarget 形状。`nsh.json` 的 `capabilities.network.http` 只授予回环 dsh 端点（`/connect`、`/api/remote.mux`、`/api` 前缀）；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
+- TS：[`lib/dsh/`](lib/dsh/) — `AuthenticatedSocket`、Connection/Session Facade。Host 控制：[`lib/host/`](lib/host/) + 原生 `HostControl`。说明见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
 - **dsh web wire 类型**：从 [`@myaid/dsh-web-protocol`](../../packages/dsh-web-protocol)（及 `/session`、`/interaction` 等子路径）引用官方 Remote/DTO；版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐。产品视图 DTO（如扁平 `FlatModelCatalog`）须与官方同名类型区分。不从 `references/` 拷贝类型。
 - **模块 × Remote**：Dialogue/Bots → 已挂 `session` + `agentPresets`（含 `updateQueue` / `read` / `select`）；工作区选路径 → `directoryPicker`；Settings → `settings`/`credentials`；附件 → `fileUploads` + `session.attachment`；Plugins → `pluginManager`。详情与阶段见 [`packages/dsh-web-protocol/README.md`](../../packages/dsh-web-protocol/README.md)。
 - **永不调用**：官方 `workspace.*` 会话容器（产品用 Dialogue + Claim 代替）、`account.*`（品牌/账号面）。广义 Task / Knowledge / Note 不是 Session Remote；Today/启停走 HostControl。
@@ -66,7 +66,7 @@
 ## 原生接口与权限
 
 - 新增文件 / 网络 / 进程访问时同步更新 `nsh.json` capabilities。`fs.read: ["/"]` 在 Windows 无效（盘符路径不在 `/` 下）；产品数据用 `${homeDir}/.myaid`。
-- Cookie WebSocket、本机控制端点（Unix socket / Windows named pipe）、`SMAppService` 等仅在标准 API 缺口核实后添加；升级后复核可否迁回标准 API。
+- 本机控制端点（Unix socket / Windows named pipe）、`SMAppService` 等仅在标准 API 缺口核实后添加；升级后复核可否迁回标准 API。
 - 修改 `src/lib.rs` 导出后跑 `vp run @myaid/client#check` / `nsh check` 以刷新声明。`HostControl` 与 `RelayControl` 原生模块分别对接 Host/Relay 登记与控制面。
 
 ## 开发与打包（NSH CLI + vp）

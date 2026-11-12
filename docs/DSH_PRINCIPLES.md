@@ -42,8 +42,8 @@
 ## 5. 客户端与原生适配
 
 - `apps/client` 采用 NSH **mixed** 布局：`App.tsx` + 根 crate（`nsh.json` `"rust": "."`）。
-- TSX 负责产品流程；`src/` 仅补足 NSH 标准 API 的已核实缺口。**NSH 0.4 仍需** `CookieWebSocket`（`src/cookie_websocket/` + `lib/dsh/`）连 `/api/remote.mux`；见 [DSH_CLIENT_AUTH.md](DSH_CLIENT_AUTH.md)。
-- HTTP / 普通 WS 用 NSH 标准 API；标准握手能带 Cookie 后再收缩原生适配。
+- TSX 负责产品流程；`src/` 仅补足 NSH 标准 API 的已核实缺口。
+- 认证 WebSocket 用标准 `websocket` 模块（显式 `Cookie` 头）；`nsh.json` 只授予回环 dsh 端点；见 [DSH_CLIENT_AUTH.md](DSH_CLIENT_AUTH.md)。
 
 ## 6. 异步、协议与持久化
 

@@ -7,6 +7,8 @@
  * - "slow …": a reply that streams a word every 40 ms (Stop, queued prompts);
  * - "tools …": a reply with three tool calls and their results;
  * - "long …": eighteen finished exchanges, to scroll a transcript;
+ * - "replay …": a turn the client missed: a snapshot with its finished
+ *   exchange and no live frames;
  * - anything else: a short reply, in three chunks.
  */
 import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
@@ -159,6 +161,36 @@ function scriptedTransport(): SessionTransport {
       event(sessionId, "turn/end", { reason: { kind: "completed" } });
       return;
     }
+    if (first === "replay") {
+      // The follow stream recovered after the turn: one snapshot holds the
+      // finished exchange, with no active attempt and no live frames.
+      emit(sessionId, {
+        type: "snapshot",
+        hasMore: false,
+        records: [
+          {
+            type: "event",
+            event: {
+              seq: seqOf(sessionId),
+              type: "user/message",
+              time: Date.now(),
+              data: { content: text, source: { kind: "user" } },
+            },
+          },
+          {
+            type: "event",
+            event: {
+              seq: seqOf(sessionId),
+              type: "assistant/message",
+              time: Date.now(),
+              data: { message: { content: [{ type: "text", text: "Replayed answer." }] } },
+            },
+          },
+        ],
+        assistantStream: {},
+      });
+      return;
+    }
     if (first === "huge") {
       const paragraphs: string[] = [];
       for (let index = 0; index < 160; index++) {
@@ -257,6 +289,12 @@ function scriptedTransport(): SessionTransport {
           ...(queues.get(request.sessionId) ?? []),
           { id: `item-${++items}`, requestId: request.requestId, text },
         ]);
+        return;
+      }
+      // A replayed turn is one the client did not see run: its snapshot alone
+      // reports it, as a follow stream that reconnected after the turn does.
+      if (text.trim().split(/\s+/)[0] === "replay") {
+        run(request.sessionId, text);
         return;
       }
       event(request.sessionId, "user/message", { content: text, source: { kind: "user" } });

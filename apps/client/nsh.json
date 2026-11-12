@@ -14,7 +14,26 @@
     "clipboard": true,
     "picker": true,
     "network": {
-      "hosts": ["127.0.0.1", "picsum.photos"]
+      "http": [
+        {
+          "host": "127.0.0.1",
+          "methods": ["GET"],
+          "schemes": ["http"],
+          "paths": ["/connect"]
+        },
+        {
+          "host": "127.0.0.1",
+          "methods": ["GET"],
+          "schemes": ["http", "ws"],
+          "paths": ["/api/remote.mux"]
+        },
+        {
+          "host": "127.0.0.1",
+          "methods": ["POST"],
+          "schemes": ["http"],
+          "pathPrefixes": ["/api"]
+        }
+      ]
     },
     "fs": {
       "read": ["${homeDir}", "${homeDir}/.myaid", "${dataDir}", "${pluginDir}"],

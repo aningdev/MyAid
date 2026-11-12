@@ -66,6 +66,19 @@ test("a very long reply renders and follows", async () => {
   });
 });
 
+test("a reply only a recovered snapshot reports settles the turn", async () => {
+  const app = await chat();
+  await app.type(composer, "replay please");
+  await app.press(send);
+
+  // The prompt was sent while the follow stream was away: the reply comes
+  // with the recovered snapshot, never as a live frame.
+  await app.waitFor("text:Replayed answer.");
+  // The turn is over: no working row stays behind and nothing is left to jump to.
+  expect(app.texts()).not.toContain("Working…");
+  expect(app.shows(pill)).toBe(false);
+});
+
 test("Stop keeps the words shown so far", async () => {
   const app = await chat();
 

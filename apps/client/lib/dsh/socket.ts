@@ -1,9 +1,17 @@
 import type { ConnectionWebSocket } from "@deepseek-ai/dsh-client-connection/client";
-import { CookieWebSocket, type Socket } from "myaid/native";
+import { connect, type WebSocketConnection } from "websocket";
+
+/** What opens a connection: `websocket.connect`, or a test's stand-in. */
+export type SocketConnector = (
+  url: string,
+  options?: { headers?: Record<string, string> },
+) => Promise<WebSocketConnection>;
 
 /**
- * EventTarget-shaped WebSocket for official dsh client `createWebSocket` injection.
- * Uses native CookieWebSocket — NSH 0.4 standard `websocket.connect` still refuses Cookie.
+ * EventTarget-shaped WebSocket for official dsh client `createWebSocket`
+ * injection, over NSH's standard `websocket` module: `connect` sends the
+ * `Cookie` handed over by `/connect`, and `nsh.json` grants only the loopback
+ * dsh origin (the mux, `/connect` and the `/api` calls).
  */
 export class AuthenticatedSocket extends EventTarget {
   declare addEventListener: EventTarget["addEventListener"] &
@@ -11,52 +19,71 @@ export class AuthenticatedSocket extends EventTarget {
   declare removeEventListener: EventTarget["removeEventListener"] &
     ConnectionWebSocket["removeEventListener"];
   readyState = 0;
-  private socket?: Socket;
+  private socket?: WebSocketConnection;
+  /** The close event comes once: from the read loop, or from a failed handshake. */
+  private closed = false;
+  private readonly decoder = new TextDecoder();
 
-  constructor(url: string, cookie: string) {
+  constructor(url: string, cookie: string, open: SocketConnector = connect) {
     super();
-    CookieWebSocket.connect(url, cookie).then(
-      async (socket) => {
+    open(url, { headers: { Cookie: cookie } }).then(
+      (socket) => {
         if (this.readyState !== 0) {
-          socket.close();
+          // Closed while connecting: report it once, as a browser would.
+          socket.close().catch(() => undefined);
           socket.dispose();
+          this.end();
           return;
         }
         this.socket = socket;
         this.readyState = 1;
         this.dispatchEvent(new Event("open"));
-        try {
-          while (this.readyState === 1) {
-            const data = await socket.read();
-            if (this.readyState === 1) {
-              this.dispatchEvent(Object.assign(new Event("message"), { data }));
-            }
-          }
-        } catch {
-          if (this.readyState === 1) this.dispatchEvent(new Event("error"));
-        } finally {
-          this.readyState = 3;
-          this.socket = undefined;
-          socket.dispose();
-          this.dispatchEvent(new Event("close"));
-        }
+        void this.read(socket);
       },
       () => {
         this.readyState = 3;
         this.dispatchEvent(new Event("error"));
-        this.dispatchEvent(new Event("close"));
+        this.end();
       },
     );
   }
 
+  /** Reads until the connection ends; the module allows one outstanding read. */
+  private async read(socket: WebSocketConnection): Promise<void> {
+    try {
+      for (;;) {
+        const data = await socket.read();
+        if (data === null || this.readyState !== 1) break;
+        const text = typeof data === "string" ? data : this.decoder.decode(data);
+        this.dispatchEvent(Object.assign(new Event("message"), { data: text }));
+      }
+    } catch {
+      if (this.readyState === 1) this.dispatchEvent(new Event("error"));
+    } finally {
+      this.socket = undefined;
+      socket.dispose();
+      this.end();
+    }
+  }
+
+  /** Ends the socket: one `close` event, `readyState` CLOSED. */
+  private end(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.readyState = 3;
+    this.dispatchEvent(new Event("close"));
+  }
+
   send(data: string) {
     if (this.readyState !== 1 || !this.socket) throw new Error("Socket is not open");
-    this.socket.write(data);
+    this.socket.write(data).catch(() => {
+      if (this.readyState === 1) this.dispatchEvent(new Event("error"));
+    });
   }
 
   close() {
     if (this.readyState >= 2) return;
     this.readyState = 2;
-    this.socket?.close();
+    this.socket?.close().catch(() => undefined);
   }
 }

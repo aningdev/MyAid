@@ -1,15 +1,13 @@
 //! Native registration for the MyAid NSH mixed crate (`myaid/native`).
 //!
 //! - Shell demo: Badge / Format / Counter (from `nsh init --template mixed`)
-//! - DSH auth gap: CookieWebSocket (NSH 0.4 still refuses Cookie on standard WS)
 //! - Host control: Unix socket lifecycle adapter
+//! - Relay control: relay lifecycle adapter
 
-mod cookie_websocket;
 mod host_control;
 mod relay_control;
 mod shell_demo;
 
-pub use cookie_websocket::{CookieWebSocket, Socket};
 pub use host_control::{HostControl, HostWatch};
 pub use relay_control::RelayControl;
 pub use shell_demo::{Badge, Counter, Format};
@@ -23,8 +21,6 @@ fn native(registry: &mut Registry) {
         .register::<Badge>()
         .module::<Format>()
         .class::<Counter>()
-        .module::<CookieWebSocket>()
-        .class::<Socket>()
         .module::<HostControl>()
         .class::<HostWatch>()
         .module::<RelayControl>();

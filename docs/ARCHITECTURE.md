@@ -87,12 +87,12 @@ apps/client/
 ├── lib/dsh/             # Cookie 认证 + AuthenticatedSocket
 ├── assets/
 ├── nsh.json             # "rust": "."
-├── Cargo.toml / src/    # #[native_module("myaid/native")]；CookieWebSocket 等
+├── Cargo.toml / src/    # #[native_module("myaid/native")]；Host / Relay 控制等
 ```
 
 对齐 `nsh init --template mixed`（[project structure](https://nsh.dev/docs/project-structure.md)）。**不要**另起独立 `frontend/` 树，除非另有决策。细则见 [apps/client/AGENTS.md](../apps/client/AGENTS.md)。
 
-原生缺口（Cookie WebSocket、控制 socket、`SMAppService`）在 `src/` 注册；标准网络仍走 NSH API。
+原生缺口（控制 socket、`SMAppService`）在 `src/` 注册；HTTP、WebSocket（含 Cookie 握手头）走 NSH 标准 API，按 `nsh.json` `capabilities.network` 收窄。
 
 ## 6. 本机控制协议（原则）
 

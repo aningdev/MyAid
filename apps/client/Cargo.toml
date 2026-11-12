@@ -8,12 +8,9 @@ publish = false
 # Member of the repo Cargo workspace (no nested `[workspace]` table).
 
 [dependencies]
-nsh-core = "0.4.0"
-nsh-base = "0.4.0"
-futures-util = { version = "0.3", features = ["sink"] }
+nsh-core = "0.5.0"
+nsh-base = "0.5.0"
 tokio = { version = "1", features = ["sync", "time", "macros"] }
-tokio-tungstenite = "0.28"
-url = "2"
 serde_json = "1"
 myaid-host = { path = "../host" }
 myaid-relay = { path = "../relay" }

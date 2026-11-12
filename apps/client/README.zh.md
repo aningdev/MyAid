@@ -10,8 +10,8 @@ Bundle id：`com.aningdev.myaid`（见 `nsh.json`）。约束：[AGENTS.md](AGEN
 apps/client/
 ├── App.tsx / App.test.tsx
 ├── nsh.json                 # "rust": "."
-├── Cargo.toml / src/        # myaid/native — shell demo + CookieWebSocket
-├── lib/dsh/                 # Cookie auth + AuthenticatedSocket
+├── Cargo.toml / src/        # myaid/native — shell demo、Host / Relay 控制
+├── lib/dsh/                 # Cookie 引导 + AuthenticatedSocket
 ├── components/ / features/ / workspace/
 └── assets/
 ```
@@ -44,4 +44,4 @@ vp run @myaid/client#package:web
 `MYAID_HOST_SOCKET` 由根 `scripts/dev.mjs` 与本包 `dev` / `dev:macos`（经 `scripts/run-with-host-socket.mjs`）注入；Unix 默认 `~/.myaid/host/control.sock`，Windows 默认 `\\.\pipe\myaid-host`，可覆盖。  
 `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` **不注入**——移动端经 Relay，不走本机 Host 控制通道。
 
-dsh 本机认证（NSH 0.4 仍需 CookieWebSocket）：见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
+dsh 本机认证（回环 `/connect` 换 Cookie，mux 走标准 `websocket` 模块）：见 [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。

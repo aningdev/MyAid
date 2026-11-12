@@ -10,8 +10,8 @@ Bundle id: `com.aningdev.myaid` (see `nsh.json`). Constraints: [AGENTS.md](AGENT
 apps/client/
 ├── App.tsx / App.test.tsx
 ├── nsh.json                 # "rust": "."
-├── Cargo.toml / src/        # myaid/native — shell demo + CookieWebSocket
-├── lib/dsh/                 # Cookie auth + AuthenticatedSocket
+├── Cargo.toml / src/        # myaid/native — shell demo, Host / Relay control
+├── lib/dsh/                 # Cookie bootstrap + AuthenticatedSocket
 ├── components/ / features/ / workspace/
 └── assets/
 ```
@@ -44,4 +44,4 @@ Prefer repo-root `bun run dev`: ensure Host, then start this package's `dev`.
 `MYAID_HOST_SOCKET` is injected by root `scripts/dev.mjs` and this package's `dev` / `dev:macos` (via `scripts/run-with-host-socket.mjs`); Unix default `~/.myaid/host/control.sock`, Windows `\\.\pipe\myaid-host`.  
 `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` do **not** inject — mobile goes through Relay, not the local Host control channel.
 
-Local dsh auth (NSH 0.4 still needs CookieWebSocket): [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md).
+Local dsh auth (loopback `/connect` cookie, mux over the standard `websocket` module): [docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md).

@@ -40,6 +40,7 @@ import {
   sessionError,
   sessionList,
 } from "./session/runtime";
+import { freezeMessages } from "./session/turn";
 import { catalogModelKey } from "./state";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
@@ -305,8 +306,9 @@ export function ChatPane(props: { controller: SessionController }) {
           : freezeFinal(view.liveId ?? liveId() ?? lastAssistantId(), freeze.status, freeze.error);
       if (freeze.messages.length) {
         // A stopped reply keeps the words it had shown: the durable page knows
-        // only the user's message, so the live bubble comes after it.
-        commitProjected(liveFinal ? [...freeze.messages, liveFinal] : freeze.messages);
+        // only the user's message, so the live bubble comes after it. A
+        // completed reply is already on that page: never commit it twice.
+        commitProjected(freezeMessages(freeze.messages, liveFinal));
       } else {
         const seconds =
           thinkSeconds ??
@@ -391,9 +393,12 @@ export function ChatPane(props: { controller: SessionController }) {
     }
 
     if (!view.running && !busy) {
-      // The prompt was accepted but its first frame has not landed: the local
-      // turn outlives a view that looks idle.
-      if (liveId() !== null) return;
+      // A local turn's reply can arrive without a running phase or live
+      // frames: the follow stream recovered after the turn, and its snapshot
+      // holds the finished exchange. Once the durable view ends in a reply,
+      // the local placeholder has been answered and must settle, or the pane
+      // keeps an empty bubble for good.
+      if (liveId() !== null && !answered(view)) return;
       // Another Pane consumed this turn's freeze first: settle this Pane from
       // the durable messages instead of keeping its local placeholder.
       if (view.messages.length) {
@@ -511,6 +516,12 @@ export function ChatPane(props: { controller: SessionController }) {
     });
     toEnd();
     await replyDsh(sent.text, undefined, content);
+  };
+
+  /** The durable view ends in a reply: this turn's answer is on the record. */
+  const answered = (view: ReturnType<SessionController["view"]>) => {
+    const last = view.messages[view.messages.length - 1];
+    return last?.kind === "assistant";
   };
 
   /** A stopped or failed reply closes the list: nothing live may reopen it. */
@@ -716,7 +727,9 @@ export function ChatPane(props: { controller: SessionController }) {
         />
       </If>
       <If when={!!dropTrouble()}>
-        <Text style={{ paddingHorizontal: 16, paddingBottom: 4, fontSize: 12, color: colors.danger }}>
+        <Text
+          style={{ paddingHorizontal: 16, paddingBottom: 4, fontSize: 12, color: colors.danger }}
+        >
           {dropTrouble()}
         </Text>
       </If>
