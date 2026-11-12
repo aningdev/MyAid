@@ -1,6 +1,8 @@
 import { computed, platform, signal, untracked, windowSize } from "nsh";
 import { titleBar } from "nsh/desktop";
 
+import { NAV_DEFAULT_EXPANDED } from "./fixtures";
+
 /** Wide enough for desktop shell (≥700 pt desktop idiom). */
 export const isDesktopLayout = computed(
   () => windowSize().width >= (platform.idiom === "desktop" ? 700 : 900),
@@ -24,7 +26,7 @@ export function titleTopInset(): number {
 /** Left navigator open. Collapsed state keeps a 44pt drag strip over the workbench. */
 const navOpenState = signal(true);
 
-/** Last dragged width. Session-only; restored the next time the navigator opens. */
+/** Last dragged width, restored on the next launch (client prefs). */
 const navWidthState = signal(NAV_DEFAULT_WIDTH);
 
 export function navWidth() {
@@ -45,4 +47,15 @@ export function setNavOpen(open: boolean) {
 
 export function toggleNavOpen() {
   navOpenState.set(!untracked(navOpenState));
+}
+
+/** The Navigator's open sections (a folded section leaves this list). */
+const expandedState = signal<string[]>([...NAV_DEFAULT_EXPANDED]);
+
+export function expandedSections(): readonly string[] {
+  return expandedState();
+}
+
+export function setExpandedSections(next: readonly string[]): void {
+  expandedState.set([...new Set(next.filter((id) => typeof id === "string"))]);
 }

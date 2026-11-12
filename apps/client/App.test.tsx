@@ -41,19 +41,25 @@ test("a single press on a leaf opens its address in the active panel", async () 
   const app = await open("./App.tsx", desktop);
   expect(app.shows("id:tab-panel-1 >> text:Empty")).toBe(true);
 
+  // Task is the third section; reveal it, open its Active folder, then
+  // press the Today leaf.
+  await app.keyboard.press("mod+3");
+  await app.waitFor("role:treeitem[Active]");
+  await app.press("role:treeitem[Active]");
+  await app.waitFor("role:treeitem[Today]");
   await app.press("role:treeitem[Today]");
   await app.waitFor("id:tab-panel-1 >> text:Today");
   expect(app.shows("text:Content coming soon")).toBe(true);
-  expect(app.shows("text:Favorites › active › today")).toBe(true);
+  expect(app.shows("text:Task › active › today")).toBe(true);
 });
 
-test("an empty Bots section leads to the new-Bot draft", async () => {
+test("an empty Bots section leads to the New Bot sheet", async () => {
   const app = await open("./App.tsx", desktop);
-  expect(app.shows("id:bot-name")).toBe(false);
+  expect(app.shows("id:new-bot-sheet")).toBe(false);
 
   await app.press("role:treeitem[New Bot]");
-  await app.waitFor("id:tab-panel-1 >> text:New Bot");
-  await app.waitFor("id:bot-name");
+  await app.waitFor("id:new-bot-sheet");
+  expect(app.shows("id:new-bot-name")).toBe(true);
 });
 
 test("the workbench shortcuts split, focus and close panels", async () => {

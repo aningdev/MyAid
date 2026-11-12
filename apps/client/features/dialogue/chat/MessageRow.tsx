@@ -8,6 +8,7 @@
 import { signal, Text, View } from "nsh";
 
 import { Badge, colors, finish, Press } from "../../../components/ui";
+import type { Bot } from "../../bots/model";
 import { ImageViewer } from "../ImageViewer";
 import { Glyph } from "./glyphs";
 import { Markdown } from "./markdown";
@@ -38,6 +39,7 @@ export type RowHandlers = {
 export function MessageRow(props: {
   row: () => Row;
   botName: () => string;
+  bot: () => Bot | null;
   now: () => number;
   handlers: RowHandlers;
 }) {
@@ -53,6 +55,7 @@ export function MessageRow(props: {
           <Reply
             row={props.row as () => AssistantRow}
             botName={props.botName}
+            bot={props.bot}
             handlers={props.handlers}
           />
         </If>
@@ -122,7 +125,12 @@ function Person(props: { message: () => UserRow }) {
 }
 
 /** The bot's reply: who wrote it, then what it thought, ran and said. */
-function Reply(props: { row: () => AssistantRow; botName: () => string; handlers: RowHandlers }) {
+function Reply(props: {
+  row: () => AssistantRow;
+  botName: () => string;
+  bot: () => Bot | null;
+  handlers: RowHandlers;
+}) {
   const row = () => props.row();
   const message = () => row().message;
   const streaming = () => row().streaming;
@@ -143,7 +151,7 @@ function Reply(props: { row: () => AssistantRow; botName: () => string; handlers
   return (
     <View style={{ paddingVertical: 8, gap: 6 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, height: 24 }}>
-        <Avatar />
+        <Avatar identity={props.bot()?.identity ?? null} working={streaming()} />
         <Text style={{ numberOfLines: 1, fontSize: 13, fontWeight: "600", color: colors.muted }}>
           {props.botName()}
         </Text>

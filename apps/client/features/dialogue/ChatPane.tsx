@@ -21,6 +21,7 @@ import {
 import { LayoutAnimation } from "nsh";
 
 import { alpha, Appear, colors, IconTile, Press, radius } from "../../components/ui";
+import { BotMark } from "../bots/BotMark";
 import { claimOwner } from "../bots/model";
 import { registry } from "../bots/state";
 import { ApprovalCard } from "./chat/ApprovalCard";
@@ -53,7 +54,8 @@ export function ChatPane(props: { controller: SessionController }) {
   const controller = () => props.controller;
   const native = platform.idiom === "desktop" && platform.os !== "web";
   const owner = () => claimOwner(registry(), props.controller.sessionId);
-  const botName = () => owner()?.bot.name ?? "Bot";
+  const bot = () => owner()?.bot ?? null;
+  const botName = () => bot()?.name ?? "Bot";
   const title = () => {
     const row = sessionList().find((item) => item.id === props.controller.sessionId);
     return row?.label ?? owner()?.claim.title ?? "New Session";
@@ -658,6 +660,8 @@ export function ChatPane(props: { controller: SessionController }) {
         subtitle={subtitle}
         modelLabel={() => model().label}
         scrolled={scrolled}
+        bot={bot}
+        working={running}
         onRename={(next) => void renameSession(props.controller.sessionId, next)}
       />
       <If when={!!banner()}>
@@ -693,7 +697,9 @@ export function ChatPane(props: { controller: SessionController }) {
           <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 16 }}>
             <Appear>
               <View style={{ alignItems: "center", gap: 10, maxWidth: 420, alignSelf: "center" }}>
-                <IconTile name="spark" tint={colors.accent} size={48} />
+                <If when={bot()} else={<IconTile name="spark" tint={colors.accent} size={48} />}>
+                  {(current) => <BotMark identity={current().identity} size={48} />}
+                </If>
                 <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
                   {`Message ${botName()}`}
                 </Text>
@@ -712,6 +718,7 @@ export function ChatPane(props: { controller: SessionController }) {
         <Transcript
           rows={rows}
           botName={botName}
+          bot={bot}
           now={() => now()}
           handlers={handlers}
           following={following}

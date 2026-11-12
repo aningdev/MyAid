@@ -43,6 +43,8 @@ export type SpaceSnapshot = {
 /** Extra payload keyed by Tree item id (address open or Space apply). */
 export type NavAction =
   | { type: "address"; address: NavAddress }
-  | { type: "space"; spaceId: string };
+  | { type: "space"; spaceId: string }
+  /** The Bots section's way in: the New Bot sheet, not a stored draft address. */
+  | { type: "newBot" };
 
 export type { DockAreaLayout, TreeItem };

@@ -5,12 +5,13 @@
  */
 import { platform } from "nsh";
 
-import { loadRegistry } from "../../features/bots/state";
+import { loadRegistry, registry } from "../../features/bots/state";
 import {
   connectSession,
   hostConnection,
   refreshHostStatus,
 } from "../../features/dialogue/session/runtime";
+import { loadAndApplyShellPrefs } from "./prefs";
 
 /** A Host runs only beside the desktop app (the web target has none). */
 export const hasHost = platform.idiom === "desktop" && platform.os !== "web";
@@ -43,5 +44,7 @@ export async function retryHost(): Promise<void> {
 
 export async function startShell(): Promise<void> {
   await loadRegistry();
+  // The stored workbench points at registry objects: load them together.
+  await loadAndApplyShellPrefs(registry());
   await retryHost();
 }

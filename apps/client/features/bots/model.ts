@@ -1,6 +1,9 @@
 /** Desktop registry: Bot → Dialogue → Session (claim). Bot capability = Agent preset. */
 
-export const REGISTRY_VERSION = 3 as const;
+import { defaultIdentity, readIdentity, type BotIdentity } from "./identity";
+
+/** v4: Bot identity, Dialogue names, archived Session claims. v3 files migrate on read. */
+export const REGISTRY_VERSION = 4 as const;
 
 export type BotTemplate = {
   id: string;
@@ -15,6 +18,8 @@ export type BotStatus = "draft" | "ready";
 export type SessionClaim = {
   sessionId: string;
   title: string | null;
+  /** Hidden from the product's lists; dsh keeps the Session. */
+  archived: boolean;
 };
 
 export type Bot = {
@@ -35,6 +40,8 @@ export type Bot = {
   boundPresetId: string | null;
   /** Set when this Bot's capabilities diverge. The plugin owns the preset body. */
   derivedPresetId: string | null;
+  /** The mark shown in the Navigator, the chat and the Inspector. */
+  identity: BotIdentity;
 };
 
 /** Long-running thread with a Bot; binds one workspace path. */
@@ -42,6 +49,8 @@ export type Dialogue = {
   id: string;
   botId: string;
   workspacePath: string;
+  /** A person's name for it; null reads as the workspace's last segment. */
+  name: string | null;
   archived: boolean;
   claims: SessionClaim[];
 };
@@ -234,6 +243,7 @@ export function createBot(
     defaultModel?: string | null;
     defaultThinking?: string | null;
     defaultWorkspacePath?: string | null;
+    identity?: BotIdentity;
   },
   id: string = newId(),
 ): BotRegistry {
@@ -253,6 +263,7 @@ export function createBot(
     status: "draft",
     boundPresetId: null,
     derivedPresetId: null,
+    identity: input.identity ?? defaultIdentity(id),
   };
   return { ...registry, bots: [...registry.bots, bot] };
 }
@@ -267,6 +278,7 @@ export function updateBot(
     defaultModel?: string | null;
     defaultThinking?: string | null;
     defaultWorkspacePath?: string | null;
+    identity?: BotIdentity;
   },
 ): BotRegistry {
   const bot = mustBot(registry, id);
@@ -297,6 +309,7 @@ export function updateBot(
       patch.defaultWorkspacePath === undefined
         ? bot.defaultWorkspacePath
         : blankToNull(patch.defaultWorkspacePath),
+    identity: patch.identity ?? bot.identity,
   };
   return replaceBot(registry, next);
 }
@@ -332,6 +345,7 @@ export function createDialogue(
     id,
     botId: bot.id,
     workspacePath,
+    name: null,
     archived: false,
     claims: [],
   };
@@ -344,6 +358,34 @@ export function createDialogue(
 export function archiveDialogue(registry: BotRegistry, dialogueId: string): BotRegistry {
   const dialogue = mustDialogue(registry, dialogueId);
   return replaceDialogue(registry, { ...dialogue, archived: true });
+}
+
+/** Name a Dialogue; a blank name goes back to its workspace's segment. */
+export function renameDialogue(
+  registry: BotRegistry,
+  dialogueId: string,
+  name: string | null,
+): BotRegistry {
+  const dialogue = mustDialogue(registry, dialogueId);
+  return replaceDialogue(registry, { ...dialogue, name: blankToNull(name) });
+}
+
+/** Hide a claimed Session from the product's lists (the claim and dsh stay). */
+export function archiveClaim(
+  registry: BotRegistry,
+  dialogueId: string,
+  sessionId: string,
+): BotRegistry {
+  return mapClaim(registry, dialogueId, sessionId, (claim) => ({ ...claim, archived: true }));
+}
+
+/** Bring an archived claim back into the product's lists. */
+export function restoreClaim(
+  registry: BotRegistry,
+  dialogueId: string,
+  sessionId: string,
+): BotRegistry {
+  return mapClaim(registry, dialogueId, sessionId, (claim) => ({ ...claim, archived: false }));
 }
 
 /** Claim a new Harness Session for an active Dialogue. */
@@ -363,7 +405,7 @@ export function claimSession(
     throw new RegistryRejection({ code: "session-claimed", sessionId: id });
   return replaceDialogue(registry, {
     ...dialogue,
-    claims: [...dialogue.claims, { sessionId: id, title: null }],
+    claims: [...dialogue.claims, { sessionId: id, title: null, archived: false }],
   });
 }
 
@@ -449,10 +491,13 @@ export function parseRegistry(text: string): ParseResult {
   if (!isRecord(value)) {
     return { ok: false, message: "注册表不是对象。" };
   }
-  if (value.version !== REGISTRY_VERSION) {
+  // v3 files (no identity, no Dialogue names, no claim archived flag) are
+  // read and upgraded here; serializeRegistry then writes v4.
+  const sourceVersion = value.version;
+  if (sourceVersion !== 3 && sourceVersion !== REGISTRY_VERSION) {
     return {
       ok: false,
-      message: rejectionMessage({ code: "unsupported-version", version: value.version }),
+      message: rejectionMessage({ code: "unsupported-version", version: sourceVersion }),
     };
   }
   if (
@@ -474,7 +519,7 @@ export function parseRegistry(text: string): ParseResult {
   const bots: Bot[] = [];
   const botIds = new Set<string>();
   for (const item of value.bots) {
-    const parsed = parseBot(item);
+    const parsed = parseBot(item, sourceVersion);
     if (typeof parsed === "string") return { ok: false, message: parsed };
     if (botIds.has(parsed.id)) return { ok: false, message: "Bot id 重复。" };
     if (!templateIds.has(parsed.templateId)) {
@@ -487,7 +532,7 @@ export function parseRegistry(text: string): ParseResult {
   const dialogueIds = new Set<string>();
   const sessionIds = new Set<string>();
   for (const item of value.dialogues) {
-    const parsed = parseDialogue(item);
+    const parsed = parseDialogue(item, sourceVersion);
     if (typeof parsed === "string") return { ok: false, message: parsed };
     if (dialogueIds.has(parsed.id)) return { ok: false, message: "Dialogue id 重复。" };
     if (!botIds.has(parsed.botId)) {
@@ -519,7 +564,7 @@ function parseTemplate(value: unknown): BotTemplate | string {
   return { id, name: name.trim(), presetId: presetId.trim() };
 }
 
-function parseBot(value: unknown): Bot | string {
+function parseBot(value: unknown, version: number): Bot | string {
   if (!isRecord(value)) return "Bot 项无效。";
   const id = readRequiredString(value, "id");
   const name = readRequiredString(value, "name");
@@ -551,6 +596,8 @@ function parseBot(value: unknown): Bot | string {
   return {
     id,
     name: name.trim(),
+    // v3 had no identity: derive one from the id, the same on every read.
+    identity: version === 3 ? defaultIdentity(id) : readIdentity(value.identity, id),
     description: blankToNull(description),
     templateId,
     defaultModel: blankToNull(defaultModel),
@@ -563,7 +610,7 @@ function parseBot(value: unknown): Bot | string {
   };
 }
 
-function parseDialogue(value: unknown): Dialogue | string {
+function parseDialogue(value: unknown, version: number): Dialogue | string {
   if (!isRecord(value)) return "Dialogue 项无效。";
   const id = readRequiredString(value, "id");
   const botId = readRequiredString(value, "botId");
@@ -571,18 +618,22 @@ function parseDialogue(value: unknown): Dialogue | string {
   if (!id || !botId || workspacePath === undefined) return "Dialogue 项无效。";
   if (!workspacePath.trim()) return "Dialogue 项无效。";
   if (typeof value.archived !== "boolean") return "Dialogue 项无效。";
-  const claims = parseClaims(value.claims);
+  // Names shipped after v3: an older file reads its workspace's segment.
+  const name = version === 3 ? null : readOptionalString(value, "name");
+  if (name === undefined) return "Dialogue 项无效。";
+  const claims = parseClaims(value.claims, version);
   if (typeof claims === "string") return claims;
   return {
     id,
     botId,
     workspacePath: workspacePath.trim(),
+    name: blankToNull(name),
     archived: value.archived,
     claims,
   };
 }
 
-function parseClaims(value: unknown): SessionClaim[] | string {
+function parseClaims(value: unknown, version: number): SessionClaim[] | string {
   if (!Array.isArray(value)) return "Dialogue 项无效。";
   const claims: SessionClaim[] = [];
   const seen = new Set<string>();
@@ -593,7 +644,10 @@ function parseClaims(value: unknown): SessionClaim[] | string {
     if (!sessionId || title === undefined) return "Dialogue 项无效。";
     if (seen.has(sessionId)) return "Dialogue 项无效。";
     seen.add(sessionId);
-    claims.push({ sessionId, title: blankToNull(title) });
+    // Archived claims shipped after v3: older files have none archived.
+    const archived = version === 3 ? false : item.archived;
+    if (typeof archived !== "boolean") return "Dialogue 项无效。";
+    claims.push({ sessionId, title: blankToNull(title), archived });
   }
   return claims;
 }

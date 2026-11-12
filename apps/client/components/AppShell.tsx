@@ -7,7 +7,10 @@ import { effect, Text, View } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
 import { BotSettings } from "../features/bots/BotSettings";
+import { NewBotSheet } from "../features/bots/NewBotSheet";
 import { isDesktopLayout, Shell, TITLE_CHROME, titleTopInset } from "./shell";
+import { CommandPalette } from "./shell/CommandPalette";
+import { NavigatorSheets } from "./shell/NavigatorSheets";
 import { colors } from "./ui";
 
 export { isDesktopLayout } from "./shell";
@@ -29,6 +32,10 @@ function DesktopShell() {
       <Shell />
       {/* One sheet for every Bot Settings entry point (Inspector, Bot Panel). */}
       <BotSettings />
+      {/* The one New Bot sheet, the palette, and the Navigator's forms. */}
+      <NewBotSheet />
+      <CommandPalette />
+      <NavigatorSheets />
     </View>
   );
 }

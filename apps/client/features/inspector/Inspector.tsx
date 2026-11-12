@@ -28,6 +28,7 @@ import {
   radius,
   type Tone,
 } from "../../components/ui";
+import { BotMark } from "../bots/BotMark";
 import {
   claimOwner,
   presetBinding,
@@ -85,7 +86,7 @@ export function Inspector(props: { panelId: string; sessionId: string }) {
   };
   const model = () => {
     const key = bot()?.defaultModel;
-    if (!key) return "默认模型";
+    if (!key) return "Default model";
     const hit = modelCatalog()?.models.find((item) => `${item.provider}/${item.model}` === key);
     return hit ? hit.name || hit.model : key;
   };
@@ -172,6 +173,7 @@ export function Inspector(props: { panelId: string; sessionId: string }) {
           preset={binding}
           model={model}
           ready={ready}
+          working={() => controllerFor(props.sessionId).running()}
           onOpen={() => {
             const current = bot();
             if (current) openBotSettings(current.id);
@@ -217,6 +219,7 @@ function BotSection(props: {
   preset: () => { presetId: string; label: PresetBindingLabel } | null;
   model: () => string;
   ready: () => boolean;
+  working: () => boolean;
   onOpen: () => void;
 }) {
   const tone = (): Tone => {
@@ -228,7 +231,13 @@ function BotSection(props: {
       <SectionHeader title="Bot" />
       <If
         when={props.bot()}
-        else={<Muted text={props.ready() ? "这条会话没有认领到 Dialogue。" : "正在读取注册表…"} />}
+        else={
+          <Muted
+            text={
+              props.ready() ? "This Session is not claimed to a Dialogue." : "Reading the registry…"
+            }
+          />
+        }
       >
         {(current) => (
           <View style={{ gap: 8 }}>
@@ -243,23 +252,7 @@ function BotSection(props: {
               }}
               hoverStyle={hovered()}
             >
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 10,
-                  borderCurve: "continuous",
-                  backgroundColor: colors.raised,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.muted }}>
-                  {initial(current().name)}
-                </Text>
-              </View>
+              <BotMark identity={current().identity} size={32} working={props.working()} />
               <View style={{ flex: 1, gap: 1 }}>
                 <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
                   {current().name}
@@ -271,11 +264,14 @@ function BotSection(props: {
               <Icon name="chevron" size={12} tint={colors.faint} />
             </Press>
             <View style={{ gap: 4 }}>
-              <FactRow label="模板" value={() => props.template()?.name ?? "模板不在了"} />
+              <FactRow
+                label="Template"
+                value={() => props.template()?.name ?? "Template missing"}
+              />
               <FactRow label="Preset" value={() => props.preset()?.presetId ?? "—"} mono />
               <If when={props.preset()}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 2 }}>
-                  <Badge label={props.preset()?.label ?? ""} tone={tone()} />
+                  <Badge label={presetText(props.preset()?.label)} tone={tone()} />
                 </View>
               </If>
             </View>
@@ -300,7 +296,7 @@ function DialogueSection(props: {
   return (
     <View style={{ gap: 8 }} testID="inspector-dialogue">
       <SectionHeader title="Dialogue" />
-      <If when={props.dialogue()} else={<Muted text="未认领到 Dialogue。" />}>
+      <If when={props.dialogue()} else={<Muted text="Not claimed to a Dialogue." />}>
         {(current) => (
           <View style={{ gap: 10 }}>
             <View style={{ gap: 4 }}>
@@ -321,17 +317,18 @@ function DialogueSection(props: {
               </View>
               <View style={{ flexDirection: "row", gap: 10, paddingLeft: 18 }}>
                 <TinyAction
-                  label={props.copied() ? "已复制" : "复制路径"}
+                  label={props.copied() ? "Copied" : "Copy path"}
                   onPress={() => props.onCopy(current().workspacePath)}
                 />
                 <If when={canReveal()}>
                   <TinyAction
-                    label="在 Finder 中显示"
+                    label="Reveal in Finder"
                     onPress={() => props.onReveal(current().workspacePath)}
                   />
                 </If>
               </View>
             </View>
+            <SectionHeader title="Sessions" />
             <View style={{ gap: 1 }}>
               <Each of={props.sessions()}>
                 {(row) => (
@@ -344,7 +341,7 @@ function DialogueSection(props: {
                 )}
               </Each>
               <If when={props.sessions().length === 0}>
-                <Muted text="还没有 Session。" />
+                <Muted text="No Sessions yet." />
               </If>
             </View>
             <Button
@@ -367,10 +364,10 @@ function DeliverablesSection(props: {
 }) {
   return (
     <View style={{ gap: 8 }} testID="inspector-deliverables">
-      <SectionHeader title="交付物" />
+      <SectionHeader title="Deliverables" />
       <If
         when={props.files().length > 0}
-        else={<Muted text="这段会话还没有交付物（dsh 的 present 记在这里）。" />}
+        else={<Muted text="No deliverables yet (dsh's present lands here)." />}
       >
         <View style={{ gap: 1 }}>
           <Each of={props.files()}>
@@ -421,22 +418,22 @@ function UsageSection(props: {
   };
   return (
     <View style={{ gap: 8 }} testID="inspector-usage">
-      <SectionHeader title="用量" />
+      <SectionHeader title="Usage" />
       <If when={props.usage().status === "loading"}>
-        <Muted text="正在读取…" />
+        <Muted text="Reading…" />
       </If>
       <If when={props.usage().status === "failed"}>
         <Text style={{ fontSize: 11, lineHeight: 16, color: colors.danger }}>{failure()}</Text>
       </If>
       <If when={props.usage().status === "ready"}>
         <View style={{ gap: 8 }}>
-          <If when={context()} else={<Muted text="后台没有报告上下文窗口。" />}>
+          <If when={context()} else={<Muted text="The backend reports no context window." />}>
             {(read) => (
               <View style={{ gap: 5 }}>
                 <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-                  <Text style={{ flex: 1, fontSize: 12, color: colors.muted }}>上下文</Text>
+                  <Text style={{ flex: 1, fontSize: 12, color: colors.muted }}>Context</Text>
                   <Text style={{ fontSize: 12, color: colors.text, fontVariant: ["tabular-nums"] }}>
-                    {`${compactCount(read().used)} / ${compactCount(read().window)}`}
+                    {`${Math.round(read().ratio * 100)}% · ${compactCount(read().used)} / ${compactCount(read().window)}`}
                   </Text>
                 </View>
                 <Meter value={read().ratio} tone={read().ratio > 0.85 ? "warn" : "accent"} />
@@ -446,19 +443,19 @@ function UsageSection(props: {
           <If when={tokens()}>
             {(read) => (
               <View style={{ gap: 3 }}>
-                <FactRow label="输入" value={() => compactCount(read().input)} />
-                <FactRow label="输出" value={() => compactCount(read().output)} />
-                <FactRow label="缓存读取" value={() => compactCount(read().cacheRead)} />
+                <FactRow label="Input" value={() => compactCount(read().input)} />
+                <FactRow label="Output" value={() => compactCount(read().output)} />
+                <FactRow label="Cache read" value={() => compactCount(read().cacheRead)} />
               </View>
             )}
           </If>
         </View>
       </If>
       <If when={props.usage().status === "idle"}>
-        <Muted text="连接后台后显示用量。" />
+        <Muted text="Usage shows once connected to the backend." />
       </If>
       <Button
-        label={props.compaction().status === "running" ? "正在压缩…" : "Compact"}
+        label={props.compaction().status === "running" ? "Compacting…" : "Compact"}
         variant="secondary"
         size="small"
         disabled={props.compaction().status === "running"}
@@ -542,9 +539,11 @@ function Muted(props: { text: string }) {
   return <Text style={{ fontSize: 11, lineHeight: 16, color: colors.muted }}>{props.text}</Text>;
 }
 
-function initial(name: string): string {
-  const trimmed = name.trim();
-  return trimmed ? Array.from(trimmed)[0]!.toUpperCase() : "?";
+/** The preset binding in the shell's language (the model keeps its own labels). */
+function presetText(label: string | undefined): string {
+  if (label === "已绑定") return "Bound";
+  if (label === "单独配置") return "Custom";
+  return "Following template";
 }
 
 /** The Session a Panel shows, or null. */

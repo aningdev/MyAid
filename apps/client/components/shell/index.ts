@@ -35,11 +35,9 @@ export {
   type NavProjection,
 } from "./navData";
 export {
-  NEW_BOT_ADDRESS_ID,
   botAddress,
   dialogueAddress,
   dialogueLabel,
-  newBotAddress,
   sessionAddress,
   workspaceSegment,
 } from "./navAddresses";
@@ -55,7 +53,6 @@ export {
   onPanelActiveChange,
   onPanelRemove,
   openAddress,
-  openNewBotDraft,
   panelContents,
   panelTitle,
   setActivePanel,

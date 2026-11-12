@@ -18,6 +18,7 @@ import {
 } from "nsh";
 
 import { alpha, colors, motion, RoundButton } from "../../../components/ui";
+import type { Bot } from "../../bots/model";
 import { MessageRow, type RowHandlers } from "./MessageRow";
 import { DateSeparator } from "./parts";
 import type { Row } from "./rows";
@@ -30,6 +31,7 @@ const FOLLOW_SLACK = 40;
 export function Transcript(props: {
   rows: () => Row[];
   botName: () => string;
+  bot: () => Bot | null;
   now: () => number;
   handlers: RowHandlers;
   following: () => boolean;
@@ -101,6 +103,7 @@ export function Transcript(props: {
                   <MessageRow
                     row={row}
                     botName={props.botName}
+                    bot={props.bot}
                     now={props.now}
                     handlers={props.handlers}
                   />

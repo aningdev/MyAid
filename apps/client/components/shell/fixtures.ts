@@ -50,25 +50,8 @@ function folder(id: string, label: string, children: TreeItem[], action?: NavAct
   return { id, label, children };
 }
 
-/** The parked sections, by shell root. Order comes from `navData`. */
-export const PARKED_NAV: Record<
-  "favorites" | "mail" | "task" | "knowledge" | "spaces" | "settings",
-  TreeItem
-> = {
-  favorites: folder("root:favorites", "Favorites", [
-    leaf("fav:dlg", dlgFixture.title, {
-      type: "address",
-      address: { ...dlgFixture, id: "favorites:dlg", root: "favorites", kind: "favorite" },
-    }),
-    leaf("fav:mail-inbox", "Inbox", {
-      type: "address",
-      address: { ...mailInbox, id: "favorites:mail-inbox", root: "favorites", kind: "favorite" },
-    }),
-    leaf("fav:task-today", "Today", {
-      type: "address",
-      address: { ...taskActive, id: "favorites:task-today", root: "favorites", kind: "favorite" },
-    }),
-  ]),
+/** The parked sections, by shell root. Order comes from `navData`; Favorites is real. */
+export const PARKED_NAV: Record<"mail" | "task" | "knowledge" | "spaces" | "settings", TreeItem> = {
   mail: folder("root:mail", "Mail", [
     folder("mail:personal", "Personal", [
       leaf(mailInbox.id, mailInbox.title, { type: "address", address: mailInbox }),

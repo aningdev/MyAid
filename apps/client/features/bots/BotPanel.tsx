@@ -6,7 +6,7 @@
  */
 import { effect, Scroll, signal, Text, View } from "nsh";
 
-import { botAddress, dialogueAddress, newBotAddress } from "../../components/shell/navAddresses";
+import { botAddress, dialogueAddress } from "../../components/shell/navAddresses";
 import { setPanelAddress } from "../../components/shell/state";
 import {
   Badge,
@@ -18,6 +18,7 @@ import {
   radius,
   type Tone,
 } from "../../components/ui";
+import { defaultIdentity } from "./identity";
 import {
   createBot,
   createDialogue,
@@ -30,6 +31,7 @@ import {
   type BotTemplate,
   type PresetBindingLabel,
 } from "./model";
+import { openNewBot } from "./newBot";
 import { openBotSettings } from "./settings";
 import {
   actionError,
@@ -102,6 +104,7 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
       status: bot?.status ?? "draft",
       boundPresetId: bot?.boundPresetId ?? null,
       derivedPresetId: bot?.derivedPresetId ?? null,
+      identity: bot?.identity ?? defaultIdentity(props.botId ?? "new"),
     };
   };
   const binding = (): { presetId: string; label: PresetBindingLabel } | null => {
@@ -209,12 +212,7 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
               <Text style={{ fontSize: 14, lineHeight: 20, color: colors.muted }}>
                 这个 Bot 已删除。
               </Text>
-              <Button
-                label="新建 Bot"
-                variant="accent"
-                size="small"
-                onPress={() => setPanelAddress(props.panelId, newBotAddress())}
-              />
+              <Button label="新建 Bot" variant="accent" size="small" onPress={openNewBot} />
             </View>
           </If>
           <If when={!deleted() && missing()}>

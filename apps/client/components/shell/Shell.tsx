@@ -2,12 +2,14 @@
  * The Workspace Shell: collapsible left Navigator (the registry's tree, the
  * Host's state) beside the Workbench (Panels that mount the features).
  */
-import { effect, keymap, View } from "nsh";
+import { effect, keymap, platform, untracked, View } from "nsh";
 import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
-import { titleBar } from "nsh/desktop";
+import { isAvailable as hasWindow, Menu, titleBar } from "nsh/desktop";
 
-import { toggleInspectorOfActivePanel } from "../../features/inspector/state";
+import { sessionList } from "../../features/dialogue/session/runtime";
 import { colors, handleThumb, Icon } from "../ui";
+import { startAttention } from "./attention";
+import { buildApplicationMenu, COMMANDS, runCommand } from "./commands";
 import { startShell } from "./host";
 import { HostFooter } from "./HostFooter";
 import {
@@ -20,7 +22,8 @@ import {
   toggleNavOpen,
 } from "./layout";
 import { Navigator } from "./Navigator";
-import { closeActivePanel, focusPanel, splitActivePanel } from "./state";
+import { collectShellPrefs, prefsLoaded, saveShellPrefs } from "./prefs";
+import { panelContents, setPanelAddress } from "./state";
 import { Workbench } from "./Workbench";
 
 /** Left navigator (resizable, collapsible) and the workbench on the right. */
@@ -29,15 +32,35 @@ export function Shell() {
   effect(() => {
     void startShell();
   });
-  keymap.bind("mod+b", toggleNavOpen);
-  // Workbench commands, wherever the keyboard is (outside a text input).
-  keymap.bind("mod+\\", () => splitActivePanel("right"));
-  keymap.bind("mod+shift+\\", () => splitActivePanel("down"));
-  keymap.bind("mod+w", closeActivePanel);
-  keymap.bind("mod+[", () => focusPanel(-1));
-  keymap.bind("mod+]", () => focusPanel(1));
-  // ⌥⌘I: the active Panel's Inspector (a Session Panel's right side).
-  keymap.bind("alt+mod+i", toggleInspectorOfActivePanel);
+  // One command table feeds the keyboard, the menu and the palette.
+  for (const command of COMMANDS) {
+    if (command.shortcut) keymap.bind(command.shortcut, () => runCommand(command.id));
+  }
+  // The menu's enabled states follow the active Panel: rebuilding it in an
+  // effect re-reads the signals the commands' `enabled` functions read.
+  if (hasWindow) {
+    effect(() => {
+      Menu.setApplicationMenu(buildApplicationMenu(COMMANDS, { mac: platform.os === "macos" }));
+    });
+  }
+  // A Session's name can arrive from its first prompt (roster), and a Panel
+  // opened before that kept the old title: retitle that Panel's tab.
+  effect(() => {
+    const labels = new Map(sessionList().map((row) => [row.id, row.label]));
+    for (const [panelId, address] of Object.entries(untracked(panelContents))) {
+      if (!address || address.kind !== "session" || !address.sessionId) continue;
+      const label = labels.get(address.sessionId);
+      if (!label || label === address.title) continue;
+      setPanelAddress(panelId, { ...address, title: label, path: [label] });
+    }
+  });
+  // A reply or an approval in a Session the person is not watching may notify.
+  startAttention();
+  // Preferences: one debounced write after the launch applied the old ones.
+  effect(() => {
+    if (!prefsLoaded()) return;
+    saveShellPrefs(collectShellPrefs());
+  });
   return (
     <View
       style={{

@@ -81,11 +81,12 @@ test("a Dialogue's panel shows its Bot, workspace and claimed Sessions", async (
   expect(texts.some((t) => t === "First run")).toBe(true);
 });
 
-test("the Bots section's + opens the new-Bot draft", async () => {
+test("the Bots section's + opens the New Bot sheet", async () => {
   const app = await start(sampleRegistry());
   await app.waitFor("role:treeitem[Ada]");
 
   await app.press("label:New Bot");
-  await app.waitFor("id:bot-name");
+  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-name");
   expect(app.shows("role:treeitem[Ada]")).toBe(true);
 });

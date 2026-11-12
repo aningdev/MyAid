@@ -1,6 +1,7 @@
 import { signal, untracked } from "nsh";
 import type { DockAreaLayout } from "nsh/base";
 
+import { openNewBot } from "../../features/bots/newBot";
 import {
   collectPanelIds,
   emptyLayout,
@@ -10,7 +11,6 @@ import {
   withActivatedPanel,
 } from "./dock";
 import { spaceById } from "./fixtures";
-import { newBotAddress } from "./navAddresses";
 import { navActionForId } from "./navData";
 import type { NavAddress, PanelContents } from "./types";
 
@@ -86,11 +86,6 @@ export function setPanelAddress(panelId: string, address: NavAddress) {
   panelContentsState.set({ ...contents, [panelId]: address });
 }
 
-/** Opens the new-Bot draft in the active Panel (the Bots section's `+`, ⌘N). */
-export function openNewBotDraft() {
-  openAddress(newBotAddress());
-}
-
 export function applySpace(spaceId: string) {
   const space = spaceById(spaceId);
   if (!space) return;
@@ -99,12 +94,37 @@ export function applySpace(spaceId: string) {
   activePanelIdState.set(space.activePanelId);
 }
 
-/** Tree onAction: open address or apply Space. */
+/** Tree onAction: open an address, apply a Space, or open the New Bot sheet. */
 export function activateNavItem(id: string) {
   const action = navActionForId(id);
   if (!action) return;
   if (action.type === "address") openAddress(action.address);
-  else applySpace(action.spaceId);
+  else if (action.type === "space") applySpace(action.spaceId);
+  else openNewBot();
+}
+
+/** Replace the Workbench's panels, contents and active Panel in one step (a restore). */
+export function applyWorkbench(
+  layout: DockAreaLayout,
+  contents: PanelContents,
+  active: string,
+): void {
+  const ids = collectPanelIds(layout.center);
+  if (ids.length === 0) {
+    const emptyId = newId("panel");
+    dockLayoutState.set(emptyLayout(emptyId));
+    panelContentsState.set({ [emptyId]: null });
+    activePanelIdState.set(emptyId);
+    return;
+  }
+  dockLayoutState.set(layout);
+  const kept: PanelContents = {};
+  for (const id of ids) kept[id] = contents[id] ?? null;
+  panelContentsState.set(kept);
+  activePanelIdState.set(ids.includes(active) ? active : ids[0]!);
+  dockLayoutState.set(
+    withActivatedPanel(untracked(dockLayoutState), untracked(activePanelIdState)),
+  );
 }
 
 /** The Nav address shown in the active Panel (`null` when empty). */

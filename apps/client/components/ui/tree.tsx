@@ -4,7 +4,7 @@
  * is drawn once. Hover / selected use this app's tokens (`accent`, `primary`),
  * not gallery-only `hover` / `brand-tint`.
  */
-import { platform, Text, View } from "nsh";
+import { platform, Text, View, type JSX } from "nsh";
 import type { TreeEntry } from "nsh/base";
 
 import { Icon, type IconName } from "./icons";
@@ -30,6 +30,8 @@ export const treeItemClass =
 export function TreeRow(props: {
   entry: TreeEntry;
   icon?: IconName;
+  /** Drawn in place of the icon (a Bot's identity mark). */
+  mark?: JSX.Element;
   tint?: string;
   detail?: string;
   /** Live Session status, aggregated for folders. */
@@ -44,6 +46,8 @@ export function TreeRow(props: {
     <View
       style={{
         height,
+        width: "100%",
+        minWidth: 0,
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
@@ -51,7 +55,10 @@ export function TreeRow(props: {
         paddingLeft: 4 + depth * treeIndent,
       }}
     >
-      {props.icon ? <Icon name={props.icon} size={16} tint={props.tint ?? colors.muted} /> : null}
+      {props.mark ??
+        (props.icon ? (
+          <Icon name={props.icon} size={16} tint={props.tint ?? colors.muted} />
+        ) : null)}
       <Text
         class="text-muted-foreground group-selected:text-foreground flex-1"
         style={{ fontSize: desktop ? 13 : 15, numberOfLines: 1 }}

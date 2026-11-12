@@ -38,6 +38,8 @@ export function listProductSessions(
     const bot = botById.get(dialogue.botId);
     if (!bot) continue;
     for (const claim of dialogue.claims) {
+      // An archived claim stays in the registry (and dsh) but leaves the lists.
+      if (claim.archived) continue;
       const info = known?.get(claim.sessionId);
       rows.push({
         sessionId: claim.sessionId,

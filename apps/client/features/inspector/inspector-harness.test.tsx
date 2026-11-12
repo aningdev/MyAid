@@ -20,14 +20,14 @@ test("the Inspector shows the Session's usage and what it delivered", async () =
   await screen.waitFor("id:inspector-bot >> text:Ada");
   expect(screen.texts()).toContain("Coding");
   expect(screen.texts()).toContain("standard");
-  expect(screen.texts()).toContain("已绑定");
+  expect(screen.texts()).toContain("Bound");
   // Dialogue: the workspace, its Session, and the next one.
   await screen.waitFor("id:inspector-dialogue");
   expect(screen.texts()).toContain("/Users/ada/release");
   expect(screen.shows("text:Release notes for 0.4")).toBe(true);
   expect(screen.shows("New Session")).toBe(true);
   // Usage: context with its window, the token totals, and Compact.
-  expect(screen.texts()).toContain("28.1K / 1M");
+  expect(screen.texts().some((text) => text.includes("28.1K / 1M"))).toBe(true);
   expect(screen.texts()).toContain("99.9K");
   expect(screen.texts()).toContain("17.9K");
   expect(screen.shows("Compact")).toBe(true);
@@ -51,7 +51,7 @@ test("Bot Settings opens on the Inspector's Bot section and switches tabs", asyn
   // Profile: the registry's preferences and how the preset is bound.
   expect(screen.value("id:bot-settings-name")).toBe("Ada");
   expect(screen.value("id:bot-settings-description")).toBe("Keeps the release branch tidy");
-  expect(screen.texts()).toContain("已绑定");
+  expect(screen.texts()).toContain("Bound");
 
   await screen.press("Runs with");
   await screen.waitFor("text:思考");

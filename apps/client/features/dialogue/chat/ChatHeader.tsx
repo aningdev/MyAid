@@ -9,12 +9,16 @@ import { signal } from "nsh";
 import { Input } from "nsh/base";
 
 import { colors, Icon } from "../../../components/ui";
+import { BotMark } from "../../bots/BotMark";
+import type { Bot } from "../../bots/model";
 
 export function ChatHeader(props: {
   title: () => string;
   subtitle: () => string;
   modelLabel: () => string;
   scrolled: () => boolean;
+  bot: () => Bot | null;
+  working: () => boolean;
   onRename: (title: string) => void;
 }) {
   const editing = signal(false);
@@ -42,6 +46,9 @@ export function ChatHeader(props: {
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <If when={props.bot()}>
+          {(bot) => <BotMark identity={bot().identity} size={20} working={props.working()} />}
+        </If>
         <If
           when={editing()}
           else={

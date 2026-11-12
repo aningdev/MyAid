@@ -1,6 +1,8 @@
 import { expect, test } from "nsh/test";
 
+import { defaultIdentity } from "./identity";
 import {
+  archiveClaim,
   archiveDialogue,
   assignDerivedPreset,
   claimSession,
@@ -17,6 +19,9 @@ import {
   presetForBot,
   RegistryRejection,
   releaseClaim,
+  renameDialogue,
+  restoreClaim,
+  serializeRegistry,
   updateBot,
   updateTemplate,
 } from "./model";
@@ -33,8 +38,7 @@ function codingDraft() {
 
 function readyWithDialogue() {
   let registry = initializeBot(codingDraft(), "bot");
-  registry = createDialogue(registry, { botId: "bot", workspacePath: "/work" }, "dlg");
-  return registry;
+  return createDialogue(registry, { botId: "bot", workspacePath: "/work" }, "dlg");
 }
 
 test("a draft follows the template preset", () => {
@@ -175,7 +179,7 @@ test("a missing registry starts empty and commits stay serial", async () => {
   expect(parsed.ok).toBe(true);
   if (!parsed.ok) return;
   expect(parsed.registry.templates.map((item) => item.id).sort()).toEqual(["a", "b"]);
-  expect(parsed.registry.version).toBe(3);
+  expect(parsed.registry.version).toBe(4);
 });
 
 test("Bot preferences — description, thinking, default workspace — round-trip and stay optional", () => {
@@ -212,6 +216,83 @@ test("Bot preferences — description, thinking, default workspace — round-tri
   expect(restored?.description).toBe(null);
   expect(restored?.defaultThinking).toBe(null);
   expect(restored?.defaultWorkspacePath).toBe(null);
+});
+
+test("a v3 registry migrates to v4: identities, Dialogue names, claim archives", () => {
+  const v3 = {
+    version: 3,
+    templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
+    bots: [
+      {
+        id: "bot",
+        name: "Ada",
+        templateId: "tmpl",
+        defaultModel: null,
+        hadDialogue: true,
+        status: "ready",
+        boundPresetId: "standard",
+        derivedPresetId: null,
+      },
+    ],
+    dialogues: [
+      {
+        id: "dlg",
+        botId: "bot",
+        workspacePath: "/work",
+        archived: false,
+        claims: [{ sessionId: "s1", title: "First run" }],
+      },
+    ],
+  };
+
+  const parsed = parseRegistry(JSON.stringify(v3));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+  expect(parsed.registry.version).toBe(4);
+  // The mark is derived from the Bot's id, so every read agrees.
+  expect(parsed.registry.bots[0]?.identity).toEqual(defaultIdentity("bot"));
+  expect(parsed.registry.dialogues[0]?.name).toBe(null);
+  expect(parsed.registry.dialogues[0]?.claims[0]?.archived).toBe(false);
+
+  // Written back as v4, it reads the same (identity included).
+  const again = parseRegistry(serializeRegistry(parsed.registry));
+  expect(again.ok).toBe(true);
+  if (!again.ok) return;
+  expect(again.registry.bots[0]?.identity).toEqual(defaultIdentity("bot"));
+});
+
+test("a Bot's identity round-trips; an unknown one falls back to the default", () => {
+  let registry = createBot(
+    createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+    { name: "Ada", templateId: "tmpl", identity: { color: "rose", glyph: "orbit" } },
+    "bot",
+  );
+  const parsed = parseRegistry(serializeRegistry(registry));
+  expect(parsed.ok ? parsed.registry.bots[0]?.identity : null).toEqual({
+    color: "rose",
+    glyph: "orbit",
+  });
+
+  const broken = JSON.parse(serializeRegistry(registry)) as {
+    bots: { identity: { color: string; glyph: string } }[];
+  };
+  broken.bots[0]!.identity = { color: "burgundy", glyph: "hexagon" };
+  const fallback = parseRegistry(JSON.stringify(broken));
+  expect(fallback.ok ? fallback.registry.bots[0]?.identity : null).toEqual(defaultIdentity("bot"));
+  registry = parsed.ok ? parsed.registry : registry;
+  expect(registry.bots[0]?.identity.color).toBe("rose");
+});
+
+test("a Dialogue takes a name, and a claim can leave the lists and come back", () => {
+  let registry = claimSession(readyWithDialogue(), "dlg", "s1");
+  registry = renameDialogue(registry, "dlg", "Release notes");
+  expect(registry.dialogues[0]?.name).toBe("Release notes");
+  registry = archiveClaim(registry, "dlg", "s1");
+  expect(registry.dialogues[0]?.claims[0]?.archived).toBe(true);
+  registry = restoreClaim(registry, "dlg", "s1");
+  expect(registry.dialogues[0]?.claims[0]?.archived).toBe(false);
+  registry = renameDialogue(registry, "dlg", "  ");
+  expect(registry.dialogues[0]?.name).toBe(null);
 });
 
 function serialize(registry: ReturnType<typeof emptyRegistry>): string {

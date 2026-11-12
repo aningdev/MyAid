@@ -24,6 +24,7 @@ import { Input, Menu, MenuItem } from "nsh/base";
 import { alpha, colors, finish, Press, radius, RoundButton } from "../../../components/ui";
 import type { Attachment, SessionController } from "../session/controller";
 import { filesFromUrls } from "./files";
+import { composerFocusRequest, takeComposerFocus } from "./focus";
 import { Glyph } from "./glyphs";
 import { ensurePreferences, sendKey, sendKeyLabel, setSendKey, type SendKey } from "./prefs";
 
@@ -95,12 +96,11 @@ export function Composer(props: {
 
   const sendOnReturn = () => sendKey() === "enter";
 
-  // ⌘L focuses the composer; ⌘. stops; Escape stops while it has the focus;
-  // ↑ in an empty composer brings the last prompt back.
+  // ⌘L / ⌘. belong to the command table (Focus Composer, Stop); Escape stops
+  // while the composer has the focus, and ↑ in an empty composer brings the
+  // last prompt back.
   effect(() => {
     const off = [
-      keymap.bind("mod+l", () => input?.focus(), { when: "always" }),
-      keymap.bind("mod+.", () => props.onStop(), { when: "always" }),
       keymap.bind("escape", () => focused() && props.onStop(), {
         when: "always",
         passThrough: true,
@@ -126,6 +126,14 @@ export function Composer(props: {
     cleanup(() => {
       for (const remove of off) remove();
     });
+  });
+
+  // Focus Composer (⌘L, the Chat menu, a new Session): take the request once
+  // this composer is the one showing, then give the input the keyboard.
+  effect(() => {
+    if (!composerFocusRequest()) return;
+    if (!takeComposerFocus(controller().sessionId)) return;
+    input?.focus();
   });
 
   return (

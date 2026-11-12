@@ -13,6 +13,7 @@
   "capabilities": {
     "clipboard": true,
     "picker": true,
+    "notifications": true,
     "network": {
       "http": [
         {

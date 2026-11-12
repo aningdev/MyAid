@@ -23,7 +23,9 @@ import { cleanup, effect, keymap, Scroll, signal, Text, View, windowSize, type S
 import { Button, colors, Field, mono, Press, Segmented, Sheet } from "../../components/ui";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { modelCatalog, sessionList } from "../dialogue/session/runtime";
+import { BotIdentityPicker, BotMark } from "./BotMark";
 import { botFactsSource } from "./facts";
+import { defaultIdentity, type BotIdentity } from "./identity";
 import {
   assignDerivedPreset,
   presetBinding,
@@ -86,6 +88,7 @@ function Body(props: { botId: string; onClose: () => void }) {
 
   const tab = signal<Tab>("profile");
   const name = signal(bot()?.name ?? "");
+  const identity = signal<BotIdentity>(bot()?.identity ?? defaultIdentity(props.botId));
   const description = signal(bot()?.description ?? "");
   const modelKey = signal(bot()?.defaultModel ?? "");
   const thinking = signal(bot()?.defaultThinking ?? "");
@@ -175,6 +178,7 @@ function Body(props: { botId: string; onClose: () => void }) {
           defaultModel: modelKey() || null,
           defaultThinking: thinking() || null,
           defaultWorkspacePath: workspace() || null,
+          identity: identity(),
         });
         return derivedPresetId
           ? assignDerivedPreset(updated, current.id, derivedPresetId)
@@ -208,6 +212,7 @@ function Body(props: { botId: string; onClose: () => void }) {
   return (
     <View style={{ gap: 12 }} testID="bot-settings">
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <If when={bot()}>{(current) => <BotMark identity={current().identity} size={28} />}</If>
         <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: colors.text }}>
           Bot Settings
         </Text>
@@ -221,6 +226,7 @@ function Body(props: { botId: string; onClose: () => void }) {
           <ProfileTab
             name={name}
             description={description}
+            identity={identity}
             template={template}
             binding={binding}
             ready={ready}
@@ -275,6 +281,7 @@ function Body(props: { botId: string; onClose: () => void }) {
 function ProfileTab(props: {
   name: Signal<string>;
   description: Signal<string>;
+  identity: Signal<BotIdentity>;
   template: () => BotTemplate | null;
   binding: () => { presetId: string; label: PresetBindingLabel } | null;
   ready: () => boolean;
@@ -299,6 +306,16 @@ function ProfileTab(props: {
           placeholder="一句话说清它帮你做什么"
           onChange={props.description.set}
         />
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <BotMark identity={props.identity()} size={22} />
+            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Identity</Text>
+          </View>
+          <BotIdentityPicker
+            identity={() => props.identity()}
+            onChange={(next) => props.identity.set(next)}
+          />
+        </View>
         <View style={{ gap: 6 }}>
           <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
             模板与 preset

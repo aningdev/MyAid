@@ -16,6 +16,8 @@ import {
   toneColor,
   toneTint,
 } from "../../../components/ui";
+import { BotMark } from "../../bots/BotMark";
+import type { BotIdentity } from "../../bots/identity";
 import { Glyph, type GlyphName } from "./glyphs";
 import type { FileRef } from "./scripts";
 
@@ -241,7 +243,9 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
 }
 
 /** The bot's avatar: a small tile with the spark. */
-export function Avatar() {
+export function Avatar(props: { identity?: BotIdentity | null; working?: boolean }) {
+  if (props.identity)
+    return <BotMark identity={props.identity} size={22} working={props.working} />;
   return (
     <View
       style={{

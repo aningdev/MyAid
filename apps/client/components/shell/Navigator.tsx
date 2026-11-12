@@ -1,25 +1,42 @@
 /**
- * Navigator tree body (nsh/base Tree).
+ * Navigator tree body (nsh/base Tree) under its filter field.
  * Depth-0 items are Navigator Sections, drawn as Rex-style headers; their
  * contents are drawn one level shallower so each section's tree starts flush.
- * The tree itself is `navData`'s projection of the registry and the parked
- * sections: this file only draws it. The sidebar header and collapse control
- * live in Shell.
+ * The tree itself is `navData`'s projection of the registry, the roster and
+ * the pinned addresses: this file only draws it and owns the search text.
  */
-import { effect, keymap, platform, signal, Text, untracked, View } from "nsh";
-import { Button, Tree, type TreeEntry, type TreeRef } from "nsh/base";
+import { effect, keymap, platform, signal, Text, type InputRef, untracked, View } from "nsh";
+import { Button, Input, Tree, type TreeEntry, type TreeRef } from "nsh/base";
 
-import { colors, Icon, TreeRow, treeItemClass } from "../ui";
-import { NAV_DEFAULT_EXPANDED } from "./fixtures";
-import { navActionForId, navItemIdForAddress, navItems, navKindForId, navStatusForId } from "./navData";
+import { BotMark } from "../../features/bots/BotMark";
+import { openNewBot } from "../../features/bots/newBot";
+import { colors, Icon, treeItemClass, TreeRow } from "../ui";
+import { expandedSections, setExpandedSections } from "./layout";
+import {
+  navActionForId,
+  navBotForId,
+  navItemIdForAddress,
+  navItems,
+  navKindForId,
+  navStatusForId,
+} from "./navData";
+import {
+  clearNavQuery,
+  navQuery,
+  navSearchFocusRequest,
+  setNavQuery,
+  takeNavSearchFocus,
+} from "./navFilter";
 import { navKindIcon } from "./navIcons";
-import { activateNavItem, activeAddress, openNewBotDraft } from "./state";
+import { NavContextMenu } from "./navMenu";
+import { activeAddress, activateNavItem } from "./state";
+import type { TreeItem } from "./types";
 
-const expandedState = signal<string[]>([...NAV_DEFAULT_EXPANDED]);
 const selectedState = signal<string | null>(null);
 
 export function Navigator() {
   let tree: TreeRef | undefined;
+  let search: InputRef | undefined;
   /** The row the user last opened: one address can stand at two rows. */
   let openedItem: string | null = null;
 
@@ -38,12 +55,20 @@ export function Navigator() {
     );
   });
 
+  // ⌘F / View › Search Navigator: the field takes the keyboard, and the
+  // Navigator opens if it was folded away.
+  effect(() => {
+    if (navSearchFocusRequest() === 0) return;
+    takeNavSearchFocus();
+    search?.focus();
+  });
+
   // Mod+1…8 reveals (and opens) the Nth Navigator Section, then puts the
   // keyboard on the tree there.
   const revealSection = (index: number) => {
     const section = navItems()[index];
     if (!section) return;
-    expandedState.set([...new Set([...untracked(expandedState), section.id])]);
+    setExpandedSections([...expandedSections(), section.id]);
     selectedState.set(section.id);
     tree?.revealItem(section.id);
     tree?.focus();
@@ -52,30 +77,98 @@ export function Navigator() {
     keymap.bind(`mod+${index + 1}`, () => revealSection(index));
   });
 
-  /** Opens the new-Bot draft with the Bots section open, so the row shows. */
+  /** Opens the New Bot sheet with the Bots section open, so the way back shows. */
   const newBot = () => {
-    expandedState.set([...new Set([...untracked(expandedState), "root:bots"])]);
-    openNewBotDraft();
+    setExpandedSections([...expandedSections(), "root:bots"]);
+    openNewBot();
   };
-  keymap.bind("mod+n", newBot);
+
+  /** A search shows every match's ancestors open; folded sections are restored after. */
+  const expanded = () => {
+    const query = navQuery().trim();
+    if (!query) return [...expandedSections()];
+    return parentIds(navItems());
+  };
+
+  const empty = () => {
+    if (!navQuery().trim()) return false;
+    const items = navItems();
+    const count = (id: string) => items.find((item) => item.id === id)?.children?.length ?? 0;
+    return count("root:bots") === 0 && count("root:dialogues") === 0;
+  };
 
   return (
     <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: colors.inset }}>
+      <View style={{ paddingHorizontal: 6, paddingTop: 6, paddingBottom: 2, gap: 4 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            height: 30,
+            paddingHorizontal: 8,
+            borderRadius: 8,
+            backgroundColor: colors.raised,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Icon name="search" size={13} tint={colors.muted} />
+          <Input
+            ref={(node) => (search = node ?? undefined)}
+            testID="nav-search"
+            accessibilityLabel="Filter Bots, Dialogues and Sessions"
+            value={navQuery()}
+            placeholder="Filter…"
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChange={(event) => setNavQuery(event.value)}
+            style={{
+              flex: 1,
+              height: 28,
+              fontSize: 13,
+              color: colors.text,
+              paddingHorizontal: 0,
+              placeholderColor: colors.faint,
+            }}
+          />
+          <If when={!!navQuery()}>
+            <Button
+              onPress={clearNavQuery}
+              accessibilityLabel="Clear filter"
+              class="hover:bg-accent size-5 items-center justify-center rounded"
+            >
+              <Icon name="close" size={11} tint={colors.muted} />
+            </Button>
+          </If>
+        </View>
+        <If when={empty()}>
+          <Text
+            style={{ paddingHorizontal: 4, paddingVertical: 6, fontSize: 12, color: colors.muted }}
+          >
+            No matches.
+          </Text>
+        </If>
+      </View>
       <Tree
         ref={(r) => (tree = r)}
         class="flex-1"
         items={navItems()}
-        expanded={expandedState()}
+        expanded={expanded()}
         selected={selectedState()}
-        onExpandedChange={({ expanded }) => expandedState.set(expanded)}
+        onExpandedChange={({ expanded: next }) => {
+          if (!navQuery().trim()) setExpandedSections(next);
+        }}
         onSelectedChange={({ selected }) => {
           selectedState.set(selected);
           openedItem = selected;
           // A single press opens a leaf's Nav address (folders that hold an
-          // address — a Bot, a Dialogue — open too and still toggle). Spaces
-          // apply from Return or a double press: a space replaces the whole
-          // Workbench, so passing over it with the arrows must not.
-          if (navActionForId(selected)?.type === "address") activateNavItem(selected);
+          // address — a Bot, a Dialogue — open too and still toggle). The
+          // New Bot leaf opens its sheet the same way. Spaces apply from
+          // Return or a double press: a space replaces the whole Workbench,
+          // so passing over it with the arrows must not.
+          const action = navActionForId(selected);
+          if (action && action.type !== "space") activateNavItem(selected);
         }}
         onAction={({ id }) => activateNavItem(id)}
         accessibilityLabel="Navigator"
@@ -85,18 +178,51 @@ export function Navigator() {
           entry.depth === 0 ? (
             <SectionHeader entry={entry} onNewBot={newBot} />
           ) : (
-            <TreeRow
-              entry={entry}
-              depth={entry.depth - 1}
-              icon={navKindIcon(navKindForId(entry.id))}
-              tint={colors.muted}
-              status={navStatusForId(entry.id)}
-            />
+            <NavContextMenu id={entry.id}>
+              <NavRow entry={entry} />
+            </NavContextMenu>
           )
         }
       />
     </View>
   );
+}
+
+/** One object row: a Bot's identity mark, else the kind's icon, and its status. */
+function NavRow(props: { entry: TreeEntry }) {
+  const bot = () => navBotForId(props.entry.id);
+  const status = () => navStatusForId(props.entry.id);
+  const kind = () => navKindForId(props.entry.id);
+
+  return (
+    <TreeRow
+      entry={props.entry}
+      depth={props.entry.depth - 1}
+      icon={navKindIcon(kind())}
+      tint={colors.muted}
+      status={status()}
+      mark={
+        bot() ? (
+          <BotMark identity={bot()!.identity} size={18} working={status()?.working === true} />
+        ) : undefined
+      }
+    />
+  );
+}
+
+/** Every id of a node that has children, so a search shows its matches in context. */
+function parentIds(items: readonly TreeItem[]): string[] {
+  const ids: string[] = [];
+  const walk = (list: readonly TreeItem[]) => {
+    for (const item of list) {
+      if (item.children && item.children.length > 0) {
+        ids.push(item.id);
+        walk(item.children);
+      }
+    }
+  };
+  walk(items);
+  return ids;
 }
 
 /**

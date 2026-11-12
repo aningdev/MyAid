@@ -1,6 +1,9 @@
 import { Text, View } from "nsh";
 import { Button, type DockAreaRef, type DockTab } from "nsh/base";
 
+import { BotMark } from "../../features/bots/BotMark";
+import { registry } from "../../features/bots/state";
+import { sessionList } from "../../features/dialogue/session/runtime";
 import { inspectorOpen, toggleInspector } from "../../features/inspector/state";
 import { colors, Icon, type IconName } from "../ui";
 import { navKindIcon } from "./navIcons";
@@ -17,6 +20,26 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
   const address = () => panelContents()[tab.panel];
   const title = () => panelTitle(tab.panel);
   const active = () => activePanelId() === tab.panel;
+  const bot = () => {
+    const id = address()?.botId;
+    return id ? (registry().bots.find((item) => item.id === id) ?? null) : null;
+  };
+  /** A running Session under this address: the tab's mark breathes too. */
+  const working = () => {
+    const a = address();
+    if (!a) return false;
+    return sessionList().some(
+      (row) =>
+        row.running &&
+        (a.sessionId
+          ? row.id === a.sessionId
+          : a.dialogueId
+            ? row.dialogueId === a.dialogueId
+            : a.botId
+              ? row.botId === a.botId
+              : false),
+    );
+  };
 
   return (
     <View
@@ -24,14 +47,21 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
       class="border-border h-9 flex-row items-center gap-1 border-b px-2"
       style={{ backgroundColor: active() ? colors.background : colors.inset }}
     >
-      <If when={address()}>
-        {(a) => (
-          <Icon
-            name={navKindIcon(a().kind)}
-            size={13}
-            tint={active() ? colors.muted : colors.faint}
-          />
-        )}
+      <If
+        when={bot()}
+        else={
+          <If when={address()}>
+            {(a) => (
+              <Icon
+                name={navKindIcon(a().kind)}
+                size={13}
+                tint={active() ? colors.muted : colors.faint}
+              />
+            )}
+          </If>
+        }
+      >
+        {(b) => <BotMark identity={b().identity} size={16} working={working()} />}
       </If>
       <Text
         class="flex-1 text-[13px] font-medium"

@@ -68,7 +68,7 @@ test("the Panel's toggle opens the Inspector on this Session", async () => {
   await app.waitFor("id:inspector-bot >> text:Ada");
   expect(app.texts()).toContain("Coding");
   expect(app.texts()).toContain("standard");
-  expect(app.texts()).toContain("已绑定");
+  expect(app.texts()).toContain("Bound");
   expect(app.shows("Bot Settings…")).toBe(true);
   // Dialogue: the workspace and this Dialogue's Sessions.
   await app.waitFor("id:inspector-dialogue");
@@ -77,7 +77,7 @@ test("the Panel's toggle opens the Inspector on this Session", async () => {
   expect(app.shows("New Session")).toBe(true);
   // The sections dsh does not answer without a Host say so.
   expect(app.shows("id:inspector-deliverables")).toBe(true);
-  expect(app.texts()).toContain("连接后台后显示用量。");
+  expect(app.texts()).toContain("Usage shows once connected to the backend.");
 
   // The chat keeps its own column; the Inspector closes again from its tab.
   expect(app.shows("text:Message Ada")).toBe(true);

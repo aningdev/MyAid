@@ -10,6 +10,7 @@ import {
   type BotRegistry,
 } from "../../features/bots/model";
 import type { SessionRow } from "../../features/dialogue/session/runtime";
+import { sessionAddress } from "./navAddresses";
 import { NEW_BOT_ITEM_ID, projectNav } from "./navData";
 
 /** One ready Bot, one Dialogue, one claimed (titled) Session. */
@@ -133,10 +134,7 @@ test("an empty registry offers the new-Bot draft instead of rows", () => {
   const nav = projectNav({ registry: emptyRegistry(), rows: [] });
   const bots = section(nav.items, "root:bots");
   expect(labels(bots.children)).toEqual(["New Bot"]);
-  expect(nav.actions.get(NEW_BOT_ITEM_ID)).toMatchObject({
-    type: "address",
-    address: { id: "bot:new" },
-  });
+  expect(nav.actions.get(NEW_BOT_ITEM_ID)).toEqual({ type: "newBot" });
   expect(section(nav.items, "root:dialogues").children).toEqual([]);
 });
 
@@ -161,8 +159,89 @@ test("archived Dialogues leave both sections; the parked sections keep their ord
   ]);
 });
 
+test("Favorites are pinned addresses, not fixtures", () => {
+  const pinned = sessionAddress({
+    sessionId: "s1",
+    label: "First run",
+    botId: "bot",
+    dialogueId: "dlg",
+  });
+  const nav = projectNav({
+    registry: registered(),
+    rows: [row()],
+    favorites: [pinned],
+  });
+  const favorites = section(nav.items, "root:favorites");
+  expect(labels(favorites.children)).toEqual(["First run"]);
+  expect(nav.actions.get("fav:session:s1")).toMatchObject({
+    type: "address",
+    address: { id: "session:s1", sessionId: "s1" },
+  });
+  // A pin whose object is gone leaves no row.
+  const missing = projectNav({
+    registry: emptyRegistry(),
+    rows: [],
+    favorites: [pinned],
+  });
+  expect(section(missing.items, "root:favorites").children).toEqual([]);
+});
+
+test("the filter keeps matching Bots, Dialogues and Sessions with their context", () => {
+  const nav = projectNav({ registry: registered(), rows: [row()], query: "first" });
+  expect(nav.items.map((item) => item.label)).toEqual(["Favorites", "Bots", "Dialogues"]);
+  const bots = section(nav.items, "root:bots");
+  expect(labels(bots.children)).toEqual(["Ada"]);
+  expect(labels(bots.children?.[0]?.children)).toEqual(["myaid"]);
+  expect(labels(bots.children?.[0]?.children?.[0]?.children)).toEqual(["First run"]);
+  expect(labels(section(nav.items, "root:dialogues").children)).toEqual(["Ada · myaid"]);
+
+  // A path or a Bot's name matches its rows too.
+  expect(
+    labels(
+      section(
+        projectNav({ registry: registered(), rows: [row()], query: "/work" }).items,
+        "root:bots",
+      ).children,
+    ),
+  ).toEqual(["Ada"]);
+  expect(
+    labels(
+      section(
+        projectNav({ registry: registered(), rows: [row()], query: "ada" }).items,
+        "root:bots",
+      ).children,
+    ),
+  ).toEqual(["Ada"]);
+
+  // Nothing matches: both sections are empty (and the parked sections stay out).
+  const none = projectNav({ registry: registered(), rows: [row()], query: "nothing" });
+  expect(section(none.items, "root:bots").children).toEqual([]);
+  expect(section(none.items, "root:dialogues").children).toEqual([]);
+  expect(none.items.map((item) => item.label)).toEqual(["Favorites", "Bots", "Dialogues"]);
+});
+
+test("an archived claim leaves the tree while the registry keeps it", () => {
+  const registry = registered();
+  const archived: BotRegistry = {
+    ...registry,
+    dialogues: registry.dialogues.map((dialogue) => ({
+      ...dialogue,
+      claims: dialogue.claims.map((claim) => ({ ...claim, archived: true })),
+    })),
+  };
+  const nav = projectNav({ registry: archived, rows: [row()] });
+  expect(section(nav.items, "root:bots").children?.[0]?.children?.[0]?.children).toEqual([]);
+  expect(section(nav.items, "root:dialogues").children?.[0]?.children).toEqual([]);
+  // The registry still holds the claim, so it can come back.
+  expect(archived.dialogues[0]?.claims[0]?.sessionId).toBe("s1");
+});
+
 test("two Dialogues on one workspace read apart, in both sections", () => {
-  const second = createDialogue(registered(), { botId: "bot", workspacePath: "/work/myaid/" }, "dlg2");
+  const second = createDialogue(
+    registered(),
+    { botId: "bot", workspacePath: "/work/myaid/" },
+    "dlg2",
+  );
   const nav = projectNav({ registry: second, rows: [] as SessionRow[] });
   const labels: string[] = [];
   const walk = (items: typeof nav.items) => {

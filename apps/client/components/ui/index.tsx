@@ -694,11 +694,24 @@ export function switchLook(
 
 /** A horizontal meter with an optional marker (a limit). */
 export function Meter(props: { value: number; tone?: Tone; marker?: number }) {
+  const ratio = () => Math.max(0, Math.min(1, props.value));
   return (
-    <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.raised }}>
+    <View
+      style={{
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.track,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: "hidden",
+        justifyContent: "center",
+      }}
+    >
       <View
         style={{
-          width: `${Math.max(0, Math.min(1, props.value)) * 100}%`,
+          // A visible sliver at low usage, never the dot a 1 % width makes.
+          width: `${ratio() * 100}%`,
+          minWidth: ratio() > 0 ? 6 : 0,
           height: 6,
           borderRadius: 3,
           backgroundColor: toneColor(props.tone ?? "accent"),
@@ -709,9 +722,9 @@ export function Meter(props: { value: number; tone?: Tone; marker?: number }) {
           style={{
             position: "absolute",
             left: `${(props.marker ?? 0) * 100}%`,
-            top: -3,
+            top: 0,
             width: 2,
-            height: 12,
+            height: 8,
             borderRadius: 1,
             backgroundColor: colors.text,
           }}
