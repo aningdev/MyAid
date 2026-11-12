@@ -19,7 +19,7 @@
 ## 工作台（Workspace Shell）
 
 - 壳入口 [`AppShell.tsx`](components/AppShell.tsx) → [`shell/`](components/shell/)：UI 与状态同目录；**左侧可收缩 Navigator + 右侧 Workbench**；**不挂** `features/*`。
-- **Navigator**：水平 `ResizablePanel`（默认 232、最小 160、最大 480，宽度只留在本次运行）。顶行 44pt 承接隐藏标题栏（可拖拽，左侧让出 `titleBar().left`，右侧 Collapse / Expand）。下面是 `nsh/base` **Tree** + [`fixtures.ts`](components/shell/fixtures.ts)：depth 0 画成 Rex 式 **Navigator Section** 标题（可折叠、hover 显 chevron 与占位操作），分区内容整体左移一级；仍是一棵树、一个滚动与焦点。收起后左栏离开横排，右侧顶部只留 44pt 拖拽条和 Expand。`⌘B` 与按钮同一命令。
+- **Navigator**：水平 `ResizablePanel`（默认 232、最小 160、最大 480，宽度只留在本次运行）。顶行 44pt 承接隐藏标题栏（可拖拽；左侧让出 `titleBar().left` 后是收起 / 展开图标按钮）。下面是 `nsh/base` **Tree** + [`fixtures.ts`](components/shell/fixtures.ts)：depth 0 画成 Rex 式 **Navigator Section** 标题（可折叠、hover 显 chevron 与占位操作），分区内容整体左移一级；仍是一棵树、一个滚动与焦点。单击叶子即把 Nav address 打开到活动 Panel（Bot / Dialogue 行带地址，可打开且仍折叠；分区标题只折叠不打开），活动 Panel 换地址时选中同步回树。收起后左栏离开横排，右侧顶部只留 44pt 拖拽条和 Expand。快捷键：`⌘B` 收起/展开，`⌘\` / `⌘⇧\` 向右 / 向下拆分，`⌘W` 关活动 Panel（仅剩一个时无操作），`⌘[` / `⌘]` 切活动 Panel，`⌘1…⌘8` 展开并定位分区。
 - **Workbench**：`nsh/base` **DockArea**（仅 center）；独立 Panel 可拖/拆/缩放/放大/关；内容为地址占位。展开时从窗口上沿起排。
 - 桌面隐藏标题栏高度 44。桌面整窗不再为标题栏下推，也不预留 `titleBar().right`。
 - 配色沿用 `colors.inset` / `colors.background`。

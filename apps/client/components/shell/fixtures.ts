@@ -46,7 +46,8 @@ function leaf(id: string, label: string, action: NavAction): TreeItem {
   return { id, label };
 }
 
-function folder(id: string, label: string, children: TreeItem[]): TreeItem {
+function folder(id: string, label: string, children: TreeItem[], action?: NavAction): TreeItem {
+  if (action) actions.set(id, action);
   return { id, label, children };
 }
 
@@ -94,25 +95,44 @@ export const NAV_TREE_ITEMS: TreeItem[] = [
     ]),
   ]),
   folder("root:bots", "Bots", [
-    folder(botAid.id, botAid.title, [
-      leaf(dlgAidHome.id, "Home", { type: "address", address: dlgAidHome }),
-      leaf(dlgAidCode.id, "Codebase", { type: "address", address: dlgAidCode }),
-    ]),
-    folder(botCoder.id, botCoder.title, [
-      leaf(dlgCoderApp.id, "App", { type: "address", address: dlgCoderApp }),
-    ]),
+    folder(
+      botAid.id,
+      botAid.title,
+      [
+        leaf(dlgAidHome.id, "Home", { type: "address", address: dlgAidHome }),
+        leaf(dlgAidCode.id, "Codebase", { type: "address", address: dlgAidCode }),
+      ],
+      { type: "address", address: botAid },
+    ),
+    folder(
+      botCoder.id,
+      botCoder.title,
+      [leaf(dlgCoderApp.id, "App", { type: "address", address: dlgCoderApp })],
+      { type: "address", address: botCoder },
+    ),
   ]),
   folder("root:dialogues", "Dialogues", [
-    folder(dlgHome.id, dlgHome.title, [
-      leaf(sessHomeMain.id, sessHomeMain.title, { type: "address", address: sessHomeMain }),
-      leaf(sessHomeBug.id, sessHomeBug.title, { type: "address", address: sessHomeBug }),
-    ]),
-    folder(dlgCode.id, dlgCode.title, [
-      leaf(sessCodeMain.id, sessCodeMain.title, { type: "address", address: sessCodeMain }),
-    ]),
-    folder(dlgApp.id, dlgApp.title, [
-      leaf(sessAppMain.id, sessAppMain.title, { type: "address", address: sessAppMain }),
-    ]),
+    folder(
+      dlgHome.id,
+      dlgHome.title,
+      [
+        leaf(sessHomeMain.id, sessHomeMain.title, { type: "address", address: sessHomeMain }),
+        leaf(sessHomeBug.id, sessHomeBug.title, { type: "address", address: sessHomeBug }),
+      ],
+      { type: "address", address: dlgHome },
+    ),
+    folder(
+      dlgCode.id,
+      dlgCode.title,
+      [leaf(sessCodeMain.id, sessCodeMain.title, { type: "address", address: sessCodeMain })],
+      { type: "address", address: dlgCode },
+    ),
+    folder(
+      dlgApp.id,
+      dlgApp.title,
+      [leaf(sessAppMain.id, sessAppMain.title, { type: "address", address: sessAppMain })],
+      { type: "address", address: dlgApp },
+    ),
   ]),
   folder("root:spaces", "Spaces", [
     leaf("space-focus", "Focus Dialogue", { type: "space", spaceId: "space-focus" }),
@@ -139,6 +159,29 @@ export const NAV_DEFAULT_EXPANDED: string[] = [
 
 export function navActionForId(id: string): NavAction | undefined {
   return actions.get(id);
+}
+
+/** The first Navigator item that stands for `addressId`, if any. */
+export function navItemIdForAddress(addressId: string): string | null {
+  let found: string | null = null;
+  const walk = (items: TreeItem[]) => {
+    for (const item of items) {
+      if (found) return;
+      const action = actions.get(item.id);
+      if (action?.type === "address" && action.address.id === addressId) {
+        found = item.id;
+        return;
+      }
+      if (item.children) walk(item.children);
+    }
+  };
+  walk(NAV_TREE_ITEMS);
+  return found;
+}
+
+/** A Navigator Section's title, by its root. */
+export function rootLabel(root: ShellRoot): string {
+  return NAV_TREE_ITEMS.find((item) => item.id === `root:${root}`)?.label ?? root;
 }
 
 /** Kind hint for Tree row icons (by item id prefix / known actions). */

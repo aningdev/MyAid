@@ -4,45 +4,65 @@
  * contents are drawn one level shallower so each section's tree starts flush.
  * The sidebar header and collapse control live in Shell.
  */
-import { platform, signal, Text, View } from "nsh";
-import { Tree, type TreeEntry } from "nsh/base";
+import { effect, keymap, platform, signal, Text, untracked, View } from "nsh";
+import { Tree, type TreeEntry, type TreeRef } from "nsh/base";
 
-import { colors, Icon, TreeRow, treeItemClass, type IconName } from "../ui";
-import { NAV_DEFAULT_EXPANDED, NAV_TREE_ITEMS, navKindForId } from "./fixtures";
-import { activateNavItem } from "./state";
-
-function navIcon(id: string): IconName {
-  switch (navKindForId(id)) {
-    case "favorite":
-      return "star";
-    case "bot":
-      return "spark";
-    case "dialogue":
-      return "chat";
-    case "session":
-      return "code";
-    case "setting":
-      return "sliders";
-    case "space":
-      return "sidebar";
-    default:
-      return "lists";
-  }
-}
+import { colors, Icon, TreeRow, treeItemClass } from "../ui";
+import {
+  NAV_DEFAULT_EXPANDED,
+  NAV_TREE_ITEMS,
+  navActionForId,
+  navItemIdForAddress,
+  navKindForId,
+} from "./fixtures";
+import { navKindIcon } from "./navIcons";
+import { activateNavItem, activeAddress } from "./state";
 
 const expandedState = signal<string[]>([...NAV_DEFAULT_EXPANDED]);
 const selectedState = signal<string | null>(null);
 
 export function Navigator() {
+  let tree: TreeRef | undefined;
+
+  // The Navigator follows the Workbench: the active Panel's address selects
+  // its item here (null when the Panel is empty). Setting the selection
+  // programmatically does not report it back, so this cannot loop.
+  effect(() => {
+    const address = activeAddress();
+    selectedState.set(address ? navItemIdForAddress(address.id) : null);
+  });
+
+  // Mod+1…8 reveals (and opens) the Nth Navigator Section, then puts the
+  // keyboard on the tree there.
+  const revealSection = (index: number) => {
+    const section = NAV_TREE_ITEMS[index];
+    if (!section) return;
+    expandedState.set([...new Set([...untracked(expandedState), section.id])]);
+    selectedState.set(section.id);
+    tree?.revealItem(section.id);
+    tree?.focus();
+  };
+  NAV_TREE_ITEMS.forEach((_section, index) => {
+    keymap.bind(`mod+${index + 1}`, () => revealSection(index));
+  });
+
   return (
     <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: colors.inset }}>
       <Tree
+        ref={(r) => (tree = r)}
         class="flex-1"
         items={NAV_TREE_ITEMS}
         expanded={expandedState()}
         selected={selectedState()}
         onExpandedChange={({ expanded }) => expandedState.set(expanded)}
-        onSelectedChange={({ selected }) => selectedState.set(selected)}
+        onSelectedChange={({ selected }) => {
+          selectedState.set(selected);
+          // A single press opens a leaf's Nav address (folders that hold an
+          // address — a Bot, a Dialogue — open too and still toggle). Spaces
+          // apply from Return or a double press: a space replaces the whole
+          // Workbench, so passing over it with the arrows must not.
+          if (navActionForId(selected)?.type === "address") activateNavItem(selected);
+        }}
         onAction={({ id }) => activateNavItem(id)}
         accessibilityLabel="Navigator"
         listClass="p-1.5"
@@ -54,7 +74,7 @@ export function Navigator() {
             <TreeRow
               entry={entry}
               depth={entry.depth - 1}
-              icon={navIcon(entry.id)}
+              icon={navKindIcon(navKindForId(entry.id))}
               tint={colors.muted}
             />
           )
@@ -67,13 +87,17 @@ export function Navigator() {
 /**
  * Navigator Section header: small muted label with space above, no icon.
  * Chevron and the action slots show on hover only; the slots are placeholders
- * (no behavior yet). A press toggles the section (Tree's folder press).
+ * (no behavior yet). A press toggles the section (Tree's folder press) and
+ * selects its row; the header paints over the selected tint, since a section
+ * is a place in the tree, not a destination (its row still takes the
+ * keyboard's ring and stays a stop of the arrow keys).
  */
 function SectionHeader(props: { entry: TreeEntry }) {
   const desktop = platform.idiom === "desktop";
   const first = props.entry.id === NAV_TREE_ITEMS[0]?.id;
   return (
     <View
+      class="group-selected:bg-muted"
       style={{
         height: (desktop ? 28 : 44) + (first ? 0 : 8),
         paddingTop: first ? 0 : 8,

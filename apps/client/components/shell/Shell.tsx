@@ -1,11 +1,11 @@
 /**
  * Empty shell: collapsible left Navigator beside the Workbench.
  */
-import { keymap, Text, View } from "nsh";
+import { keymap, View } from "nsh";
 import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { titleBar } from "nsh/desktop";
 
-import { colors, handleThumb } from "../ui";
+import { colors, handleThumb, Icon } from "../ui";
 import {
   NAV_MAX_WIDTH,
   NAV_MIN_WIDTH,
@@ -16,11 +16,18 @@ import {
   toggleNavOpen,
 } from "./layout";
 import { Navigator } from "./Navigator";
+import { closeActivePanel, focusPanel, splitActivePanel } from "./state";
 import { Workbench } from "./Workbench";
 
 /** Left navigator (resizable, collapsible) and the workbench on the right. */
 export function Shell() {
   keymap.bind("mod+b", toggleNavOpen);
+  // Workbench commands, wherever the keyboard is (outside a text input).
+  keymap.bind("mod+\\", () => splitActivePanel("right"));
+  keymap.bind("mod+shift+\\", () => splitActivePanel("down"));
+  keymap.bind("mod+w", closeActivePanel);
+  keymap.bind("mod+[", () => focusPanel(-1));
+  keymap.bind("mod+]", () => focusPanel(1));
   return (
     <View
       style={{
@@ -76,7 +83,7 @@ function Sidebar() {
   );
 }
 
-/** Title-bar row. The leading spacer is the traffic-light inset; the rest drags the window. */
+/** Title-bar row. The leading inset is the traffic lights; the rest drags the window. */
 function SidebarHeader() {
   return (
     <View
@@ -90,15 +97,15 @@ function SidebarHeader() {
       }}
     >
       <View style={{ width: titleBar().left }} />
-      <View style={{ flex: 1 }} />
-      <View class="pr-3">
+      <View class="pl-2">
         <NavToggle />
       </View>
+      <View style={{ flex: 1 }} />
     </View>
   );
 }
 
-/** Collapsed window chrome: drag region and Expand. No title. */
+/** Collapsed window chrome: the drag region and the Expand button. No title. */
 function CollapsedChrome() {
   return (
     <View
@@ -112,24 +119,24 @@ function CollapsedChrome() {
       }}
     >
       <View style={{ width: titleBar().left }} />
-      <View class="pl-3">
+      <View class="pl-2">
         <NavToggle />
       </View>
+      <View style={{ flex: 1 }} />
     </View>
   );
 }
 
+/** Collapses or expands the Navigator; the icon stays the same, the name says which. */
 function NavToggle() {
   const open = () => navOpen();
   return (
     <Button
       onPress={() => toggleNavOpen()}
       accessibilityLabel={open() ? "Collapse navigator" : "Expand navigator"}
-      class="hover:bg-accent focus:outline-ring h-7 rounded-md px-2.5 focus:outline-2 focus:-outline-offset-2 active:opacity-70"
+      class="hover:bg-accent focus:outline-ring size-7 items-center justify-center rounded-md focus:outline-2 focus:-outline-offset-2"
     >
-      <Text class="text-muted-foreground text-xs font-medium">
-        {open() ? "Collapse" : "Expand"}
-      </Text>
+      <Icon name="sidebar" size={16} tint={colors.muted} />
     </Button>
   );
 }

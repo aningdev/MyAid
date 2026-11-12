@@ -14,16 +14,18 @@ import { colors } from "./theme";
 export const treeIndent = 14;
 
 /**
- * Quiet until hovered, the selected row tinted, a focus ring inside the row,
- * disabled rows dimmed.
+ * Quiet until hovered, the selected row tinted, a focus ring inside the row
+ * while the keyboard is on it, disabled rows dimmed. A press is feedback
+ * enough (the row does not fade).
  */
 export const treeItemClass =
-  "group rounded-md transition-colors duration-150 motion-reduce:transition-none hover:bg-accent active:opacity-70 " +
-  "selected:bg-primary/10 focus:outline-2 focus:-outline-offset-2 focus:outline-ring disabled:opacity-40";
+  "group rounded-md transition-colors duration-150 motion-reduce:transition-none hover:bg-accent " +
+  "selected:bg-primary/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:opacity-40";
 
 /**
- * Chevron (folders), optional icon, label. A leaf keeps an invisible chevron
- * so icons line up. Selected label uses the strong text color, not a weight.
+ * Icon, label, then a disclosure chevron in a trailing lane for folders:
+ * leaves take no chevron lane, so icons and labels line up across a level.
+ * The chevron shows on hover and stays while the folder is open.
  */
 export function TreeRow(props: {
   entry: TreeEntry;
@@ -43,16 +45,10 @@ export function TreeRow(props: {
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
-        paddingRight: 8,
+        paddingRight: 6,
         paddingLeft: 4 + depth * treeIndent,
       }}
     >
-      <View
-        class="transition-transform duration-200 ease-out group-aria-expanded:rotate-90 motion-reduce:transition-none"
-        style={{ width: 14, height: 14, opacity: props.entry.folder ? 1 : 0 }}
-      >
-        <Icon name="chevron" size={14} tint={colors.muted} />
-      </View>
       {props.icon ? <Icon name={props.icon} size={16} tint={props.tint ?? colors.muted} /> : null}
       <Text
         class="text-muted-foreground group-selected:text-foreground flex-1"
@@ -63,6 +59,19 @@ export function TreeRow(props: {
       {props.detail ? (
         <Text style={{ fontSize: 12, color: colors.faint }}>{props.detail}</Text>
       ) : null}
+      <If when={props.entry.folder}>
+        <View
+          class="opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 group-aria-expanded:opacity-100 motion-reduce:transition-none"
+          style={{ width: 14, height: 14 }}
+        >
+          <View
+            class="transition-transform duration-200 ease-out group-aria-expanded:rotate-90 motion-reduce:transition-none"
+            style={{ width: 14, height: 14 }}
+          >
+            <Icon name="chevron" size={12} tint={colors.muted} />
+          </View>
+        </View>
+      </If>
     </View>
   );
 }

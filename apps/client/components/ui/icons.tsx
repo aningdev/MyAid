@@ -40,7 +40,11 @@ export type IconName =
   | "moon"
   | "code"
   | "sliders"
+  | "folder"
+  | "panel-right"
   | "panel-bottom"
+  | "maximize"
+  | "restore"
   | "replace"
   | "replace-all"
   | "diagnostics"
@@ -287,9 +291,37 @@ const glyphs: Record<IconName, Draw> = {
       c.fill();
     }
   },
+  folder: (c) => {
+    // A folder's tab above its body.
+    c.beginPath();
+    c.moveTo(3, 16.5);
+    c.lineTo(3, 7);
+    c.lineTo(8, 7);
+    c.lineTo(9.5, 9);
+    c.lineTo(17, 9);
+    c.lineTo(17, 16.5);
+    c.closePath();
+    c.stroke();
+  },
+  "panel-right": (c) => {
+    rect(c, 3, 4, 14, 12, 3);
+    line(c, [12, 4, 12, 16]);
+  },
   "panel-bottom": (c) => {
     rect(c, 3, 4, 14, 12, 3);
     line(c, [3, 12, 17, 12]);
+  },
+  maximize: (c) => {
+    // Corner brackets opening outward.
+    line(c, [8, 3.5, 3.5, 3.5, 3.5, 8]);
+    line(c, [12, 3.5, 16.5, 3.5, 16.5, 8]);
+    line(c, [8, 16.5, 3.5, 16.5, 3.5, 12]);
+    line(c, [12, 16.5, 16.5, 16.5, 16.5, 12]);
+  },
+  restore: (c) => {
+    // Two overlapping windows.
+    rect(c, 3, 7.5, 9.5, 9.5, 2);
+    line(c, [7.5, 3.5, 15, 3.5, 17, 5.5, 17, 13]);
   },
   replace: (c) => {
     // An arrow turning into the box of the new text.

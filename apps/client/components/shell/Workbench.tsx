@@ -1,14 +1,14 @@
 import { Text, View } from "nsh";
-import { DockArea, type DockAreaRef } from "nsh/base";
+import { DockArea, type DockAreaRef, type DockPanel } from "nsh/base";
 
 import { colors, handleThumb } from "../ui";
 import { PanelChrome } from "./PanelChrome";
 import { SlotPlaceholder } from "./SlotPlaceholder";
 import {
+  activePanelId,
   dockLayout,
   onPanelActiveChange,
   onPanelRemove,
-  panelContents,
   setDockLayout,
 } from "./state";
 
@@ -33,7 +33,7 @@ export function Workbench() {
         handleThumbClass={handleThumb}
         dropIndicatorClass="rounded-lg border-2 border-primary bg-primary/10"
         renderTab={(tab) => <PanelChrome tab={tab} area={area} />}
-        renderPanel={(panel) => <SlotPlaceholder address={panelContents()[panel.id] ?? null} />}
+        renderPanel={(panel) => <PanelBody panel={panel} />}
         renderEmpty={(_placement) => (
           <View class="flex-1 items-center justify-center gap-1 p-6">
             <Text class="text-sm font-semibold" style={{ color: colors.text }}>
@@ -45,6 +45,22 @@ export function Workbench() {
           </View>
         )}
       />
+    </View>
+  );
+}
+
+/** A Panel's content: the active one keeps a quiet accent ring inside its edges. */
+function PanelBody(props: { panel: DockPanel }) {
+  const active = () => activePanelId() === props.panel.id;
+  return (
+    <View
+      class="min-h-0 min-w-0 flex-1"
+      style={{
+        borderWidth: 1,
+        borderColor: active() ? colors.accent : "transparent",
+      }}
+    >
+      <SlotPlaceholder panelId={props.panel.id} />
     </View>
   );
 }

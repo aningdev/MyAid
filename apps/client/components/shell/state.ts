@@ -93,6 +93,11 @@ export function activateNavItem(id: string) {
   else applySpace(action.spaceId);
 }
 
+/** The Nav address shown in the active Panel (`null` when empty). */
+export function activeAddress(): NavAddress | null {
+  return panelContents()[activePanelId()] ?? null;
+}
+
 export type SplitDirection = "right" | "down";
 
 export function splitActivePanel(dir: SplitDirection) {
@@ -113,8 +118,28 @@ export function splitPanel(panelId: string, dir: SplitDirection) {
   splitActivePanel(dir);
 }
 
+/** Closes the active Panel; the last Panel stays (no-op), as does an unknown one. */
+export function closeActivePanel() {
+  const layout = untracked(dockLayoutState);
+  const ids = collectPanelIds(layout.center);
+  const activeId = untracked(activePanelIdState);
+  if (ids.length <= 1 || !ids.includes(activeId)) return;
+  closePanel(activeId);
+}
+
+/** Moves the active Panel `step` places along the Workbench's panels (wrapping). */
+export function focusPanel(step: number) {
+  const ids = collectPanelIds(untracked(dockLayoutState).center);
+  if (ids.length < 2) return;
+  const at = ids.indexOf(untracked(activePanelIdState));
+  const next = ids[((((at < 0 ? 0 : at) + step) % ids.length) + ids.length) % ids.length];
+  if (next) setActivePanel(next);
+}
+
 export function closePanel(panelId: string) {
   const layout = untracked(dockLayoutState);
+  const order = collectPanelIds(layout.center);
+  const at = order.indexOf(panelId);
   const nextCenter = normalizeCenter(removePanel(layout.center, panelId));
   const contents = { ...untracked(panelContentsState) };
   delete contents[panelId];
@@ -130,7 +155,14 @@ export function closePanel(panelId: string) {
   dockLayoutState.set({ ...layout, center: nextCenter });
   panelContentsState.set(contents);
   if (untracked(activePanelIdState) === panelId) {
-    activePanelIdState.set(collectPanelIds(nextCenter)[0] ?? newId("panel"));
+    // The Panel after the closed one, else the one before it (never the far end).
+    const remaining = collectPanelIds(nextCenter);
+    const next = order.slice(Math.max(0, at + 1)).find((id) => remaining.includes(id));
+    const previous = order
+      .slice(0, Math.max(0, at))
+      .reverse()
+      .find((id) => remaining.includes(id));
+    activePanelIdState.set(next ?? previous ?? remaining[0] ?? newId("panel"));
   }
 }
 
