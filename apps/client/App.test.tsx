@@ -30,9 +30,11 @@ test("navigator shows sections with default-expanded contents", async () => {
   for (const section of ["Favorites", "Mail", "Bots", "Dialogues", "Settings"]) {
     expect(texts.some((t) => t === section)).toBe(true);
   }
-  // Bots is expanded by default; Mail is collapsed.
-  expect(texts.some((t) => t === "Coder")).toBe(true);
+  // Bots is expanded by default and empty, so it offers the way in; Mail is collapsed.
+  expect(texts.some((t) => t === "New Bot")).toBe(true);
   expect(texts.some((t) => t === "Personal")).toBe(false);
+  // The Host's reachability is a fact of the shell, always shown.
+  expect(texts.some((t) => t === "Host disconnected")).toBe(true);
 });
 
 test("a single press on a leaf opens its address in the active panel", async () => {
@@ -45,14 +47,13 @@ test("a single press on a leaf opens its address in the active panel", async () 
   expect(app.shows("text:Favorites › active › today")).toBe(true);
 });
 
-test("pressing a Bot row opens it and still toggles its folders", async () => {
+test("an empty Bots section leads to the new-Bot draft", async () => {
   const app = await open("./App.tsx", desktop);
-  expect(app.shows("role:treeitem[Home]")).toBe(false);
+  expect(app.shows("id:bot-name")).toBe(false);
 
-  await app.press("role:treeitem[Aid]");
-  await app.waitFor("id:tab-panel-1 >> text:Aid");
-  // The row press opened the Bot and expanded it (the same press).
-  await app.waitFor("role:treeitem[Home]");
+  await app.press("role:treeitem[New Bot]");
+  await app.waitFor("id:tab-panel-1 >> text:New Bot");
+  await app.waitFor("id:bot-name");
 });
 
 test("the workbench shortcuts split, focus and close panels", async () => {

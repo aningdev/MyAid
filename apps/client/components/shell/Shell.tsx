@@ -1,11 +1,14 @@
 /**
- * Empty shell: collapsible left Navigator beside the Workbench.
+ * The Workspace Shell: collapsible left Navigator (the registry's tree, the
+ * Host's state) beside the Workbench (Panels that mount the features).
  */
-import { keymap, View } from "nsh";
+import { effect, keymap, View } from "nsh";
 import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { titleBar } from "nsh/desktop";
 
 import { colors, handleThumb, Icon } from "../ui";
+import { startShell } from "./host";
+import { HostFooter } from "./HostFooter";
 import {
   NAV_MAX_WIDTH,
   NAV_MIN_WIDTH,
@@ -21,6 +24,10 @@ import { Workbench } from "./Workbench";
 
 /** Left navigator (resizable, collapsible) and the workbench on the right. */
 export function Shell() {
+  // Once, on mount: read the registry, probe the Host, connect dsh when it answers.
+  effect(() => {
+    void startShell();
+  });
   keymap.bind("mod+b", toggleNavOpen);
   // Workbench commands, wherever the keyboard is (outside a text input).
   keymap.bind("mod+\\", () => splitActivePanel("right"));
@@ -79,6 +86,7 @@ function Sidebar() {
     >
       <SidebarHeader />
       <Navigator />
+      <HostFooter />
     </View>
   );
 }

@@ -1,4 +1,4 @@
-/** Empty Workspace Shell: UI + state colocated here. */
+/** Workspace Shell: UI + state colocated here. */
 export { Shell } from "./Shell";
 export {
   asCenterRoot,
@@ -23,16 +23,26 @@ export {
   titleTopInset,
   toggleNavOpen,
 } from "./layout";
+export { NAV_DEFAULT_EXPANDED, SPACE_FIXTURES, rootLabel, spaceById } from "./fixtures";
 export {
-  NAV_DEFAULT_EXPANDED,
-  NAV_TREE_ITEMS,
-  SPACE_FIXTURES,
+  NEW_BOT_ITEM_ID,
   navActionForId,
   navItemIdForAddress,
+  navItems,
   navKindForId,
-  rootLabel,
-  spaceById,
-} from "./fixtures";
+  projectNav,
+  type NavInput,
+  type NavProjection,
+} from "./navData";
+export {
+  NEW_BOT_ADDRESS_ID,
+  botAddress,
+  dialogueAddress,
+  dialogueLabel,
+  newBotAddress,
+  sessionAddress,
+  workspaceSegment,
+} from "./navAddresses";
 export {
   activateNavItem,
   activeAddress,
@@ -45,10 +55,12 @@ export {
   onPanelActiveChange,
   onPanelRemove,
   openAddress,
+  openNewBotDraft,
   panelContents,
   panelTitle,
   setActivePanel,
   setDockLayout,
+  setPanelAddress,
   splitActivePanel,
   splitPanel,
   type SplitDirection,

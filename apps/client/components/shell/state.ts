@@ -9,7 +9,9 @@ import {
   splitAroundPanel,
   withActivatedPanel,
 } from "./dock";
-import { navActionForId, spaceById } from "./fixtures";
+import { spaceById } from "./fixtures";
+import { newBotAddress } from "./navAddresses";
+import { navActionForId } from "./navData";
 import type { NavAddress, PanelContents } from "./types";
 
 let nextId = 1;
@@ -75,6 +77,18 @@ export function openAddress(address: NavAddress) {
   if (!target) return;
   panelContentsState.set({ ...contents, [target]: address });
   setActivePanel(target);
+}
+
+/** Points one Panel at an address: a Panel opens the next thing in place. */
+export function setPanelAddress(panelId: string, address: NavAddress) {
+  const contents = untracked(panelContentsState);
+  if (!(panelId in contents)) return;
+  panelContentsState.set({ ...contents, [panelId]: address });
+}
+
+/** Opens the new-Bot draft in the active Panel (the Bots section's `+`, ⌘N). */
+export function openNewBotDraft() {
+  openAddress(newBotAddress());
 }
 
 export function applySpace(spaceId: string) {

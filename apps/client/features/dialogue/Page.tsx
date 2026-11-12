@@ -5,7 +5,7 @@
 import { cleanup, effect, Text, untracked, View } from "nsh";
 import { NavPage, NavStack, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 
-import { isDesktopLayout } from "../../components/shell";
+import { isDesktopLayout } from "../../components/shell/layout";
 import { colors, handleThumb, header, hovered, Icon, Press, radius } from "../../components/ui";
 import { setModuleAtRoot } from "../moduleHost";
 import { FeaturePageHeader } from "../pageChrome";

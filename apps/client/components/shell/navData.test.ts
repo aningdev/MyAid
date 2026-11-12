@@ -1,0 +1,142 @@
+import { expect, test } from "nsh/test";
+
+import {
+  claimSession,
+  createBot,
+  createDialogue,
+  createTemplate,
+  emptyRegistry,
+  initializeBot,
+  type BotRegistry,
+} from "../../features/bots/model";
+import type { SessionRow } from "../../features/dialogue/session/runtime";
+import { NEW_BOT_ITEM_ID, projectNav } from "./navData";
+
+/** One ready Bot, one Dialogue, one claimed (titled) Session. */
+function registered(): BotRegistry {
+  return claimSession(
+    createDialogue(
+      initializeBot(
+        createBot(
+          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+          { name: "Ada", templateId: "tmpl" },
+          "bot",
+        ),
+        "bot",
+      ),
+      { botId: "bot", workspacePath: "/work/myaid" },
+      "dlg",
+    ),
+    "dlg",
+    "s1",
+  );
+}
+
+function row(overrides: Partial<SessionRow> = {}): SessionRow {
+  return {
+    id: "s1",
+    dialogueId: "dlg",
+    botId: "bot",
+    botName: "Ada",
+    workspacePath: "/work/myaid",
+    label: "First run",
+    detail: "Ada · /work/myaid",
+    archived: false,
+    missing: false,
+    running: false,
+    ...overrides,
+  };
+}
+
+function section(items: ReturnType<typeof projectNav>["items"], root: string) {
+  const found = items.find((item) => item.id === root);
+  if (!found) throw new Error(`no ${root}`);
+  return found;
+}
+
+function labels(items: { id: string; label: string }[] | undefined) {
+  return (items ?? []).map((item) => item.label);
+}
+
+test("the Bots section is Bot → Dialogue → claimed Session", () => {
+  const nav = projectNav({ registry: registered(), rows: [row()] });
+  const bots = section(nav.items, "root:bots");
+  expect(labels(bots.children)).toEqual(["Ada"]);
+  expect(labels(bots.children?.[0]?.children)).toEqual(["myaid"]);
+  // The roster's title wins over the claim's blank title.
+  expect(labels(bots.children?.[0]?.children?.[0]?.children)).toEqual(["First run"]);
+});
+
+test("the Dialogues section holds every active Dialogue, labelled Bot · workspace", () => {
+  const nav = projectNav({ registry: registered(), rows: [row()] });
+  const dialogues = section(nav.items, "root:dialogues");
+  expect(labels(dialogues.children)).toEqual(["Ada · myaid"]);
+  expect(labels(dialogues.children?.[0]?.children)).toEqual(["First run"]);
+});
+
+test("addresses carry the real ids, shared by both sections", () => {
+  const nav = projectNav({ registry: registered(), rows: [row()] });
+
+  const bot = nav.actions.get("bots:bot");
+  expect(bot).toMatchObject({ type: "address", address: { id: "bot:bot", kind: "bot" } });
+  if (bot?.type !== "address") throw new Error("not an address");
+  expect(bot.address.botId).toBe("bot");
+
+  for (const id of ["bots:bot/dlg", "dialogues:dlg"]) {
+    const action = nav.actions.get(id);
+    if (action?.type !== "address") throw new Error(`${id} is not an address`);
+    expect(action.address.id).toBe("dialogue:dlg");
+    expect(action.address.dialogueId).toBe("dlg");
+    expect(action.address.title).toBe("Ada · myaid");
+  }
+
+  for (const id of ["bots:bot/dlg/s1", "dialogues:dlg/s1"]) {
+    const action = nav.actions.get(id);
+    if (action?.type !== "address") throw new Error(`${id} is not an address`);
+    expect(action.address.id).toBe("session:s1");
+    expect(action.address.sessionId).toBe("s1");
+    expect(action.address.dialogueId).toBe("dlg");
+    expect(action.address.botId).toBe("bot");
+  }
+  // One address behind two tree rows: either press opens the same Panel.
+  expect(nav.addresses.get("dialogue:dlg")?.title).toBe("Ada · myaid");
+});
+
+test("without a roster row a claim falls back to its own title", () => {
+  const nav = projectNav({ registry: registered(), rows: [] });
+  expect(labels(section(nav.items, "root:dialogues").children?.[0]?.children)).toEqual([
+    "未命名上下文",
+  ]);
+});
+
+test("an empty registry offers the new-Bot draft instead of rows", () => {
+  const nav = projectNav({ registry: emptyRegistry(), rows: [] });
+  const bots = section(nav.items, "root:bots");
+  expect(labels(bots.children)).toEqual(["New Bot"]);
+  expect(nav.actions.get(NEW_BOT_ITEM_ID)).toMatchObject({
+    type: "address",
+    address: { id: "bot:new" },
+  });
+  expect(section(nav.items, "root:dialogues").children).toEqual([]);
+});
+
+test("archived Dialogues leave both sections; the parked sections keep their order", () => {
+  const registry = registered();
+  const archived: BotRegistry = {
+    ...registry,
+    dialogues: registry.dialogues.map((item) => ({ ...item, archived: true })),
+  };
+  const nav = projectNav({ registry: archived, rows: [row({ archived: true })] });
+  expect(section(nav.items, "root:bots").children?.[0]?.children).toEqual([]);
+  expect(section(nav.items, "root:dialogues").children).toEqual([]);
+  expect(nav.items.map((item) => item.label)).toEqual([
+    "Favorites",
+    "Mail",
+    "Task",
+    "Knowledge",
+    "Bots",
+    "Dialogues",
+    "Spaces",
+    "Settings",
+  ]);
+});

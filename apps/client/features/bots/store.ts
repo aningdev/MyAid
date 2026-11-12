@@ -2,6 +2,8 @@ import fs from "fs/promises";
 import { homedir } from "os";
 import { dirname, join } from "path";
 
+import { Storage } from "nsh";
+
 import {
   emptyRegistry,
   parseRegistry,
@@ -30,6 +32,17 @@ export function memoryStore(initial: string | null = null): RegistryStore & {
     text() {
       return text;
     },
+  };
+}
+
+/** Where a platform without a desktop profile (the web build, phones) keeps the registry. */
+export const REGISTRY_STORAGE_KEY = "myaid.registry.bots";
+
+/** The app's key-value storage, for platforms with no `~/.myaid`. */
+export function storageStore(key: string = REGISTRY_STORAGE_KEY): RegistryStore {
+  return {
+    read: () => Storage.getItem(key),
+    write: (text) => Storage.setItem(key, text),
   };
 }
 

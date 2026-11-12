@@ -2,7 +2,7 @@ import { mount } from "nsh";
 
 import { AppShell } from "./components/AppShell";
 
-/** Empty shell only — no features mounted. */
+/** Workspace Shell: Navigator + Workbench, whose Panels mount the features. */
 function App() {
   return <AppShell />;
 }

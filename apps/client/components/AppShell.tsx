@@ -1,5 +1,7 @@
 /**
- * Empty Workspace Shell host. Does not mount features/*.
+ * Workspace Shell host: the desktop opens the Navigator and Workbench, whose
+ * Panels mount the Bot / Dialogue / Session features. Narrow windows are a
+ * placeholder for now.
  */
 import { effect, Text, View } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";

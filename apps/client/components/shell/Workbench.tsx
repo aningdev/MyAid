@@ -3,7 +3,7 @@ import { DockArea, type DockAreaRef, type DockPanel } from "nsh/base";
 
 import { alpha, colors, handleThumb } from "../ui";
 import { PanelChrome } from "./PanelChrome";
-import { SlotPlaceholder } from "./SlotPlaceholder";
+import { PanelView } from "./PanelView";
 import {
   activePanelId,
   dockLayout,
@@ -60,7 +60,7 @@ function PanelBody(props: { panel: DockPanel }) {
         borderColor: active() ? alpha(colors.ring, 0.6) : "transparent",
       }}
     >
-      <SlotPlaceholder panelId={props.panel.id} />
+      <PanelView panelId={props.panel.id} />
     </View>
   );
 }

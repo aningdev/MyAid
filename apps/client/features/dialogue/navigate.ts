@@ -1,6 +1,8 @@
 import { untracked } from "nsh";
 
-import { editBot, registry } from "../bots/state";
+import { botAddress } from "../../components/shell/navAddresses";
+import { openAddress } from "../../components/shell/state";
+import { registry } from "../bots/state";
 import { setModule, type ModuleId } from "../moduleHost";
 import { openMain } from "./nav";
 import { approvalLock, approvalOwnerBotId, createSession } from "./session/runtime";
@@ -12,8 +14,7 @@ export function openModule(id: ModuleId): void {
   if (owner) {
     if (id === "bots") {
       if (approvalLock({ botId: owner })) return;
-      editBot(owner);
-      setModule("bots");
+      openOwningBot(owner);
       return;
     }
     approvalLock({ allSessions: true });
@@ -54,10 +55,12 @@ export function openDialogueSessions(dialogueId: string): void {
   setModule("dialogue");
 }
 
+/** Show a Bot in the Workbench (its Panel), whatever the keyboard was on. */
 export function openOwningBot(botId: string): void {
   if (approvalLock({ botId })) return;
-  editBot(botId);
-  setModule("bots");
+  const bot = untracked(registry).bots.find((item) => item.id === botId);
+  if (!bot) return;
+  openAddress(botAddress(bot));
 }
 
 /** Create a claimed Session for a Dialogue and open it in Dialogue main. */

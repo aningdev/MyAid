@@ -1,5 +1,11 @@
+/**
+ * Parked Navigator sections (Favorites, Mail, Task, Knowledge, Spaces,
+ * Settings) and the Spaces' layout snapshots. Bots and Dialogues are no
+ * fixtures: `navData` projects them from the registry.
+ */
 import type { TreeItem } from "nsh/base";
 
+import { dialogueAddress } from "./navAddresses";
 import type { NavAction, NavAddress, ShellRoot, SpaceSnapshot } from "./types";
 
 function addr(
@@ -21,23 +27,16 @@ const knowDocs = addr("knowledge", ["docs", "guides"], "Guides", "folder");
 const knowNotes = addr("knowledge", ["docs", "notes"], "Notes", "folder");
 const knowRefs = addr("knowledge", ["refs", "papers"], "Papers", "folder");
 
-const botAid = addr("bots", ["bot-aid"], "Aid", "bot");
-const botCoder = addr("bots", ["bot-coder"], "Coder", "bot");
-const dlgAidHome = addr("bots", ["bot-aid", "dlg-home"], "Aid · Home", "dialogue");
-const dlgAidCode = addr("bots", ["bot-aid", "dlg-code"], "Aid · Codebase", "dialogue");
-const dlgCoderApp = addr("bots", ["bot-coder", "dlg-app"], "Coder · App", "dialogue");
-
-const dlgHome = addr("dialogues", ["dlg-home"], "Aid · Home", "dialogue");
-const dlgCode = addr("dialogues", ["dlg-code"], "Aid · Codebase", "dialogue");
-const dlgApp = addr("dialogues", ["dlg-app"], "Coder · App", "dialogue");
-const sessHomeMain = addr("dialogues", ["dlg-home", "sess-main"], "Main context", "session");
-const sessHomeBug = addr("dialogues", ["dlg-home", "sess-bug"], "Bug hunt", "session");
-const sessCodeMain = addr("dialogues", ["dlg-code", "sess-main"], "Main context", "session");
-const sessAppMain = addr("dialogues", ["dlg-app", "sess-main"], "Main context", "session");
-
 const setGeneral = addr("settings", ["general", "appearance"], "Appearance", "setting");
 const setBg = addr("settings", ["general", "background"], "Background", "setting");
 const setHost = addr("settings", ["runtime", "host"], "Host", "setting");
+
+/** A Dialogue for the Spaces' layouts. It is a fixture: the registry may not have it. */
+const dlgFixture = dialogueAddress({
+  id: "dlg-fixture",
+  workspacePath: "/Users/you/Work/home",
+  botName: "Aid",
+});
 
 const actions = new Map<string, NavAction>();
 
@@ -51,12 +50,15 @@ function folder(id: string, label: string, children: TreeItem[], action?: NavAct
   return { id, label, children };
 }
 
-/** Fake Navigator tree for `nsh/base` Tree. */
-export const NAV_TREE_ITEMS: TreeItem[] = [
-  folder("root:favorites", "Favorites", [
-    leaf("fav:dlg-home", "Aid · Home", {
+/** The parked sections, by shell root. Order comes from `navData`. */
+export const PARKED_NAV: Record<
+  "favorites" | "mail" | "task" | "knowledge" | "spaces" | "settings",
+  TreeItem
+> = {
+  favorites: folder("root:favorites", "Favorites", [
+    leaf("fav:dlg", dlgFixture.title, {
       type: "address",
-      address: { ...dlgHome, id: "favorites:dlg-home", root: "favorites", kind: "favorite" },
+      address: { ...dlgFixture, id: "favorites:dlg", root: "favorites", kind: "favorite" },
     }),
     leaf("fav:mail-inbox", "Inbox", {
       type: "address",
@@ -67,7 +69,7 @@ export const NAV_TREE_ITEMS: TreeItem[] = [
       address: { ...taskActive, id: "favorites:task-today", root: "favorites", kind: "favorite" },
     }),
   ]),
-  folder("root:mail", "Mail", [
+  mail: folder("root:mail", "Mail", [
     folder("mail:personal", "Personal", [
       leaf(mailInbox.id, mailInbox.title, { type: "address", address: mailInbox }),
       leaf(mailArchive.id, mailArchive.title, { type: "address", address: mailArchive }),
@@ -76,7 +78,7 @@ export const NAV_TREE_ITEMS: TreeItem[] = [
       leaf(mailWork.id, mailWork.title, { type: "address", address: mailWork }),
     ]),
   ]),
-  folder("root:task", "Task", [
+  task: folder("root:task", "Task", [
     folder("task:active", "Active", [
       leaf(taskActive.id, taskActive.title, { type: "address", address: taskActive }),
       leaf(taskLater.id, taskLater.title, { type: "address", address: taskLater }),
@@ -85,7 +87,7 @@ export const NAV_TREE_ITEMS: TreeItem[] = [
       leaf(taskDone.id, taskDone.title, { type: "address", address: taskDone }),
     ]),
   ]),
-  folder("root:knowledge", "Knowledge", [
+  knowledge: folder("root:knowledge", "Knowledge", [
     folder("know:docs", "Docs", [
       leaf(knowDocs.id, knowDocs.title, { type: "address", address: knowDocs }),
       leaf(knowNotes.id, knowNotes.title, { type: "address", address: knowNotes }),
@@ -94,51 +96,11 @@ export const NAV_TREE_ITEMS: TreeItem[] = [
       leaf(knowRefs.id, knowRefs.title, { type: "address", address: knowRefs }),
     ]),
   ]),
-  folder("root:bots", "Bots", [
-    folder(
-      botAid.id,
-      botAid.title,
-      [
-        leaf(dlgAidHome.id, "Home", { type: "address", address: dlgAidHome }),
-        leaf(dlgAidCode.id, "Codebase", { type: "address", address: dlgAidCode }),
-      ],
-      { type: "address", address: botAid },
-    ),
-    folder(
-      botCoder.id,
-      botCoder.title,
-      [leaf(dlgCoderApp.id, "App", { type: "address", address: dlgCoderApp })],
-      { type: "address", address: botCoder },
-    ),
-  ]),
-  folder("root:dialogues", "Dialogues", [
-    folder(
-      dlgHome.id,
-      dlgHome.title,
-      [
-        leaf(sessHomeMain.id, sessHomeMain.title, { type: "address", address: sessHomeMain }),
-        leaf(sessHomeBug.id, sessHomeBug.title, { type: "address", address: sessHomeBug }),
-      ],
-      { type: "address", address: dlgHome },
-    ),
-    folder(
-      dlgCode.id,
-      dlgCode.title,
-      [leaf(sessCodeMain.id, sessCodeMain.title, { type: "address", address: sessCodeMain })],
-      { type: "address", address: dlgCode },
-    ),
-    folder(
-      dlgApp.id,
-      dlgApp.title,
-      [leaf(sessAppMain.id, sessAppMain.title, { type: "address", address: sessAppMain })],
-      { type: "address", address: dlgApp },
-    ),
-  ]),
-  folder("root:spaces", "Spaces", [
+  spaces: folder("root:spaces", "Spaces", [
     leaf("space-focus", "Focus Dialogue", { type: "space", spaceId: "space-focus" }),
     leaf("space-split", "Mail | Dialogue", { type: "space", spaceId: "space-split" }),
   ]),
-  folder("root:settings", "Settings", [
+  settings: folder("root:settings", "Settings", [
     folder("set:general", "General", [
       leaf(setGeneral.id, setGeneral.title, { type: "address", address: setGeneral }),
       leaf(setBg.id, setBg.title, { type: "address", address: setBg }),
@@ -147,7 +109,12 @@ export const NAV_TREE_ITEMS: TreeItem[] = [
       leaf(setHost.id, setHost.title, { type: "address", address: setHost }),
     ]),
   ]),
-];
+};
+
+/** A parked node's action (Spaces apply; the rest open addresses). */
+export function parkedActionForId(id: string): NavAction | undefined {
+  return actions.get(id);
+}
 
 /** Default expanded section roots. */
 export const NAV_DEFAULT_EXPANDED: string[] = [
@@ -157,40 +124,20 @@ export const NAV_DEFAULT_EXPANDED: string[] = [
   "root:spaces",
 ];
 
-export function navActionForId(id: string): NavAction | undefined {
-  return actions.get(id);
-}
-
-/** The first Navigator item that stands for `addressId`, if any. */
-export function navItemIdForAddress(addressId: string): string | null {
-  let found: string | null = null;
-  const walk = (items: TreeItem[]) => {
-    for (const item of items) {
-      if (found) return;
-      const action = actions.get(item.id);
-      if (action?.type === "address" && action.address.id === addressId) {
-        found = item.id;
-        return;
-      }
-      if (item.children) walk(item.children);
-    }
-  };
-  walk(NAV_TREE_ITEMS);
-  return found;
-}
-
 /** A Navigator Section's title, by its root. */
-export function rootLabel(root: ShellRoot): string {
-  return NAV_TREE_ITEMS.find((item) => item.id === `root:${root}`)?.label ?? root;
-}
+const ROOT_LABELS: Record<ShellRoot, string> = {
+  favorites: "Favorites",
+  mail: "Mail",
+  task: "Task",
+  knowledge: "Knowledge",
+  bots: "Bots",
+  dialogues: "Dialogues",
+  spaces: "Spaces",
+  settings: "Settings",
+};
 
-/** Kind hint for Tree row icons (by item id prefix / known actions). */
-export function navKindForId(id: string): NavAddress["kind"] | "section" | "folder" {
-  if (id.startsWith("root:")) return "section";
-  const action = actions.get(id);
-  if (action?.type === "space") return "space";
-  if (action?.type === "address") return action.address.kind;
-  return "folder";
+export function rootLabel(root: ShellRoot): string {
+  return ROOT_LABELS[root] ?? root;
 }
 
 export const SPACE_FIXTURES: SpaceSnapshot[] = [
@@ -206,7 +153,7 @@ export const SPACE_FIXTURES: SpaceSnapshot[] = [
         sizes: [null],
       },
     },
-    contents: { "p-focus": dlgHome },
+    contents: { "p-focus": dlgFixture },
   },
   {
     id: "space-split",
@@ -223,7 +170,7 @@ export const SPACE_FIXTURES: SpaceSnapshot[] = [
         sizes: [null, null],
       },
     },
-    contents: { "p-split-l": mailInbox, "p-split-r": dlgHome },
+    contents: { "p-split-l": mailInbox, "p-split-r": dlgFixture },
   },
 ];
 

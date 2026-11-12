@@ -63,6 +63,37 @@ export function buildSessionRoster(input: {
   });
 }
 
+/**
+ * One Dialogue's rows: the live roster's rows for it, then every claim the
+ * roster does not have yet (before dsh is listed, or a claim dsh did not
+ * report). Open Panels read this, not a scope signal.
+ */
+export function rosterForDialogue(input: {
+  registry: BotRegistry;
+  dialogueId: string;
+  rows: readonly SessionRow[];
+}): SessionRow[] {
+  const known = input.rows.filter((row) => row.dialogueId === input.dialogueId);
+  const seen = new Set(known.map((row) => row.id));
+  const unlisted = listProductSessions(input.registry, null, {
+    dialogueId: input.dialogueId,
+  })
+    .filter((item) => !seen.has(item.sessionId))
+    .map((item) => ({
+      id: item.sessionId,
+      dialogueId: item.dialogueId,
+      botId: item.botId,
+      botName: item.botName,
+      workspacePath: item.workspacePath,
+      label: sessionLabel(item, null),
+      detail: sessionDetail(item, false),
+      archived: item.archived,
+      missing: false,
+      running: false,
+    }));
+  return [...unlisted, ...known];
+}
+
 /** Relabel one row after a transient summary changes. */
 export function relabelRow(
   rows: SessionRow[],

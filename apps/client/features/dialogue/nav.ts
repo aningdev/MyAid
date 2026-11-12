@@ -1,7 +1,7 @@
 import { untracked } from "nsh";
 import { createNavStack } from "nsh/base";
 
-import { isDesktopLayout } from "../../components/shell";
+import { isDesktopLayout } from "../../components/shell/layout";
 import { setModuleAtRoot } from "../moduleHost";
 import { closeContext, openContext, peekSelectedId, selectItem } from "./state";
 

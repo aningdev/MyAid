@@ -1,4 +1,4 @@
-/** Workspace Shell types (empty-shell stage). */
+/** Workspace Shell types. */
 
 import type { DockAreaLayout, TreeItem } from "nsh/base";
 
@@ -17,9 +17,16 @@ export type NavKind = "folder" | "bot" | "dialogue" | "session" | "setting" | "f
 export type NavAddress = {
   id: string;
   root: ShellRoot;
+  /** Display segments under the section's name (a Bot's name, a Dialogue's label…). */
   path: string[];
   title: string;
   kind: NavKind;
+  /** The Bot this address shows (`kind` "bot"). Absent on the new-Bot draft. */
+  botId?: string;
+  /** The Dialogue this address shows (`kind` "dialogue" / "session"). */
+  dialogueId?: string;
+  /** The claimed Session this address shows (`kind` "session"). */
+  sessionId?: string;
 };
 
 /** Panel key → Nav address (null = empty slot). */

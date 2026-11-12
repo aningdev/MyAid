@@ -13,14 +13,19 @@
 ## 布局（NSH mixed）
 
 - 本目录是官方 **mixed** 应用：`App.tsx` 为 TSX 入口，`nsh.json` `"rust": "."`，Rust 在同级 `Cargo.toml` / `src/lib.rs`（`#[native_module("myaid/native")]`）。
-- 产品 TSX 放 `components/`（壳在 `components/shell/`，样式层在 `components/ui/`）；功能域放 `features/`（主路径可不挂）；静态资源放 `assets/`。
+- 产品 TSX 放 `components/`（壳在 `components/shell/`，样式层在 `components/ui/`）；功能域放 `features/`（由 Panel 按地址挂）；静态资源放 `assets/`。
 - 保持 NSH mixed 目录，不另起平行 `frontend/{ui,application,infrastructure}` 树，除非架构文档明确改判。
 
 ## 工作台（Workspace Shell）
 
-- 壳入口 [`AppShell.tsx`](components/AppShell.tsx) → [`shell/`](components/shell/)：UI 与状态同目录；**左侧可收缩 Navigator + 右侧 Workbench**；**不挂** `features/*`。
-- **Navigator**：水平 `ResizablePanel`（默认 232、最小 160、最大 480，宽度只留在本次运行）。顶行 44pt 承接隐藏标题栏（可拖拽；左侧让出 `titleBar().left` 后是收起 / 展开图标按钮）。下面是 `nsh/base` **Tree** + [`fixtures.ts`](components/shell/fixtures.ts)：depth 0 画成 Rex 式 **Navigator Section** 标题（可折叠、hover 显 chevron 与占位操作），分区内容整体左移一级；仍是一棵树、一个滚动与焦点。单击叶子即把 Nav address 打开到活动 Panel（Bot / Dialogue 行带地址，可打开且仍折叠；分区标题只折叠不打开），活动 Panel 换地址时选中同步回树。收起后左栏离开横排，右侧顶部只留 44pt 拖拽条和 Expand。快捷键：`⌘B` 收起/展开，`⌘\` / `⌘⇧\` 向右 / 向下拆分，`⌘W` 关活动 Panel（仅剩一个时无操作），`⌘[` / `⌘]` 切活动 Panel，`⌘1…⌘8` 展开并定位分区。
-- **Workbench**：`nsh/base` **DockArea**（仅 center）；独立 Panel 可拖/拆/缩放/放大/关；内容为地址占位。展开时从窗口上沿起排。
+- 壳入口 [`AppShell.tsx`](components/AppShell.tsx) → [`shell/`](components/shell/)：UI 与状态同目录；**左侧可收缩 Navigator + 右侧 Workbench**；Panel 按 Nav address 挂 `features/*` 的 Bot / Dialogue / Session 内容，其余分区仍是占位。
+- **Navigator**：水平 `ResizablePanel`（默认 232、最小 160、最大 480，宽度只留在本次运行）。顶行 44pt 承接隐藏标题栏（可拖拽；左侧让出 `titleBar().left` 后是收起 / 展开图标按钮）。下面是 `nsh/base` **Tree**，depth 0 画成 Rex 式 **Navigator Section** 标题（可折叠、hover 显 chevron 与操作），分区内容整体左移一级；仍是一棵树、一个滚动与焦点。单击叶子即把 Nav address 打开到活动 Panel（Bot / Dialogue 行带地址，可打开且仍折叠；分区标题只折叠不打开），活动 Panel 换地址时选中同步回树。收起后左栏离开横排，右侧顶部只留 44pt 拖拽条和 Expand。快捷键：`⌘B` 收起/展开，`⌘N` 新建 Bot 草稿，`⌘\` / `⌘⇧\` 向右 / 向下拆分，`⌘W` 关活动 Panel（仅剩一个时无操作），`⌘[` / `⌘]` 切活动 Panel，`⌘1…⌘8` 展开并定位分区。
+- **树从注册表来**：[`navData.ts`](components/shell/navData.ts) 的 `projectNav(registry, rows)` 是纯函数（单测在旁），响应式投影成 `TreeItem[]` + 地址表；`Navigator` 只负责画。Bots 分区 = Bot → 未归档 Dialogue → 已认领 Session；Dialogues 分区 = 全部未归档 Dialogue（标签 `Bot · 工作区段名`）→ Session。Nav address 的 id 用领域 id（`bot:` / `dialogue:` / `session:`），同一 Dialogue 在两个分区指向同一 Panel。空 Bots 分区留一个 `New Bot` 叶子；Bots 分区标题的 `+` 与 `⌘N` 打开新 Bot 草稿。Favorites / Mail / Task / Knowledge / Spaces / Settings 仍是 [`fixtures.ts`](components/shell/fixtures.ts)（停放）。
+- **Workbench**：`nsh/base` **DockArea**（仅 center）；独立 Panel 可拖/拆/缩放/放大/关；Panel 内容见 `PanelView`。展开时从窗口上沿起排。
+- **Panel 内容**（`PanelView` 按 address 分派）：`session` → `SessionPanel`（复用 `ChatPane` 与审批；runtime 仍是单例，非活动会话显示 `Continue here` 后才接管）；`dialogue` → `DialoguePanel`（标题、Bot、工作区、会话列表、`New Session`）；`bot` → `BotPanel`（名称 / 模板 / preset / 模型 / 初始化 / 删除 + Dialogue 列表 + 新建 Dialogue）；未知与停放分区保留 B0 占位。
+- **侧栏底部 Host 行**：`hostConnection` / `refreshHostStatus`，断开时有 Retry；启动时 `loadRegistry()` → 探 Host → 连 dsh，且只在桌面原生跑（web / 无 Host 不崩）。
+- 会话标题取自 roster（`sessionList`），未连接时退回 claim 的 title。
+- 注册表存放：桌面 `~/.myaid/registry/bots.json`；web / 手机走 `nsh` Storage（键 `myaid.registry.bots`），UI 测试用 `open(…, { storage })` 预置。`nsh test` 的 app 与测试不同 realm，测试不能直接改 app 的 signal。
 - 桌面隐藏标题栏高度 44。桌面整窗不再为标题栏下推，也不预留 `titleBar().right`。
 - 配色沿用 `colors.inset` / `colors.background`。
 - 窄屏本阶段占位。

@@ -117,9 +117,13 @@ export class ClaimedSessionClient {
       if (this.transport) await this.transport.dispose().catch(() => undefined);
       this.transport = await this.hooks.connect();
     })();
-    this.connectLock = work.finally(() => {
-      this.connectLock = undefined;
-    });
+    // Callers of a second, concurrent connect await this; its failure reaches
+    // them through `work` (`await work` below), so it must not go unhandled.
+    this.connectLock = work
+      .finally(() => {
+        this.connectLock = undefined;
+      })
+      .catch(() => undefined);
     await work;
     if (!this.transport?.ready) throw new Error("尚未连接后台");
     return this.transport;
