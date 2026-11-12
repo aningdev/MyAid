@@ -10,6 +10,12 @@ import { signal, untracked } from "nsh";
 import type { BotRegistry } from "../../bots/model";
 import { claimOwner } from "../../bots/model";
 import {
+  addAttachment,
+  attachmentFromFile,
+  removeAttachment,
+  type Attachment,
+} from "../chat/attachments";
+import {
   occupancyBlock,
   resolveBotModel,
   type ApprovalDecision,
@@ -19,7 +25,16 @@ import {
 import type { SessionStatus } from "./roster";
 import { TurnProjection, type TurnView } from "./turn";
 
-export type { ApprovalDecision, ApprovalRequest };
+export type { ApprovalDecision, ApprovalRequest, Attachment };
+
+/** One prompt waiting in the live Agent's inbox, shown above the composer. */
+export type QueuedPrompt = {
+  /** The Client's `requestId`, its identity here. */
+  requestId: string;
+  /** The queue item's message id, once dsh reports it; withdrawal needs it. */
+  itemId: string | null;
+  text: string;
+};
 
 function emptyView(): TurnView {
   return {
@@ -30,6 +45,7 @@ function emptyView(): TurnView {
     liveReason: "",
     liveTools: [],
     liveId: null,
+    olderHasMore: false,
     pendingFreeze: null,
   };
 }
@@ -71,10 +87,17 @@ type PendingApproval = {
  */
 export class SessionController {
   readonly view = signal<TurnView>(emptyView());
+  /** The composer's text, kept per Session while Panels come and go. */
   readonly draft = signal("");
+  /** Files the composer holds for this Session. */
+  readonly draftAttachments = signal<readonly Attachment[]>([]);
+  /** Prompts dsh queued behind the running turn. */
+  readonly queued = signal<readonly QueuedPrompt[]>([]);
   readonly error = signal<string | null>(null);
   readonly running = signal(false);
   readonly pendingApproval = signal<ApprovalRequest | null>(null);
+  /** A page of older history is on its way. */
+  readonly olderLoading = signal(false);
 
   private turns = new TurnProjection();
   private followStop: (() => void) | undefined;
@@ -134,6 +157,112 @@ export class SessionController {
     return this.starting;
   }
 
+  /* Composer state: the draft and its files belong to the Session, so a Panel
+   * switch keeps them and two Panels on one Session share them. */
+  setDraft(value: string): void {
+    this.draft.set(value);
+  }
+
+  attachFile(file: Blob & { name?: string }): void {
+    this.draftAttachments.set(addAttachment(this.draftAttachments(), attachmentFromFile(file)));
+  }
+
+  attachFiles(files: readonly (Blob & { name?: string })[]): void {
+    let next = this.draftAttachments();
+    for (const file of files) next = addAttachment(next, attachmentFromFile(file));
+    this.draftAttachments.set(next);
+  }
+
+  detachFile(id: string): void {
+    this.draftAttachments.set(removeAttachment(this.draftAttachments(), id));
+  }
+
+  clearDraft(): void {
+    this.draft.set("");
+    this.draftAttachments.set([]);
+  }
+
+  /** Read one page of history above the follow window (`session.events`). */
+  async loadOlder(): Promise<void> {
+    if (this.disposed || untracked(this.olderLoading)) return;
+    if (!untracked(this.view).olderHasMore) return;
+    const first = this.turns.firstSeq();
+    if (first === null) return;
+    this.olderLoading.set(true);
+    try {
+      const transport = await this.ensureTransport();
+      const page = await transport.sessionPage({ sessionId: this.sessionId, beforeSeq: first });
+      this.publish(this.turns.prepend(page.records, page.hasMore));
+    } catch (error) {
+      this.error.set(messageOf(error));
+    } finally {
+      this.olderLoading.set(false);
+    }
+  }
+
+  /** A prompt sent while a turn runs: dsh queues it; it never begins a local turn. */
+  async queuePrompt(text: string, content?: readonly PromptContentPart[]): Promise<void> {
+    if (this.disposed) throw new Error("这条会话的运行时已释放。");
+    const transport = await this.ensureTransport();
+    const requestId = crypto.randomUUID().replace(/-/g, "");
+    await transport.prompt({
+      sessionId: this.sessionId,
+      requestId,
+      ...(content ? { content } : { text }),
+    });
+    this.queued.set([...this.queued(), { requestId, itemId: null, text }]);
+    void this.refreshQueue();
+  }
+
+  /** The live Agent's inbox, as `session.state` reports it. */
+  async refreshQueue(): Promise<void> {
+    const transport = this.host.transport();
+    if (this.disposed || !transport?.ready) return;
+    try {
+      const items = await transport.sessionQueue(this.sessionId);
+      const pending: QueuedPrompt[] = items.map((item) => ({
+        requestId: item.requestId ?? item.id,
+        itemId: item.id,
+        text: item.text,
+      }));
+      // Entries dsh has not listed yet stay (a prompt can outrun the next read).
+      const unresolved = this.queued().filter(
+        (mine) =>
+          mine.itemId === null &&
+          !pending.some((item) => item.requestId === mine.requestId || item.text === mine.text),
+      );
+      this.queued.set([...pending, ...unresolved]);
+    } catch {
+      // A cold Session has no readable queue; the local entries stay.
+    }
+  }
+
+  /** Takes a queued prompt back out of the Agent's inbox. */
+  async withdrawQueued(requestId: string): Promise<void> {
+    const entry = this.queued().find((item) => item.requestId === requestId);
+    if (!entry) return;
+    this.queued.set(this.queued().filter((item) => item.requestId !== requestId));
+    const transport = this.host.transport();
+    if (!transport?.ready) return;
+    try {
+      let itemId = entry.itemId;
+      if (!itemId) {
+        const items = await transport.sessionQueue(this.sessionId);
+        itemId =
+          items.find((item) => item.requestId === requestId || item.text === entry.text)?.id ??
+          null;
+      }
+      if (!itemId) {
+        this.error.set("这条消息已经被后台接收，不能再撤回。");
+        return;
+      }
+      await transport.withdrawQueuedPrompt(this.sessionId, itemId);
+    } catch (error) {
+      this.error.set(messageOf(error));
+    }
+    void this.refreshQueue();
+  }
+
   /** Send a prompt through the shared Connection; the local bubble is begun by the Pane. */
   async prompt(text: string, content?: readonly PromptContentPart[]): Promise<string> {
     if (this.disposed) throw new Error("这条会话的运行时已释放。");
@@ -177,17 +306,17 @@ export class SessionController {
     }
   }
 
+  /** Stages a file's bytes; the prompt then names the receipt. */
+  async uploadFile(name: string, data: string): Promise<string> {
+    const transport = await this.ensureTransport();
+    const receipt = await transport.uploadFile({ sessionId: this.sessionId, data, name });
+    return receipt.receiptId;
+  }
+
   async cancel(): Promise<void> {
     const transport = this.host.transport();
     if (!transport?.ready) return;
     await transport.cancel(this.sessionId);
-  }
-
-  /** Withdraw one queued (not yet running) prompt by message id. */
-  async withdrawQueued(itemId: string): Promise<void> {
-    const transport = this.host.transport();
-    if (!transport?.ready) return;
-    await transport.withdrawQueuedPrompt(this.sessionId, itemId);
   }
 
   /** The Pane added its local assistant bubble. */
@@ -313,6 +442,8 @@ export class SessionController {
     if (view.running !== untracked(this.running)) {
       this.running.set(view.running);
       this.host.onStatusChange(this.sessionId);
+      // The inbox drains as the turn takes its next prompt.
+      void this.refreshQueue();
     }
   }
 
@@ -359,6 +490,9 @@ export class SessionController {
   private maybeDispose(): void {
     if (this.disposed || this.mounts > 0) return;
     if (untracked(this.running) || this.prompting || this.approvals.length > 0) return;
+    // A draft belongs to the Session: its controller stays until it is sent or
+    // emptied, so switching Panels never loses what was written.
+    if (untracked(this.draft).length > 0 || untracked(this.draftAttachments).length > 0) return;
     this.dispose();
   }
 }

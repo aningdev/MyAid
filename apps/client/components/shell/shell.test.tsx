@@ -63,7 +63,8 @@ test("the Navigator lists the registry, and a Session opens its chat", async () 
   await app.waitFor("text:New Session");
 
   await app.press("role:treeitem[First run]");
-  await app.waitFor("text:How can I help?");
+  // The Session's chat opens on its composer, named after its Bot.
+  await app.waitFor("text:Message Ada");
   expect(app.shows("text:New Session")).toBe(false);
 });
 

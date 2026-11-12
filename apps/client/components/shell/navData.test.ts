@@ -160,3 +160,20 @@ test("archived Dialogues leave both sections; the parked sections keep their ord
     "Settings",
   ]);
 });
+
+test("two Dialogues on one workspace read apart, in both sections", () => {
+  const second = createDialogue(registered(), { botId: "bot", workspacePath: "/work/myaid/" }, "dlg2");
+  const nav = projectNav({ registry: second, rows: [] as SessionRow[] });
+  const labels: string[] = [];
+  const walk = (items: typeof nav.items) => {
+    for (const item of items) {
+      labels.push(item.label);
+      if (item.children) walk(item.children);
+    }
+  };
+  walk(nav.items);
+  expect(labels).toContain("myaid · 1");
+  expect(labels).toContain("myaid · 2");
+  expect(labels).toContain("Ada · myaid · 1");
+  expect(labels).toContain("Ada · myaid · 2");
+});

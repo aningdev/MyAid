@@ -79,3 +79,15 @@ export function workspaceKey(path: string): string {
   const trimmed = path.trim().replace(/\/+$/, "");
   return trimmed.length > 0 ? trimmed : "/";
 }
+
+/**
+ * A Session's name from its first prompt: one line, its first sentence, at
+ * most `max` characters. Empty prompts name nothing.
+ */
+export function titleFromPrompt(text: string, max = 40): string {
+  const line = text.replace(/\s+/g, " ").trim();
+  if (!line) return "";
+  const stop = line.search(/[.!?。！？]\s/);
+  const one = stop > 0 ? line.slice(0, stop) : line;
+  return one.length > max ? `${one.slice(0, max - 1)}…` : one;
+}

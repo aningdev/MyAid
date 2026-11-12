@@ -1,108 +1,89 @@
-import type { ImageMediaType, PromptContentPart } from "@myaid/dsh-web-protocol/session";
+/**
+ * A Session's chat: the header, the transcript, the approval waiting on the
+ * person and the composer. Everything durable comes from the SessionController
+ * (`TurnProjection` is the only frame → UI projector); this Pane owns what the
+ * screen alone knows — the expansion of tool rows, the follow state, the
+ * working row's clock — and the send / stop / retry actions.
+ */
+import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
 import {
   batch,
+  Clipboard,
   cleanup,
-  computed,
   effect,
-  List,
-  Scroll,
+  type ListRef,
+  platform,
   signal,
   Text,
+  untracked,
   View,
-  type ListRef,
-  type ViewStyle,
 } from "nsh";
-import { createAnimatedValue, LayoutAnimation } from "nsh";
-import { Clipboard } from "nsh";
-import { platform } from "nsh";
-import { Picker } from "nsh";
-import { keyboardFrame, safeAreaInsets } from "nsh";
-import { Input } from "nsh/base";
+import { LayoutAnimation } from "nsh";
 
-import {
-  alpha,
-  Appear,
-  Badge,
-  colors,
-  finish,
-  IconTile,
-  motion,
-  Press,
-  radius,
-  RoundButton,
-  toneTint,
-} from "../../components/ui";
-import { Glyph } from "./chat/glyphs";
-import { Markdown } from "./chat/markdown";
-import {
-  ActionButton,
-  Avatar,
-  Caret,
-  DateSeparator,
-  ErrorRow,
-  FileChip,
-  Photo,
-  Spinner,
-  ToolCard,
-} from "./chat/parts";
-import { type FileRef, type Msg, type Tool } from "./chat/scripts";
+import { alpha, Appear, colors, IconTile, Press, radius } from "../../components/ui";
+import { claimOwner } from "../bots/model";
+import { registry } from "../bots/state";
+import { ApprovalCard } from "./chat/ApprovalCard";
+import { ChatHeader } from "./chat/ChatHeader";
+import { Composer } from "./chat/Composer";
+import { blobToBase64, filesFromUrls } from "./chat/files";
+import { type RowHandlers } from "./chat/MessageRow";
+import { buildRows, toggleKey } from "./chat/rows";
+import type { Msg, Tool } from "./chat/scripts";
+import { Transcript } from "./chat/Transcript";
 import type { SessionController } from "./session/controller";
-import { sessionError, sessionReady } from "./session/runtime";
-import { chatEpoch, model as chatModel, openContext } from "./state";
+import {
+  connectSession,
+  modelCatalog,
+  renameSession,
+  selectSessionModel,
+  sessionError,
+  sessionList,
+} from "./session/runtime";
+import { catalogModelKey } from "./state";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
-type User = Extract<Msg, { kind: "user" }>;
 
 /**
  * Dialogue main pane — renders one SessionController's TurnProjection; the
- * controller owns frames, turn freeze, approvals and the shared draft.
+ * controller owns frames, turn freeze, approvals, the draft and its files.
  */
 export function ChatPane(props: { controller: SessionController }) {
-  const controller = (): SessionController => props.controller;
-  const wide = platform.idiom === "desktop";
-  /** Desktop: messages and the composer in a centered column. */
-  const column: ViewStyle = wide ? { width: "100%", maxWidth: 820, alignSelf: "center" } : {};
-  const insets = safeAreaInsets();
+  const controller = () => props.controller;
+  const native = platform.idiom === "desktop" && platform.os !== "web";
+  const owner = () => claimOwner(registry(), props.controller.sessionId);
+  const botName = () => owner()?.bot.name ?? "Bot";
+  const title = () => {
+    const row = sessionList().find((item) => item.id === props.controller.sessionId);
+    return row?.label ?? owner()?.claim.title ?? "New Session";
+  };
+  const subtitle = () => owner()?.dialogue.workspacePath ?? "";
+
   let ids = 0;
   const nextId = () => `m${ids++}`;
 
   const messages = signal<Msg[]>([]);
-  const model = chatModel;
-  const native = platform.idiom === "desktop" && platform.os !== "web";
-  const useDsh = () => native;
-  const draft = () => controller().draft();
-  const setDraft = (value: string) => controller().draft.set(value);
-  const inputHeight = signal(20);
-  const attachment = signal<{
-    image: string;
-    file: FileRef;
-    blob: Blob;
-    mediaType: ImageMediaType;
-  } | null>(null);
-  const menu = signal(false);
-  const banner = signal<"offline" | "online" | null>(null);
-  const bannerKind = signal<"offline" | "online">("offline");
-  /** The copied message or code block, for a moment. */
-  const copied = signal<string | null>(null);
-
-  // The reply being written. Finished replies are plain data in `messages`.
   const liveId = signal<string | null>(null);
   const liveReason = signal("");
   const liveThinking = signal<{ start: number; seconds: number | null } | null>(null);
   const liveTools = signal<Tool[]>([]);
   const liveMd = signal("");
-  const now = signal(0);
+  const now = signal(Date.now());
   /** True while TurnProjection owns an in-flight local prompt. */
   const prompting = signal(false);
-
-  /** Whether the user is at the bottom (the list then follows the stream
-   * natively, `maintainVisibleContentPosition`); scrolling up clears it. */
+  /** When the running turn began, for the working row's clock. */
+  const since = signal<number | null>(null);
+  /** The list follows the newest message until the person scrolls up. */
   const following = signal(true);
-  let list: ListRef | undefined;
-  let dragging = false;
+  const scrolled = signal(false);
+  /** Which tool rows, step groups and reasoning rows are open. */
+  const expanded = signal<ReadonlySet<string>>(new Set());
+  const copied = signal<string | null>(null);
+  /** A file drag is over the chat; a drop reads its files. */
+  const dragging = signal(false);
+  const dropTrouble = signal<string | null>(null);
 
-  let thinkStart = 0;
-  let thinkSeconds: number | null = null;
+  let list: ListRef | undefined;
   let ticker: ReturnType<typeof setInterval> | undefined;
 
   // Absolute live strings collect here and reach the signals once per frame.
@@ -110,15 +91,25 @@ export function ChatPane(props: { controller: SessionController }) {
   let pendingReason: string | null = null;
   let frameQueued = false;
 
-  /** Scrolls to the end on the user's own action (send, jump, load). */
-  const toEnd = (animated = true) => {
-    following.set(true);
-    list?.scrollToEnd({ animated });
-  };
+  let thinkStart = 0;
+  let thinkSeconds: number | null = null;
 
+  const running = () => controller().running() || liveId() !== null;
+
+  const startTicker = () => {
+    if (ticker !== undefined) return;
+    now.set(Date.now());
+    ticker = setInterval(() => now.set(Date.now()), 1000);
+  };
   const stopTicker = () => {
     if (ticker !== undefined) clearInterval(ticker);
     ticker = undefined;
+  };
+
+  /** Scrolls to the end on the person's own action (send, jump). */
+  const toEnd = (animated = true) => {
+    following.set(true);
+    list?.scrollToEnd({ animated });
   };
 
   const flushLive = () => {
@@ -153,79 +144,98 @@ export function ChatPane(props: { controller: SessionController }) {
   const noteReasoning = (reason: string) => {
     if (!reason) return;
     if (!liveThinking()) {
-      const start = thinkStart || performance.now();
+      const start = thinkStart || Date.now();
       thinkStart = start;
-      now.set(start);
       liveThinking.set({ start, seconds: null });
-      stopTicker();
-      ticker = setInterval(() => now.set(performance.now()), 1000);
+      startTicker();
     }
   };
 
   const noteReasoningDone = () => {
     const thinking = liveThinking();
     if (!thinking || thinking.seconds !== null) return;
-    const seconds = Math.max(1, Math.round((performance.now() - thinking.start) / 1000));
+    const seconds = Math.max(1, Math.round((Date.now() - thinking.start) / 1000));
     thinkSeconds = seconds;
-    stopTicker();
     liveThinking.set({ start: thinking.start, seconds });
+  };
+
+  /** The reply being written, frozen as the turn ended (stopped, failed). */
+  const freezeFinal = (
+    id: string,
+    status: "done" | "stopped" | "error",
+    error?: string,
+  ): Assistant | null => {
+    const thinking = liveThinking();
+    return {
+      kind: "assistant",
+      id,
+      at: Date.now(),
+      model: "Deep",
+      script: "dsh",
+      reasoning: liveReason()
+        ? { text: liveReason(), seconds: thinking?.seconds ?? 1, open: false }
+        : undefined,
+      tools: liveTools().map((tool) =>
+        tool.state === "done" ? tool : ({ ...tool, state: "cancelled" } as Tool),
+      ),
+      md: liveMd(),
+      status,
+      error,
+    };
   };
 
   const commitProjected = (projected: Msg[]) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     batch(() => {
-      messages.set([{ kind: "date", id: nextId(), label: "Today" }, ...projected]);
+      messages.set(projected);
       liveId.set(null);
       clearLiveSignals();
       prompting.set(false);
+      since.set(null);
     });
+    stopTicker();
     controller().acknowledgeFreeze();
     setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
   };
 
   const showConnectError = (error: unknown, at?: string) => {
-    const msg = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
     const failId = at ?? nextId();
     const failed: Assistant = {
       kind: "assistant",
       id: failId,
-      model: model(),
+      at: Date.now(),
+      model: "Deep",
       script: "dsh",
       tools: [],
       md: "",
       status: "error",
-      error: msg,
+      error: message,
     };
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     batch(() => {
       messages.set(
-        at
-          ? messages().map((m) => (m.id === at ? failed : m))
-          : [
-              ...(messages().length
-                ? messages()
-                : [{ kind: "date" as const, id: nextId(), label: "Today" }]),
-              failed,
-            ],
+        at ? messages().map((item) => (item.id === at ? failed : item)) : [...messages(), failed],
       );
       liveId.set(null);
       clearLiveSignals();
       prompting.set(false);
+      since.set(null);
     });
-    // Host / backend setup lives in Context — open it when connect fails.
-    if (/宿主|后台未|MYAID_DSH/.test(msg)) openContext();
+    stopTicker();
   };
 
   /** Start a Session reply; `at` replaces that assistant bubble (retry / regenerate). */
   const replyDsh = async (text: string, at?: string, content?: readonly PromptContentPart[]) => {
     if (prompting()) return;
     const id = at ?? nextId();
-    thinkStart = performance.now();
+    thinkStart = Date.now();
     thinkSeconds = null;
     const placeholder: Assistant = {
       kind: "assistant",
       id,
-      model: model(),
+      at: Date.now(),
+      model: "Deep",
       script: "dsh",
       tools: [],
       md: "",
@@ -236,10 +246,14 @@ export function ChatPane(props: { controller: SessionController }) {
       clearLiveSignals();
       prompting.set(true);
       liveId.set(id);
+      since.set(Date.now());
       messages.set(
-        at ? messages().map((m) => (m.id === at ? placeholder : m)) : [...messages(), placeholder],
+        at
+          ? messages().map((item) => (item.id === at ? placeholder : item))
+          : [...messages(), placeholder],
       );
     });
+    startTicker();
     controller().beginLocalTurn(id);
     try {
       await controller().prompt(text, content);
@@ -248,61 +262,70 @@ export function ChatPane(props: { controller: SessionController }) {
     }
   };
 
-  const stop = () => {
-    if (!prompting()) return;
-    if (useDsh()) void controller().cancel();
-    controller().cancelLocalTurn();
-  };
-
-  // Clear the local projection before a new controller's view is read.
+  // A different Session (or a reset) starts from nothing.
   effect(() => {
     const current = controller();
     current.sessionId;
-    chatEpoch();
     stopTicker();
     messages.set([]);
     liveId.set(null);
     clearLiveSignals();
     prompting.set(false);
+    since.set(null);
+    following.set(true);
   });
 
-  // Project this controller's frames into the pane.
+  // Follow the Session while a Panel shows it.
   effect(() => {
-    if (!useDsh()) return;
+    if (!native) return;
     const current = controller();
     current.mount();
     cleanup(() => current.unmount());
   });
 
+  // Project this controller's frames into the pane. Only the view is tracked:
+  // what the effect writes (messages, the live signals) it also reads, and a
+  // tracked read of those would ring the loop guard.
   effect(() => {
-    if (!useDsh()) return;
     const view = controller().view();
+    untracked(() => projectView(view));
+  });
+
+  const projectView = (view: ReturnType<SessionController["view"]>) => {
     const busy = !!(view.liveMd || view.liveReason || view.liveTools.length);
 
     if (view.pendingFreeze) {
       flushLive();
-      stopTicker();
       const freeze = view.pendingFreeze;
+      // The view may have lost the local id (the turn's end lands first): the
+      // Pane's own signals still hold what was written.
+      const liveFinal =
+        freeze.status === "error"
+          ? null
+          : freezeFinal(view.liveId ?? liveId() ?? lastAssistantId(), freeze.status, freeze.error);
       if (freeze.messages.length) {
-        commitProjected(freeze.messages);
+        // A stopped reply keeps the words it had shown: the durable page knows
+        // only the user's message, so the live bubble comes after it.
+        commitProjected(liveFinal ? [...freeze.messages, liveFinal] : freeze.messages);
       } else {
         const seconds =
           thinkSeconds ??
           (view.liveReason || liveReason()
-            ? Math.max(1, Math.round((performance.now() - thinkStart) / 1000))
+            ? Math.max(1, Math.round((Date.now() - thinkStart) / 1000))
             : 1);
         const id = liveId() ?? nextId();
         const final: Assistant = {
           kind: "assistant",
           id,
-          model: model(),
+          at: Date.now(),
+          model: "Deep",
           script: "dsh",
           reasoning:
             view.liveReason || liveReason()
               ? { text: view.liveReason || liveReason(), seconds, open: false }
               : undefined,
-          tools: (view.liveTools.length ? view.liveTools : liveTools()).map((t) =>
-            t.state === "done" ? t : ({ ...t, state: "cancelled" } as Tool),
+          tools: (view.liveTools.length ? view.liveTools : liveTools()).map((tool) =>
+            tool.state === "done" ? tool : ({ ...tool, state: "cancelled" } as Tool),
           ),
           md: view.liveMd || liveMd(),
           status: freeze.status,
@@ -310,11 +333,13 @@ export function ChatPane(props: { controller: SessionController }) {
         };
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         batch(() => {
-          messages.set(messages().map((m) => (m.id === id ? final : m)));
+          messages.set(messages().map((item) => (item.id === id ? final : item)));
           liveId.set(null);
           clearLiveSignals();
           prompting.set(false);
+          since.set(null);
         });
+        stopTicker();
         controller().acknowledgeFreeze();
         setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
       }
@@ -323,12 +348,12 @@ export function ChatPane(props: { controller: SessionController }) {
 
     if (!prompting()) {
       if (!view.messages.length && !busy) return;
-      const projected: Msg[] = [{ kind: "date", id: nextId(), label: "Today" }, ...view.messages];
-      if (view.running && busy) {
+      if (view.running && busy && !frozenTail()) {
         const live: Assistant = {
           kind: "assistant",
           id: view.liveId ?? `live-${Date.now()}`,
-          model: model(),
+          at: Date.now(),
+          model: "Deep",
           script: "dsh",
           reasoning: view.liveReason
             ? { text: view.liveReason, seconds: 1, open: true }
@@ -338,23 +363,37 @@ export function ChatPane(props: { controller: SessionController }) {
           status: "done",
         };
         batch(() => {
-          messages.set([...projected, live]);
+          messages.set([...view.messages, live]);
           liveId.set(live.id);
           liveMd.set(view.liveMd);
           liveReason.set(view.liveReason);
           liveTools.set(view.liveTools);
+          if (since() === null) since.set(Date.now());
         });
+        startTicker();
       } else {
         batch(() => {
-          messages.set(projected);
+          // A stopped or failed reply is the Pane's own (dsh kept only the
+          // user's message): it stays under the durable transcript.
+          const local = messages().filter(
+            (item) =>
+              item.kind === "assistant" &&
+              item.status !== "done" &&
+              !view.messages.some((durable) => durable.id === item.id),
+          );
+          messages.set(local.length ? [...view.messages, ...local] : view.messages);
           liveId.set(null);
           clearLiveSignals();
         });
+        stopTicker();
       }
       return;
     }
 
     if (!view.running && !busy) {
+      // The prompt was accepted but its first frame has not landed: the local
+      // turn outlives a view that looks idle.
+      if (liveId() !== null) return;
       // Another Pane consumed this turn's freeze first: settle this Pane from
       // the durable messages instead of keeping its local placeholder.
       if (view.messages.length) {
@@ -370,7 +409,9 @@ export function ChatPane(props: { controller: SessionController }) {
         liveId.set(null);
         clearLiveSignals();
         prompting.set(false);
+        since.set(null);
       });
+      stopTicker();
       controller().acknowledgeFreeze();
       return;
     }
@@ -386,736 +427,334 @@ export function ChatPane(props: { controller: SessionController }) {
       pendingMd = view.liveMd;
       queueLive();
     }
-  });
+  };
 
   cleanup(stopTicker);
 
+  // A batch of messages (a whole history page, a finished turn) lands at once:
+  // a list that follows the newest one keeps it in view.
   effect(() => {
-    const err = sessionError();
-    const local = controller().error();
-    if (useDsh() && (local || err) && prompting()) {
-      controller().applyError(local ?? err!);
-    }
+    const count = messages().length;
+    const isRunning = running();
+    if (!following() || (count === 0 && !isRunning)) return;
+    list?.scrollToEnd({ animated: false });
   });
 
-  const jumpToLatest = () => {
-    toEnd();
+  const stop = () => {
+    if (!controller().running() && liveId() === null) return;
+    // Freeze what was written first, so the stopped reply keeps it even when
+    // the turn's end frame arrives on the same tick.
+    // Freeze what was written first, so the stopped reply keeps it even when
+    // the turn's end frame lands on the same tick.
+    controller().cancelLocalTurn();
+    void controller().cancel();
   };
 
-  /** Sends the user's message into the official Session (text + optional image part). */
-  const submit = async (
-    text: string,
-    image?: string,
-    file?: FileRef,
-    pending?: { blob: Blob; mediaType: ImageMediaType; name?: string },
-  ) => {
-    if (prompting()) return;
-    menu.set(false);
-    following.set(true);
-    if (!native) {
-      bannerKind.set("offline");
-      banner.set("offline");
-      return;
-    }
-    // The controller connects before prompting; mutate local messages first so
-    // an idle follow snapshot cannot wipe the just-added user bubble.
-    if (prompting()) return;
-    let content: PromptContentPart[] | undefined;
-    if (pending) {
-      try {
-        content = await buildPromptContent(text, pending);
-      } catch (error) {
-        showConnectError(error);
-        return;
+  /** The files the composer holds become prompt parts (images inline, files staged). */
+  const promptParts = async (text: string): Promise<PromptContentPart[] | undefined> => {
+    const parts: PromptContentPart[] = [];
+    if (text.trim()) parts.push({ type: "text", text });
+    for (const item of controller().draftAttachments()) {
+      const data = await blobToBase64(item.bytes);
+      if (item.mediaType) {
+        parts.push({ type: "image", mediaType: item.mediaType, data, name: item.name });
+      } else {
+        parts.push({
+          type: "file",
+          receiptId: (await controller().uploadFile(item.name, data)) as never,
+        });
       }
     }
-    const user: User = { kind: "user", id: nextId(), text, image, file };
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    batch(() => {
-      const start: Msg[] = messages().length
-        ? []
-        : [{ kind: "date", id: nextId(), label: "Today" }];
-      messages.set([...messages(), ...start, user]);
-      setDraft("");
-      attachment.set(null);
-    });
-    toEnd();
-    await replyDsh(text, undefined, content);
+    return parts.length ? parts : undefined;
   };
 
-  const send = () => {
-    const text = draft().trim();
-    const a = attachment();
-    if (!text && !a) return;
-    void submit(
-      text || "（附件）",
-      a?.image,
-      a?.file,
-      a ? { blob: a.blob, mediaType: a.mediaType, name: a.file.name } : undefined,
-    );
-  };
-
-  /** Attaches a photo from the system's picker: its bytes stay native, shown through a blob URL. */
-  const choosePhoto = async () => {
-    const [picked] = await Picker.pickImages({ maxDimension: 2048, quality: 0.85 });
-    if (!picked) return;
-    const { file } = picked;
-    const mediaType = asImageMediaType(file.type);
-    if (!mediaType) {
-      showConnectError(new Error("仅支持 PNG / JPEG / WebP / GIF 图片。"));
+  const submit = async () => {
+    const current = controller();
+    const text = current.draft().trim();
+    const files = current.draftAttachments();
+    if (!text && files.length === 0) return;
+    following.set(true);
+    const image = files.find((item) => item.mediaType);
+    const file = files.find((item) => !item.mediaType);
+    let content: PromptContentPart[] | undefined;
+    try {
+      content = await promptParts(text);
+    } catch (error) {
+      showConnectError(error);
       return;
     }
-    const size =
-      file.size < 1024 * 1024
-        ? `${Math.max(1, Math.round(file.size / 1024))} KB`
-        : `${(file.size / 1024 / 1024).toFixed(1)} MB`;
-    attachment.set({
-      image: URL.createObjectURL(file),
-      file: { name: file.name, size },
-      blob: file,
-      mediaType,
+    const sent: Msg = {
+      kind: "user",
+      id: nextId(),
+      at: Date.now(),
+      text: text || "(attachment)",
+      ...(image?.url ? { image: image.url } : {}),
+      ...(file ? { file: { name: file.name, size: file.size } } : {}),
+    };
+    if (running()) {
+      // Steering: dsh queues the prompt behind the running turn.
+      batch(() => {
+        messages.set([...messages(), sent]);
+        current.clearDraft();
+      });
+      try {
+        await current.queuePrompt(sent.text, content);
+      } catch (error) {
+        current.applyError(error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    batch(() => {
+      messages.set([...messages(), sent]);
+      current.clearDraft();
     });
+    toEnd();
+    await replyDsh(sent.text, undefined, content);
   };
 
-  const update = (id: string, change: (m: Assistant) => Assistant) =>
-    messages.set(messages().map((m) => (m.id === id && m.kind === "assistant" ? change(m) : m)));
+  /** A stopped or failed reply closes the list: nothing live may reopen it. */
+  const frozenTail = () => {
+    const all = messages();
+    const last = all[all.length - 1];
+    return last?.kind === "assistant" && last.status !== "done";
+  };
+
+  /** The reply being written, as the row list knows it. */
+  const lastAssistantId = () => {
+    const all = messages();
+    for (let index = all.length - 1; index >= 0; index--) {
+      const item = all[index];
+      if (item.kind === "assistant") return item.id;
+    }
+    return nextId();
+  };
 
   const promptBefore = (id: string) => {
     const all = messages();
-    for (let i = all.findIndex((m) => m.id === id) - 1; i >= 0; i--) {
-      const m = all[i];
-      if (m.kind === "user") return m.text;
+    for (let index = all.findIndex((item) => item.id === id) - 1; index >= 0; index--) {
+      const item = all[index];
+      if (item.kind === "user") return item.text;
     }
     return "";
   };
-  const regenerate = (m: Assistant) => {
+
+  const regenerate = (message: Assistant) => {
     if (prompting()) return;
-    const text = promptBefore(m.id);
+    const text = promptBefore(message.id);
     if (!text) return;
     following.set(true);
-    void replyDsh(text, m.id);
-  };
-  const retry = (m: Assistant) => regenerate(m);
-  const copy = (key: string, text: string) => {
-    Clipboard.writeText(text);
-    copied.set(key);
-    setTimeout(() => copied() === key && copied.set(null), 1600);
+    void replyDsh(text, message.id);
   };
 
-  // Motion, run natively when the state changes.
-  const jump = createAnimatedValue(0);
-  effect(() => void jump.spring(following() ? 0 : 1, motion.settle));
-  const menuValue = createAnimatedValue(0);
-  effect(() => void menuValue.spring(menu() ? 1 : 0, motion.settle));
-  const bannerValue = createAnimatedValue(0);
-  effect(() => void bannerValue.spring(banner() ? 1 : 0, motion.settle));
+  const retry = (message: Assistant) => regenerate(message);
 
-  const streaming = () => liveId() !== null;
-  const canSend = () => !!draft().trim() || !!attachment();
+  const update = (id: string, change: (message: Assistant) => Assistant) =>
+    messages.set(
+      messages().map((item) => (item.id === id && item.kind === "assistant" ? change(item) : item)),
+    );
 
-  const userRow = (m: () => User) => (
-    <View style={{ alignItems: "flex-end", paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
-      <If when={m().image}>
-        <Photo src={m().image!} width={220} height={165} />
-      </If>
-      <If when={m().file}>
-        <FileChip file={m().file!} />
-      </If>
-      <If when={m().text}>
-        <View
-          style={{
-            maxWidth: "82%",
-            paddingHorizontal: 14,
-            paddingVertical: 10,
-            borderRadius: 20,
-            borderBottomRightRadius: 6,
-            borderCurve: "continuous",
-            // A message is read, not pressed: flat, a hairline around it.
-            backgroundColor: colors.raised,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Text style={{ userSelect: "text", fontSize: 15, lineHeight: 21, color: colors.text }}>
-            {m().text}
-          </Text>
-        </View>
-      </If>
-      <If when={m().waiting}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Spinner size={12} tint={colors.warn} />
-          <Text style={{ fontSize: 12, color: colors.muted }}>Waiting for a connection</Text>
-        </View>
-      </If>
-    </View>
-  );
+  const copy = (id: string, text: string) => {
+    void Clipboard.writeText(text);
+    copied.set(id);
+    setTimeout(() => copied() === id && copied.set(null), 1600);
+  };
 
-  const assistantRow = (m: () => Assistant) => {
-    const live = () => liveId() === m().id;
-    const reasoning = () =>
-      live() ? (liveReason() ? { text: liveReason(), open: true } : null) : (m().reasoning ?? null);
-    const thinkingLabel = () => {
-      if (live()) {
-        const t = liveThinking();
-        if (t && t.seconds === null)
-          return `Thinking… ${Math.max(0, Math.floor((now() - t.start) / 1000))} s`;
-        return `Thought for ${t?.seconds ?? 1} s`;
-      }
-      return `Thought for ${m().reasoning?.seconds ?? 1} s`;
-    };
-    const tools = () => (live() ? liveTools() : m().tools);
-    const md = () => (live() ? liveMd() : m().md);
-    const waitingForWords = () =>
-      live() &&
-      !liveMd() &&
-      !liveTools().length &&
-      !(liveThinking() && liveThinking()!.seconds === null);
-    return (
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 12 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, height: 26 }}>
-          <Avatar />
-          <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.muted }}>
-            {m().script.startsWith("local:") ? m().script.slice(6) : m().model}
-          </Text>
-          <If when={!live() && m().status === "stopped"}>
-            <Badge label="Stopped" tone="warn" />
-          </If>
-        </View>
-        <If when={reasoning()}>
-          <View style={{ gap: 8 }}>
-            <Press
-              scale={0.98}
-              onPress={() => {
-                if (live()) return;
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                update(m().id, (x) => ({
-                  ...x,
-                  reasoning: x.reasoning && { ...x.reasoning, open: !x.reasoning.open },
-                }));
-              }}
-              accessibilityLabel="Reasoning"
-              accessibilityState={{ selected: !!reasoning()?.open }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  height: 32,
-                  alignSelf: "flex-start",
-                }}
-              >
-                <If
-                  when={live() && liveThinking()?.seconds === null}
-                  else={<Glyph name="brain" size={16} tint={colors.muted} />}
-                >
-                  <Spinner size={14} tint={colors.muted} />
-                </If>
-                <Text style={{ fontSize: 14, color: colors.muted, fontVariant: ["tabular-nums"] }}>
-                  {thinkingLabel()}
-                </Text>
-                <View
-                  style={{
-                    transform: [{ rotate: reasoning()?.open ? "0deg" : "-90deg" }],
-                    transitionProperty: "transform",
-                    transitionDuration: 220,
-                    transitionTimingFunction: "ease-out",
-                  }}
-                >
-                  <Glyph name="caret-down" size={14} tint={colors.faint} />
-                </View>
-              </View>
-            </Press>
-            <If when={reasoning()?.open}>
-              <View style={{ flexDirection: "row", gap: 12, paddingLeft: 7 }}>
-                <View style={{ width: 2, borderRadius: 1, backgroundColor: colors.border }} />
-                <Text
-                  style={{
-                    userSelect: "text",
-                    flex: 1,
-                    fontSize: 14,
-                    lineHeight: 20,
-                    color: colors.muted,
-                  }}
-                >
-                  {reasoning()?.text}
-                </Text>
-              </View>
-            </If>
-          </View>
-        </If>
-        <Each of={tools()} key={(t) => t.id}>
-          {(tool) => <ToolCard tool={tool()} />}
-        </Each>
-        <If when={waitingForWords()}>
-          <View style={{ flexDirection: "row", height: 22, alignItems: "center" }}>
-            <Caret />
-          </View>
-        </If>
-        <Markdown md={md()} id={m().id} streaming={live()} caret={live() ? <Caret /> : undefined} />
-        <If when={!live() && m().status === "error"}>
-          <ErrorRow message={m().error ?? "Something went wrong."} onRetry={() => retry(m())} />
-        </If>
-        <If when={!live() && m().status === "stopped"}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Glyph name="stop" size={12} tint={colors.faint} />
-            <Text style={{ fontSize: 13, color: colors.faint }}>You stopped this reply</Text>
-          </View>
-        </If>
-        <If when={!live() && m().status !== "error"}>
-          <View
-            style={{ flexDirection: "row", alignItems: "center", marginLeft: -8, marginTop: -6 }}
-          >
-            <ActionButton
-              glyph={copied() === m().id ? "check" : "copy"}
-              label="Copy"
-              active={copied() === m().id}
-              tone="up"
-              onPress={() => copy(m().id, m().md)}
-            />
-            <ActionButton glyph="regenerate" label="Regenerate" onPress={() => regenerate(m())} />
-            <ActionButton
-              glyph="thumb-up"
-              label="Good reply"
-              active={m().rating === "up"}
-              onPress={() =>
-                update(m().id, (x) => ({ ...x, rating: x.rating === "up" ? undefined : "up" }))
-              }
-            />
-            <ActionButton
-              glyph="thumb-down"
-              label="Bad reply"
-              active={m().rating === "down"}
-              tone="danger"
-              onPress={() =>
-                update(m().id, (x) => ({ ...x, rating: x.rating === "down" ? undefined : "down" }))
-              }
-            />
-          </View>
-        </If>
-      </View>
+  const lastPrompt = () => {
+    const all = messages();
+    for (let index = all.length - 1; index >= 0; index--) {
+      const item = all[index];
+      if (item.kind === "user" && item.text.trim()) return item.text;
+    }
+    return "";
+  };
+
+  const model = () => {
+    const catalog = modelCatalog();
+    const options = (catalog?.models ?? []).slice(0, 20).map((item) => ({
+      value: `${item.provider}/${item.model}`,
+      label: item.name || item.model,
+    }));
+    const fallback = owner()?.bot.defaultModel ?? null;
+    const current = catalogModelKey() ?? fallback ?? options[0]?.value ?? null;
+    const label = options.find((item) => item.value === current)?.label ?? "Model";
+    return { label, current, options };
+  };
+
+  const handlers: RowHandlers = {
+    isOpen: (key) => expanded().has(key),
+    onToggle: (key) => expanded.set(toggleKey(expanded(), key)),
+    onRetry: (message) => retry(message),
+    onRegenerate: (message) => regenerate(message),
+    onRate: (message, rating) => update(message.id, (item) => ({ ...item, rating })),
+    copied: () => copied(),
+    onCopy: (id, text) => copy(id, text),
+  };
+
+  const drop = async (uris: readonly string[], types: readonly string[]) => {
+    dragging.set(false);
+    const { files, failed } = await filesFromUrls(uris, types);
+    if (failed.length > 0) dropTrouble.set(`Could not read ${failed.join(", ")}.`);
+    else dropTrouble.set(null);
+    if (files.length > 0) controller().attachFiles(files);
+  };
+
+  /** The durable messages, with the reply being written folded in. */
+  const displayMessages = () => {
+    const id = liveId();
+    if (id === null) return messages();
+    const reasoning = liveReason();
+    const thinking = liveThinking();
+    const tools = liveTools();
+    return messages().map((item) =>
+      item.id === id && item.kind === "assistant"
+        ? {
+            ...item,
+            md: liveMd() || item.md,
+            reasoning: reasoning
+              ? { text: reasoning, seconds: thinking?.seconds ?? 1, open: true }
+              : item.reasoning,
+            tools: tools.length ? tools : item.tools,
+          }
+        : item,
     );
   };
 
-  const empty = (
+  const rows = () => {
+    const built = buildRows({
+      messages: displayMessages(),
+      liveId: liveId(),
+      running: running(),
+      since: since(),
+      now: now(),
+    });
+    return built;
+  };
+
+  /** Connection trouble only: the shared Connection's, else this Session's. */
+  const banner = () => (native ? (sessionError() ?? controller().error()) : null);
+
+  return (
     <View
-      style={{
-        ...column,
-        flex: 1,
-        justifyContent: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 24,
-        gap: 24,
-      }}
+      testID="chat"
+      style={{ flex: 1, minHeight: 0, backgroundColor: colors.background }}
+      onFileDragEnter={() => dragging.set(true)}
+      onFileDragLeave={() => dragging.set(false)}
+      onFileDrop={(event) => void drop(event.uris, event.mimeTypes)}
     >
-      <Appear>
-        <View style={{ alignItems: "center", gap: 12 }}>
-          <IconTile name="spark" tint={colors.accent} size={56} />
-          <Text style={{ fontSize: 22, fontWeight: "600", color: colors.text }}>
-            How can I help?
-          </Text>
-          <Text style={{ fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: "center" }}>
-            {native
-              ? "Messages go to the official dsh Session through the local Host."
-              : "Dialogue needs the desktop Client connected to Host / dsh."}
-          </Text>
-        </View>
-      </Appear>
-    </View>
-  );
-
-  const menuRows: { id: string; glyph: "clip"; label: string }[] = [
-    { id: "photo", glyph: "clip", label: "Choose a photo" },
-  ];
-
-  const pane = (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: 1, paddingBottom: "env(keyboard-inset-height)" }}>
-        <View style={{ flex: 1 }}>
-          <If when={messages().length} else={empty}>
-            {/* One selection across messages: in the List, over the rows that are mounted. */}
-            <View selectable style={{ flex: 1 }}>
-              <List
-                ref={list}
-                each={messages()}
-                keyExtractor={(m) => m.id}
-                estimatedItemSize={140}
-                initialScrollIndex={Math.max(0, messages().length - 1)}
-                style={{ flex: 1 }}
-                contentStyle={{ paddingTop: 8, paddingBottom: 16 }}
-                keyboardDismissMode="interactive"
-                maintainVisibleContentPosition={{ autoscrollToBottomThreshold: 40 }}
-                scrollEventThrottle={100}
-                onScrollDragStart={() => (dragging = true)}
-                onScroll={(e) => {
-                  if (dragging)
-                    following.set(e.offset.y + e.size.height >= e.contentSize.height - 40);
-                }}
-                onMomentumEnd={() => (dragging = false)}
-                onScrollEnd={() => (dragging = false)}
-              >
-                {(item) => {
-                  const kind = computed(() => item().kind);
-                  return (
-                    <View style={column}>
-                      {(() => {
-                        switch (kind()) {
-                          case "date":
-                            return (
-                              <DateSeparator
-                                label={(item() as Extract<Msg, { kind: "date" }>).label}
-                              />
-                            );
-                          case "user":
-                            return userRow(item as () => User);
-                          case "assistant":
-                            return assistantRow(item as () => Assistant);
-                        }
-                      })()}
-                    </View>
-                  );
-                }}
-              </List>
-            </View>
-          </If>
-
-          {/* Jump to the latest message: shown while scrolled up. */}
-          <View
-            style={{
-              pointerEvents: following() ? "none" : "auto",
-              position: "absolute",
-              right: 16,
-              bottom: 12,
-              opacity: jump,
-              transform: [
-                { scale: jump.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) },
-              ],
-            }}
-          >
-            <RoundButton
-              icon="arrow-down"
-              label="Jump to the latest message"
-              variant="secondary"
-              onPress={jumpToLatest}
-            />
-            <If when={streaming()}>
-              <View
-                style={{
-                  position: "absolute",
-                  top: 2,
-                  right: 2,
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: colors.accent,
-                  borderWidth: 2,
-                  borderColor: colors.background,
-                }}
-              />
-            </If>
-          </View>
-
-          {/* Connection banner. */}
-          <View
-            style={{
-              pointerEvents: "none",
-              position: "absolute",
-              top: 8,
-              left: 16,
-              right: 16,
-              opacity: bannerValue,
-              transform: [
-                {
-                  translateY: bannerValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-64, 0],
-                  }),
-                },
-              ],
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                minHeight: 48,
-                paddingHorizontal: 14,
-                borderRadius: radius.inset,
-                borderCurve: "continuous",
-                ...finish.menu,
-                borderWidth: 1,
-                borderColor: alpha(bannerKind() === "offline" ? colors.warn : colors.up, 0.35),
-              }}
-            >
-              <View
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: toneTint(bannerKind() === "offline" ? "warn" : "up"),
-                }}
-              >
-                <Glyph
-                  name={bannerKind() === "offline" ? "offline" : "check"}
-                  size={15}
-                  tint={bannerKind() === "offline" ? colors.warn : colors.up}
-                />
-              </View>
-              <View style={{ flex: 1, gap: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-                  {bannerKind() === "offline" ? "You're offline" : "Back online"}
-                </Text>
-                <Text style={{ fontSize: 13, color: colors.muted }}>
-                  {bannerKind() === "offline"
-                    ? "Your message sends when the connection returns."
-                    : "Sending your message."}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* The "+" menu: attachments. */}
-          <View
-            onPress={() => menu.set(false)}
-            style={{
-              pointerEvents: menu() ? "auto" : "none",
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.45)",
-              opacity: menuValue,
-            }}
-          />
-          <View
-            style={{
-              pointerEvents: menu() ? "auto" : "none",
-              position: "absolute",
-              left: 16,
-              right: 16,
-              bottom: 8,
-              opacity: menuValue,
-              transform: [
-                { translateY: menuValue.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
-                { scale: menuValue.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
-              ],
-            }}
-          >
-            <View
-              style={{
-                borderRadius: radius.card,
-                borderCurve: "continuous",
-                ...finish.menu,
-                borderWidth: 1,
-                paddingVertical: 6,
-                maxHeight: 460,
-                overflow: "hidden",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: colors.faint,
-                  paddingHorizontal: 16,
-                  paddingTop: 8,
-                  paddingBottom: 4,
-                }}
-              >
-                ADD
-              </Text>
-              <Scroll style={{ flexShrink: 1 }}>
-                <Each of={menuRows}>
-                  {(row) => (
-                    <View
-                      onPress={() => {
-                        menu.set(false);
-                        if (row().id === "photo") void choosePhoto();
-                      }}
-                      activeStyle={{ backgroundColor: alpha(colors.text, 0.06) }}
-                      role="button"
-                      accessibilityLabel={row().label}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 12,
-                        height: 48,
-                        paddingHorizontal: 16,
-                      }}
-                    >
-                      <Glyph name={row().glyph} size={16} tint={colors.accent} />
-                      <Text style={{ flex: 1, fontSize: 15, color: colors.text }}>
-                        {row().label}
-                      </Text>
-                    </View>
-                  )}
-                </Each>
-              </Scroll>
-            </View>
-          </View>
-        </View>
-
-        {/* The composer. */}
+      <ChatHeader
+        title={() => `${botName()} · ${title()}`}
+        subtitle={subtitle}
+        modelLabel={() => model().label}
+        scrolled={scrolled}
+        onRename={(next) => void renameSession(props.controller.sessionId, next)}
+      />
+      <If when={!!banner()}>
         <View
           style={{
-            ...column,
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: 8 + (keyboardFrame().height > 0 ? 0 : insets().bottom),
+            flexDirection: "row",
+            alignItems: "center",
             gap: 8,
+            marginHorizontal: 16,
+            marginTop: 8,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            borderRadius: radius.control,
+            borderCurve: "continuous",
+            backgroundColor: alpha(colors.danger, 0.1),
+            borderWidth: 1,
+            borderColor: alpha(colors.danger, 0.3),
           }}
         >
-          <If when={attachment()}>
-            <Appear>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Photo src={attachment()!.image} width={48} height={48} />
-                <View style={{ flex: 1 }}>
-                  <FileChip file={attachment()!.file} onRemove={() => attachment.set(null)} />
-                </View>
-              </View>
-            </Appear>
-          </If>
-          <View
-            style={{
-              borderRadius: 24,
-              borderCurve: "continuous",
-              // Glass like the menu above it, without the blur: nothing scrolls under it.
-              ...finish.menu,
-              backdropFilter: undefined,
-              borderWidth: 1,
-              padding: 6,
-              gap: 4,
-            }}
+          <Text style={{ flex: 1, fontSize: 12, color: colors.text }}>{banner()}</Text>
+          <Press
+            onPress={() => void connectSession()}
+            accessibilityLabel="Reconnect to the Host"
+            scale={0.96}
           >
-            <Input
-              value={draft()}
-              onChange={(e) => setDraft(e.value)}
-              multiline
-              // Return sends on desktops, as in chat apps there (Shift+Return
-              // adds a line); phones keep return for line breaks.
-              submitBehavior={platform.idiom === "desktop" ? "submit" : "newline"}
-              onSubmit={() => {
-                if (!streaming()) send();
-              }}
-              placeholder="Message Session"
-              onFocus={() => menu.set(false)}
-              onContentSizeChange={(e) =>
-                inputHeight.set(Math.min(100, Math.max(20, e.size.height)))
-              }
-              style={{
-                placeholderColor: colors.faint,
-                caretColor: colors.accent,
-                selectionColor: colors.accent,
-                height: inputHeight() + 20,
-                fontSize: 15,
-                lineHeight: 20,
-                color: colors.text,
-                paddingHorizontal: 10,
-                paddingVertical: 10,
-              }}
-            />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View
-                style={{
-                  transform: [{ rotate: menu() ? "45deg" : "0deg" }],
-                  transitionProperty: "transform",
-                  transitionDuration: 200,
-                  transitionTimingFunction: "ease-out",
-                }}
-              >
-                <RoundButton
-                  icon="plus"
-                  label="Add"
-                  variant="secondary"
-                  onPress={() => menu.set(!menu())}
-                />
-              </View>
-              <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 8 }}>
-                <Text style={{ fontSize: 12, color: colors.muted }}>
-                  {controller().error()
-                    ? controller().error()
-                    : sessionReady()
-                      ? "Session connected"
-                      : sessionError()
-                        ? "Context 中启动 Host / 后台"
-                        : "Open Context to connect"}
+            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>Retry</Text>
+          </Press>
+        </View>
+      </If>
+      <If
+        when={rows().length > 0}
+        else={
+          <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 16 }}>
+            <Appear>
+              <View style={{ alignItems: "center", gap: 10, maxWidth: 420, alignSelf: "center" }}>
+                <IconTile name="spark" tint={colors.accent} size={48} />
+                <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+                  {`Message ${botName()}`}
+                </Text>
+                <Text
+                  style={{ fontSize: 13, lineHeight: 19, color: colors.muted, textAlign: "center" }}
+                >
+                  {native
+                    ? "Prompts go to the official dsh Session through the local Host."
+                    : "The chat needs the desktop Client connected to Host / dsh."}
                 </Text>
               </View>
-              <If
-                when={streaming()}
-                else={
-                  <View
-                    style={{
-                      pointerEvents: canSend() ? "auto" : "none",
-                      opacity: canSend() ? 1 : 0.35,
-                    }}
-                  >
-                    <RoundButton icon="arrow-up" label="Send" onPress={send} />
-                  </View>
-                }
-              >
-                <Press onPress={stop} scale={0.9} accessibilityLabel="Stop generating">
-                  <View
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 22,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: colors.light,
-                      ...finish.light,
-                    }}
-                  >
-                    <Glyph name="stop" size={16} tint={colors.onLight} />
-                  </View>
-                </Press>
-              </If>
-            </View>
+            </Appear>
           </View>
+        }
+      >
+        <Transcript
+          rows={rows}
+          botName={botName}
+          now={() => now()}
+          handlers={handlers}
+          following={following}
+          streaming={running}
+          loadingOlder={() => controller().olderLoading()}
+          onScrollState={(state) => {
+            if (following() !== state.following) following.set(state.following);
+            if (scrolled() !== state.scrolled) scrolled.set(state.scrolled);
+          }}
+          onLoadOlder={() => void controller().loadOlder()}
+          onJump={() => toEnd()}
+          listRef={(node) => (list = node)}
+        />
+      </If>
+      <If when={!!dropTrouble()}>
+        <Text style={{ paddingHorizontal: 16, paddingBottom: 4, fontSize: 12, color: colors.danger }}>
+          {dropTrouble()}
+        </Text>
+      </If>
+      <ApprovalCard controller={controller} />
+      <Composer
+        controller={controller}
+        botName={botName}
+        running={running}
+        canSend={() => !!controller().draft().trim() || controller().draftAttachments().length > 0}
+        model={model}
+        recall={lastPrompt}
+        onSend={() => void submit()}
+        onStop={stop}
+        onPickModel={(value) => void selectSessionModel(props.controller.sessionId, value)}
+      />
+      <If when={dragging()}>
+        <View
+          style={{
+            position: "absolute",
+            left: 12,
+            right: 12,
+            top: 12,
+            bottom: 12,
+            borderRadius: radius.card,
+            borderCurve: "continuous",
+            borderWidth: 2,
+            borderColor: colors.accent,
+            backgroundColor: alpha(colors.accent, 0.06),
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.accent }}>
+            Drop files to attach
+          </Text>
         </View>
-      </View>
+      </If>
     </View>
   );
-
-  return pane;
-}
-
-const IMAGE_MEDIA_TYPES = new Set<ImageMediaType>([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-]);
-
-function asImageMediaType(value: string): ImageMediaType | null {
-  return IMAGE_MEDIA_TYPES.has(value as ImageMediaType) ? (value as ImageMediaType) : null;
-}
-
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
-async function buildPromptContent(
-  text: string,
-  pending: { blob: Blob; mediaType: ImageMediaType; name?: string },
-): Promise<PromptContentPart[]> {
-  const parts: PromptContentPart[] = [];
-  if (text.trim()) parts.push({ type: "text", text });
-  parts.push({
-    type: "image",
-    mediaType: pending.mediaType,
-    data: await blobToBase64(pending.blob),
-    ...(pending.name ? { name: pending.name } : {}),
-  });
-  return parts;
 }

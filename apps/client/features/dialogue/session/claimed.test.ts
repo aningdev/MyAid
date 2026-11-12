@@ -51,9 +51,13 @@ function fakeTransport(overrides: Partial<SessionTransport> = {}): SessionTransp
     createSession: async () => ({ sessionId: "new-session" }),
     listSessions: async () => [{ sessionId: "s1", blank: false, updatedAt: 1, running: false }],
     follow: () => () => undefined,
+    sessionPage: async () => ({ records: [], hasMore: false }),
+    sessionQueue: async () => [],
     prompt: async () => undefined,
     cancel: async () => undefined,
     withdrawQueuedPrompt: async () => undefined,
+    renameSession: async () => undefined,
+    uploadFile: async () => ({ receiptId: "receipt" }),
     modelCatalog: async () =>
       ({
         default: { provider: "p", model: "m" },

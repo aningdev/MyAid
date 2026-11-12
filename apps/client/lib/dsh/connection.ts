@@ -11,6 +11,9 @@ import type {
   SessionAttachmentValue,
   SessionCreateRequest,
   SessionFollowFrame,
+  SessionPageRequest,
+  SessionRenameRequest,
+  SessionStateRequest,
   SessionUpdateQueueRequest,
 } from "@myaid/dsh-web-protocol/session";
 import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
@@ -132,6 +135,18 @@ function unwrap<T = unknown>(result: {
     throw new Error(`${error.code}: ${error.message}`);
   }
   return result.value as T;
+}
+
+/** The text parts of one queue item's content, as dsh stores it. */
+function queueText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((item) => {
+      const block = item as { type?: unknown; text?: unknown };
+      return block?.type === "text" && typeof block.text === "string" ? block.text : "";
+    })
+    .join("");
 }
 
 const agentTag = Symbol("myaid.agent");
@@ -370,9 +385,7 @@ export class Connection {
       blank: item.blank === true,
       updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : 0,
       running: item.running === true,
-      ...(typeof item.agentAvailable === "boolean"
-        ? { agentAvailable: item.agentAvailable }
-        : {}),
+      ...(typeof item.agentAvailable === "boolean" ? { agentAvailable: item.agentAvailable } : {}),
     }));
   }
 
@@ -416,6 +429,53 @@ export class Connection {
   /** Mutate a still-pending queue item (e.g. withdraw with `{ kind: "remove" }`). */
   async updateQueue(request: SessionUpdateQueueRequest): Promise<void> {
     unwrap(await this.remote.session.updateQueue(request));
+  }
+
+  /** One backwards page of durable history (`session.events`, before `beforeSeq`). */
+  async sessionPage(request: {
+    sessionId: string;
+    beforeSeq: number;
+  }): Promise<{ records: unknown[]; hasMore: boolean }> {
+    this.scope(request.sessionId);
+    const value = unwrap(
+      await this.remote.session.events({
+        address: { kind: "session", sessionId: request.sessionId } as SessionPageRequest["address"],
+        beforeSeq: request.beforeSeq as SessionPageRequest["beforeSeq"],
+      }),
+    ) as { records?: readonly unknown[]; hasMore?: boolean };
+    return { records: [...(value.records ?? [])], hasMore: value.hasMore === true };
+  }
+
+  /** The prompts a live Agent still holds, as `session.state` reports them. */
+  async sessionQueue(
+    sessionId: string,
+  ): Promise<{ id: string; requestId?: string; text: string }[]> {
+    this.scope(sessionId);
+    const value = unwrap(
+      await this.remote.session.state({ sessionId: sessionId as SessionStateRequest["sessionId"] }),
+    ) as { queue?: readonly Record<string, unknown>[] | null };
+    const queue = value.queue ?? [];
+    const items: { id: string; requestId?: string; text: string }[] = [];
+    for (const item of queue) {
+      const id = typeof item.id === "string" ? item.id : "";
+      if (!id) continue;
+      items.push({
+        id,
+        ...(typeof item.rpcId === "string" ? { requestId: item.rpcId } : {}),
+        text: queueText(item.content),
+      });
+    }
+    return items;
+  }
+
+  /** The Session's own title, so dsh and the Client agree on it. */
+  async renameSession(sessionId: string, title: string): Promise<void> {
+    unwrap(
+      await this.remote.session.rename({
+        sessionId: sessionId as SessionRenameRequest["sessionId"],
+        title,
+      }),
+    );
   }
 
   async withdrawQueuedPrompt(sessionId: string, itemId: string): Promise<void> {

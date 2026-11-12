@@ -11,11 +11,13 @@
     "conditions": ["node"]
   },
   "capabilities": {
+    "clipboard": true,
+    "picker": true,
     "network": {
       "hosts": ["127.0.0.1", "picsum.photos"]
     },
     "fs": {
-      "read": ["${homeDir}/.myaid", "${dataDir}", "${pluginDir}"],
+      "read": ["${homeDir}", "${homeDir}/.myaid", "${dataDir}", "${pluginDir}"],
       "write": ["${homeDir}/.myaid", "${dataDir}"]
     },
     "process": {

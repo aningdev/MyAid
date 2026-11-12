@@ -18,9 +18,9 @@ import {
   releaseClaim,
   renameClaim,
 } from "../../bots/model";
+import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
 import { changeRegistry, ready, registry } from "../../bots/state";
-import type { ListedSession } from "../../bots/sessions";
-import { sessionScopeBotId, sessionScopeDialogueId } from "../state";
+import { catalogModelKey, sessionScopeBotId, sessionScopeDialogueId } from "../state";
 import {
   ClaimedSessionClient,
   type ApprovalDecision,
@@ -85,7 +85,12 @@ const sessionControllers = new SessionRegistry({
     // first): keep the Navigator's rows from going stale-empty.
     if (untracked(rosterBase).length === 0) rebuildRoster();
   },
-  onView: (sessionId, view) => rememberSummary(sessionId, view.messages),
+  onView: (sessionId, view) => {
+    // A frame arriving proves the Connection serves this Client: a lost-
+    // generation notice from a restart is stale by then.
+    if (sessionError() !== null) sessionError.set(null);
+    rememberSummary(sessionId, view.messages);
+  },
 });
 
 const sessionStatuses = computed<ReadonlyMap<string, SessionStatus>>(() => {
@@ -148,7 +153,7 @@ export function answerApprovalForSession(sessionId: string, decision: ApprovalDe
 
 function rememberSummary(
   sessionId: string,
-  messages: readonly { kind: string; text?: string }[],
+  messages: readonly { kind: string; text?: string; at?: number }[],
 ): void {
   const first = messages.find((message) => message.kind === "user" && message.text?.trim());
   if (!first?.text) return;
@@ -157,6 +162,25 @@ function rememberSummary(
   summaries.set(sessionId, text);
   const title = claimOwner(untracked(registry), sessionId)?.claim.title ?? null;
   rosterBase.update((rows) => relabelRow(rows, sessionId, title, text));
+  // An unnamed Session takes its name from the first prompt (claim + dsh title).
+  if (!title) void nameFromPrompt(sessionId, text);
+}
+
+/** The first prompt becomes an unnamed Session's title, saved in the claim and in dsh. */
+async function nameFromPrompt(sessionId: string, text: string): Promise<void> {
+  const title = titleFromPrompt(text);
+  if (!title) return;
+  const owner = claimOwner(untracked(registry), sessionId);
+  if (!owner || owner.claim.title) return;
+  const saved = await changeRegistry((reg) =>
+    renameClaim(reg, owner.dialogue.id, sessionId, title),
+  );
+  if (!saved) return;
+  await refreshSessionList().catch(() => undefined);
+  void claimed
+    ?.getTransport()
+    ?.renameSession(sessionId, title)
+    .catch(() => undefined);
 }
 
 export async function refreshHostStatus(): Promise<HostStatus | null> {
@@ -214,8 +238,12 @@ function wrapConnection(
     createSession: (request) => connection.createSession(request),
     listSessions: () => connection.listSessions(),
     follow: (sessionId, onFrame, onError) => connection.follow(sessionId, onFrame, onError),
+    sessionPage: (request) => connection.sessionPage(request),
+    sessionQueue: (sessionId) => connection.sessionQueue(sessionId),
     prompt: (request) => connection.prompt(request),
     cancel: (sessionId) => connection.cancel(sessionId),
+    renameSession: (sessionId, title) => connection.renameSession(sessionId, title),
+    uploadFile: (request) => connection.uploadFile(request),
     withdrawQueuedPrompt: (sessionId, itemId) => connection.withdrawQueuedPrompt(sessionId, itemId),
     selectAgentPreset: (sessionId, agentPreset) =>
       connection.selectAgentPreset(sessionId, agentPreset),
@@ -335,6 +363,21 @@ export async function createSession(dialogueId: string): Promise<string> {
   }
 }
 
+/** Pick the model this Session runs on (`session.selectModel`). */
+export async function selectSessionModel(sessionId: string, key: string): Promise<void> {
+  const at = key.indexOf("/");
+  if (at <= 0) return;
+  const provider = key.slice(0, at);
+  const model = key.slice(at + 1);
+  try {
+    const transport = await connectTransport();
+    await transport.selectModel({ sessionId, provider, model });
+    catalogModelKey.set(key);
+  } catch (error) {
+    sessionError.set(error instanceof Error ? error.message : String(error));
+  }
+}
+
 /** Archive the Dialogue that owns this session (product default). */
 export async function archiveOwningDialogue(sessionId: string): Promise<void> {
   if (sessionControllers.peek(sessionId)?.running()) {
@@ -360,19 +403,23 @@ export async function releaseMissingSession(sessionId: string): Promise<void> {
   }
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner) return;
-  const saved = await changeRegistry((reg) =>
-    releaseClaim(reg, owner.dialogue.id, sessionId),
-  );
+  const saved = await changeRegistry((reg) => releaseClaim(reg, owner.dialogue.id, sessionId));
   if (saved) await refreshSessionList();
 }
 
 export async function renameSession(sessionId: string, title: string): Promise<void> {
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner) return;
+  const trimmed = title.trim();
   const saved = await changeRegistry((reg) =>
-    renameClaim(reg, owner.dialogue.id, sessionId, title),
+    renameClaim(reg, owner.dialogue.id, sessionId, trimmed || null),
   );
-  if (saved) await refreshSessionList();
+  if (!saved) return;
+  const transport = claimed?.getTransport();
+  if (trimmed && transport?.ready) {
+    void transport.renameSession(sessionId, trimmed).catch(() => undefined);
+  }
+  await refreshSessionList();
 }
 
 export async function disposeRuntime(): Promise<void> {

@@ -5,19 +5,14 @@
  */
 import { Scroll, Text, View } from "nsh";
 
-import { dialogueLabel, sessionAddress } from "../../components/shell/navAddresses";
+import { dialogueLabels, sessionAddress } from "../../components/shell/navAddresses";
 import { setPanelAddress } from "../../components/shell/state";
 import { Badge, Button, colors, hovered, mono, radius } from "../../components/ui";
 import { sessionLabel } from "../bots/sessions";
 import { ready, registry } from "../bots/state";
 import { createAndOpenSession } from "./navigate";
 import { rosterForDialogue } from "./session/roster";
-import {
-  creatingSession,
-  hasPendingApproval,
-  sessionError,
-  sessionList,
-} from "./session/runtime";
+import { creatingSession, hasPendingApproval, sessionError, sessionList } from "./session/runtime";
 
 export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
   const dialogue = () => registry().dialogues.find((item) => item.id === props.dialogueId) ?? null;
@@ -33,6 +28,17 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
     });
   const canCreate = () =>
     !!dialogue() && !dialogue()?.archived && bot()?.status === "ready" && !creatingSession();
+
+  /** The name this Dialogue reads by among its siblings (two can share a workspace). */
+  const label = () => {
+    const current = dialogue();
+    if (!current) return "";
+    const names = dialogueLabels({
+      dialogues: registry().dialogues.filter((item) => !item.archived),
+      botName: (id) => registry().bots.find((item) => item.id === id)?.name ?? "",
+    });
+    return names.get(current.id)?.full ?? "";
+  };
 
   const openSession = (sessionId: string, label: string) => {
     setPanelAddress(
@@ -65,7 +71,7 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
             <View style={{ gap: 6 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", color: colors.text }}>
-                  {dialogueLabel(bot()?.name ?? "", current().workspacePath)}
+                  {label()}
                 </Text>
                 <If when={current().archived}>
                   <Badge label="已归档" tone="warn" />

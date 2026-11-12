@@ -8,7 +8,7 @@ import {
   emptyRegistry,
   initializeBot,
 } from "./model";
-import { listProductSessions, sessionLabel } from "./sessions";
+import { listProductSessions, sessionLabel, titleFromPrompt } from "./sessions";
 
 function readyBot() {
   let registry = initializeBot(
@@ -51,4 +51,11 @@ test("a session label uses the claim title, then a transient summary", () => {
   expect(sessionLabel({ title: "修复登录" }, "忽略")).toBe("修复登录");
   expect(sessionLabel({ title: null }, "  第一句话  ")).toBe("第一句话");
   expect(sessionLabel({ title: null }, null)).toBe("未命名上下文");
+});
+
+test("an unnamed Session takes its title from the first prompt's first sentence", () => {
+  expect(titleFromPrompt("Fix the login form. Then run the tests.")).toBe("Fix the login form");
+  expect(titleFromPrompt("  many   spaces\nand lines ")).toBe("many spaces and lines");
+  expect(titleFromPrompt("")).toBe("");
+  expect(titleFromPrompt("x".repeat(80)).length).toBe(40);
 });

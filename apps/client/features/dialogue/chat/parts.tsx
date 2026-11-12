@@ -1,13 +1,15 @@
+/**
+ * The small pieces a transcript row is made of: the spinner, the streaming
+ * caret, a reply's action buttons, a day separator, a file chip, a photo,
+ * the error row and the bot's avatar.
+ */
 import { Image, type JSX, Text, View } from "nsh";
 
 import { Icon } from "../../../components/ui";
 import {
   alpha,
-  Badge,
   colors,
   finish,
-  isDark,
-  mono,
   Press,
   radius,
   type Tone,
@@ -15,7 +17,7 @@ import {
   toneTint,
 } from "../../../components/ui";
 import { Glyph, type GlyphName } from "./glyphs";
-import type { FileRef, Source, Tool, ToolState } from "./scripts";
+import type { FileRef } from "./scripts";
 
 /** A ring that spins natively (the built-in `spin` keyframes). */
 export function Spinner(props: { size?: number; tint?: string }) {
@@ -110,12 +112,12 @@ export function DateSeparator(props: { label: string }) {
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 4,
+        paddingVertical: 10,
       }}
     >
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
-      <Text style={{ fontSize: 12, fontWeight: "500", color: colors.faint }}>{props.label}</Text>
+      <Text style={{ fontSize: 11, fontWeight: "500", color: colors.faint }}>{props.label}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
     </View>
   );
@@ -129,9 +131,9 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
-        height: 48,
-        paddingStart: 10,
-        paddingEnd: props.onRemove ? 4 : 14,
+        height: 44,
+        paddingStart: 8,
+        paddingEnd: props.onRemove ? 2 : 12,
         borderRadius: radius.control,
         borderCurve: "continuous",
         backgroundColor: colors.raised,
@@ -142,36 +144,34 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
     >
       <View
         style={{
-          width: 30,
-          height: 30,
+          width: 28,
+          height: 28,
           borderRadius: 8,
-          backgroundColor: tintFor("danger"),
+          backgroundColor: toneTint("danger"),
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <Glyph name="file" size={16} tint={colors.danger} />
+        <Glyph name="file" size={15} tint={colors.danger} />
       </View>
       <View style={{ gap: 1 }}>
-        <Text style={{ numberOfLines: 1, maxWidth: 170, fontSize: 14, color: colors.text }}>
+        <Text style={{ numberOfLines: 1, maxWidth: 170, fontSize: 13, color: colors.text }}>
           {props.file.name}
         </Text>
-        <Text style={{ fontSize: 12, color: colors.muted, fontVariant: ["tabular-nums"] }}>
+        <Text style={{ fontSize: 11, color: colors.muted, fontVariant: ["tabular-nums"] }}>
           {(props.file.name.split(".").pop() ?? "file").toUpperCase()} · {props.file.size}
         </Text>
       </View>
       <If when={props.onRemove}>
         <Press onPress={props.onRemove} accessibilityLabel="Remove file" scale={0.85}>
-          <View style={{ width: 40, height: 44, alignItems: "center", justifyContent: "center" }}>
-            <Glyph name="close" size={14} tint={colors.muted} />
+          <View style={{ width: 36, height: 40, alignItems: "center", justifyContent: "center" }}>
+            <Glyph name="close" size={13} tint={colors.muted} />
           </View>
         </Press>
       </If>
     </View>
   );
 }
-
-const tintFor = (tone: Tone) => toneTint(tone);
 
 /** An attached image, rounded. */
 export function Photo(props: {
@@ -199,288 +199,6 @@ export function Photo(props: {
   );
 }
 
-const stateLabel: Record<ToolState, string> = {
-  pending: "Queued",
-  running: "Running",
-  done: "Done",
-  cancelled: "Stopped",
-};
-const stateTone: Record<ToolState, Tone> = {
-  pending: "neutral",
-  running: "info",
-  done: "up",
-  cancelled: "warn",
-};
-
-function truncate(value: string, max = 80): string {
-  const one = value.replace(/\s+/g, " ").trim();
-  return one.length > max ? `${one.slice(0, max - 1)}…` : one;
-}
-
-const monoBody = (): {
-  userSelect: "text";
-  fontFamily: string;
-  fontSize: number;
-  lineHeight: number;
-  color: string;
-} => ({
-  userSelect: "text",
-  fontFamily: mono,
-  fontSize: 12,
-  lineHeight: 18,
-  color: isDark() ? "#c9cdd3" : colors.code,
-});
-
-/** A tool call: a header with its state, then its result once done. */
-export function ToolCard(props: { tool: Tool }) {
-  const t = () => props.tool;
-  const head = (): { glyph: GlyphName; title: string; detail: string } => {
-    const tool = t();
-    if (tool.kind === "search") return { glyph: "globe", title: "Web search", detail: tool.query };
-    if (tool.kind === "weather") return { glyph: "sun", title: "Weather", detail: tool.city };
-    if (tool.kind === "generic") {
-      return {
-        glyph: "terminal",
-        title: tool.name,
-        detail: truncate(tool.arguments) || "No arguments",
-      };
-    }
-    return { glyph: "terminal", title: "Run code", detail: `${tool.lang}, sandboxed` };
-  };
-  return (
-    <View
-      style={{
-        backgroundColor: colors.surface,
-        ...finish.card,
-        borderRadius: radius.inset,
-        borderCurve: "continuous",
-        borderWidth: 1,
-        borderColor:
-          t().state === "running"
-            ? isDark()
-              ? "#33405a"
-              : alpha(colors.info, 0.4)
-            : colors.border,
-        transitionProperty: "colors",
-        transitionDuration: 250,
-        overflow: "hidden",
-      }}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12 }}>
-        <View
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 9,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: colors.raised,
-            ...finish.raised,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Glyph name={head().glyph} size={16} tint={colors.text} />
-        </View>
-        <View style={{ flex: 1, gap: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-            {head().title}
-          </Text>
-          <Text style={{ numberOfLines: 1, fontSize: 13, color: colors.muted }}>
-            {head().detail}
-          </Text>
-        </View>
-        <If
-          when={t().state === "running" || t().state === "pending"}
-          else={<Badge label={stateLabel[t().state]} tone={stateTone[t().state]} />}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Spinner tint={t().state === "pending" ? colors.faint : colors.info} />
-            <Text style={{ fontSize: 13, color: colors.muted }}>{stateLabel[t().state]}</Text>
-          </View>
-        </If>
-      </View>
-      <ToolBody tool={t()} />
-    </View>
-  );
-}
-
-function ToolBody(props: { tool: Tool }) {
-  // The kind never changes for a card; its state and data do.
-  const kind = props.tool.kind;
-  const search = () => props.tool as Extract<Tool, { kind: "search" }>;
-  const weather = () => props.tool as Extract<Tool, { kind: "weather" }>;
-  const code = () => props.tool as Extract<Tool, { kind: "code" }>;
-  const generic = () => props.tool as Extract<Tool, { kind: "generic" }>;
-  if (kind === "search")
-    return (
-      <If when={search().state === "done"}>
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.line, paddingVertical: 4 }}>
-          <Each of={search().sources}>
-            {(source, i) => <SourceRow source={source()} index={i()} />}
-          </Each>
-        </View>
-      </If>
-    );
-  if (kind === "weather")
-    return (
-      <If when={weather().state === "done"}>
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.line, padding: 12, gap: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 12 }}>
-            <Text
-              style={{
-                fontSize: 40,
-                fontWeight: "600",
-                color: colors.text,
-                fontVariant: ["tabular-nums"],
-                letterSpacing: -1,
-              }}
-            >
-              {weather().temp}°
-            </Text>
-            <View style={{ flex: 1, paddingBottom: 7, gap: 2 }}>
-              <Text style={{ fontSize: 15, color: colors.text }}>{weather().condition}</Text>
-              <Text style={{ fontSize: 13, color: colors.muted, fontVariant: ["tabular-nums"] }}>
-                H {weather().high}° L {weather().low}°
-              </Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6, height: 44 }}>
-            <Each of={weather().hours}>
-              {(temp, i) => (
-                <View style={{ flex: 1, alignItems: "center", gap: 4 }}>
-                  <View
-                    style={{
-                      width: "100%",
-                      height: 6 + (temp() - weather().low) * 3,
-                      borderRadius: 3,
-                      backgroundColor: i() === 0 ? colors.warn : colors.raised,
-                    }}
-                  />
-                  <Text
-                    style={{ fontSize: 11, color: colors.faint, fontVariant: ["tabular-nums"] }}
-                  >
-                    {(17 + i()) % 24}h
-                  </Text>
-                </View>
-              )}
-            </Each>
-          </View>
-        </View>
-      </If>
-    );
-  if (kind === "generic")
-    return (
-      <View style={{ borderTopWidth: 1, borderTopColor: colors.line }}>
-        <If when={!!generic().arguments}>
-          <View style={{ padding: 12, backgroundColor: colors.inset }}>
-            <Text style={monoBody()}>{generic().arguments}</Text>
-          </View>
-        </If>
-        <If when={generic().state === "done" || generic().state === "cancelled"}>
-          <View
-            style={{
-              gap: 6,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              borderTopWidth: 1,
-              borderTopColor: colors.line,
-            }}
-          >
-            <Text style={{ fontSize: 13, color: colors.muted }}>
-              {generic().isError ? "Error" : "Output"}
-            </Text>
-            <Text
-              style={{
-                userSelect: "text",
-                fontFamily: mono,
-                fontSize: 14,
-                lineHeight: 20,
-                color: generic().isError ? colors.danger : colors.up,
-              }}
-            >
-              {generic().result?.trim() || (generic().isError ? "Tool failed." : "(empty)")}
-            </Text>
-          </View>
-        </If>
-      </View>
-    );
-  return (
-    <View style={{ borderTopWidth: 1, borderTopColor: colors.line }}>
-      <View style={{ padding: 12, backgroundColor: colors.inset }}>
-        <Text style={monoBody()}>{code().code}</Text>
-      </View>
-      <If when={code().state === "done"}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            paddingHorizontal: 12,
-            height: 44,
-            borderTopWidth: 1,
-            borderTopColor: colors.line,
-          }}
-        >
-          <Text style={{ fontSize: 13, color: colors.muted }}>Output</Text>
-          <Text
-            style={{
-              userSelect: "text",
-              flex: 1,
-              fontFamily: mono,
-              fontSize: 14,
-              color: colors.up,
-            }}
-          >
-            {code().output}
-          </Text>
-          <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
-            exit 0 · {code().ms} ms
-          </Text>
-        </View>
-      </If>
-    </View>
-  );
-}
-
-function SourceRow(props: { source: Source; index: number }) {
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        height: 48,
-        paddingHorizontal: 12,
-      }}
-    >
-      <View
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: 6,
-          backgroundColor: toneTint(props.source.tone),
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ fontSize: 12, fontWeight: "700", color: toneColor(props.source.tone) }}>
-          {props.source.site[0].toUpperCase()}
-        </Text>
-      </View>
-      <View style={{ flex: 1, gap: 1 }}>
-        <Text style={{ numberOfLines: 1, fontSize: 14, color: colors.text }}>
-          {props.source.title}
-        </Text>
-        <Text style={{ fontSize: 12, color: colors.faint }}>{props.source.site}</Text>
-      </View>
-      <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
-        {props.index + 1}
-      </Text>
-    </View>
-  );
-}
-
 /** The reply's error: what went wrong and a Retry button. */
 export function ErrorRow(props: { message: string; onRetry: () => void }) {
   return (
@@ -488,8 +206,8 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
       style={{
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
-        padding: 12,
+        gap: 10,
+        padding: 10,
         borderRadius: radius.inset,
         borderCurve: "continuous",
         backgroundColor: toneTint("danger"),
@@ -497,14 +215,16 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
         borderColor: alpha(colors.danger, 0.32),
       }}
     >
-      <Glyph name="alert" size={18} tint={colors.danger} />
-      <Text style={{ flex: 1, fontSize: 14, color: colors.text }}>{props.message}</Text>
+      <Glyph name="alert" size={16} tint={colors.danger} />
+      <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: colors.text }}>
+        {props.message}
+      </Text>
       <Press onPress={props.onRetry} accessibilityLabel="Retry">
         <View
           style={{
-            height: 36,
-            paddingHorizontal: 14,
-            borderRadius: 18,
+            height: 30,
+            paddingHorizontal: 12,
+            borderRadius: 15,
             flexDirection: "row",
             alignItems: "center",
             gap: 6,
@@ -512,22 +232,22 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
             ...finish.light,
           }}
         >
-          <Glyph name="regenerate" size={14} tint={colors.onLight} />
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.onLight }}>Retry</Text>
+          <Glyph name="regenerate" size={13} tint={colors.onLight} />
+          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.onLight }}>Retry</Text>
         </View>
       </Press>
     </View>
   );
 }
 
-/** The assistant's avatar: a small tile with the spark. */
+/** The bot's avatar: a small tile with the spark. */
 export function Avatar() {
   return (
     <View
       style={{
-        width: 26,
-        height: 26,
-        borderRadius: 8,
+        width: 22,
+        height: 22,
+        borderRadius: 7,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: colors.raised,
@@ -536,7 +256,7 @@ export function Avatar() {
         borderColor: colors.border,
       }}
     >
-      <Icon name="spark" size={14} tint={colors.accent} />
+      <Icon name="spark" size={12} tint={colors.accent} />
     </View>
   );
 }

@@ -40,6 +40,13 @@ export type SessionTransport = {
     onFrame: (frame: SessionFollowFrame) => void,
     onError?: (error: Error) => void,
   ): () => void;
+  /** One page of durable history before `beforeSeq` (`session.events`). */
+  sessionPage(request: {
+    sessionId: string;
+    beforeSeq: number;
+  }): Promise<{ records: unknown[]; hasMore: boolean }>;
+  /** Prompts still waiting in the live Agent's inbox (`session.state`). */
+  sessionQueue(sessionId: string): Promise<QueuedItem[]>;
   prompt(request: {
     sessionId: string;
     requestId: string;
@@ -49,11 +56,28 @@ export type SessionTransport = {
   cancel(sessionId: string): Promise<void>;
   /** Withdraw a still-pending queued prompt (`session.updateQueue` remove). */
   withdrawQueuedPrompt(sessionId: string, itemId: string): Promise<void>;
+  /** The Session's own title, in dsh (`session.rename`). */
+  renameSession(sessionId: string, title: string): Promise<void>;
+  /** Stage a file's bytes; a prompt then names its receipt. */
+  uploadFile(request: {
+    sessionId: string;
+    data: string;
+    name?: string;
+  }): Promise<{ receiptId: string }>;
   modelCatalog(): Promise<FlatModelCatalog>;
   selectModel(request: { sessionId: string; provider: string; model: string }): Promise<void>;
   selectAgentPreset(sessionId: string, agentPreset: string): Promise<string>;
   approvals(handler: (request: ApprovalRequest) => Promise<ApprovalDecision>): void;
   dispose(): Promise<void>;
+};
+
+/** One prompt waiting in a live Agent's inbox. */
+export type QueuedItem = {
+  /** The item's message id, what `session.updateQueue` takes. */
+  id: string;
+  /** The `requestId` the Client minted when it sent the prompt, when dsh kept it. */
+  requestId?: string;
+  text: string;
 };
 
 export type ClaimHooks = {

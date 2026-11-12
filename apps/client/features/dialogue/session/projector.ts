@@ -9,6 +9,8 @@ import type { Msg, Status, Tool } from "../chat/scripts";
 type Event = {
   seq: number;
   type: string;
+  /** When dsh recorded it (epoch ms). */
+  time?: number;
   data: Record<string, unknown>;
   surfaceOp?: unknown;
 };
@@ -165,6 +167,8 @@ export type ProjectedChat = {
   liveMd: string;
   liveReason: string;
   liveTools: Tool[];
+  /** The opening window was not the whole log: older pages can be read. */
+  olderHasMore: boolean;
 };
 
 /** Disposable view of Harness history projected to Dialogue messages. */
@@ -178,6 +182,31 @@ export class SessionProjector {
   private attempt: string | undefined;
   running = false;
   status = "";
+  /** The snapshot cut off older events (`hasMore` on its opening frame). */
+  hasMore = false;
+
+  /** The oldest durable seq held, for a page that reads what came before it. */
+  firstSeq(): number | null {
+    let first: number | null = null;
+    for (const event of this.events) {
+      if (first === null || event.seq < first) first = event.seq;
+    }
+    return first;
+  }
+
+  /**
+   * Older history, read with `session.events` before `firstSeq()`. Adding
+   * events above the window never moves the ones the list already shows.
+   */
+  prepend(records: readonly unknown[], hasMore: boolean): ProjectedChat {
+    for (const record of records) {
+      const entry = object(record);
+      this.event(entry.event ?? entry);
+    }
+    this.events.sort((left, right) => left.seq - right.seq);
+    this.hasMore = hasMore;
+    return this.snapshot();
+  }
 
   receive(value: SessionFollowFrame): ProjectedChat {
     const frame = object(value);
@@ -187,6 +216,7 @@ export class SessionProjector {
       this.events = [];
       this.running = false;
       this.status = "";
+      this.hasMore = frame.hasMore === true;
       this.toolResults.clear();
       this.resetLive();
       for (const record of Array.isArray(frame.records) ? frame.records : []) {
@@ -251,6 +281,7 @@ export class SessionProjector {
         messages.push({
           kind: "user",
           id: `u${event.seq}`,
+          ...(typeof event.time === "number" ? { at: event.time } : {}),
           text: textBlocks(event.data.content),
         });
       }
@@ -262,6 +293,7 @@ export class SessionProjector {
         messages.push({
           kind: "assistant",
           id: `a${event.seq}`,
+          ...(typeof event.time === "number" ? { at: event.time } : {}),
           model: "Deep",
           script: "dsh",
           reasoning: parsed.reasoning
@@ -290,6 +322,7 @@ export class SessionProjector {
       liveMd: this.live,
       liveReason: this.liveReasonText,
       liveTools,
+      olderHasMore: this.hasMore,
     };
   }
 
@@ -305,6 +338,7 @@ export class SessionProjector {
     const event: Event = {
       seq: e.seq,
       type: e.type,
+      time: typeof e.time === "number" ? e.time : undefined,
       data: object(e.data),
       surfaceOp: e.surfaceOp,
     };

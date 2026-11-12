@@ -62,6 +62,10 @@ function fakeTransport(): SessionTransport & {
     prompts,
     createSession: async () => ({ sessionId: "new-session" }),
     listSessions: async () => [],
+    sessionPage: async () => ({ records: [], hasMore: false }),
+    sessionQueue: async () => [],
+    renameSession: async () => undefined,
+    uploadFile: async () => ({ receiptId: "receipt" }),
     follow: (sessionId, onFrame) => {
       const stream: Stream = { closed: false, onFrame };
       streams.set(sessionId, [...(streams.get(sessionId) ?? []), stream]);
@@ -299,4 +303,92 @@ test("connection loss marks the error, and reconnect re-follows a shown Session"
   expect(controller.error()).toBe(null);
   expect(transport.closed("s1")).toBe(1);
   expect((transport.streams.get("s1") ?? []).length).toBe(2);
+});
+
+test("the draft and its files stay with the Session while Panels come and go", () => {
+  const { controllers } = setup();
+  const controller = controllers.controllerFor("s1");
+  controller.mount();
+  controller.setDraft("half a thought");
+  controller.attachFile(new Blob([new Uint8Array(2048)], { type: "image/png" }));
+  const [attachment] = controller.draftAttachments();
+  expect(attachment.mediaType).toBe("image/png");
+  expect(attachment.size).toBe("2 KB");
+
+  // A Panel leaves and comes back: the controller keeps what was typed.
+  controller.unmount();
+  expect(controllers.controllerFor("s1").draft()).toBe("half a thought");
+  expect(controllers.controllerFor("s1").draftAttachments().length).toBe(1);
+
+  controllers.controllerFor("s1").detachFile(attachment.id);
+  expect(controllers.controllerFor("s1").draftAttachments().length).toBe(0);
+  controllers.controllerFor("s1").clearDraft();
+  expect(controllers.controllerFor("s1").draft()).toBe("");
+});
+
+test("a prompt sent while the turn runs queues in dsh, and can be withdrawn", async () => {
+  const { transport, controllers } = setup();
+  const controller = controllers.controllerFor("s1");
+  controller.mount();
+  await settled();
+  transport.push("s1", snapshot());
+  transport.push("s1", turnStart(1));
+  expect(controller.running()).toBe(true);
+
+  const items: { id: string; requestId?: string; text: string }[] = [];
+  transport.sessionQueue = async () => items;
+  transport.prompt = async (request) => {
+    items.push({ id: "item-1", requestId: request.requestId, text: request.text ?? "" });
+  };
+  await controller.queuePrompt("and one more");
+  expect(controller.queued().map((item) => item.text)).toEqual(["and one more"]);
+
+  await controller.refreshQueue();
+  expect(controller.queued()[0]).toMatchObject({ itemId: "item-1", text: "and one more" });
+
+  const withdrawn: string[] = [];
+  transport.withdrawQueuedPrompt = async (_sessionId, itemId) => {
+    withdrawn.push(itemId);
+  };
+  const requestId = controller.queued()[0].requestId;
+  items.length = 0;
+  await controller.withdrawQueued(requestId);
+  expect(withdrawn).toEqual(["item-1"]);
+  expect(controller.queued().length).toBe(0);
+});
+
+test("older history is read from the page before the follow window", async () => {
+  const { transport, controllers } = setup();
+  const controller = controllers.controllerFor("s1");
+  controller.mount();
+  await settled();
+  transport.push(
+    "s1",
+    frame({
+      type: "snapshot",
+      hasMore: true,
+      records: [
+        { type: "event", event: { seq: 10, type: "user/message", data: { content: "newer" } } },
+      ],
+    }),
+  );
+  expect(controller.view().olderHasMore).toBe(true);
+
+  const asked: number[] = [];
+  transport.sessionPage = async (request) => {
+    asked.push(request.beforeSeq);
+    return {
+      records: [
+        { type: "event", event: { seq: 3, type: "user/message", data: { content: "older" } } },
+      ],
+      hasMore: false,
+    };
+  };
+  await controller.loadOlder();
+  expect(asked).toEqual([10]);
+  expect(
+    controller.view().messages.map((message) => message.kind === "user" && message.text),
+  ).toEqual(["older", "newer"]);
+  expect(controller.view().olderHasMore).toBe(false);
+  expect(controller.olderLoading()).toBe(false);
 });

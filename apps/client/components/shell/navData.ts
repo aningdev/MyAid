@@ -15,9 +15,9 @@ import { PARKED_NAV, parkedActionForId } from "./fixtures";
 import {
   botAddress,
   dialogueAddress,
+  dialogueLabels,
   newBotAddress,
   sessionAddress,
-  workspaceSegment,
 } from "./navAddresses";
 import type { NavAction, NavAddress } from "./types";
 
@@ -40,11 +40,7 @@ export type NavStatus = {
 
 const EMPTY_STATUS: NavStatus = { working: false, unread: false, attention: false };
 
-function mergeStatus(
-  into: Map<string, NavStatus>,
-  itemId: string,
-  status: NavStatus,
-): void {
+function mergeStatus(into: Map<string, NavStatus>, itemId: string, status: NavStatus): void {
   if (!status.working && !status.unread && !status.attention) return;
   const current = into.get(itemId) ?? EMPTY_STATUS;
   into.set(itemId, {
@@ -110,6 +106,8 @@ export function projectNav(input: NavInput): NavProjection {
   // Dialogues keep the registry's order (it has no timestamp to sort by);
   // a Dialogue's sessions keep the claims' order (new sessions last).
   const active = input.registry.dialogues.filter((dialogue) => !dialogue.archived);
+  // Two Dialogues on one workspace read apart ("myaid", "myaid · 2").
+  const dialogueNames = dialogueLabels({ dialogues: active, botName });
 
   /** An empty Bots section still offers the way in: the new-Bot draft. */
   const newBotLeaf = (): TreeItem => {
@@ -127,12 +125,14 @@ export function projectNav(input: NavInput): NavProjection {
           const children = active
             .filter((dialogue) => dialogue.botId === bot.id)
             .map((dialogue) => {
-              const label = workspaceSegment(dialogue.workspacePath);
+              const names = dialogueNames.get(dialogue.id);
+              const label = names?.segment ?? "";
               const dialogueAddr = dialogueAddress({
                 id: dialogue.id,
                 workspacePath: dialogue.workspacePath,
                 botId: bot.id,
                 botName: bot.name,
+                ...(names ? { label: names.full } : {}),
               });
               addressAction(`bots:${bot.id}/${dialogue.id}`, dialogueAddr);
               return {
@@ -153,19 +153,19 @@ export function projectNav(input: NavInput): NavProjection {
     "Dialogues",
     active.map((dialogue) => {
       const name = botName(dialogue.botId);
+      const names = dialogueNames.get(dialogue.id);
       const address = dialogueAddress({
         id: dialogue.id,
         workspacePath: dialogue.workspacePath,
         botId: dialogue.botId,
         botName: name,
+        ...(names ? { label: names.full } : {}),
       });
       addressAction(`dialogues:${dialogue.id}`, address);
       return {
         id: `dialogues:${dialogue.id}`,
         label: address.title,
-        children: sessionLeaves(`dialogues:${dialogue.id}`, dialogue, [
-          `dialogues:${dialogue.id}`,
-        ]),
+        children: sessionLeaves(`dialogues:${dialogue.id}`, dialogue, [`dialogues:${dialogue.id}`]),
       };
     }),
   );

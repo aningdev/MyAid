@@ -21,6 +21,8 @@ export type TurnView = {
   liveReason: string;
   liveTools: Tool[];
   liveId: string | null;
+  /** The follow window does not reach the first event: older pages can be read. */
+  olderHasMore: boolean;
   /** When set, the pane should commit the live bubble then call acknowledgeFreeze(). */
   pendingFreeze: FreezeOutcome | null;
 };
@@ -53,6 +55,16 @@ export class TurnProjection {
     this.local = { id: assistantId, turned: false, cancelled: false };
     this.liveAssistantId = assistantId;
     this.pendingFreeze = null;
+  }
+
+  /** The oldest durable seq held: what a page before asks for. */
+  firstSeq(): number | null {
+    return this.projector.firstSeq();
+  }
+
+  /** Older history from `session.events` lands above what the list shows. */
+  prepend(records: readonly unknown[], hasMore: boolean): TurnView {
+    return this.afterSnap(this.projector.prepend(records, hasMore));
   }
 
   receive(frame: SessionFollowFrame): TurnView {
@@ -128,6 +140,7 @@ export class TurnProjection {
       liveReason: snap.liveReason,
       liveTools: snap.liveTools,
       liveId: this.local?.id ?? (snap.running && busy ? this.liveAssistantId : null),
+      olderHasMore: snap.olderHasMore,
       pendingFreeze: this.pendingFreeze,
     };
   }

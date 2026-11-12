@@ -106,8 +106,8 @@ _Avoid_：HostControl、把 Relay 启停塞进 HostControl
 **TurnProjection**：Client 内将 Harness Session follow 帧与本地 prompt 生命周期投影为 Dialogue UI 消息 / live 气泡 / freeze 策略的 module；每个 **SessionController** 持有一个。  
 _Avoid_：ChatPane 内二次解析帧、独立 SessionProjector 对外接口
 
-**SessionController**：按 Session 的运行时 module：持有该 Session 的 follow 订阅、**TurnProjection**、草稿、审批、运行 / 错误状态，提供 prompt / cancel / withdraw；由 registry 按 sessionId 惰性创建，无 Panel 且未运行（也无待审批）时释放，运行中的留在后台把回复跑完。  
-_Avoid_：全局单例 runtime、ChatPane 自持帧解析、把 controller 当产品对象
+**SessionController**：按 Session 的运行时 module：持有该 Session 的 follow 订阅、**TurnProjection**、草稿与附件、排队中的 prompt、审批、运行 / 错误状态，提供 prompt / queue / cancel / withdraw / loadOlder；由 registry 按 sessionId 惰性创建，无 Panel 且未运行、无待审批、草稿已清空时释放，运行中的留在后台把回复跑完。  
+_Avoid_：全局单例 runtime、ChatPane 自持帧解析、把 controller 当产品对象、把草稿或附件放回 Panel（切 Panel 会丢）
 
 **ClaimedSession**：认领 Session 的客户端 module：一条共享连接（connect / 重连）、create + claim、dispose；产品路径不创建未认领 Session。follow / prompt / approval 属 **SessionController**。（实现名；认领目标应对齐 Dialogue——见映射图。）  
 _Avoid_：`myaid-primary`、未认领的固定 Session、把连接复制到每个 controller
