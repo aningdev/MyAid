@@ -18,10 +18,10 @@ test("the Background Services panel shows both registered units", async () => {
   });
   if (!(await graphical(app))) return;
 
-  await app.keyboard.press("mod+8");
-  await app.waitFor("role:treeitem[Background Services]");
-  await app.press("role:treeitem[Background Services]");
-  await app.waitFor("id:settings-background");
+  // Settings covers the Panes; the Background Services panel is what it holds.
+  await app.press("label:Settings");
+  await app.waitFor("id:settings-overlay", { timeout: 30000 });
+  await app.waitFor("id:settings-background", { timeout: 30000 });
   await app.press("label:Enable");
   await app.waitUntil(() => app.texts().filter((text) => text === "Registered").length === 2);
 
