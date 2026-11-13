@@ -5,6 +5,12 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 1. `GET http://127.0.0.1:<port>/connect?token=…&interactions=answer` → `302` + `Set-Cookie`（`redirect: "manual"`，token 不落盘）。
 2. 官方 dsh 客户端的所有调用带该 Cookie：Remote 一元调用是 `POST /api/<endpoint>`，事件流是 `ws://127.0.0.1:<port>/api/remote.mux`。
 
+## Cookie 只走我们自己那条
+
+平台的 cookie jar 绝不能让 dsh 看见。NSH 的 `fetch` 默认带系统 jar，而 dsh 每次 `/connect` 都新发一枚 `dsh-auth-<random>`；jar 会把这些全量回放——一次实测的 `/connect` 带了 **57 枚旧 cookie（16 KB）**，dsh 直接回 `431 Request Header Fields Too Large`。在本机原生栈上 `credentials: "omit"` **不足以**关掉它，**显式 `Cookie` 头**才可以（空串也有效）。
+
+因此 `lib/dsh/auth.ts` 的 `dshRequestInit()` 是所有 dsh HTTP 调用的唯一入口：它设 `credentials: "omit"`，并始终设置 `Cookie`（`/connect` 时是空串，之后是 dsh 发的那枚）。`lib/dsh/auth.test.ts` 钉住这两点；WS 握手本来就带显式 `Cookie`，同样压住 jar。
+
 ## 传输
 
 | 层   | 路径                                                                          | 做什么                                                          |
@@ -30,7 +36,7 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 
 ## 已知限制：mux 心跳与阻塞的读取
 
-长回复期间 mux 仍可能被 dsh 判死并重连一次。实测（本机 `dsh` 0.2.2-rc.1 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
+长回复期间 mux 仍可能被 dsh 判死并重连一次。实测（本机 `dsh` 0.2.2-rc.2 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
 
 | 一侧            | 行为                                                                                                            | 出处                                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |

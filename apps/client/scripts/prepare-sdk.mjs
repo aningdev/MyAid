@@ -3,12 +3,14 @@
  * conditions. NSH defaults to `browser`, which resolves ModuleLoader builds that
  * do not export ESM `installConnection`.
  *
- * Two official packages also ship a *browser ModuleLoader* Client model
- * (`lib/client.js`: `window.__ModuleLoader__.load({ id, factory })`). NSH's
- * shipped runtime refuses `new Function` / `eval` — "nsh runs no code from
- * strings" — so a loader shim cannot evaluate them at runtime. The factory body
- * is kept verbatim here and only the loader shell becomes static ESM: the same
- * official code runs, resolved by Bun instead of by a browser registry.
+ * The Session / Workspace / file-upload Client models also ship as browser
+ * ModuleLoader *sources* (`lib/client.js`: one `window.__ModuleLoader__.load({
+ * id, factory })` call). NSH's shipped runtime refuses `new Function` / `eval`
+ * — "nsh runs no code from strings" — so that call cannot be made at runtime.
+ * Here the call is made at build time instead: the published source is copied
+ * in verbatim behind a tiny registry, so the official factory runs unmodified
+ * and only its exports leave the module. No pattern is parsed out of the
+ * bundle, so a formatter change in the published output cannot break it.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -20,7 +22,7 @@ const entry = join(client, "lib/dsh/sdk.ts");
 const outdir = join(client, "lib/dsh");
 const generated = join(outdir, "generated");
 
-/** The `require` ids every official Client model bundle asks for. */
+/** The `require` ids the official Client model bundles ask for. */
 const SHARED_REQUIRES = [
   "@deepseek-ai/cordis",
   "@deepseek-ai/dsh-api-gateway/client",
@@ -34,37 +36,35 @@ const OFFICIAL_CLIENTS = [
   { slug: "file-upload-client", pkg: "@deepseek-ai/dsh-client-file-upload" },
 ];
 
-/** The loader shell written by tsdown's client bundle. */
-const OPENING = "window.__ModuleLoader__.load({";
-const FACTORY = "factory: (require) => {";
-const FOOTER = "\n\t}\n});\n";
+/** The one global the published Client model source touches. */
+const LOADER = "__ModuleLoader__";
 
 /**
- * Read one published `lib/client.js` and keep only its factory body.
+ * Read one published `lib/client.js`.
  * @param pkg - published package name.
- * @returns the factory body and the package version it came from.
+ * @returns its source and the package version it came from.
  */
-function officialFactory(pkg) {
+function officialClient(pkg) {
   const root = join(client, "../../node_modules", pkg);
   const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   const source = readFileSync(join(root, "lib/client.js"), "utf8");
-  const start = source.indexOf(FACTORY);
-  const end = source.lastIndexOf(FOOTER);
-  if (!source.startsWith(OPENING) || start < 0 || end < 0) {
-    throw new Error(`${pkg}/lib/client.js is not a __ModuleLoader__ bundle; update prepare-sdk`);
+  if (!source.includes(`window.${LOADER}.load(`)) {
+    throw new Error(
+      `${pkg}/lib/client.js no longer loads through window.${LOADER}: ` +
+        "it may be plain ESM now — import it directly and delete its prepare-sdk entry",
+    );
   }
-  const bodyStart = source.indexOf("\n", start) + 1;
-  return { version, body: source.slice(bodyStart, end) };
+  return { version, source };
 }
 
 /**
- * Emit an ESM module that runs one official factory against the shared
- * requires. The declarations next to it re-export the package's own types.
+ * Emit an ESM module that evaluates one published Client model behind the
+ * loader shim. The declarations next to it re-export the package's own types.
  * @param slug - generated file stem.
  * @param pkg - published package name.
  */
 function writeOfficialClient({ slug, pkg }) {
-  const { version, body } = officialFactory(pkg);
+  const { version, source } = officialClient(pkg);
   const imports = SHARED_REQUIRES.map((id, index) => `import * as shared${index} from "${id}";`);
   const table = SHARED_REQUIRES.map((id, index) => `  "${id}": shared${index},`).join("\n");
   writeFileSync(
@@ -89,12 +89,24 @@ function require(id) {
   return found;
 }
 
-/** The published factory, body verbatim. */
-const factory = (require) => {
-${body}};
+/** The one export the published factory produced. */
+let officialClient;
+const ${LOADER} = {
+  /**
+   * Run one published factory, as the browser registry would.
+   * @param entry - the module descriptor the bundle registers.
+   */
+  load(entry) {
+    if (officialClient !== undefined) throw new Error(\`${pkg}: loaded twice\`);
+    officialClient = entry.factory(require);
+  },
+};
+const window = { ${LOADER} };
 
-/** The official Client model's exports. */
-const officialClient = factory(require);
+// ---- ${pkg}/lib/client.js, verbatim ----
+${source}
+// ---- end of the published source ----
+
 export default officialClient;
 `,
   );
