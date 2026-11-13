@@ -131,14 +131,16 @@ test("two Panes stream at once, a queued prompt is withdrawn, an approval round-
   await app.waitFor("label:Stop generating >> nth=1", { timeout: 60000 });
   expect(app.count("text:Working…")).toBe(2);
   expect(app.count("label:Stop generating")).toBe(2);
+  // Each Pane is streaming its own prompt: both are on screen right now (the
+  // transcript follows the newest row; a long settled reply scrolls the prompt
+  // out of the rendered window, so this is the moment that proves it).
+  expect(app.texts().some((text) => text.includes("PANEL-C"))).toBe(true);
+  expect(app.texts().some((text) => text.includes("PANEL-D"))).toBe(true);
   await shoot(app, "02-two-working.png", SHOTS_SESSION);
   await settled(app, 600000);
-  await app.waitUntil(
-    () =>
-      app.texts().some((text) => text.includes("PANEL-C")) &&
-      app.texts().some((text) => text.includes("PANEL-D")),
-    { timeout: 120000 },
-  );
+  // Both transcripts stayed whole: neither Pane fell back to its empty state.
+  expect(app.shows("text:Message D2 Beta")).toBe(false);
+  expect(app.shows("text:Message D2 Alpha")).toBe(false);
   await shoot(app, "03-both-settled.png", SHOTS_SESSION);
 
   // A prompt sent while a turn still runs is queued in dsh, and withdrawn by
