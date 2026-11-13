@@ -64,16 +64,17 @@ export function HostFooter() {
             backgroundColor: up() ? colors.up : failed() ? colors.danger : colors.faint,
           }}
         />
-        <Text
-          style={{
-            flex: 1,
-            fontSize: 11,
-            color: colors.muted,
-            numberOfLines: 2,
-          }}
-        >
-          {label()}
-        </Text>
+        <View testID="host-status" style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              color: colors.muted,
+              numberOfLines: 2,
+            }}
+          >
+            {label()}
+          </Text>
+        </View>
         <If when={!up()}>
           <Button
             label="Retry"

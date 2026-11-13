@@ -35,8 +35,10 @@ test("navigator shows sections with default-expanded contents", async () => {
   // Bots is expanded by default and empty, so it offers the way in; Mail is collapsed.
   expect(texts.some((t) => t === "New Bot")).toBe(true);
   expect(texts.some((t) => t === "Personal")).toBe(false);
-  // The Host's reachability is a fact of the shell, always shown.
-  expect(texts.some((t) => t === "Host disconnected")).toBe(true);
+  // The Host's reachability is a fact of the shell, always shown. A test app never runs the
+  // launcher (`test/host-control.test.tsx`), so the neutral line is what it shows — never
+  // "Starting Host…" and never a launcher failure.
+  expect(app.shows("id:host-status >> text:Host disconnected")).toBe(true);
 });
 
 test("a single press on a leaf opens its address in the active panel", async () => {

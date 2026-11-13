@@ -10,7 +10,8 @@ import {
  * The Host reports only its own unit's fact; the Relay's phase in that snapshot stays
  * `notRegistered`, and `lib/background` merges the two.
  */
-import { hostBaseUrl, hostPort, hostToken } from "./client";
+import { hostControlAllowed } from "../data-root";
+import { hostBaseUrl, hostPort, hostToken, NO_CONTROL_IN_TEST } from "./client";
 
 export type HostRegistrationOp = "registrationQuery" | "registrationEnable" | "registrationStop";
 
@@ -25,20 +26,34 @@ const ROUTES: Record<HostRegistrationOp, { path: string; method: string }> = {
   registrationStop: { path: "/registration/stop", method: "POST" },
 };
 
+/** A test app's fact: nothing was asked, so nothing is registered. */
+function testSnapshot(): string {
+  return JSON.stringify({
+    version: 1,
+    host: { unit: "host", phase: "notRegistered", reason: NO_CONTROL_IN_TEST },
+    relay: { unit: "relay", phase: "notRegistered" },
+    availability: "off",
+  });
+}
+
 /** The HTTP transport the product uses; `call` answers the response body as text. */
 export function createHostRegistrationTransport(
   options: {
     port?: () => number;
     token?: () => Promise<string | null>;
     fetch?: typeof fetch;
+    /** Whether this app may reach the control plane at all; a test replaces it. */
+    allow?: () => boolean;
   } = {},
 ): HostRegistrationTransport {
   const port = options.port ?? hostPort;
   const token = options.token ?? (() => hostToken());
   const request = options.fetch ?? fetch;
+  const allow = options.allow ?? hostControlAllowed;
 
   return {
     reachable: async () => {
+      if (!allow()) return false;
       try {
         const response = await request(`${hostBaseUrl(port())}/`, { method: "GET" });
         return response.ok;
@@ -48,6 +63,11 @@ export function createHostRegistrationTransport(
     },
 
     call: async (op) => {
+      if (!allow()) {
+        // Querying is a fact ("nothing asked"), while a verb the user starts is refused.
+        if (op === "registrationQuery") return testSnapshot();
+        throw new Error(NO_CONTROL_IN_TEST);
+      }
       const route = ROUTES[op];
       const headers: Record<string, string> = {};
       const bearer = await token();

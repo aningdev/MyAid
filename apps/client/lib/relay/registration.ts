@@ -14,6 +14,7 @@ import {
   type RegistrationSnapshot,
   type UnitRegistration,
 } from "../background/protocol";
+import { hostControlAllowed } from "../data-root";
 import { hostDataRoot } from "../host/launcher";
 
 /** The Relay's control port when nothing names one (`MYAID_RELAY_PORT`). */
@@ -62,15 +63,19 @@ export function createRelayRegistrationTransport(
     port?: () => number;
     token?: () => Promise<string | null>;
     fetch?: typeof fetch;
+    /** Whether this app may reach the control plane at all; a test replaces it. */
+    allow?: () => boolean;
   } = {},
 ): RelayRegistrationTransport {
   const port = options.port ?? relayPort;
   const token = options.token ?? (() => relayToken());
   const request = options.fetch ?? fetch;
+  const allow = options.allow ?? hostControlAllowed;
   const url = (path: string) => `http://127.0.0.1:${port()}${path}`;
 
   return {
     reachable: async () => {
+      if (!allow()) return false;
       try {
         const response = await request(url("/v1/health"), { method: "GET" });
         return response.ok;
@@ -80,6 +85,7 @@ export function createRelayRegistrationTransport(
     },
 
     call: async (op) => {
+      if (!allow()) throw new Error("测试应用不连接本机控制面");
       const route = ROUTES[op];
       const headers: Record<string, string> = {};
       const bearer = await token();

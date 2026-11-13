@@ -11,11 +11,14 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
 
-import { dataRootPath } from "../data-root";
+import { dataRootPath, hostControlAllowed } from "../data-root";
 import { decodeBackendInfo, decodeHostStatus, type HostStatus } from "./protocol";
 
 /** The control port when nothing names one (`MYAID_HOST_PORT`, which the Host honours too). */
 export const DEFAULT_HOST_PORT = 4872;
+
+/** What a test app's transport says instead of reaching the person's machine. */
+export const NO_CONTROL_IN_TEST = "测试应用不连接本机控制面";
 
 export type EnsureSource = "attach" | "userStart";
 
@@ -53,6 +56,8 @@ export type HostSeams = {
   socket(url: string): HostSocket;
   /** How long a liveness probe waits before it calls the Host absent. */
   probeTimeoutMs: number;
+  /** Whether this app may reach the control plane at all (`lib/data-root.ts`); a test replaces it. */
+  allow(): boolean;
 };
 
 /** The control port in force: `MYAID_HOST_PORT`, else this build's default. */
@@ -133,6 +138,7 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
     fetch,
     socket: (url) => new WebSocket(url) as unknown as HostSocket,
     probeTimeoutMs: 1500,
+    allow: hostControlAllowed,
     ...overrides,
   };
 
@@ -160,9 +166,15 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
     decodeHostStatus(await (await call(path, { method: "POST", body })).text());
 
   return {
-    reachable: () => probeHost(seams.port(), seams.fetch, seams.probeTimeoutMs),
+    // A test app never probes: the real Host may be listening on this port, with the real data
+    // root, and a test has no business reading it (`lib/data-root.ts`).
+    reachable: () =>
+      seams.allow()
+        ? probeHost(seams.port(), seams.fetch, seams.probeTimeoutMs)
+        : Promise.resolve(false),
 
     call: async (op) => {
+      if (!seams.allow()) throw new Error(NO_CONTROL_IN_TEST);
       switch (op.op) {
         case "status":
           return get("/status", decodeHostStatus);
@@ -178,6 +190,10 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
     },
 
     watch: async (onStatus, onDown) => {
+      if (!seams.allow()) {
+        onDown(NO_CONTROL_IN_TEST);
+        return () => {};
+      }
       const token = await seams.token();
       if (!token) {
         onDown("宿主未运行（缺少访问令牌）");

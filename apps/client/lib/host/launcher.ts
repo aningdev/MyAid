@@ -11,7 +11,7 @@ import { join } from "path";
 
 import { signal } from "nsh";
 
-import { dataRootPath } from "../data-root";
+import { dataRootPath, hostControlAllowed } from "../data-root";
 import { hostPort, probeHost } from "./client";
 
 /** The command the empty state tells the user to run by hand. */
@@ -199,6 +199,10 @@ export function createHostLauncher(overrides: Partial<LauncherSeams> = {}): Host
 
   async function ensureRunning(): Promise<LauncherStatus> {
     if (stopped) return status;
+    // A test app starts nothing: the real port may be the person's own Host, and `myaid-host`
+    // may be on PATH. It keeps the idle status, so the footer says the neutral "Host
+    // disconnected" rather than a failure it never looked for (`lib/data-root.ts`).
+    if (!hostControlAllowed()) return status;
     if (timer) {
       clearTimeout(timer);
       timer = null;
