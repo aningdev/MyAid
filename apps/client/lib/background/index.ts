@@ -2,8 +2,8 @@ import { hostRegistrationAccess } from "../host/registration";
 import { relayRegistrationAccess } from "../relay/registration";
 import { setBackgroundOrchestration } from "./orchestration";
 
-/** Wire product Background orchestration to native HostControl + RelayControl. */
-export function wireNativeBackgroundOrchestration(): void {
+/** Wire product Background orchestration to the Host's and the Relay's local APIs. */
+export function wireBackgroundOrchestration(): void {
   setBackgroundOrchestration({
     host: { side: "host", ...hostRegistrationAccess },
     relay: { side: "relay", ...relayRegistrationAccess },
@@ -45,4 +45,4 @@ export {
   type ProductBackgroundState,
 } from "./state";
 
-wireNativeBackgroundOrchestration();
+wireBackgroundOrchestration();

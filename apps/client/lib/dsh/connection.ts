@@ -317,6 +317,20 @@ type Installed = {
  * One Client generation: the Connection, the mounted Remote namespaces, and
  * the official Client models installed on the same Context.
  */
+/** How long a Connection's fiber may take to dispose before it is left to itself. */
+const DISPOSE_TIMEOUT_MS = 3_000;
+
+/** Settle with `work`, or after `ms` without it: a teardown that hangs is not a teardown. */
+function within(work: Promise<void>, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    void work.finally(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
 export class Connection {
   private epoch = 0;
   private connecting?: AbortController;
@@ -793,6 +807,13 @@ export class Connection {
     const ctx = this.ctx;
     this.ctx = undefined;
     this.ready = false;
-    if (ctx) await ctx.fiber.dispose().catch(() => undefined);
+    // A Connection whose Host is gone has streams and sockets that retry without ever closing;
+    // their fiber must not hold the next Connection hostage. The disposal is bounded, and one
+    // that outlives it is left to its own retries.
+    if (ctx)
+      await within(
+        ctx.fiber.dispose().catch(() => undefined),
+        DISPOSE_TIMEOUT_MS,
+      );
   }
 }

@@ -1,20 +1,22 @@
 # Relay 约束
 
-补充[根约束](../../AGENTS.md)。修改多端转发、设备连接路由或投递队列时适用。读 [ARCHITECTURE](../../docs/ARCHITECTURE.md) §7 与 [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md)（Bridge / Relay 边界）。
+补充[根约束](../../AGENTS.md)。修改常驻 Relay、本机控制面或服务登记时适用。读 [ARCHITECTURE](../../docs/ARCHITECTURE.md) §7、[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md) 与 [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md)（Bridge / Relay 边界）。
 
 ## 职责
 
-- 只做端到端**密文帧**转发与有界投递队列；不解密业务载荷。
+- 只做端到端**密文帧**转发；不解密业务载荷。
 - 不持 owner 凭据；不替代执行侧输入队列或 dsh Session。
 - 设备授权与官方协议转发属 Host 内 Bridge；Relay 不另建授权策略。
+- 本轮只落结构与常驻机制：身份密钥、配对、密文转发随后续移动端一并做（ADR 0007），不先造半套协议。
 
 ## 模块
 
-- `main.rs` 只装配与进程入口；公开类型与转发逻辑放 `lib.rs`（及后续子模块）。
-- `RelayControl` 提供本机就绪与 **Relay 单元** OS 登记查询/启用/停止（共享契约动词）；走 `background_registration` 薄适配（macOS `SMAppService`；开发态 `serve` 显式 Relay 不触发 OS 登记）。与 Host 存活解耦，不经过 HostControl。
-- 入口集中公开 Interface；连接表、队列与路由实现保持私有。
+- `main.rs` 只装配与分派（`serve-app` / `serve` / `service`）；`config.rs` 只做路径、端口与日志配置。
+- `routes.rs` 是本机控制面（照 lorca）：`/`、`/v1/health` 免 token，`/registration*` 要数据根 `relay/serve-token` 的 Bearer，`Origin` / 非本端口 `Host` 403。
+- `run.rs` 绑定、写 token、优雅停止；`service.rs` 用 `crates/myaid-service` 登记本单元（与 Host 同样的 plist / 单元 / Run 键，只换名字）。
+- 与 Host 存活解耦，不经过 Host 的控制面。
 
 ## 验证
 
-- 改动用 `cargo check -p myaid-relay` / `cargo test -p myaid-relay`。
-- 涉及多端路径时，与 Host Bridge 契约对照验收；不单测「明文业务语义」。
+- 改动用 `cargo check -p myaid-relay` / `cargo test -p myaid-relay`（含未认证拒绝与健康检查）。
+- 注册 / 注销只以真机为准；测试只快照计划。

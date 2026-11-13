@@ -23,13 +23,16 @@
 
 ## 3. Host 模块边界
 
-| Module         | 公开入口               | 原则                                                                |
-| -------------- | ---------------------- | ------------------------------------------------------------------- |
-| `dsh_process`  | `Lifecycle`            | 独占 spawn / ready / 监控 / 失败预算 / 回收；内部锁与 guardian 私有 |
-| `host_control` | 控制 socket + 共享协议 | 只调用 `Lifecycle`；不复制生命周期策略                              |
-| `bridge`       | 多端阶段               | 官方协议转发 + 设备授权；Relay 只转发密文                           |
+| Module        | 公开入口              | 原则                                                                |
+| ------------- | --------------------- | ------------------------------------------------------------------- |
+| `dsh_process` | `Lifecycle`           | 独占 spawn / ready / 监控 / 失败预算 / 回收；内部锁与 guardian 私有 |
+| `local_api`   | 回环 HTTP/WS + Bearer | 只调用 `Lifecycle` 与 `service`；不复制生命周期策略                 |
+| `service`     | 本单元 OS 登记        | 计划是纯函数，测试快照不安装                                        |
+| `bridge`      | 多端阶段              | 官方协议转发 + 设备授权；Relay 只转发密文                           |
 
-生命周期相位：`stopped → preparing → starting → ready`（另有 `recovering`；失败 → `failed`；停止 → `stopping → stopped`；与 `protocol.rs` 一致）。每次新子进程新 `generation`。公开 `status` **不得**携带认证 token；`connectionInfo` 与公开状态分离。
+生命周期相位：`stopped → preparing → starting → ready`（另有 `recovering`；失败 → `failed`；停止 → `stopping → stopped`；与 `local_api/status.rs` 一致）。每次新子进程新 `generation`。公开 `status` **不得**携带认证 token；`GET /connection` 与公开状态分离。
+
+本机控制面形状照 lorca：`127.0.0.1` 上的 HTTP + 一个 WebSocket，数据根的 `serve-token` 作 Bearer，`Origin` / 非本端口 `Host` 一律 403（[ADR 0007](adr/0007-native-layer-after-lorca.md)）。
 
 ## 4. Cordis / 插件
 
@@ -42,13 +45,13 @@
 
 ## 5. 客户端与原生适配
 
-- `apps/client` 采用 NSH **mixed** 布局：`App.tsx` + 根 crate（`nsh.json` `"rust": "."`）。
-- TSX 负责产品流程；`src/` 仅补足 NSH 标准 API 的已核实缺口。
-- 认证 WebSocket 用标准 `websocket` 模块（显式 `Cookie` 头）；`nsh.json` 只授予回环 dsh 端点；见 [DSH_CLIENT_AUTH.md](DSH_CLIENT_AUTH.md)。
+- `apps/client` 是纯 TSX（`nsh.json` 无 `"rust"`）：产品流程、控制面客户端与启动器都在 TS 里（[ADR 0007](adr/0007-native-layer-after-lorca.md)）。
+- 控制面用标准 `fetch` / `WebSocket` + `serve-token`；认证 WebSocket 用标准 `websocket` 模块（显式 `Cookie` 头）；`nsh.json` 只授予回环控制面与 dsh 端点，进程只授 `myaid-host`；见 [DSH_CLIENT_AUTH.md](DSH_CLIENT_AUTH.md)。
+- Host 由 App 启动（`lib/host/launcher`），OS 常驻由单元的 `service` 登记负责。
 
 ## 6. 异步、协议与持久化
 
-- 跨进程输入在接收端校验；共享 Host 协议集中定义（`apps/host/src/host_control/protocol.rs`）。
+- 跨进程输入在接收端校验；共享 Host 状态形状集中定义（`apps/host/src/local_api/status.rs`，Client 镜像在 `apps/client/lib/host/protocol.ts`）。
 - 连接换代 / 切换对象后，旧回调不得回写当前状态；结果未知先核对，不盲目重发。
 - 注册表等关键写入串行；区分不存在、损坏与 I/O 失败。
 

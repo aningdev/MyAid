@@ -2,9 +2,9 @@
 
 English | [中文](README.zh.md)
 
-NSH **mixed** desktop/mobile client: TSX entry (`App.tsx`) plus a Rust crate in this directory (`Cargo.toml`, `src/lib.rs`; `nsh.json` `"rust": "."`). It owns the Workspace Shell, the Bot registry and the official dsh protocol client. Architecture and DSH boundaries: [ARCHITECTURE](../../docs/ARCHITECTURE.md), [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md). Coding guardrails: [AGENTS.md](AGENTS.md).
+NSH desktop/mobile client in plain TSX: the entry is `App.tsx`, and there is no Rust crate here ([ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)). It owns the Workspace Shell, the Bot registry, the official dsh protocol client and the loopback control clients. Architecture and DSH boundaries: [ARCHITECTURE](../../docs/ARCHITECTURE.md), [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md). Coding guardrails: [AGENTS.md](AGENTS.md).
 
-Bundle id: `com.aningdev.myaid` (see `nsh.json`). Layout matches `nsh init --template mixed` ([project structure](https://nsh.dev/docs/project-structure.md)).
+Bundle id: `com.aningdev.myaid` (see `nsh.json`). The tree keeps its `nsh init` shape ([project structure](https://nsh.dev/docs/project-structure.md)).
 
 ```text
 apps/client/
@@ -15,8 +15,7 @@ apps/client/
 ├── features/                   # bots, dialogue, inspector, settings
 ├── lib/                        # dsh, host, relay, background
 ├── screens/                    # open(…) entries, screenshots, opt-in real-Host smokes
-├── nsh.json                    # "rust": "."
-├── Cargo.toml / src/           # myaid/native — HostControl / RelayControl
+├── nsh.json                    # plain TSX: no "rust" key
 └── assets/
 ```
 
@@ -84,11 +83,14 @@ vp run @myaid/client#package:web
 - Bot Settings cannot save Skills / Plugins changes: no Remote writes an Agent preset body. See the gaps table in [ARCHITECTURE §4](../../docs/ARCHITECTURE.md).
 - The dsh mux can drop a peer that misses two heartbeats while the client is blocked; the Session controller re-follows (3 tries, backoff). Details in [DSH_CLIENT_AUTH](../../docs/DSH_CLIENT_AUTH.md).
 
-## Host socket (local desktop only)
+## Native layer: the Host this app starts (desktop only)
 
-Prefer repo-root `bun run dev`: ensure Host, then start this package's `dev`.  
-`MYAID_HOST_SOCKET` is injected by root `scripts/dev.mjs` and this package's `dev` / `dev:macos` (via `scripts/run-with-host-socket.mjs`); Unix default `~/.myaid/host/control.sock`, Windows `\\.\pipe\myaid-host`.  
-`dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` do **not** inject — mobile goes through Relay, not the local Host control channel.
+There is no Rust in this app ([ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)). The Host is loopback HTTP + one WebSocket on `127.0.0.1:4872` (`MYAID_HOST_PORT`), authenticated by `<data root>/host/serve-token`; the Relay has its own at `127.0.0.1:8787` with `relay/serve-token`.
+
+- `lib/host/launcher.ts` starts the Host when none answers (`myaid-host serve-app`), reuses one that does, and starts it again after an exit (1 s doubling to 15 s). It needs `myaid-host` on `PATH`; `cargo build -p myaid-host` puts it in `target/debug`, and `scripts/run-with-host-path.mjs` puts that folder first for `dev` / `dev:macos`. Prefer repo-root `bun run dev`, which builds the Host first.
+- `lib/host/client.ts` is the transport (`fetch` + standard `WebSocket`); `lib/host/control.ts` is the product surface (`ensureBackendReady`, `resolveDshLoginUrl`, `watchHostStatus`).
+- The sidebar footer is the Host empty state when the launcher cannot run one: its reason plus the manual `myaid-host serve-app`.
+- `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` start no Host — mobile goes through the Relay, not the local Host.
 
 ## Related
 

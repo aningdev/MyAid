@@ -4,6 +4,8 @@ status: accepted
 
 # 双 Background Service，薄 OS 适配
 
+> 本机机制（控制面形状、OS 登记方式、Client 原生适配）由 [ADR 0007](0007-native-layer-after-lorca.md) 取代：两个单元仍各自独立存活与登记，控制面改为回环 HTTP + `serve-token`，登记改为单元自己写 launchd / systemd / Windows 计划。下面的产品结论（半启用、对等、不互相代管）不变。
+
 产品后台是 Client 上的单一能力，编排 **Host** 与 **Relay** 两个对等的 Background Service（各自独立进程与存活，向 OS 自登记）。跨平台保持统一产品契约与本机控制面形状（HostControl ∥ RelayControl）；OS 差异只落在 IPC、进程树、环境与服务登记等薄适配层。开发态可显式拉起而不登记；成品态必须登记。登记与控制面可先于 Relay 密文转发实现。
 
 ## 考虑过的做法

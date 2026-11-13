@@ -1,20 +1,21 @@
-//! Host lifecycle and local control. No Harness business calls or session state.
-//! Modules: `dsh_process`, `host_control`, `bridge`.
+//! Host lifecycle and its local control API. No Harness business calls or session state.
+//! Modules: `dsh_process` (the dsh lifecycle), `local_api` (the loopback HTTP/websocket API),
+//! `service` (this unit's OS registration), `bridge` (multi-device, later).
 
 pub mod bridge;
-mod background_registration;
 mod config;
 pub mod dsh_process;
-pub mod host_control;
+pub mod local_api;
 mod runtime;
+pub mod service;
 
-pub use background_registration::HostRegistration;
-pub use config::{CliSource, Config, STARTUP_TIMEOUT};
+pub use config::{CliSource, Config, DEFAULT_PORT, STARTUP_TIMEOUT};
 pub type Result<T> = std::result::Result<T, String>;
-pub use host_control::{
-    MAX_FRAME, PROTOCOL, Request, Status, call, call_json, decode_response, default_endpoint,
-    read_frame,
+pub use local_api::{
+    PHASES, Status, assert_connection_info, assert_public_status, parse_ready_url,
 };
-pub use myaid_background_service as background_service;
-pub use host_control::transport::LocalStream;
 pub use runtime::{generation, now, private_dir, private_file};
+pub use service::{Registration, UNIT as SERVICE_UNIT};
+
+/// The control API generation, so a launcher and a Host can agree on the shape they speak.
+pub const PROTOCOL: u32 = 2;

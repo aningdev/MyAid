@@ -5,7 +5,7 @@ use super::{
     logs,
     state::{Durable, ProcessState},
 };
-use crate::{Config, Result, Status, generation, host_control::parse_ready_url, now};
+use crate::{Config, Result, Status, generation, now, parse_ready_url};
 use std::{
     sync::{
         Arc, Mutex,
@@ -320,7 +320,8 @@ mod tests {
             version: "test-version".into(),
             startup_timeout: Duration::from_millis(400),
             patches: Vec::new(),
-            explicit_dev_host: true,
+            port: crate::DEFAULT_PORT,
+            ready_stdout: false,
         };
         config.prepare().unwrap();
         let process = DshProcess::with_launcher(config, launcher).unwrap();

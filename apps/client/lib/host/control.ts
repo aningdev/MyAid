@@ -1,95 +1,21 @@
 /**
- * Product HostControl module: typed ops, decoded HostStatus, watch-based ensureReady.
- * Native HostControl is a thin adapter behind `HostTransport`.
+ * Product HostControl: typed ops over the Host's loopback HTTP API, a decoded HostStatus, and
+ * watch-based ensureReady. The transport is `lib/host/client.ts`; a test injects a fake.
  */
-import { decodeBackendInfo, decodeHostStatus, type HostStatus, type HostView } from "./protocol";
+import { createHostTransport, type EnsureSource, type HostOp, type HostTransport } from "./client";
+import { decodeHostStatus, type HostStatus, type HostView } from "./protocol";
 
-export type { HostStatus, HostView };
+export type { EnsureSource, HostOp, HostStatus, HostTransport, HostView };
 
-export type EnsureSource = "attach" | "userStart";
+/** The message every "no Host" path carries, with the command that starts one by hand. */
+export const HOST_NOT_RUNNING =
+  "宿主未运行：请运行 bun run dev（会自动起 Host），或单独 cargo run -p myaid-host -- serve-app";
 
-export type HostOp =
-  | { op: "status" }
-  | { op: "ensureDsh"; source: EnsureSource }
-  | { op: "stopDsh" }
-  | { op: "restartDsh" }
-  | { op: "connectionInfo" };
+let transport: HostTransport = createHostTransport();
 
-/** Seam for the native HostControl adapter (or a test fake). */
-export type HostTransport = {
-  reachable(): Promise<boolean>;
-  call(op: HostOp): Promise<HostStatus>;
-  watch(
-    onStatus: (status: HostStatus) => void,
-    onDown: (reason: string) => void,
-  ): Promise<() => void>;
-};
-
-type NativeHostControl = typeof import("myaid/native").HostControl;
-
-let nativeModule: Promise<NativeHostControl> | undefined;
-
-/** Load the native adapter only when a call needs it; unit tests stay native-free. */
-function nativeControl(): Promise<NativeHostControl> {
-  return (nativeModule ??= import("myaid/native").then((module) => module.HostControl));
-}
-
-async function nativeCall(op: HostOp): Promise<string> {
-  const host = await nativeControl();
-  switch (op.op) {
-    case "status":
-      return host.request("status", "");
-    case "ensureDsh":
-      return host.request("ensureDsh", op.source);
-    case "stopDsh":
-      return host.request("stopDsh", "");
-    case "restartDsh":
-      return host.request("restartDsh", "");
-    case "connectionInfo":
-      return host.request("connectionInfo", "");
-  }
-}
-
-const nativeTransport: HostTransport = {
-  reachable: async () => (await nativeControl()).reachable(),
-  call: async (op) => {
-    const raw = await nativeCall(op);
-    return op.op === "connectionInfo" ? decodeBackendInfo(raw) : decodeHostStatus(raw);
-  },
-  watch: async (onStatus, onDown) => {
-    const host = await nativeControl();
-    if (!(await host.reachable())) {
-      onDown("宿主未运行");
-      return () => {};
-    }
-    const watch = await host.watch();
-    let closed = false;
-    void (async () => {
-      try {
-        while (!closed) {
-          const status = decodeHostStatus(await watch.read());
-          if (!closed) onStatus(status);
-        }
-      } catch (error) {
-        if (!closed) {
-          onDown(`后台宿主连接不可用：${error instanceof Error ? error.message : String(error)}`);
-        }
-      } finally {
-        watch.close();
-      }
-    })();
-    return () => {
-      closed = true;
-      watch.close();
-    };
-  },
-};
-
-let transport: HostTransport = nativeTransport;
-
-/** Tests inject a fake HostTransport; production uses native. */
+/** Tests inject a fake HostTransport; production talks to the Host's HTTP API. */
 export function setHostTransport(next: HostTransport | null): void {
-  transport = next ?? nativeTransport;
+  transport = next ?? createHostTransport();
 }
 
 export const hostAccess = {
@@ -115,9 +41,7 @@ export const hostAccess = {
  */
 export async function ensureBackendReady(timeoutMs = 60_000): Promise<HostStatus> {
   if (!(await hostAccess.reachable())) {
-    throw new Error(
-      "宿主未运行：请用仓库根目录 bun run dev（会自动起 Host），或单独 cargo run -p myaid-host -- serve-app",
-    );
+    throw new Error(HOST_NOT_RUNNING);
   }
 
   let status = await hostAccess.status();
@@ -188,7 +112,12 @@ export async function resolveDshLoginUrl(): Promise<string> {
       if (info.url) return info.url;
       throw new Error("宿主未返回登录地址");
     } catch (error) {
-      if (error instanceof Error && /宿主未|后台启动|等待后台/.test(error.message)) throw error;
+      if (
+        error instanceof Error &&
+        (/宿主未|后台启动|等待后台/.test(error.message) || error.message === HOST_NOT_RUNNING)
+      ) {
+        throw error;
+      }
       throw new Error(
         `无法向宿主索取登录地址：${error instanceof Error ? error.message : String(error)}`,
       );
@@ -202,14 +131,12 @@ export async function resolveDshLoginUrl(): Promise<string> {
       ? process.env.MYAID_DSH_LOGIN_URL.trim()
       : "";
   if (fromEnv) return fromEnv;
-  throw new Error(
-    "宿主未运行：请用仓库根目录 bun run dev（会自动起 Host），或单独 cargo run -p myaid-host -- serve-app",
-  );
+  throw new Error(HOST_NOT_RUNNING);
 }
 
 /**
  * Subscribe to public Host status.
- * On socket loss, calls `onDown` — does not forge a Host phase.
+ * On connection loss, calls `onDown` — does not forge a Host phase.
  */
 export async function watchHostStatus(
   listener: (status: HostStatus) => void,
@@ -217,3 +144,6 @@ export async function watchHostStatus(
 ): Promise<() => void> {
   return transport.watch(listener, (reason) => onDown?.(reason));
 }
+
+/** Exported for the tests that decode a Host frame without a transport. */
+export { decodeHostStatus };

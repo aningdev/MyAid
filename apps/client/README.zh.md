@@ -2,9 +2,9 @@
 
 [English](README.md) | 中文
 
-NSH **mixed** 桌面 / 移动客户端：TSX 入口（`App.tsx`）加上本目录 Rust crate（`Cargo.toml`、`src/lib.rs`；`nsh.json` `"rust": "."`）。拥有 Workspace Shell、Bot 注册表与官方 dsh 协议客户端。架构与 DSH 边界：[ARCHITECTURE](../../docs/ARCHITECTURE.md)、[DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md)。编码护栏：[AGENTS.md](AGENTS.md)。
+NSH 桌面 / 移动客户端，纯 TSX：`App.tsx` 入口，没有 Rust crate（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。拥有 Workspace Shell、Bot 注册表、官方 dsh 协议客户端与回环控制面客户端。架构与 DSH 边界：[ARCHITECTURE](../../docs/ARCHITECTURE.md)、[DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md)。编码护栏：[AGENTS.md](AGENTS.md)。
 
-Bundle id：`com.aningdev.myaid`（见 `nsh.json`）。布局对齐 `nsh init --template mixed`（[project structure](https://nsh.dev/docs/project-structure.md)）。
+Bundle id：`com.aningdev.myaid`（见 `nsh.json`）。目录形状沿用 `nsh init`（[project structure](https://nsh.dev/docs/project-structure.md)）。
 
 ```text
 apps/client/
@@ -15,8 +15,7 @@ apps/client/
 ├── features/                   # bots、dialogue、inspector、settings
 ├── lib/                        # dsh、host、relay、background
 ├── screens/                    # open(…) 入口、截图、真 Host 冒烟（opt-in）
-├── nsh.json                    # "rust": "."
-├── Cargo.toml / src/           # myaid/native — HostControl / RelayControl
+├── nsh.json                    # plain TSX: no "rust" key
 └── assets/
 ```
 
@@ -84,11 +83,14 @@ vp run @myaid/client#package:web
 - Bot Settings 保存不了 Skills / Plugins 变更：没有写 Agent preset 正文的 Remote。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md) 的缺口表。
 - 客户端阻塞时 dsh mux 可能因错过两次心跳断开；Session controller 会重跟（3 次、退避）。细节见 [DSH_CLIENT_AUTH](../../docs/DSH_CLIENT_AUTH.md)。
 
-## Host socket（仅本机桌面）
+## 原生层：App 自己启动的 Host（仅本机桌面）
 
-日常联调请从**仓库根** `bun run dev`：先确保 Host，再起本包 `dev`。  
-`MYAID_HOST_SOCKET` 由根 `scripts/dev.mjs` 与本包 `dev` / `dev:macos`（经 `scripts/run-with-host-socket.mjs`）注入；Unix 默认 `~/.myaid/host/control.sock`，Windows 默认 `\\.\pipe\myaid-host`，可覆盖。  
-`dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` **不注入**——移动端经 Relay，不走本机 Host 控制通道。
+本应用没有 Rust（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。Host 是 `127.0.0.1:4872`（`MYAID_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证；Relay 有自己的 `127.0.0.1:8787` 与 `relay/serve-token`。
+
+- `lib/host/launcher.ts`：没有 Host 就起（`myaid-host serve-app`），有就复用，退出后 1 秒起、翻倍到 15 秒重启；要求 `myaid-host` 在 `PATH` 上（`cargo build -p myaid-host` 产出在 `target/debug`，`scripts/run-with-host-path.mjs` 为 `dev` / `dev:macos` 把它放前面）。日常用根目录 `bun run dev`，它先构建 Host。
+- `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`）。
+- 启动器起不来时，侧栏页脚就是 Host 空状态：原因 + 手动的 `myaid-host serve-app`。
+- `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` 不起 Host——移动端经 Relay，不走本机 Host。
 
 ## 相关
 

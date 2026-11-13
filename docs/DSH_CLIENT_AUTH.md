@@ -54,9 +54,9 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 
 ```sh
 # 1) Host（独占 dsh 生命周期；版本钉 apps/host/supported-dsh.json）
-cargo run -p myaid-host -- serve --data-root ~/.myaid --official-dsh
+cargo run -p myaid-host -- serve-app --port 4872
 
-# 2) 客户端（MYAID_HOST_SOCKET 已由 dev 脚本注入）
+# 2) 客户端（没有 Host 时自己拉起；myaid-host 要在 PATH 上）
 vp run @myaid/client#dev
 # Settings ⇢ Background Services → Enable → 一条 Bot 的 Session
 # 无 Host 时仍可用：export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=…'
@@ -65,7 +65,7 @@ vp run @myaid/client#dev
 ## 已落地
 
 - `@deepseek-ai/dsh-*` Connection + Gateway + Session Remote，以及官方 client model `ctx.sessions` / `ctx.workspaces`（见 `lib/dsh/connection.ts`）。
-- HostControl 原生 Unix 适配（`myaid/native` `HostControl`）与 `lib/host/control.ts`。
+- 控制面客户端（`lib/host/client.ts` 的 `fetch` / `WebSocket` + `serve-token`）与启动器（`lib/host/launcher.ts`）：Host 掉了之后由启动器重启、Client 重建 Connection（[ADR 0007](adr/0007-native-layer-after-lorca.md)）。
 - `bun run prepare:sdk`（`scripts/prepare-sdk.mjs`）用 Node 条件打出 `lib/dsh/sdk.js`，并把官方 client model 的 ModuleLoader 工厂展开成静态 ESM（`lib/dsh/generated/`）；`nsh.json` `resolve.conditions: ["node"]` 兜底。勿直接依赖 `client.browser.js`（ModuleLoader 产物，无 ESM `installConnection`），也勿在运行期 eval 这些产物：NSH 发行版禁用 `Function` 构造器。
 
 ## 验证

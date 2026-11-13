@@ -8,11 +8,11 @@
  * "Stop and archive". A second app, opened with the first one's registry,
  * reads the title, pin and archive back from dsh.
  *
- * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch data root, never
- * the user's `~/.myaid` (see screens/README.md):
+ * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host itself
+ * (see screens/README.md):
  *
- *   MYAID_SMOKE_HOST_SOCKET=/tmp/myaid-smoke-host.sock \
- *     MYAID_HOST_SOCKET=/tmp/myaid-smoke-host.sock HOME=<scratch>/home \
+ *   HOME=<scratch>/home MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/dialogue-workspace.smoke.test.tsx --target macos
  */
 import { expect, test } from "nsh/test";

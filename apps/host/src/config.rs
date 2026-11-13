@@ -6,6 +6,9 @@ use std::{path::PathBuf, time::Duration};
 /// Default startup deadline when unset.
 pub const STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// The local control port when nothing names one (`MYAID_HOST_PORT`, `--port`).
+pub const DEFAULT_PORT: u16 = 4872;
+
 const SUPPORTED_DSH: &str = include_str!("../supported-dsh.json");
 
 #[derive(Clone)]
@@ -25,8 +28,11 @@ pub struct Config {
     pub startup_timeout: Duration,
     /// Extra dsh overlay patch files (`dsh --patch …`), in application order.
     pub patches: Vec<PathBuf>,
-    /// Explicit dev Host (`serve` / `serve-app`); skips OS registration side effects.
-    pub explicit_dev_host: bool,
+    /// The local control port on `127.0.0.1`.
+    pub port: u16,
+    /// Announce the bound port on stdout once it listens (`--ready-stdout`), which a launcher
+    /// and a test read instead of guessing.
+    pub ready_stdout: bool,
 }
 
 impl Config {
@@ -34,24 +40,18 @@ impl Config {
         self.root.join("host")
     }
 
-    pub fn socket(&self) -> PathBuf {
-        if let Some(path) = std::env::var_os("MYAID_HOST_SOCKET") {
-            return PathBuf::from(path);
-        }
-        #[cfg(windows)]
-        {
-            let _ = self;
-            PathBuf::from(r"\\.\pipe\myaid-host")
-        }
-        #[cfg(not(windows))]
-        {
-            self.runtime().join("control.sock")
-        }
+    /// The token every local control request carries, in the private runtime directory.
+    pub fn serve_token_path(&self) -> PathBuf {
+        self.runtime().join("serve-token")
     }
 
-    /// Product defaults: `~/.myaid`, official dsh, embedded version pin.
+    /// Product defaults: `~/.myaid` (`MYAID_DATA_ROOT` names another), official dsh, embedded
+    /// version pin.
     pub fn product() -> Result<Self> {
-        let root = home_dir()?.join(".myaid");
+        let root = match std::env::var_os("MYAID_DATA_ROOT") {
+            Some(root) if !root.is_empty() => PathBuf::from(root),
+            _ => home_dir()?.join(".myaid"),
+        };
         let config = Self {
             logs: root.join("logs"),
             root,
@@ -59,9 +59,28 @@ impl Config {
             version: pinned_version()?,
             startup_timeout: STARTUP_TIMEOUT,
             patches: patches_from_env()?,
-            explicit_dev_host: true,
+            port: port_from_env()?,
+            ready_stdout: false,
         };
         config.prepare()?;
+        Ok(config)
+    }
+
+    /// `serve-app`: the product data root and pinned CLI, with only the launch flags a launcher
+    /// passes (`--port`, `--ready-stdout`).
+    pub fn app(args: &[String]) -> Result<Self> {
+        let mut config = Self::product()?;
+        let mut args = args.iter();
+        while let Some(flag) = args.next() {
+            match flag.as_str() {
+                "--ready-stdout" => config.ready_stdout = true,
+                "--port" => {
+                    let value = args.next().ok_or("Missing argument")?;
+                    config.port = value.parse::<u16>().map_err(|_| "Invalid port")?;
+                }
+                other => return Err(format!("Unknown argument: {other}")),
+            }
+        }
         Ok(config)
     }
 
@@ -72,6 +91,8 @@ impl Config {
         let mut version = None;
         let mut startup = STARTUP_TIMEOUT.as_millis() as u64;
         let mut patches = Vec::new();
+        let mut port = port_from_env()?;
+        let mut ready_stdout = false;
         let mut args = args.iter();
         while let Some(key) = args.next() {
             match key.as_str() {
@@ -81,10 +102,14 @@ impl Config {
                     }
                     cli = Some(CliSource::Official);
                 }
+                "--ready-stdout" => ready_stdout = true,
                 key => {
                     let value = args.next().ok_or("Missing argument")?;
                     match key {
                         "--data-root" => root = Some(PathBuf::from(value)),
+                        "--port" => {
+                            port = value.parse::<u16>().map_err(|_| "Invalid port")?;
+                        }
                         "--dsh" => {
                             if cli.is_some() {
                                 return Err("CLI source specified more than once".into());
@@ -127,7 +152,8 @@ impl Config {
             },
             startup_timeout: Duration::from_millis(startup),
             patches,
-            explicit_dev_host: true,
+            port,
+            ready_stdout,
         };
         config.prepare()?;
         Ok(config)
@@ -193,6 +219,16 @@ fn patches_from_env() -> Result<Vec<PathBuf>> {
         patches.push(path);
     }
     Ok(patches)
+}
+
+/// `MYAID_HOST_PORT`, else [`DEFAULT_PORT`].
+fn port_from_env() -> Result<u16> {
+    match std::env::var("MYAID_HOST_PORT") {
+        Ok(text) if !text.trim().is_empty() => {
+            text.trim().parse::<u16>().map_err(|_| "Invalid port".into())
+        }
+        _ => Ok(DEFAULT_PORT),
+    }
 }
 
 fn pinned_version() -> Result<String> {

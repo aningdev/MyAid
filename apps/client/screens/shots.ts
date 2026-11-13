@@ -27,11 +27,23 @@ export const SHOTS_WORKSPACE = `${SCRATCHPAD}/pi-shots-d1`;
 /** Session-model smoke: concurrent Panels, queued prompt, approval, restart, paging. */
 export const SHOTS_SESSION = `${SCRATCHPAD}/pi-shots-d2`;
 
+/** Native-layer smoke: the Host running, its restart and resume, its empty state. */
+export const SHOTS_N1 = `${SCRATCHPAD}/pi-shots-n1`;
+
 export { graphical } from "../test/graphical";
 
-/** Real-Host smokes are opt-in: no default suite may need a live Host. */
+/**
+ * Real-Host smokes are opt-in: no default suite may need a live Host. `MYAID_SMOKE_HOST` runs
+ * them against the Host the app launches itself; `MYAID_SMOKE_HOST_SOCKET` is the older marker
+ * of the smokes that expected an externally started Host.
+ */
 export function hostSmokeRequested(): boolean {
-  return !!process.env.MYAID_SMOKE_HOST_SOCKET;
+  return !!process.env.MYAID_SMOKE_HOST || !!process.env.MYAID_SMOKE_HOST_SOCKET;
+}
+
+/** The launcher smoke's mode: `1` for the running Host, `empty` for a Host that cannot run. */
+export function hostSmokeMode(): string {
+  return process.env.MYAID_SMOKE_HOST ?? "";
 }
 
 export async function shoot(app: App, name: string, dir: string = SHOTS_SHELL): Promise<void> {

@@ -1,11 +1,13 @@
 /**
- * Real-Host smoke: create a Bot through the New Bot sheet on a running Host,
- * send a prompt, and get the reply back. Screenshots the working mark and
- * the reply. Opt in with MYAID_SMOKE_HOST_SOCKET; a headless run stops at
- * the picture probe. Run on macOS with the development Host up:
+ * Real-Host smoke: create a Bot through the New Bot sheet on the Host the app
+ * starts, send a prompt, and get the reply back. Screenshots the working mark
+ * and the reply. A headless run stops at the picture probe.
  *
- *   bun scripts/dev.mjs            # from the repository root, in another shell
- *   MYAID_SMOKE_HOST_SOCKET=$MYAID_HOST_SOCKET \
+ * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host
+ * itself (see screens/README.md):
+ *
+ *   HOME=<scratch>/home MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/new-bot-real-host.smoke.test.tsx --target macos
  */
 import { expect, test } from "nsh/test";

@@ -1,15 +1,19 @@
-//! Validated relay paths and launch configuration.
+//! Validated Relay paths and launch configuration.
 
-use crate::{Result, private_dir, runtime::home_dir};
+use crate::Result;
 use std::path::PathBuf;
+
+/// The local control and forwarding port when nothing names one.
+pub const DEFAULT_PORT: u16 = 8787;
 
 #[derive(Clone)]
 pub struct Config {
     pub root: PathBuf,
     pub version: String,
-    control_socket: Option<PathBuf>,
-    /// Explicit dev Relay (`serve` / `serve-app`); skips OS registration side effects.
-    pub explicit_dev_relay: bool,
+    /// The local port on `127.0.0.1`.
+    pub port: u16,
+    /// Announce the bound port on stdout once it listens (`--ready-stdout`).
+    pub ready_stdout: bool,
 }
 
 impl Config {
@@ -17,70 +21,105 @@ impl Config {
         self.root.join("relay")
     }
 
-    pub fn socket(&self) -> PathBuf {
-        if let Some(path) = &self.control_socket {
-            return path.clone();
-        }
-        if let Some(path) = std::env::var_os("MYAID_RELAY_SOCKET") {
-            return PathBuf::from(path);
-        }
-        #[cfg(windows)]
-        {
-            let _ = self;
-            PathBuf::from(r"\\.\pipe\myaid-relay")
-        }
-        #[cfg(not(windows))]
-        {
-            self.runtime().join("control.sock")
-        }
+    /// The token every local control request carries, in the private runtime directory.
+    pub fn serve_token_path(&self) -> PathBuf {
+        self.runtime().join("serve-token")
     }
 
+    /// `~/.myaid` (`MYAID_DATA_ROOT` names another), with the version this build carries.
     pub fn product() -> Result<Self> {
-        let root = home_dir()?.join(".myaid");
+        let root = match std::env::var_os("MYAID_DATA_ROOT") {
+            Some(root) if !root.is_empty() => PathBuf::from(root),
+            _ => crate::home_dir()?.join(".myaid"),
+        };
         let config = Self {
             root,
             version: env!("CARGO_PKG_VERSION").into(),
-            control_socket: None,
-            explicit_dev_relay: true,
+            port: port_from_env()?,
+            ready_stdout: false,
         };
         config.prepare()?;
+        Ok(config)
+    }
+
+    /// `serve-app`: the product data root, with only the launch flags a launcher passes.
+    pub fn app(args: &[String]) -> Result<Self> {
+        let mut config = Self::product()?;
+        let mut args = args.iter();
+        while let Some(flag) = args.next() {
+            match flag.as_str() {
+                "--ready-stdout" => config.ready_stdout = true,
+                "--port" => {
+                    let value = args.next().ok_or("Missing argument")?;
+                    config.port = value.parse::<u16>().map_err(|_| "Invalid port")?;
+                }
+                other => return Err(format!("Unknown argument: {other}")),
+            }
+        }
         Ok(config)
     }
 
     pub fn from_args(args: &[String]) -> Result<Self> {
         let mut root = None;
         let mut version = None;
-        let mut control_socket = None;
+        let mut port = port_from_env()?;
+        let mut ready_stdout = false;
         let mut args = args.iter();
         while let Some(key) = args.next() {
             match key.as_str() {
-                "--data-root" => {
-                    root = Some(PathBuf::from(args.next().ok_or("Missing data root")?));
+                "--ready-stdout" => ready_stdout = true,
+                other => {
+                    let value = args.next().ok_or("Missing argument")?;
+                    match other {
+                        "--data-root" => root = Some(PathBuf::from(value)),
+                        "--port" => port = value.parse::<u16>().map_err(|_| "Invalid port")?,
+                        "--version" => version = Some(value.clone()),
+                        _ => return Err(format!("Unknown argument: {other}")),
+                    }
                 }
-                "--version" => {
-                    version = Some(args.next().ok_or("Missing version")?.clone());
-                }
-                "--control-socket" => {
-                    control_socket = Some(PathBuf::from(
-                        args.next().ok_or("Missing control socket path")?,
-                    ));
-                }
-                other => return Err(format!("Unknown argument: {other}")),
             }
         }
         let config = Self {
             root: root.ok_or("Missing data root")?,
             version: version.unwrap_or_else(|| env!("CARGO_PKG_VERSION").into()),
-            control_socket,
-            explicit_dev_relay: true,
+            port,
+            ready_stdout,
         };
         config.prepare()?;
         Ok(config)
     }
 
+    /// What `service install` passes on, so the service serves this data root and port.
+    pub fn variables(&self) -> Vec<(&'static str, String)> {
+        let mut vars = Vec::new();
+        if Some(&self.root) != crate::home_dir().ok().map(|home| home.join(".myaid")).as_ref() {
+            vars.push((
+                "MYAID_DATA_ROOT",
+                self.root.to_string_lossy().to_string(),
+            ));
+        }
+        if self.port != DEFAULT_PORT {
+            vars.push(("MYAID_RELAY_PORT", self.port.to_string()));
+        }
+        vars
+    }
+
     fn prepare(&self) -> Result<()> {
-        private_dir(&self.root)?;
-        private_dir(&self.runtime())?;
-        Ok(())
+        if !self.root.is_absolute() {
+            return Err("Data root must be an absolute path".into());
+        }
+        crate::private_dir(&self.root)?;
+        crate::private_dir(&self.runtime())
+    }
+}
+
+/// `MYAID_RELAY_PORT`, else [`DEFAULT_PORT`].
+fn port_from_env() -> Result<u16> {
+    match std::env::var("MYAID_RELAY_PORT") {
+        Ok(text) if !text.trim().is_empty() => text
+            .trim()
+            .parse::<u16>()
+            .map_err(|_| "Invalid port".into()),
+        _ => Ok(DEFAULT_PORT),
     }
 }

@@ -19,6 +19,7 @@ import {
 import {
   connectSession,
   hostConnection,
+  noteHostLost,
   refreshHostStatus,
 } from "../../features/dialogue/session/runtime";
 import { migrateRegistry } from "../../features/workspace/migrate";
@@ -31,6 +32,7 @@ import {
   whenWorkspacesReady,
   workspaces,
 } from "../../features/workspace/state";
+import { ensureHostRunning, hostLauncher, retryHostLauncher } from "../../lib/host/launcher";
 import { applyShellPrefs, legacySessionPins, loadShellPrefs, markPrefsLoaded } from "./prefs";
 
 /** A Host runs only beside the desktop app (the web target has none). */
@@ -56,8 +58,53 @@ export async function connectWhenHosted(): Promise<void> {
   }
 }
 
-/** The footer's retry, and the shell's start once the registry is read. */
+/**
+ * Start the Host this app ships, or find one already answering (`lib/host/launcher`). Web and
+ * other non-desktop runs have none, and a failure is left for the footer to word.
+ */
+export async function startHost(): Promise<void> {
+  if (!hasHost) return;
+  try {
+    await ensureHostRunning();
+  } catch {
+    // The footer reads the launcher's status and offers the manual command.
+  }
+}
+
+/**
+ * Follow the launcher: a Host that exits takes the Client's connection with it, and the Host the
+ * launcher starts again is probed at once. Wired once, by `startShell`.
+ */
+let following: boolean | undefined;
+export function watchHostLauncher(): void {
+  if (!hasHost || following) return;
+  following = true;
+  let last: string | undefined;
+  hostLauncher().onChange((status) => {
+    // Only a change of phase is news: a repeated publish must not start another probe.
+    if (status.phase === last) return;
+    last = status.phase;
+    if (status.phase === "failed") {
+      noteHostLost(
+        status.failure?.kind === "exited"
+          ? "Host 已退出，正在重新启动。"
+          : "Host 未运行，正在等待启动。",
+      );
+      return;
+    }
+    if (status.phase === "running") void retryHost();
+  });
+}
+
+/** The footer's retry: ask the launcher again, then the Host. */
 export async function retryHost(): Promise<void> {
+  if (hasHost) {
+    try {
+      await retryHostLauncher();
+    } catch {
+      // A launch that throws is a launcher status, not a shell error.
+    }
+  }
   await refreshHost();
   await connectWhenHosted();
   // A v4 file becomes v5 as soon as a Host can own its Workspaces.
@@ -68,6 +115,9 @@ export async function startShell(): Promise<void> {
   await loadRegistry();
   // Stored Favorites still name v4 Sessions; the migration moves those pins.
   const prefs = await loadShellPrefs();
+  // Nothing else in the app starts the Host: do it before the first probe.
+  watchHostLauncher();
+  await startHost();
   await retryHost();
   // A Host-less test app reads the baseline a fixture put in its Storage.
   await loadStoredWorkspaces();

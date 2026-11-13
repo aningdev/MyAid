@@ -3,11 +3,11 @@
  * plugin switch in Bot Settings, reads its derived preset through the official
  * `agentPresets.read`, and starts a new Session under it.
  *
- * Opt in with MYAID_SMOKE_HOST_SOCKET; a headless run stops at the picture
- * probe. Run on macOS with the development Host up:
+ * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host itself
+ * (see screens/README.md):
  *
- *   bun scripts/dev.mjs
- *   MYAID_SMOKE_HOST_SOCKET=$MYAID_HOST_SOCKET \
+ *   HOME=<scratch>/home MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/bot-presets-real-host.smoke.test.tsx --target macos
  */
 import { expect, test } from "nsh/test";

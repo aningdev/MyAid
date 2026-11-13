@@ -1,8 +1,9 @@
 /**
- * Settings Panel: the Client side of the two Background Services (ADR 0002).
+ * Settings Panel: the Client side of the two Background Services (ADR 0002, ADR 0007).
  * It shows the Host and Relay registration facts the OS reports and issues
- * the shared verbs — query, enable, stop. OS facts come from HostControl and
- * RelayControl; this page only orchestrates and renders them.
+ * the verbs — query, enable, stop. The facts come over each unit's own
+ * loopback HTTP API (`lib/host/registration`, `lib/relay/registration`); this
+ * page only orchestrates and renders them.
  */
 import { effect, Scroll, Text, View } from "nsh";
 
@@ -97,12 +98,14 @@ export function SettingsPage() {
                 testID="settings-host-phase"
                 unit="Host"
                 phase={state().view?.host.phase}
+                reason={state().view?.host.reason}
                 error={state().view?.enableErrors?.host}
               />
               <UnitPhase
                 testID="settings-relay-phase"
                 unit="Relay"
                 phase={state().view?.relay.phase}
+                reason={state().view?.relay.reason}
                 error={state().view?.enableErrors?.relay}
               />
             </View>
@@ -133,6 +136,8 @@ function UnitPhase(props: {
   testID: string;
   unit: string;
   phase: RegistrationPhase | undefined;
+  /** Why the unit is where it is: not installed, not running, or not there at all. */
+  reason?: string | null;
   error: string | undefined;
 }) {
   return (
@@ -150,6 +155,9 @@ function UnitPhase(props: {
       <View testID={props.testID} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Badge label={phaseLabel(props.phase)} tone={phaseTone(props.phase)} />
       </View>
+      <If when={props.reason}>
+        <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>{props.reason}</Text>
+      </If>
       <If when={props.error}>
         <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>{props.error}</Text>
       </If>

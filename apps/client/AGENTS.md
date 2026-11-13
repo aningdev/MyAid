@@ -10,9 +10,9 @@
 - **类型与运行时**：安装版 `.nsh/types/`；生产代码只用安装版 NSH 模块。
 - **dsh 能力面**：先对照官方 `dsh web` 与只读 `references/deepseek-harness` 的 Remote；NSH 侧只建产品 UI，不移植其 Web GUI / 审批页 / 品牌文案。
 
-## 布局（NSH mixed）
+## 布局（NSH TSX）
 
-- 本目录是官方 mixed 应用：`App.tsx` 入口，`nsh.json` `"rust": "."`，Rust 在同级 `Cargo.toml` / `src/lib.rs`。
+- 本目录是纯 TSX 应用：`App.tsx` 入口，`nsh.json` 无 `"rust"` 键，没有 `Cargo.toml` / `src/`（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。原生层是 `lib/host` / `lib/relay` 里的回环 HTTP / WebSocket 客户端与启动器。
 - `components/` 是壳与样式：壳在 `components/shell/`（UI 与状态同目录），样式层在 `components/ui/`；`features/` 放产品域，由 Panel 按 Nav address 挂；`lib/` 放协议、宿主与产品后台适配。
 - 不另起平行 `frontend/{ui,application,infrastructure}` 树。新增文件先落现有目录；线框不混入产品路径。
 
@@ -47,8 +47,8 @@
 - **`fs` 只授应用自己的数据**：`read` / `write` 都是 `${homeDir}/.myaid`。nsh 0.5 没有「用户选中才可读」的授权，别为附件放宽回 `${homeDir}`。
 - **附件只走系统选择器**：回形针直接拿字节；拖放 / 粘贴只给 `file:` URL，授权外或读不了时由 [`chat/attach.ts`](features/dialogue/chat/attach.ts) 开同一文件的 `Picker`。策略只此一处。
 - 本机控制端点（Unix socket / named pipe）、`SMAppService` 仅在标准 API 缺口核实后添加；升级后复核可否迁回。
-- 修改 `src/lib.rs` 导出后跑 `nsh check` / `vp run @myaid/client#check` 刷新声明。`HostControl` / `RelayControl` 只给宿主与登记事实，不当业务网关。
-- Settings ⇢ Background Services 是 [ADR 0002](../../docs/adr/0002-dual-background-services.md) 的客户端侧：只编排 query / enable / stop，不代 Host / Relay 做决定。
+- 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理与登记事实，不当业务网关。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。
+- Settings ⇢ Background Services 是 [ADR 0002](../../docs/adr/0002-dual-background-services.md) 的客户端侧：只编排 query / enable / stop，不代 Host / Relay 做决定；事实经两个单元自己的回环 HTTP 控制面取（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。
 
 ## 验证
 

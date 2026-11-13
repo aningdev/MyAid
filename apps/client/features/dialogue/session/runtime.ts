@@ -314,6 +314,20 @@ function onGenerationChange(up: boolean): void {
 }
 
 /**
+ * The launcher saw its Host exit (or one it cannot start): the Client stops claiming a
+ * connection and starts asking, so the Host the launcher starts again is taken up.
+ */
+export function noteHostLost(reason: string): void {
+  hostStatus.set(null);
+  hostConnection.set("down");
+  // The dsh client retries its old login URL without ever declaring the generation gone, so the
+  // launcher's report is what tells the Client to rebuild on the Host it starts again. This is
+  // the same path a dropped generation takes: ask the Host, then reconnect.
+  onGenerationChange(false);
+  sessionError.set(reason);
+}
+
+/**
  * A Host that went away may come back on a new port, with a new login URL and
  * a new dsh. Nothing in the official Connection can cross that (it owns one
  * Host generation), so the product asks the Host control socket until it
@@ -349,7 +363,6 @@ function watchForHost(): void {
         ?.dispose()
         .catch(() => undefined);
     }
-    await connectSession().catch(() => undefined);
     if (!sessionReady()) schedule(Math.min(30_000, 1_000 * 2 ** Math.min(attempt, 5)));
   };
   schedule(2_000);

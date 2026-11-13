@@ -3,19 +3,19 @@
  * restarted, and the Client restores the Session window from the new Host
  * generation without duplicating anything.
  *
- * The app cannot signal a process, and this dev host gives a test app no
- * filesystem and no HTTP beyond dsh, so the trigger is outside: start
- * `screens/restart-watcher.mjs`, which reads the scratch Host's session log
- * and kills the Host as soon as a turn is live and still growing, then starts
- * a fresh Host on the same data root. Its own log is the record of the kill.
+ * The app cannot signal a process, so the trigger is outside: start
+ * `screens/host-restart-watch.mjs`, which reads the scratch Host's session log
+ * and stops the Host as soon as a turn is live. The app's launcher starts it
+ * again; the watcher only kills. Its own log is the record of the kill.
  *
- * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch data root, never
- * the user's `~/.myaid` (see screens/README.md):
+ * Opt in with MYAID_SMOKE_HOST; run against a scratch home, never the user's
+ * `~/.myaid` (see screens/README.md):
  *
  *   SC=$PWD/.myaid-smoke
- *   node apps/client/screens/restart-watcher.mjs \
- *     --data-root "$SC/data" --socket "$SC/host.sock" &
- *   MYAID_SMOKE_HOST_SOCKET="$SC/host.sock" HOME="$SC/home" \
+ *   node apps/client/screens/host-restart-watch.mjs \
+ *     --root "$SC/home/.myaid" --port 4879 --after-turns 1 &
+ *   HOME="$SC/home" MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/session-restart.smoke.test.tsx --target macos
  *
  * A headless run stops at the picture probe.
@@ -67,7 +67,7 @@ test("the Host restarted mid-turn restores the window without duplicates", async
   await app.waitFor("label:Stop generating", { timeout: 180000 });
 
   // The kill comes from the outside, as soon as this turn is on the wire:
-  // `screens/restart-watcher.mjs` (see this file's header). The turn can never
+  // `screens/host-restart-watch.mjs` (see this file's header). The turn can never
   // finish, so its closing marker must not appear, and the prompt must be in
   // the window exactly once when a new Host generation restores it.
   await app.waitFor("text:Working…", { state: "gone", timeout: 480000 });

@@ -25,32 +25,42 @@ nsh test screens/settings-background.test.tsx --target macos
 
 ## Real-Host smokes: opt-in, and never the user's registry
 
-`*.smoke.test.tsx` returns unless `MYAID_SMOKE_HOST_SOCKET` is set, so no
-default `nsh test` run needs a live Host. The real-Host smokes create a Bot, a
-Dialogue and a Session as the product does. Point both halves at a scratch
-root instead of `~/.myaid`:
+`*.smoke.test.tsx` returns unless `MYAID_SMOKE_HOST` (or the older
+`MYAID_SMOKE_HOST_SOCKET`) is set, so no default `nsh test` run needs a live
+Host. The app starts the Host itself (`lib/host/launcher`), so nothing has to
+be running beforehand: give the app a scratch home and `myaid-host` on PATH.
 
 ```sh
 SC=<scratchpad>/smoke-run
-mkdir -p "$SC/data" "$SC/home"
-# dsh's login lives in the data root: copy it in (never commit it).
-cp -p ~/.myaid/.credentials.yaml ~/.myaid/.anonymous-user-id "$SC/data/"
-chmod 700 "$SC/data"
+mkdir -p "$SC/home/.myaid"
+# dsh's login lives in the data root: copy it in (never commit it), and give
+# the Host's login shell the provider key the real one exports.
+cp -p ~/.myaid/.credentials.yaml ~/.myaid/.anonymous-user-id "$SC/home/.myaid/"
+chmod 700 "$SC/home/.myaid"
+printf 'export DEEPSEEK_API_KEY=%s\n' "$DEEPSEEK_API_KEY" > "$SC/home/.zshenv"
 
-# The Host, on the scratch data root. The socket path stays short: a Unix
-# socket path has ~104 bytes.
-MYAID_HOST_SOCKET=/tmp/myaid-smoke-host.sock \
-  ./target/debug/myaid-host serve --data-root "$SC/data" --official-dsh &
+# Build the Host once; the launcher resolves the name `myaid-host` on PATH.
+cargo build -p myaid-host
 
-# The client, with the scratch home (its registry and prefs) and the same
-# socket. cargo and rustup need their real directories through the HOME
-# override.
 real_home="$HOME"
 HOME="$SC/home" RUSTUP_HOME="$real_home/.rustup" CARGO_HOME="$real_home/.cargo" \
-  MYAID_SMOKE_HOST_SOCKET=/tmp/myaid-smoke-host.sock \
-  MYAID_HOST_SOCKET=/tmp/myaid-smoke-host.sock \
-  nsh test screens/new-bot-real-host.smoke.test.tsx --target macos
+  MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+  PATH="$PWD/target/debug:$PATH" \
+  nsh test screens/host-launcher.smoke.test.tsx --target macos
 ```
+
+`screens/host-launcher.smoke.test.tsx` proves the native layer end to end: a
+cold start where the app launches the Host, a turn, a Host stopped from
+outside (`screens/host-restart-watch.mjs`, started with `--root <home>/.myaid
+--port 4879 --after-turns 2`) and restarted by the launcher, the same
+conversation answered again on the new Host, and (with `MYAID_SMOKE_HOST=empty`)
+the footer's empty state with the manual command. Its pictures go to
+`shots.ts`'s `SHOTS_N1`.
+
+The other real-Host smokes (`real-turn`, `new-bot-real-host`,
+`dialogue-workspace`, `bot-presets-real-host`, `session-model`,
+`session-restart`) run the same way; `session-restart` still expects
+`screens/host-restart-watch.mjs --after-turns 1` to stop the Host mid-turn.
 
 Then stop the Host and delete the scratch root: it holds a copy of the dsh
 credentials. A headless run stops at the picture probe.

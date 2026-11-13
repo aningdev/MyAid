@@ -8,7 +8,7 @@
 
 - **产品行为 / 对象模型**：[BLUEPRINT](docs/BLUEPRINT.md)；Bot / 会话 / DSH 映射图见 [BOT_SESSION_MAP](docs/BOT_SESSION_MAP.md)；用词以 [GLOSSARY](GLOSSARY.md) 为准（见 [domain](docs/agents/domain.md)）。
 - **DSH / Host / profile / 协议**：[DSH_PRINCIPLES](docs/DSH_PRINCIPLES.md) 与 [ARCHITECTURE](docs/ARCHITECTURE.md)；能力面对照只读 [references/deepseek-harness](references/deepseek-harness)。
-- **单元契约**（职责 / 命令）：各 [`apps/*/README`](apps/client/README.md)、[`packages/`](packages/README.md)、[`crates/`](crates/myaid-background-service/README.md)。
+- **单元契约**（职责 / 命令）：各 [`apps/*/README`](apps/client/README.md)、[`packages/`](packages/README.md)、[`crates/`](crates/myaid-service/README.md)。
 - **Client**：[apps/client/AGENTS.md](apps/client/AGENTS.md)（改 UI 前先 Design Guides，再 Coding Guides）。
 - **Host**：[apps/host/AGENTS.md](apps/host/AGENTS.md)。
 - **Relay**：[apps/relay/AGENTS.md](apps/relay/AGENTS.md)。
@@ -18,7 +18,7 @@
 ## 边界
 
 - DSH 集成以本仓 [DSH_PRINCIPLES](docs/DSH_PRINCIPLES.md) 为准；执行能力复用官方 `dsh web`，不迁入其 Web GUI / 审批页 / DeepSeek 品牌文案（见 §7）。
-- Client 保持官方 NSH **mixed** 布局；细则在 client AGENTS，不另起平行 `frontend/` 树。
+- Client 是纯 TSX（无 Rust crate，[ADR 0007](docs/adr/0007-native-layer-after-lorca.md)），保持 NSH 生成的目录形状；细则在 client AGENTS，不另起平行 `frontend/` 树。
 - 线框任务才建线框目录；产品主路径不混入线框。
 - `references/`（含 `nsh`、`deepseek-harness`）只读、不参与产品构建。
 
