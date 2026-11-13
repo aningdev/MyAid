@@ -507,6 +507,8 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
       rows: sessionList(),
       botId: props.botId,
     });
+  /** The Session **id** keys the block: the projection object is rebuilt per read. */
+  const segmentId = () => segment()?.sessionId ?? null;
   const path = () => {
     const current = segment();
     if (!current) return "";
@@ -569,14 +571,14 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
       <View style={{ height: 1, backgroundColor: colors.line }} />
       <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Current segment</Text>
       <If
-        when={segment()}
+        when={segmentId()}
         else={
           <Text style={{ fontSize: 11, lineHeight: 16, color: colors.muted }}>
             This Bot has no segment yet. Send a first message in its Pane.
           </Text>
         }
       >
-        {(current) => (
+        {(sessionId) => (
           <View style={{ gap: 8 }}>
             <View style={{ gap: 3 }}>
               <Text style={{ fontSize: 11, color: colors.muted }}>Working directory</Text>
@@ -613,9 +615,9 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
               </Text>
             </View>
             <Usage
-              read={() => usageOf(current().sessionId)}
-              compactRead={() => compactOf(current().sessionId)}
-              onCompact={() => void compact(current().sessionId)}
+              read={() => usageOf(sessionId())}
+              compactRead={() => compactOf(sessionId())}
+              onCompact={() => void compact(sessionId())}
             />
           </View>
         )}

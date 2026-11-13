@@ -35,16 +35,24 @@ export function BotPane(props: { panelId: string; botId: string }) {
       botId: props.botId,
     });
 
+  /**
+   * The Pane mounts the chat on the Session **id**, never on the projection
+   * object: `currentSessionOf` builds a new object per read, and a changing
+   * truthy value would remount the chat (and release its controller) on every
+   * roster change. The id stays the same while the same segment shows.
+   */
+  const segmentId = (): string | null => segment()?.sessionId ?? null;
+
   return (
     <View style={{ flex: 1, minHeight: 0, minWidth: 0, backgroundColor: colors.background }}>
       <If when={bot()} else={<Missing ready={() => ready()} />}>
         <If
-          when={segment()}
+          when={segmentId()}
           else={<NoSegment botId={props.botId} onOpenDetails={() => openBotDetails(props.botId)} />}
         >
-          {(current) => (
+          {(sessionId) => (
             <View style={{ flex: 1, minHeight: 0 }} testID="bot-pane">
-              <ChatPane controller={controllerFor(current().sessionId)} />
+              <ChatPane controller={controllerFor(sessionId())} />
             </View>
           )}
         </If>
