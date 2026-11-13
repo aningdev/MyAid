@@ -13,13 +13,12 @@ import {
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
 import {
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
-  renameClaim,
+  renameSegment,
   serializeRegistry,
   type BotRegistry,
 } from "../features/bots/model";
@@ -30,24 +29,21 @@ import { graphical, shoot } from "./shots";
 
 /** Ada with a release-notes Session, and Iota as a second Bot. */
 function fixture(): BotRegistry {
-  const created = claimSession(
-    createDialogue(
-      initializeBot(
-        createBot(
-          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-          { name: "Ada", templateId: "tmpl" },
-          "bot",
-        ),
+  const created = claimSegment(
+    initializeBot(
+      createBot(
+        createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+        { name: "Ada", templateId: "tmpl" },
         "bot",
       ),
-      { botId: "bot", workspaceId: "ws-work" },
-      "dlg",
+      "bot",
     ),
-    "dlg",
+    "bot",
     "s1",
+    "ws-work",
   );
   const withIota = createBot(created, { name: "Iota", templateId: "tmpl" }, "bot2");
-  return renameClaim(withIota, "dlg", "s1", "Release notes for 0.5");
+  return renameSegment(withIota, "bot", "s1", "Release notes for 0.5");
 }
 
 function fixturePrefs(): string {

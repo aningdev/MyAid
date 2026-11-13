@@ -1,8 +1,8 @@
-# Bot · Dialogue · Session · DSH 映射
+# Bot · 段 · Session · DSH 映射
 
 对象边界与所有权对照。原则见 [BLUEPRINT](BLUEPRINT.md)，决定见 [ADR 0001](adr/0001-bot-has-many-sessions.md)、[ADR 0005](adr/0005-dialogue-on-dsh-workspace.md) 与 [ADR 0006](adr/0006-lorca-style-bot-app.md)，用词见根 [GLOSSARY](../GLOSSARY.md)。
 
-> **修订（ADR 0006）**：目标形态是**一个 Bot 一条长对话**，段（Session）可以落在不同的 dsh Workspace；本文的 **Dialogue 层是 L1 的过渡数据模型**（注册表 v5），L2 把认领从 Dialogue 改成 Bot 并迁移 v5 数据。界面在 L1 对一个 Bot 只显示它最近的一条 Session。
+**现状（注册表 v6）**：一个 Bot 只有**一条长对话**，由按时间相连的**段**组成；每段是一条 dsh Session，并记住它跑在哪个 dsh Workspace。段可以跨 Workspace，旧段保留自己的目录。注册表不再有 Dialogue 对象。
 
 ## 一图总览
 
@@ -10,12 +10,10 @@
 flowchart TB
   subgraph product["产品注册表"]
     T["Bot template"]
-    B["Bot<br/>联系人 · 派生 Preset"]
-    D["Dialogue<br/>{ botId, workspaceId }"]
-    C["Claim<br/>sessionId → dialogueId"]
+    B["Bot<br/>联系人 · 派生 Preset<br/>当前工作目录"]
+    Sg["Segment<br/>{ sessionId, workspaceId, title }<br/>= 认领"]
     T -->|"实例化"| B
-    B -->|"1 : N"| D
-    D -->|"1 : N Session"| C
+    B -->|"1 : N，按时间"| Sg
   end
 
   subgraph dsh["DSH（dsh web / web profile）"]
@@ -28,27 +26,25 @@ flowchart TB
 
   T -->|"presetId"| P
   B -->|"bound / derived preset"| P
-  D -->|"workspaceId"| W
-  C -->|"sessionId 1 : 1"| S
+  Sg -->|"workspaceId"| W
+  Sg -->|"sessionId 1 : 1"| S
 ```
 
 要点：
 
-| 产品           | DSH                              | 关系                                                        |
-| -------------- | -------------------------------- | ----------------------------------------------------------- |
-| Bot template   | Agent preset id                  | 模板映射 preset；非正文快照                                 |
-| Bot            | 共用 `web` profile 上启动 preset | 能力 = preset（`plugins`：指令、工具、skills、可选 MCP…）   |
-| Dialogue       | **一个 Workspace 的一个视角**    | L1 过渡：`workspaceId`；L2 改成段直接引用 Workspace         |
-| Session / 会话 | 一条 Harness Session             | 严格一对一；一个上下文场景                                  |
-| Claim          | Session 认领到 Dialogue          | 写在注册表；日志仍在 dsh                                    |
-| Dialogue 名    | Workspace `title`                | 重命名 = `workspace.rename`；同一 Workspace 上共享          |
-| Session 归档   | Workspace `archived set`         | 运行中被 `workspace/session-active` 拒绝，可 `stopActivity` |
-| 置顶           | Workspace `pinned sessionIds`    | 最近置顶在前；L1 的界面不再显示段级置顶                     |
-| Session 顺序   | Workspace `sessionIds`           | 新建前插、手动重排；顺序归 dsh                              |
-| Deliverable    | DSH Deliverable                  | 投影某 Session 场景内交付物；Dialogue 可累积多个            |
-| （无）         | 未认领 Session                   | 不进入产品列表                                              |
+| 产品         | DSH                              | 关系                                                      |
+| ------------ | -------------------------------- | --------------------------------------------------------- |
+| Bot template | Agent preset id                  | 模板映射 preset；非正文快照                               |
+| Bot          | 共用 `web` profile 上启动 preset | 能力 = preset（`plugins`：指令、工具、skills、可选 MCP…） |
+| 段 Segment   | 一条 Harness Session             | 1 : 1；段属于 Bot，并引用它运行的 Workspace               |
+| 认领 Claim   | （注册表里的段本身）             | `botId` + `sessionId` + `workspaceId`；日志仍在 dsh       |
+| 段标题       | （注册表）                       | 人对该段的称呼；dsh 的 Session 列表不提供标题             |
+| Workspace    | dsh Workspace                    | path / title / Session 顺序 / 置顶 / 归档都归 dsh         |
+| 当前工作目录 | 最新段的 Workspace path          | 在 Pane 标题处显示与编辑；换目录开新段                    |
+| Deliverable  | DSH Deliverable                  | 投影某段场景内的交付物；一条长对话可累积多个              |
+| （无）       | 未认领 Session                   | 不进入产品                                                |
 
-基数：**Bot 1—N Dialogue**；**Workspace 1—N Dialogue**（同一 Bot 对同一 Workspace 只开一段）；**Dialogue 1—N Session**。
+基数：**Bot 1—N 段**；**Workspace 1—N 段**（同一目录可以被多个 Bot 的段使用）；**段 1—1 Session**。一个 Bot 的段可以分布在多个 Workspace。
 
 ## Profile 与 Preset
 
@@ -66,13 +62,13 @@ flowchart TB
   host --> web
   web --> p1["preset: standard"]
   web --> p2["preset: bot 派生"]
-  p1 --> d1["Bot A · Dialogue · Workspace 项目甲"]
-  p2 --> d2["Bot A · Dialogue · Workspace 项目乙"]
-  p2 --> d3["Bot B · Dialogue · Workspace 项目甲"]
+  p1 --> d1["Bot A · 段 · Workspace 项目甲"]
+  p2 --> d2["Bot A · 段 · Workspace 项目乙"]
+  p2 --> d3["Bot B · 段 · Workspace 项目甲"]
 ```
 
 - **不**按 Bot 拆 profile 或 dsh 进程。
-- Bot 差异落在 **preset**；项目/目录差异落在 **Workspace / Dialogue**。
+- Bot 差异落在 **preset**；目录差异落在**段的 Workspace**。
 - 产品口语 **Runner** = 本机 `dsh web` / web profile，**不是** DSH 专名。
 
 ## 身份与能力
@@ -89,22 +85,21 @@ flowchart LR
   resolve --> create["session.create<br/>workspaceId + agentPreset"]
 ```
 
-- 能力、默认模型属于 **Bot**（preset）。
-- **Workspace** 属于 dsh；Dialogue 只持有它的 id。`session.create` 用 `workspaceId`（dsh 解析 cwd、建好后 attach），不再传 cwd。
-- 改能力：更新派生 preset；正在跑的一轮不打断。派生正文由 `myaid-plugin-bot-presets` 拥有并注册进官方 registry；改完后**新建**的 Session 用新组合，已存在的 Session 保留它已持有的组合。
+- 能力、默认模型、默认工作目录属于 **Bot**（preset）。
+- **Workspace** 属于 dsh；段只持有 `workspaceId`。`session.create` 用 `workspaceId`（dsh 解析 cwd、建好后 attach），不再传 cwd。
+- 改能力：更新派生 preset；正在跑的一轮不打断。派生正文由 `myaid-plugin-bot-presets` 拥有并注册进官方 registry；改完后**新建**的段用新组合，已存在的段保留它已持有的组合。
 
-## 认领与生命周期
+## 段的生命周期
 
 ```mermaid
 stateDiagram-v2
   [*] --> Draft: 新建 Bot
   Draft --> Ready: 初始化（绑 preset）
-  Ready --> Ready: 新 Workspace → 新 Dialogue
-  Ready --> Ready: Dialogue 内新建 Session → Claim
-  Ready --> Ready: 归档 / 取消归档 Session（dsh）
-  Ready --> Ready: Archive Dialogue（逐条 Session 归档）
-  Ready --> Ready: Remove Dialogue（仅当其没有 Session）
-  Ready --> Ready: 置顶 / 取消置顶 Session（dsh）
+  Ready --> Ready: 首段（默认 / 选择目录）
+  Ready --> Ready: 新话题 / /new → 新段（当前目录）
+  Ready --> Ready: 改工作目录 → 新段（新目录）
+  Ready --> Ready: 上下文接近上限 → 段内 Compact
+  Ready --> Ready: 归档 / 取消归档 Bot
 ```
 
 ```mermaid
@@ -114,47 +109,52 @@ sequenceDiagram
   participant Reg as 注册表
   participant DSH as dsh web
 
-  U->>UI: 就绪 Bot → 新 Dialogue（选目录）
-  UI->>DSH: workspace.create(path)
-  DSH-->>UI: workspaceId（同规范路径返回既有）
-  UI->>Reg: createDialogue(botId, workspaceId)
-  U->>UI: 在 Dialogue 内开聊 / 新上下文
+  U->>UI: 就绪 Bot → 开始对话 / 新话题 / 改目录
+  UI->>DSH: workspace.create(path)（同规范路径返回既有）
+  DSH-->>UI: workspaceId
   UI->>DSH: session.create({ workspaceId, agentPreset })
   DSH-->>UI: sessionId（已 attach 进 Workspace）
-  UI->>Reg: claimSession(dialogueId, sessionId)
-  U->>UI: 归档这条 Session
-  UI->>DSH: workspace.archiveSession(sessionId)
-  DSH-->>UI: 归档集合（运行中则 workspace/session-active）
-  Note over DSH: Session 与日志保留；界面的 follow 帧更新列表
+  UI->>Reg: claimSegment(botId, sessionId, workspaceId)
+  Note over Reg: 追加到 Bot 的长对话末尾
+  U->>UI: 在旧段里向上滚动
+  UI->>DSH: 官方 Session 窗口 loadOlder()
+  DSH-->>UI: 更早的消息 / 更早的段
 ```
+
+- **只有最新段接受输入**；旧段可复制、可定位，不在其中续聊。
+- **新段**：命令面板「新话题」、输入 `/new`、或在 Pane 标题处改工作目录。
+- **Compact** 在同一段内运行，不自动新开段。
+- **归档是 Bot 的**；段没有单独的归档 / 删除界面。dsh 里旧 Session 的归档标记不把段从长对话里藏起来；v5 迁移会把它们取消归档，让历史完整。
 
 ## 两个视图
 
 ```mermaid
 flowchart TB
-  claims[(注册表 Claim)]
-  ws[(dsh Workspace<br/>title · 顺序 · 置顶 · 归档)]
-  bots["Bots<br/>按 Bot → Dialogue 列表"]
-  chat["Dialogue 模块<br/>进入某 Dialogue → Session"]
-  claims --> bots
-  claims --> chat
+  seg[(注册表段)]
+  ws[(dsh Workspace<br/>title · path · 顺序 · 置顶 · 归档)]
+  bots["Navigator<br/>扁平 Bot 列表"]
+  chat["Pane<br/>一条长对话：段 + 历史轨"]
+  seg --> bots
+  seg --> chat
   ws --> bots
   ws --> chat
 ```
 
-- 新建 Dialogue / Session 只挂在某个就绪 Bot 上。
-- 未认领 Session 不展示；被 dsh 归档的 Session 也不展示（Dialogue 面板留「已归档」入口可 Unarchive）。会话全部归档的 Dialogue 从 Bots 与 Dialogues 的活跃列表落进 Dialogues 分区的「已归档」组。
+- 新建段只挂在某个就绪 Bot 上。
+- 未认领 Session 不展示。
+- Pane 是一条连续 transcript：段与段之间有「日期 · 工作目录」分隔线；右侧历史轨每段一个刻度，当前段高亮，点击跳到该段开头。
+- Bot 没有段时，Pane 提供在默认工作目录开始第一段。
 
 ## 真源分工
 
 | 真源       | 持有                                                                                                                 |
 | ---------- | -------------------------------------------------------------------------------------------------------------------- |
 | dsh        | Session 日志与执行状态、Workspace（path / title / 顺序 / 置顶 / 归档）、preset 正文、凭据、Deliverable 相关事件/摘要 |
-| 桌面注册表 | Bot、Dialogue（botId + workspaceId）、Claim、模板引用、模型偏好、Bot 默认工作区                                      |
-| 客户端偏好 | Navigator 宽度 / 折叠、Workbench 布局、非 Session 的 Favorites 地址                                                  |
+| 桌面注册表 | Bot、段的 `sessionId` / `workspaceId` / 标题、模板引用、模型偏好、默认工作目录、Bot 归档位                           |
+| 客户端偏好 | Navigator 宽度 / 折叠、Workbench 布局、**Pin 的 Bot 顺序**                                                           |
 | 插件       | 派生 preset 正文与技能副本（`myaid-plugin-bot-presets`，`$DSH_HOME`）                                                |
-| Host       | dsh 生命周期与连接发现；不写业务 Dialogue/Session 权威                                                               |
+| Host       | dsh 生命周期与连接发现；不写业务段 / Session 权威                                                                    |
 
 ## 执行占用（按 Workspace）
 
-同一 **Workspace** 同时只有一条 Session 可执行；其它 Session 可看历史 / 可新建，开始执行须等占用释放。不同 Workspace 的 Dialogue 可以各跑一条。两个 Bot 看同一目录即同一 Workspace，因此它们在该目录上互斥。
+同一 **Workspace** 同时只有一条 Session 可执行；其它段可看历史 / 可新建，开始执行须等占用释放。不同 Workspace 的段可以各跑一条。两个 Bot 的段落在同一目录即同一 Workspace，因此它们在该目录上互斥。

@@ -1,47 +1,40 @@
 /**
- * A Bot's Pane: its conversation. Until the Bot's own long conversation lands
- * (L2) the Pane shows the Bot's most recent Session — the one that moved last
- * per dsh's listing, else the newest claim of its most active dialogue — and
- * follows a new one as soon as it is claimed.
+ * A Bot's Pane: its one long conversation. The Pane mounts the chat on the
+ * **latest** segment — the only one that accepts prompts — and ChatPane loads
+ * older segments into the same transcript as the person scrolls up.
  *
  * A Bot with no conversation starts one in its default working directory
- * (a picked folder when it has none): a dialogue over a dsh Workspace, then
- * its first Session. Both need the Host; without one the refusal is shown.
+ * (a picked folder when it has none): a dsh Workspace, then its first
+ * segment. Both need the Host; without one the refusal is shown.
  */
 import { signal, Text, View } from "nsh";
 
 import { Badge, Button, colors, Icon } from "../../components/ui";
 import { requestComposerFocus } from "../dialogue/chat/focus";
 import { ChatPane } from "../dialogue/ChatPane";
-import {
-  controllerFor,
-  createSession,
-  sessionError,
-  sessionList,
-} from "../dialogue/session/runtime";
-import { createDialogueOnPath } from "../workspace/dialogues";
+import { controllerFor, sessionError } from "../dialogue/session/runtime";
+import { startSegment } from "../workspace/conversation";
 import { workspaces } from "../workspace/state";
 import { openBotDetails } from "./details";
-import { currentDialogueOf, currentSessionOf, type CurrentSession } from "./sessions";
+import { currentSegmentOf } from "./sessions";
 import { ready, registry } from "./state";
 
 export function BotPane(props: { panelId: string; botId: string }) {
   const bot = () => registry().bots.find((item) => item.id === props.botId) ?? null;
-  const segment = (): CurrentSession | null =>
-    currentSessionOf({
+  const segment = () =>
+    currentSegmentOf({
       registry: registry(),
       workspaces: workspaces(),
-      rows: sessionList(),
       botId: props.botId,
     });
 
   /**
    * The Pane mounts the chat on the Session **id**, never on the projection
-   * object: `currentSessionOf` builds a new object per read, and a changing
+   * object: `currentSegmentOf` builds a new object per read, and a changing
    * truthy value would remount the chat (and release its controller) on every
    * roster change. The id stays the same while the same segment shows.
    */
-  const segmentId = (): string | null => segment()?.sessionId ?? null;
+  const segmentId = (): string | null => segment()?.segment.sessionId ?? null;
 
   return (
     <View style={{ flex: 1, minHeight: 0, minWidth: 0, backgroundColor: colors.background }}>
@@ -52,7 +45,7 @@ export function BotPane(props: { panelId: string; botId: string }) {
         >
           {(sessionId) => (
             <View style={{ flex: 1, minHeight: 0 }} testID="bot-pane">
-              <ChatPane controller={controllerFor(sessionId())} />
+              <ChatPane controller={controllerFor(sessionId())} history />
             </View>
           )}
         </If>
@@ -85,7 +78,6 @@ function Missing(props: { ready: () => boolean }) {
 function NoSegment(props: { botId: string; onOpenDetails: () => void }) {
   const busy = signal(false);
   const bot = () => registry().bots.find((item) => item.id === props.botId) ?? null;
-  const dialogue = () => currentDialogueOf(registry(), workspaces(), props.botId);
   const canStart = () => bot()?.status === "ready" && !busy();
 
   const start = async (): Promise<void> => {
@@ -93,18 +85,8 @@ function NoSegment(props: { botId: string; onOpenDetails: () => void }) {
     if (!current || busy()) return;
     busy.set(true);
     try {
-      let path = current.defaultWorkspacePath ?? "";
-      if (!path) {
-        const { pickDirectory } = await import("../../lib/dsh/session");
-        path = (await pickDirectory()) ?? "";
-      }
-      if (!path) return;
-      const target = dialogue() ?? (await createDialogueOnPath(current.id, path));
-      if (!target) return;
-      const sessionId = await createSession(target.id);
-      requestComposerFocus(sessionId);
-    } catch {
-      // `sessionError` / `actionError` name the reason on screen.
+      const sessionId = await startSegment(current.id, current.defaultWorkspacePath ?? undefined);
+      if (sessionId) requestComposerFocus(sessionId);
     } finally {
       busy.set(false);
     }

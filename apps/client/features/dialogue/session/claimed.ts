@@ -1,6 +1,6 @@
 /**
  * Deep module: claimed Session lifecycle — one shared Connection, and the
- * create + claim path that binds a Harness Session to a Dialogue.
+ * create + claim path that appends a Harness Session as a Bot segment.
  *
  * Following a Session, its history window, its paging and its prompt/queue
  * state belong to the official Client model (`ctx.sessions`); a
@@ -23,7 +23,7 @@ import type {
   SessionUsage,
   SkillSummary,
 } from "../../../lib/dsh/connection";
-import { claimOwner, type Bot, type BotRegistry, type Dialogue } from "../../bots/model";
+import { segmentOwner, type BotRegistry } from "../../bots/model";
 import { sessionLabel } from "../../bots/sessions";
 
 export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog };
@@ -93,7 +93,7 @@ export type SessionHost = {
 
 export type ClaimHooks = {
   connect(): Promise<SessionHost>;
-  claim(dialogueId: string, sessionId: string): Promise<boolean>;
+  claim(botId: string, workspaceId: string, sessionId: string): Promise<boolean>;
   registry(): BotRegistry;
 };
 
@@ -107,14 +107,14 @@ export function occupancyBlock(input: {
   registry: BotRegistry;
   summaries: Map<string, string>;
 }): string | null {
-  const right = claimOwner(input.registry, input.targetSessionId);
+  const right = segmentOwner(input.registry, input.targetSessionId);
   if (!right) return null;
   for (const occupant of input.occupyingSessionIds) {
     if (occupant === input.targetSessionId) continue;
-    const left = claimOwner(input.registry, occupant);
+    const left = segmentOwner(input.registry, occupant);
     if (!left) continue;
-    if (left.dialogue.workspaceId !== right.dialogue.workspaceId) continue;
-    return `工作区正被「${sessionLabel(left.claim, input.summaries.get(occupant) ?? null)}」占用。`;
+    if (left.segment.workspaceId !== right.segment.workspaceId) continue;
+    return `工作区正被「${sessionLabel(left.segment, input.summaries.get(occupant) ?? null)}」占用。`;
   }
   return null;
 }
@@ -134,7 +134,7 @@ export async function resolveBotModel(
   return hit ? { provider: hit.provider, model: hit.model } : null;
 }
 
-/** Owns the one shared Connection and claims created Sessions to a Dialogue. */
+/** Owns the one shared Connection and claims created Sessions as a Bot's next segment. */
 export class ClaimedSessionClient {
   private host: SessionHost | undefined;
   private connectLock: Promise<void> | undefined;
@@ -170,24 +170,23 @@ export class ClaimedSessionClient {
   }
 
   /**
-   * Create the Harness Session in the Dialogue's Workspace, then claim it.
+   * Create the Harness Session in the segment's Workspace, then claim it.
    * `session.create({ workspaceId })` is dsh's own create-then-attach: the
    * Workspace records the new Session before this call returns.
    */
   async createClaimed(input: {
-    dialogueId: string;
-    dialogue: Dialogue;
-    bot: Bot;
+    botId: string;
+    workspaceId: string;
     agentPreset: string;
   }): Promise<string> {
     this.assertAlive();
     const host = await this.ensureConnected();
     const created = await host.createSession({
-      workspaceId: input.dialogue.workspaceId,
+      workspaceId: input.workspaceId,
       agentPreset: input.agentPreset,
     });
-    const saved = await this.hooks.claim(input.dialogueId, created.sessionId);
-    if (!saved) throw new Error("会话已在后台创建，但没有写入这段 Dialogue。");
+    const saved = await this.hooks.claim(input.botId, input.workspaceId, created.sessionId);
+    if (!saved) throw new Error("会话已在后台创建，但没有写进这个 Bot 的长对话。");
     return created.sessionId;
   }
 

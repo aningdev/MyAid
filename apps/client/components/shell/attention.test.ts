@@ -13,7 +13,6 @@ import {
 function row(overrides: Partial<SessionRow> = {}): SessionRow {
   return {
     id: "s1",
-    dialogueId: "dlg",
     botId: "bot",
     botName: "Ada",
     workspacePath: "/work/myaid",

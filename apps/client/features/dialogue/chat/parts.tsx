@@ -10,6 +10,7 @@ import {
   alpha,
   colors,
   finish,
+  mono,
   Press,
   radius,
   type Tone,
@@ -120,6 +121,59 @@ export function DateSeparator(props: { label: string }) {
     >
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
       <Text style={{ fontSize: 11, fontWeight: "500", color: colors.faint }}>{props.label}</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
+    </View>
+  );
+}
+
+/** The line between two segments of one long conversation: date · directory. */
+export function SegmentDivider(props: {
+  label: string;
+  path: string;
+  current: boolean;
+  sessionId: string;
+}) {
+  return (
+    <View
+      testID="segment-divider"
+      accessibilityLabel={`Segment ${props.label}${props.path ? `, ${props.path}` : ""}${props.current ? ", current" : ""}`}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        paddingHorizontal: 4,
+        paddingTop: 18,
+        paddingBottom: 8,
+      }}
+    >
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "78%" }}>
+        <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>{props.label}</Text>
+        <If when={!!props.path}>
+          <Text
+            testID={`segment-path-${props.sessionId}`}
+            style={{
+              flexShrink: 1,
+              fontSize: 11,
+              color: colors.faint,
+              fontFamily: mono,
+              numberOfLines: 1,
+            }}
+          >
+            {`· ${props.path}`}
+          </Text>
+        </If>
+        <If when={props.current}>
+          <View
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: 3,
+              backgroundColor: colors.accent,
+            }}
+          />
+        </If>
+      </View>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
     </View>
   );

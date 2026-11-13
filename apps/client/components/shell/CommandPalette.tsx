@@ -69,7 +69,7 @@ export function CommandPalette() {
           onSelect={({ id }) => choose(id)}
           onHighlightChange={({ highlighted: next }) => highlighted.set(next)}
           autoFocus
-          placeholder="Search Bots, Dialogues, Sessions and commands…"
+          placeholder="Search Bots, segments and commands…"
           accessibilityLabel="Commands and places"
           searchAccessibilityLabel="Search commands and places"
           style={paletteCardStyle()}

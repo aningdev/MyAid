@@ -22,7 +22,8 @@ import { isRecord } from "./registry";
 export interface RegistryStore {
   read(): Promise<string | null>;
   write(text: string): Promise<void>;
-  backup?(text: string): Promise<void>;
+  /** Keep the pre-migration text; `version` names the file (`v5.bak`). */
+  backup?(text: string, version: string): Promise<void>;
 }
 
 export function memoryStore(initial: string | null = null): RegistryStore & {
@@ -58,11 +59,11 @@ export function storageStore(key: string = REGISTRY_STORAGE_KEY): RegistryStore 
   return {
     read: () => Storage.getItem(key),
     write: (text) => Storage.setItem(key, text),
-    backup: (text) => Storage.setItem(`${key}.v4`, text),
+    backup: (text, version) => Storage.setItem(`${key}.${version}.bak`, text),
   };
 }
 
-/** `~/.myaid/registry/bots.json` (templates + bots + dialogues). Beside the dsh profile, not inside a preset patch. */
+/** `~/.myaid/registry/bots.json` (templates + bots + their segments). Beside the dsh profile, not inside a preset patch. */
 export function defaultRegistryPath(): string {
   return registryPath();
 }
@@ -83,16 +84,16 @@ export function fileStore(path: string): RegistryStore {
       await fs.writeFile(temporary, text);
       await fs.rename(temporary, path);
     },
-    async backup(text) {
+    async backup(text, version) {
       await fs.mkdir(dirname(path), { recursive: true });
-      await fs.writeFile(`${path}.v4.bak`, text);
+      await fs.writeFile(`${path}.${version}.bak`, text);
     },
   };
 }
 
 export type RegistrySnapshot = {
   registry: BotRegistry;
-  /** A v3 / v4 file, read whole: its Dialogues need a Host before v5. */
+  /** An old file, read whole: its Dialogues need a Host before v6. */
   legacy: LegacyRegistry | null;
   /** Set when the file is present but unreadable. The file is left untouched. */
   corrupt: string | null;
@@ -144,7 +145,8 @@ export class BotRegistryRepository {
       if (this.corrupt) throw new RegistryRejection({ code: "corrupt" });
       if (this.legacy) {
         const text = await this.store.read();
-        if (text !== null) await this.store.backup?.(text);
+        const version = `v${this.legacy.version}`;
+        if (text !== null) await this.store.backup?.(text, version);
       }
       await this.store.write(serializeRegistry(registry));
       this.registry = registry;

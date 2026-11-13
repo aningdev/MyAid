@@ -3,9 +3,10 @@
  * connect dsh when the Host answers. Web and other non-desktop runs have no
  * Host to ask, so the shell stays usable and the footer says "disconnected".
  *
- * A v3 / v4 registry is read-only until this happens: its Dialogues own
- * paths that dsh must take over, so the migration waits for the one Host that
- * can own them (see `features/workspace/migrate`).
+ * A v3 / v4 / v5 registry is read-only until this happens: its Dialogues own
+ * the Bot's conversation, which dsh must take over as one long conversation,
+ * so the migration waits for the one Host that can own it (see
+ * `features/workspace/migrate`).
  */
 import { platform } from "nsh";
 
@@ -24,11 +25,11 @@ import {
 } from "../../features/dialogue/session/runtime";
 import { migrateRegistry } from "../../features/workspace/migrate";
 import {
-  archiveSession,
   loadStoredWorkspaces,
   openWorkspace,
   pinSession,
   renameWorkspace,
+  unarchiveSession,
   whenWorkspacesReady,
   workspaces,
 } from "../../features/workspace/state";
@@ -107,7 +108,7 @@ export async function retryHost(): Promise<void> {
   }
   await refreshHost();
   await connectWhenHosted();
-  // A v4 file becomes v5 as soon as a Host can own its Workspaces.
+  // An old file becomes v6 as soon as a Host can own its Workspaces and segments.
   if (legacyRegistry() && hostConnection() === "up") await migrateLegacy();
 }
 
@@ -120,7 +121,7 @@ export async function startShell(): Promise<void> {
   await retryHost();
   // A Host-less test app reads the baseline a fixture put in its Storage.
   await loadStoredWorkspaces();
-  // A v4 file that could not migrate yet keeps the notice; nothing else shows.
+  // An old file that could not migrate yet keeps the notice; nothing else shows.
   if (legacyRegistry()) return;
   applyShellPrefs(prefs, registry());
   markPrefsLoaded();
@@ -130,7 +131,8 @@ export async function startShell(): Promise<void> {
 let migrating: Promise<void> | undefined;
 
 /**
- * Move a v4 registry's paths, names and archives into dsh, then store v5.
+ * Move an old registry's paths, names and archived Sessions into dsh, then
+ * store the Bot's one long conversation (v6).
  * Every step is idempotent, so a retry after a failure starts over safely;
  * two callers never run it at once.
  */
@@ -162,7 +164,7 @@ async function runMigration(): Promise<void> {
         rename: async (workspaceId, title) => {
           await renameWorkspace(model, workspaceId, title);
         },
-        archiveSession: (sessionId) => archiveSession(model, sessionId),
+        unarchiveSession: (sessionId) => unarchiveSession(model, sessionId),
         pinSession: (sessionId) => pinSession(model, sessionId),
         archived: () => workspaces().archived,
         pinned: () => workspaces().pinned,

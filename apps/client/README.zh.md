@@ -47,14 +47,14 @@ vp run @myaid/client#package:web
 
 - **Navigator**：左侧可收缩 `ResizablePanel`（默认 232，最小 160，最大 480），顶行承接隐藏标题栏的拖拽；下面是搜索框（`⌘F`）、**Pin** 组、其余 Bot 按最近活动排序（工作中的点、未读数、待审批点）、**新建 Bot**（`⌘N`）；底部是 Host 状态与 **⚙ 设置**（`⌘,`）。没有域分区、没有树、不在 Bot 下展开会话。右键给该 Bot 的动词：Pin / Bot 详情 / 重命名 / 归档；归档的 Bot 退出列表，搜索仍能找到并 **Unarchive**。
 - **Pane**：`nsh/base` DockArea（center）。一个 Pane 显示一个 Bot 的对话；点行把内容开到活动 Pane，向右拖入在工作 Pane 右侧开新 Pane，已有 Pane 的 Bot 只切焦点。拆分（向右 / 向下）、拖动分隔线、放大、关闭与焦点快捷键来自 DockArea 与命令表。布局、每个 Pane 的 Bot 与活动 Pane 从客户端偏好恢复；Bot 不在则该 Pane 为空。没有标签页。
-- **Pane 标题**：Bot 标记（工作中呼吸）、名字，然后是 **Bot 详情** 与拆分 / 放大 / 关闭并排。旧的每 Pane Inspector 与 `⌥⌘I` 已移除。
+- **Pane 标题**：Bot 标记（工作中呼吸）、名字、工作目录（点一下可改，换成别的目录会开新段），然后是 **Bot 详情** 与拆分 / 放大 / 关闭并排。Pane 主体是对话，段的事实收在弹窗里。
 - **Bot 详情**（`features/bots/BotDetails.tsx`）：盖在 Pane 上的一个弹窗——Profile / Runs with / Skills / Plugins、当前段的工作目录、模型、用量 / 上下文与 dsh 的 **Compact**，以及删除 / 归档。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成，preset writer 可用时派生它自己的 preset，否则如实说明写不了。
 - **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。左栏是 **模型供应商 / 通用 / 后台 / 关于**；Back 或 Esc 返回。
   - **模型供应商**（`features/settings/ModelProviders.tsx`）：列出 dsh 报告的每个供应商（`llm.listProviders` 合并 `llm.listConfigurableProviders`）与它的 Key 状态。Key 只经 `credentials.describe/set/unset` 写入供应商设置命名空间指定的引用（没有时用 dsh 的 `<ROUTE>_API_KEY` 推导）；页面不保存 Key。供应商字段（base URL 起）与默认模型经 `settings.describe/update` 写入——默认模型在 dsh 描述的 `agent-default-model` 命名空间里，不是写死的清单。没有 Host 时说明原因、不提供输入。
   - **通用**：语言行（简体中文 / English / 跟随系统；现在只保存，L4 语言包生效）、外观（跟随系统 / 浅色 / 深色）与强调色。立即生效，并保存在客户端偏好里。
   - **后台**：Host 与 dsh web 的相位、Host 自身版本、dsh 实际版本与要求版本（不一致时两者并列并说明 Host 拒绝启动）、最近错误、启动 / 停止 / 重启 dsh，以及 Background Services 登记面板。
   - **关于**：MyAid / Host / dsh 版本与 **复制诊断信息**（只有版本与连接状态，没有 Key、令牌或会话内容）。
-- **对话（L2 之前）**：一个 Bot 的 Pane 显示它最近的那条 Session——dsh 最后更新的那条，否则它最活跃 dialogue 里最新的 claim——新段一被认领就跟随。没有对话的 Bot 在默认工作目录里起一段。Bot 的一条长对话（段、历史轨、`/new`）在 L2 落地。
+- **对话**：一个 Bot 的 Pane 就是它的那条长对话，按时间把段（Session）连成一条连续 transcript。段与段之间的分隔线写日期与工作目录；滚到顶部时，更早的段与段内更早的页都经官方 Session 模型加载。右侧历史轨每段一个刻度（当前段高亮）：悬停显示名称与时间，点击跳到该段开头；整条轨道是一个键盘停点，↑ / ↓ / Return 可用，并带 VoiceOver 标签。只有最新段接受输入，旧段可复制、可定位。命令面板的 **新话题** 或 `/new` 在当前目录开新段；在标题处改工作目录就在新目录开新段。接近上下文上限时 **Compact** 留在同一段内。没有段的 Bot 可以在默认工作目录开始第一段。
 - **运行态归属**：dsh 状态归官方 React-free client model（`ctx.sessions`：列表、事件窗口、follow、分页、prompt / queue / cancel、投影；`ctx.workspaces`：行、顺序、归档、置顶）。`SessionController` 只保留产品新增的部分——草稿、附件、审批展示、本地这一轮（`TurnProjection`）与 Pane 视图。两个 Pane 的两条 Session（跨 Workspace）可并行流式。
 
 | 快捷键       | 动作                     |
@@ -74,7 +74,7 @@ vp run @myaid/client#package:web
 
 ## 数据
 
-- 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 5 存 templates、Bots（`archived` 是可选字段）与——L2 之前——Dialogues（`botId` + `workspaceId`）及其认领的 Session。v3 / v4 文件在连上 Host 前只读：迁移把每个 Dialogue 的 path、名字与 archived claim 交给 dsh Workspace（旧文件备份为 `bots.json.v4.bak`）。Identity 与归档位在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Workspace 路径、名字与 Session 顺序归 dsh（[ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）。
+- 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 6 存 templates 与 Bots；每个 Bot 用 `segments`（`sessionId` + `workspaceId` + 人对它的称呼）按时间从旧到新持有它的一条长对话。v3 / v4 / v5 文件在连上 Host 前只读：迁移把该 Bot 的旧 Dialogue 按认领顺序并成一条长对话，每段保留自己的 Workspace id，并在 dsh 里**取消归档旧 Session**，让历史完整；写新文件前先备份旧文件为 `bots.json.v<旧版本>.bak`。Identity、归档位与段的认领在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Workspace 路径、名字、Session 顺序与归档归 dsh（[ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）。
 - Workspace 与 Session：官方 `ClientWorkspaceModel` / `ClientSessions` 装在 Connection 的 Cordis Context 上（`lib/dsh/connection.ts`），每个 Host generation 原子替换它们的 snapshot。`features/workspace` 与 `features/dialogue/session` 只把 snapshot 投影成 NSH signal；Remote 的返回不写这份状态。它们的浏览器 `__ModuleLoader__` 产物由 `prepare:sdk` 展开成静态 ESM（`lib/dsh/generated/`），因为 NSH 不运行字符串代码。
 - 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。版本 2 覆盖 Navigator 的宽度与开合、Pin 的 Bot 顺序、Pane（布局、每个 Pane 的 Bot、活动 Pane）与通用页的外观和语言（旧文件读默认值）。版本 1 文件只读一次：Bot pin 保留，Dialogue / Session pin 变成它所属 Bot 的 Pane，Session pin 本身丢弃。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
 - `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md)。
@@ -82,7 +82,7 @@ vp run @myaid/client#package:web
 ## 已知限制
 
 - 窄窗只显示移动提示页；桌面壳从 700 pt（desktop idiom）/ 900 pt（其他）起。
-- 一个 Bot 的 Pane 在长对话落地（L2）前只显示它最近的那条 Session：还没有历史轨、段分隔线与 `/new`。
+- 界面没有段级归档 / 删除；归档的是 Bot，段与日志都保留。
 - 壳的文案仍是中英混合；双语在 L4 统一。设置页的语言行只保存选择，语言包落地前不切换文案。
 - dsh 的 Session 模型目录受凭据门控：没有可用 Key 时目录为空，默认模型卡片退回各供应商设置里公布的 `models` 与当前选择。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md)。
 - Host 未挂载 `myaid-plugin-bot-presets` 时 Bot 详情存不了 Skills / Plugins 变更：没有别的 Remote 能写 Agent preset 正文。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md) 的缺口表。

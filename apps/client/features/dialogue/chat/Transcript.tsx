@@ -20,10 +20,11 @@ import {
 import { alpha, colors, motion, RoundButton } from "../../../components/ui";
 import type { Bot } from "../../bots/model";
 import { MessageRow, type RowHandlers } from "./MessageRow";
-import { DateSeparator } from "./parts";
+import { DateSeparator, SegmentDivider } from "./parts";
 import type { Row } from "./rows";
 
 type DateRow = Extract<Row, { kind: "date" }>;
+type SegmentRow = Extract<Row, { kind: "segment" }>;
 
 /** How close to the end (points) still counts as following. */
 const FOLLOW_SLACK = 40;
@@ -98,18 +99,25 @@ export function Transcript(props: {
           {(row) => (
             <View style={{ width: "100%", overflow: "hidden", ...column }}>
               <If
-                when={row().kind === "date"}
+                when={row().kind === "segment"}
                 else={
-                  <MessageRow
-                    row={row}
-                    botName={props.botName}
-                    bot={props.bot}
-                    now={props.now}
-                    handlers={props.handlers}
-                  />
+                  <If
+                    when={row().kind === "date"}
+                    else={
+                      <MessageRow
+                        row={row}
+                        botName={props.botName}
+                        bot={props.bot}
+                        now={props.now}
+                        handlers={props.handlers}
+                      />
+                    }
+                  >
+                    <DateSeparator label={(row() as DateRow).label} />
+                  </If>
                 }
               >
-                <DateSeparator label={(row() as DateRow).label} />
+                <SegmentDivider {...(row() as SegmentRow)} />
               </If>
             </View>
           )}

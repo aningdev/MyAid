@@ -14,11 +14,12 @@ import type { MenuItem } from "nsh/desktop";
 import { openBotDetails } from "../../features/bots/details";
 import type { Bot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
-import { currentSessionOf } from "../../features/bots/sessions";
+import { currentSegmentOf, workingDirectoryOf } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { requestComposerFocus } from "../../features/dialogue/chat/focus";
 import { controllerFor, sessionList } from "../../features/dialogue/session/runtime";
-import { orderedDialogues, workspacePath, workspaces } from "../../features/workspace/state";
+import { newTopic } from "../../features/workspace/conversation";
+import { workspaces } from "../../features/workspace/state";
 import type { IconName } from "../ui";
 import { collectPanelIds } from "./dock";
 import { toggleNavOpen } from "./layout";
@@ -59,12 +60,8 @@ export function commandContext(): CommandContext {
   const botId = activeBotId();
   const bot = botId ? (registry().bots.find((item) => item.id === botId) ?? null) : null;
   const sessionId = botId
-    ? (currentSessionOf({
-        registry: registry(),
-        workspaces: workspaces(),
-        rows: sessionList(),
-        botId,
-      })?.sessionId ?? null)
+    ? (currentSegmentOf({ registry: registry(), workspaces: workspaces(), botId })?.segment
+        .sessionId ?? null)
     : null;
   const row = sessionId ? sessionList().find((item) => item.id === sessionId) : undefined;
   return { bot, sessionId, running: row?.running === true };
@@ -86,6 +83,11 @@ function focusComposer(): void {
 function botDetails(): void {
   const bot = commandContext().bot;
   if (bot) openBotDetails(bot.id);
+}
+
+function startNewTopic(): void {
+  const bot = commandContext().bot;
+  if (bot) void newTopic(bot.id);
 }
 
 /** The command table, in palette order. */
@@ -205,6 +207,16 @@ export const COMMANDS: readonly ShellCommand[] = [
     run: stopActive,
   },
   {
+    id: "conversation.new",
+    label: "新话题",
+    group: "Commands",
+    keywords: ["new topic", "new segment", "/new", "fresh", "conversation"],
+    menu: { section: "Chat", separatorBefore: true },
+    icon: "chat",
+    enabled: () => commandContext().bot?.status === "ready",
+    run: startNewTopic,
+  },
+  {
     id: "composer.focus",
     label: "Focus Composer",
     group: "Commands",
@@ -272,28 +284,23 @@ export type PaletteJump = {
  */
 export function paletteJumps(): PaletteJump[] {
   const state = registry();
-  const projection = workspaces();
-  const botName = (id: string) => state.bots.find((bot) => bot.id === id)?.name ?? "";
-  return state.bots.map((bot) => {
-    const dialogues = orderedDialogues(
-      projection,
-      state.dialogues.filter((dialogue) => dialogue.botId === bot.id),
-    );
-    const paths = dialogues.map((dialogue) => workspacePath(projection, dialogue)).filter(Boolean);
-    return {
-      id: `jump:bot:${bot.id}`,
-      label: bot.name,
-      keywords: [
-        "bot",
-        bot.description ?? "",
-        ...paths,
-        ...(bot.archived ? ["archived"] : []),
-        ...(bot.status === "draft" ? ["draft"] : []),
-      ].filter(Boolean),
-      group: bot.archived ? "Archived" : "Bots",
-      botId: bot.id,
-    };
-  });
+  const paths = (id: string) => {
+    const path = workingDirectoryOf(state, workspaces(), id);
+    return path ? [path] : [];
+  };
+  return state.bots.map((bot) => ({
+    id: `jump:bot:${bot.id}`,
+    label: bot.name,
+    keywords: [
+      "bot",
+      bot.description ?? "",
+      ...paths(bot.id),
+      ...(bot.archived ? ["archived"] : []),
+      ...(bot.status === "draft" ? ["draft"] : []),
+    ].filter(Boolean),
+    group: bot.archived ? "Archived" : "Bots",
+    botId: bot.id,
+  }));
 }
 
 /** The palette's rows and what choosing each does, built from the table and the registry. */

@@ -1,6 +1,6 @@
 /**
  * Bots store: the desktop registry, readable and writable from any Panel.
- * Bot / Dialogue / Session views are panels in the Workspace Shell; this
+ * Bot / segment / Session views are panels in the Workspace Shell; this
  * module owns the file and the one in-flight write, not any view state.
  */
 import { platform, signal, untracked } from "nsh";
@@ -22,7 +22,7 @@ const repo = opened.repo;
 
 export const registry = signal<BotRegistry>(emptyRegistry());
 /**
- * A v3 / v4 file: Dialogues that still own their path. It is read-only until a
+ * A v3 / v4 / v5 file: Dialogues that still own the conversation. It is read-only until a
  * Host is up and the migration writes v5; nothing writes the old shape.
  */
 export const legacyRegistry = signal<LegacyRegistry | null>(null);
@@ -42,7 +42,7 @@ export async function loadRegistry(): Promise<void> {
     loadError.set(result.corrupt);
     migrationNotice.set(
       result.legacy
-        ? "注册表还是旧版本（v4）：连接 Host 后会把这些 Dialogue 迁到 dsh Workspace。"
+        ? `注册表还是旧版本（v${result.legacy.version}）：连接 Host 后会把旧对话并成 Bot 的一条长对话。`
         : null,
     );
   } catch (error) {

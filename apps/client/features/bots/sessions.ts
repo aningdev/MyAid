@@ -1,12 +1,6 @@
 import type { WorkspaceProjection } from "../workspace/projection";
-import {
-  isSessionArchived,
-  orderedClaims,
-  orderedDialogues,
-  workspaceOf,
-  workspacePath,
-} from "../workspace/projection";
-import type { BotRegistry, Dialogue } from "./model";
+import { workspaceOf, workspacePath } from "../workspace/projection";
+import type { BotRegistry, Segment } from "./model";
 
 export type ListedSession = {
   sessionId: string;
@@ -18,9 +12,9 @@ export type ListedSession = {
 
 export type ProductSession = {
   sessionId: string;
-  dialogueId: string;
   botId: string;
   botName: string;
+  workspaceId: string;
   workspacePath: string;
   title: string | null;
   /** True only after dsh has been listed and this claim is absent. */
@@ -30,52 +24,40 @@ export type ProductSession = {
 };
 
 /**
- * Claims joined to a dsh listing and the Workspace projection. `listed ===
- * null` means the listing is unknown; a Session dsh archived leaves the lists.
+ * A Bot's segments joined to a dsh listing and the Workspace projection, oldest
+ * first (the order they were claimed). `listed === null` means the listing is
+ * unknown. An archive in dsh does not hide a segment: the product has no
+ * per-segment archive.
  */
 export function listProductSessions(
   registry: BotRegistry,
   listed: ListedSession[] | null,
   workspaces: WorkspaceProjection,
-  scope: { dialogueId?: string | null; botId?: string | null } = {},
+  scope: { botId?: string | null } = {},
 ): ProductSession[] {
   const known = listed ? new Map(listed.map((item) => [item.sessionId, item])) : null;
   const rows: ProductSession[] = [];
-  const botById = new Map(registry.bots.map((bot) => [bot.id, bot]));
-  for (const dialogue of registry.dialogues) {
-    if (scope.dialogueId && dialogue.id !== scope.dialogueId) continue;
-    if (scope.botId && dialogue.botId !== scope.botId) continue;
-    const bot = botById.get(dialogue.botId);
-    if (!bot) continue;
-    for (const claim of dialogue.claims) {
-      // dsh keeps an archived Session; it leaves the product's lists.
-      if (isSessionArchived(workspaces, claim.sessionId)) continue;
-      const info = known?.get(claim.sessionId);
+  for (const bot of registry.bots) {
+    if (scope.botId && bot.id !== scope.botId) continue;
+    for (const segment of bot.segments) {
+      const info = known?.get(segment.sessionId);
       rows.push({
-        sessionId: claim.sessionId,
-        dialogueId: dialogue.id,
+        sessionId: segment.sessionId,
         botId: bot.id,
         botName: bot.name,
-        workspacePath: workspacePath(workspaces, dialogue),
-        title: claim.title,
+        workspaceId: segment.workspaceId,
+        workspacePath: workspacePath(workspaces, segment),
+        title: segment.title,
         missing: known ? !info : false,
         blank: info?.blank ?? false,
         updatedAt: info?.updatedAt ?? null,
       });
     }
   }
-  rows.sort((a, b) => {
-    if (a.updatedAt === null && b.updatedAt === null) {
-      return a.sessionId < b.sessionId ? -1 : a.sessionId > b.sessionId ? 1 : 0;
-    }
-    if (a.updatedAt === null) return 1;
-    if (b.updatedAt === null) return -1;
-    return b.updatedAt - a.updatedAt;
-  });
   return rows;
 }
 
-/** Claim title, else a transient summary. The summary is not stored on the claim. */
+/** Claim title, else a transient summary. The summary is not stored on the segment. */
 export function sessionLabel(
   session: Pick<ProductSession, "title">,
   summary: string | null,
@@ -98,77 +80,82 @@ export function titleFromPrompt(text: string, max = 40): string {
   return one.length > max ? `${one.slice(0, max - 1)}…` : one;
 }
 
-/**
- * The dialogue a Bot's conversation currently opens on: its most recently
- * active one (dsh's Workspace `updatedAt`), preferring one that still claims a
- * live Session. Until the Bot's own long conversation lands (L2), this is the
- * stand-in the Pane reads.
- */
-export function currentDialogueOf(
+/** A segment as the Pane and the history rail read it. */
+export type ConversationSegment = {
+  /** Position in the Bot's long conversation, oldest = 0. */
+  index: number;
+  sessionId: string;
+  workspaceId: string;
+  /** dsh's canonical directory, `""` until the Workspace baseline arrives. */
+  path: string;
+  title: string | null;
+  /** True for the last segment: the one that accepts prompts. */
+  current: boolean;
+  /** When it was last active, from the dsh listing (null: unknown). */
+  updatedAt: number | null;
+  missing: boolean;
+};
+
+/** One Bot's long conversation, oldest segment first. */
+export function conversationOf(
+  registry: BotRegistry,
+  workspaces: WorkspaceProjection,
+  listed: ListedSession[] | null,
+  botId: string,
+): ConversationSegment[] {
+  const bot = registry.bots.find((item) => item.id === botId);
+  if (!bot) return [];
+  const known = listed ? new Map(listed.map((item) => [item.sessionId, item])) : null;
+  return bot.segments.map((segment, index) => ({
+    index,
+    sessionId: segment.sessionId,
+    workspaceId: segment.workspaceId,
+    path: workspacePath(workspaces, segment),
+    title: segment.title,
+    current: index === bot.segments.length - 1,
+    updatedAt: known?.get(segment.sessionId)?.updatedAt ?? null,
+    missing: known ? !known.has(segment.sessionId) : false,
+  }));
+}
+
+/** The Bot's current working directory: the latest segment's Workspace path. */
+export function workingDirectoryOf(
   registry: BotRegistry,
   workspaces: WorkspaceProjection,
   botId: string,
-): Dialogue | null {
-  const dialogues = orderedDialogues(
-    workspaces,
-    registry.dialogues.filter((dialogue) => dialogue.botId === botId),
-  );
-  const live = (dialogue: Dialogue) =>
-    dialogue.claims.some((claim) => !isSessionArchived(workspaces, claim.sessionId));
-  return dialogues.find(live) ?? dialogues[0] ?? null;
+): string {
+  const bot = registry.bots.find((item) => item.id === botId);
+  const latest = bot?.segments[bot.segments.length - 1];
+  if (!latest) return bot?.defaultWorkspacePath ?? "";
+  return workspaceOf(workspaces, latest)?.path ?? "";
 }
 
-/** A Bot's current segment: the Session its Pane shows now. */
-export type CurrentSession = {
-  dialogueId: string;
-  sessionId: string;
+/** The segment a Bot's Pane shows and accepts prompts in: its latest. */
+export type CurrentSegment = {
+  index: number;
+  segment: Segment;
   workspacePath: string;
-  /** The person's name for it, when they gave one. */
   title: string | null;
 };
 
-/**
- * The Session a Bot's Pane shows: the one that moved most recently (the dsh
- * listing's `updatedAt`, which the roster sorts by), else the newest claim in
- * its most active dialogue's dsh order. L2 replaces this with the Bot's own
- * long conversation.
- */
-export function currentSessionOf(input: {
+export function currentSegmentOf(input: {
   registry: BotRegistry;
   workspaces: WorkspaceProjection;
-  rows: readonly { id: string; botId: string }[];
   botId: string;
-}): CurrentSession | null {
-  const row = input.rows.find((item) => item.botId === input.botId);
-  const dialogue = currentDialogueOf(input.registry, input.workspaces, input.botId);
-  if (!dialogue) return null;
-  const claimOf = (sessionId: string) =>
-    dialogue.claims.find((claim) => claim.sessionId === sessionId) ?? null;
-  if (row) {
-    const claim = claimOf(row.id);
-    return claim
-      ? {
-          dialogueId: dialogue.id,
-          sessionId: claim.sessionId,
-          workspacePath: workspacePath(input.workspaces, dialogue),
-          title: claim.title,
-        }
-      : null;
-  }
-  const live = orderedClaims(input.workspaces, dialogue, dialogue.claims).filter(
-    (claim) => !isSessionArchived(input.workspaces, claim.sessionId),
-  );
-  const claim = live[live.length - 1];
-  if (!claim) return null;
+}): CurrentSegment | null {
+  const bot = input.registry.bots.find((item) => item.id === input.botId);
+  if (!bot || bot.segments.length === 0) return null;
+  const index = bot.segments.length - 1;
+  const segment = bot.segments[index]!;
   return {
-    dialogueId: dialogue.id,
-    sessionId: claim.sessionId,
-    workspacePath: workspacePath(input.workspaces, dialogue),
-    title: claim.title,
+    index,
+    segment,
+    workspacePath: workspacePath(input.workspaces, segment),
+    title: segment.title,
   };
 }
 
-/** A Bot's most recent activity, in milliseconds: its Workspaces and its live Sessions. */
+/** A Bot's most recent activity, in milliseconds: its Workspaces and its Segments. */
 export function botActivity(
   registry: BotRegistry,
   workspaces: WorkspaceProjection,
@@ -176,9 +163,9 @@ export function botActivity(
   botId: string,
 ): number {
   let at = 0;
-  for (const dialogue of registry.dialogues) {
-    if (dialogue.botId !== botId) continue;
-    const stamp = Date.parse(workspaceOf(workspaces, dialogue)?.updatedAt ?? "");
+  const bot = registry.bots.find((item) => item.id === botId);
+  for (const segment of bot?.segments ?? []) {
+    const stamp = Date.parse(workspaceOf(workspaces, segment)?.updatedAt ?? "");
     if (Number.isFinite(stamp) && stamp > at) at = stamp;
   }
   for (const row of rows) {

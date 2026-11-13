@@ -7,9 +7,8 @@
 import { expect, test } from "nsh/test";
 
 import {
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -24,27 +23,15 @@ import { emptyShellPrefs, serializeShellPrefs, SHELL_PREFS_STORAGE } from "./pre
 const desktop = { platform: "web" as const, width: 1100, height: 800 };
 
 /**
- * Ada (ready) → one dialogue at /work/myaid → one claimed Session; Bob (ready)
- * → one dialogue at /work/bob → one claimed Session. Bob worked last.
+ * Ada (ready) → one segment at /work/myaid; Bob (ready) → one segment at
+ * /work/bob. Bob worked last.
  */
 function sample(): BotRegistry {
   const created = createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl");
   const ada = createBot(created, { name: "Ada", templateId: "tmpl" }, "ada");
   const bob = createBot(ada, { name: "Bob", templateId: "tmpl" }, "bob");
-  const withAdaDialogue = claimSession(
-    createDialogue(initializeBot(bob, "ada"), { botId: "ada", workspaceId: "ws-ada" }, "dlg-ada"),
-    "dlg-ada",
-    "s-ada",
-  );
-  return claimSession(
-    createDialogue(
-      initializeBot(withAdaDialogue, "bob"),
-      { botId: "bob", workspaceId: "ws-bob" },
-      "dlg-bob",
-    ),
-    "dlg-bob",
-    "s-bob",
-  );
+  const withAda = claimSegment(initializeBot(bob, "ada"), "ada", "s-ada", "ws-ada");
+  return claimSegment(initializeBot(withAda, "bob"), "bob", "s-bob", "ws-bob");
 }
 
 function start(options: { prefs?: string; registry?: BotRegistry; workspaces?: string[] } = {}) {

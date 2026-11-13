@@ -28,6 +28,8 @@ nsh test screens/l1-shots.test.tsx --target macos
 
 # Settings' four groups in light and dark, over the fake Host.
 nsh test screens/settings-shots.test.tsx --target macos
+# One long conversation's divider, history rail and directory change (scripted).
+nsh test screens/l2-shots.test.tsx --target macos
 ```
 
 ## Real-Host smokes: opt-in, and never the user's registry
@@ -66,7 +68,7 @@ the footer's empty state with the manual command. Its pictures go to
 
 The other real-Host smokes (`real-turn`, `new-bot-real-host`, `bot-app`,
 `bot-presets-real-host`, `session-model`, `session-restart`,
-`settings-real-host`) run the same way;
+`settings-real-host`, `long-conversation`) run the same way;
 `session-restart` still expects
 `screens/host-restart-watch.mjs --after-turns 1` to stop the Host mid-turn.
 
@@ -84,6 +86,13 @@ Settings, clears it, writes a base URL and the default model into dsh's
 settings and reads them back after reopening, then checks About's versions
 and that the dark scheme and accent survive a relaunch. The scratch
 `.credentials.yaml` holds no key once the page's **清除 Key** has run.
+
+`long-conversation.smoke.test.tsx` proves one Bot's long conversation against a
+live Host: a first segment in one directory, a new segment after changing the
+directory in the header, `/new`, the history rail's keyboard jump back to the
+first segment, a prompt sent while scrolled up going to the latest segment, and
+a second launch that restores all three segments. Its pictures go to
+`SHOTS_L2`.
 
 `bot-presets-real-host.smoke.test.tsx` additionally needs
 `myaid-plugin-bot-presets` on the Host command line (`--patch` its built

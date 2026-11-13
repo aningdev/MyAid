@@ -180,6 +180,11 @@ export async function archiveSession(
   await call("archiveSession", () => model.archiveSession(sessionId as never, options));
 }
 
+/** Bring an archived Session back (the v6 migration keeps every old segment). */
+export async function unarchiveSession(model: IWorkspaces, sessionId: string): Promise<void> {
+  await call("unarchiveSession", () => model.unarchiveSession(sessionId as never));
+}
+
 /** Pin a Session: the migration carries a v4 file's Favorites pins here. */
 export async function pinSession(model: IWorkspaces, sessionId: string): Promise<void> {
   await call("pinSession", () => model.pinSession(sessionId as never));

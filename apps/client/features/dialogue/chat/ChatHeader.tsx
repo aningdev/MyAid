@@ -1,14 +1,15 @@
 /**
  * The Session's header inside its Panel: the bot and the Session's title, the
- * workspace under it, the model it runs on. The transcript scrolls under it;
- * a hairline appears only once it is scrolled. A double click on the title
- * renames the Session (the claim and dsh agree).
+ * Bot's current working directory under it, the model it runs on. The
+ * transcript scrolls under it; a hairline appears only once it is scrolled. A
+ * double click on the title renames the segment; a press on the directory edits
+ * it, and a different directory starts a new segment.
  */
 import { Text, View } from "nsh";
 import { signal } from "nsh";
 import { Input } from "nsh/base";
 
-import { colors, Icon } from "../../../components/ui";
+import { colors, Icon, Press } from "../../../components/ui";
 import { BotMark } from "../../bots/BotMark";
 import type { Bot } from "../../bots/model";
 
@@ -20,14 +21,25 @@ export function ChatHeader(props: {
   bot: () => Bot | null;
   working: () => boolean;
   onRename: (title: string) => void;
+  /** A new working directory; a different one starts a segment. */
+  onWorkspace?: (path: string) => void;
 }) {
   const editing = signal(false);
   const draft = signal("");
+  const editingPath = signal(false);
+  const pathDraft = signal("");
 
   const commit = () => {
     const title = draft().trim();
     editing.set(false);
     if (title) props.onRename(title);
+  };
+
+  const commitPath = () => {
+    const path = pathDraft().trim();
+    editingPath.set(false);
+    if (!path || path === props.subtitle()) return;
+    props.onWorkspace?.(path);
   };
 
   return (
@@ -103,12 +115,58 @@ export function ChatHeader(props: {
           </Text>
         </View>
       </View>
-      <Text
-        style={{ numberOfLines: 1, fontSize: 11, color: colors.faint }}
-        testID="session-workspace"
+      <If
+        when={editingPath()}
+        else={
+          <View
+            onPress={() => {
+              if (!props.onWorkspace) return;
+              pathDraft.set(props.subtitle());
+              editingPath.set(true);
+            }}
+            tooltip={
+              props.onWorkspace ? (
+                <Text style={{ fontSize: 12 }}>Click to change the working directory</Text>
+              ) : undefined
+            }
+            style={{ flexDirection: "row", alignItems: "center", gap: 4, minHeight: 18 }}
+          >
+            <Text
+              style={{ numberOfLines: 1, fontSize: 11, color: colors.faint }}
+              testID="session-workspace"
+            >
+              {props.subtitle() || "Choose a working directory…"}
+            </Text>
+          </View>
+        }
       >
-        {props.subtitle()}
-      </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+          <Input
+            value={pathDraft()}
+            onChange={(event) => pathDraft.set(event.value)}
+            onSubmit={commitPath}
+            onBlur={commitPath}
+            autoFocus
+            testID="session-workspace-input"
+            accessibilityLabel="Working directory"
+            style={{
+              flex: 1,
+              height: 24,
+              fontSize: 11,
+              color: colors.text,
+              paddingHorizontal: 4,
+            }}
+          />
+          <Press
+            onPress={commitPath}
+            accessibilityLabel="Use this working directory"
+            scale={0.9}
+            style={{ width: 22, height: 22 }}
+          >
+            <Icon name="check" size={12} tint={colors.accent} />
+          </Press>
+        </View>
+      </If>
     </View>
   );
 }

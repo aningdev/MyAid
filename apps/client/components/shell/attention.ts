@@ -12,8 +12,8 @@
 import { effect, Notifications, platform, untracked } from "nsh";
 import { Window } from "nsh/desktop";
 
-import { claimOwner } from "../../features/bots/model";
-import { currentSessionOf } from "../../features/bots/sessions";
+import { segmentOwner } from "../../features/bots/model";
+import { currentSegmentOf } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { sessionList, type SessionRow } from "../../features/dialogue/session/runtime";
 import { isSessionArchived, workspaces } from "../../features/workspace/state";
@@ -101,19 +101,18 @@ function focused(): boolean {
 function visibleSessionIds(): ReadonlySet<string> {
   const botId = activeBotId();
   if (!botId) return new Set();
-  const current = currentSessionOf({
+  const current = currentSegmentOf({
     registry: untracked(registry),
     workspaces: untracked(workspaces),
-    rows: untracked(sessionList),
     botId,
   });
-  return new Set(current ? [current.sessionId] : []);
+  return new Set(current ? [current.segment.sessionId] : []);
 }
 
 function openFromNotification(id: string): void {
   const sessionId = sessionFromNotification(id);
   if (!sessionId) return;
-  const owner = claimOwner(untracked(registry), sessionId);
+  const owner = segmentOwner(untracked(registry), sessionId);
   if (!owner || isSessionArchived(untracked(workspaces), sessionId)) return;
   openBot(owner.bot.id);
   Window.get("main")?.focus();

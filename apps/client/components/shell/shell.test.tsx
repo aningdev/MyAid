@@ -7,9 +7,8 @@
 import { expect, test } from "nsh/test";
 
 import {
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -37,23 +36,20 @@ function start(registry: BotRegistry) {
   });
 }
 
-/** Ada (ready) → one dialogue at /work/myaid → one claimed Session. */
+/** Ada (ready) → one segment at /work/myaid. */
 function sampleRegistry(): BotRegistry {
-  return claimSession(
-    createDialogue(
-      initializeBot(
-        createBot(
-          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-          { name: "Ada", templateId: "tmpl" },
-          "bot",
-        ),
+  return claimSegment(
+    initializeBot(
+      createBot(
+        createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+        { name: "Ada", templateId: "tmpl" },
         "bot",
       ),
-      { botId: "bot", workspaceId: "ws-work" },
-      "dlg",
+      "bot",
     ),
-    "dlg",
+    "bot",
     "s1",
+    "ws-work",
   );
 }
 

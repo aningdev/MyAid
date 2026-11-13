@@ -11,9 +11,8 @@ import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import {
   archiveBot,
   assignDerivedPreset,
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -25,23 +24,20 @@ import { REGISTRY_STORAGE_KEY } from "./store";
 
 const desktop = { platform: "web" as const, width: 1200, height: 860 };
 
-/** Ada (ready, template-bound) → one Dialogue → one claimed Session. */
+/** Ada (ready, template-bound) → one segment. */
 function sampleRegistry(): BotRegistry {
-  return claimSession(
-    createDialogue(
-      initializeBot(
-        createBot(
-          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-          { name: "Ada", templateId: "tmpl" },
-          "bot",
-        ),
+  return claimSegment(
+    initializeBot(
+      createBot(
+        createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+        { name: "Ada", templateId: "tmpl" },
         "bot",
       ),
-      { botId: "bot", workspaceId: "ws-work" },
-      "dlg",
+      "bot",
     ),
-    "dlg",
+    "bot",
     "s1",
+    "ws-work",
   );
 }
 

@@ -22,22 +22,28 @@ import { LayoutAnimation } from "nsh";
 
 import { alpha, Appear, colors, IconTile, Press, radius } from "../../components/ui";
 import { BotMark } from "../bots/BotMark";
-import { claimOwner } from "../bots/model";
+import { segmentOwner } from "../bots/model";
+import { conversationOf, sessionLabel, type ConversationSegment } from "../bots/sessions";
 import { registry } from "../bots/state";
+import { newTopic, changeWorkingDirectory } from "../workspace/conversation";
 import { workspacePath, workspaces } from "../workspace/state";
 import { ApprovalCard } from "./chat/ApprovalCard";
 import { attachDropped } from "./chat/attach";
 import { ChatHeader } from "./chat/ChatHeader";
 import { Composer } from "./chat/Composer";
 import { blobToBase64 } from "./chat/files";
+import { requestComposerFocus } from "./chat/focus";
+import { HistoryRail, type RailMark } from "./chat/HistoryRail";
 import { type RowHandlers } from "./chat/MessageRow";
-import { buildRows, toggleKey } from "./chat/rows";
+import { buildConversationRows, buildRows, toggleKey, type SegmentInput } from "./chat/rows";
 import type { Msg, Tool } from "./chat/scripts";
+import { clockLabel, dayLabel } from "./chat/time";
 import { Transcript } from "./chat/Transcript";
 import type { SessionController } from "./session/controller";
 import {
   catalogModelKey,
   connectSession,
+  controllerFor,
   modelCatalog,
   renameSession,
   selectSessionModel,
@@ -51,26 +57,39 @@ type Assistant = Extract<Msg, { kind: "assistant" }>;
 /**
  * Dialogue main pane — renders one SessionController's TurnProjection; the
  * controller owns frames, turn freeze, approvals, the draft and its files.
+ * With `history`, it is a Bot's whole long conversation: older segments load
+ * into the same transcript above the current one, under their own divider.
  */
-export function ChatPane(props: { controller: SessionController }) {
+export function ChatPane(props: {
+  controller: SessionController;
+  history?: boolean;
+  /** The Session controllers in this surface; the product uses the shared registry. */
+  controllerOf?: (sessionId: string) => SessionController;
+}) {
   const controller = () => props.controller;
+  const controllerOf = (sessionId: string) =>
+    props.controllerOf ? props.controllerOf(sessionId) : controllerFor(sessionId);
   const native = platform.idiom === "desktop" && platform.os !== "web";
-  const owner = () => claimOwner(registry(), props.controller.sessionId);
+  const owner = () => segmentOwner(registry(), props.controller.sessionId);
   const bot = () => owner()?.bot ?? null;
   const botName = () => bot()?.name ?? "Bot";
   const title = () => {
     const row = sessionList().find((item) => item.id === props.controller.sessionId);
-    return row?.label ?? owner()?.claim.title ?? "New Session";
+    return row?.label ?? owner()?.segment.title ?? "New Session";
   };
   const subtitle = () => {
     const current = owner();
-    return current ? workspacePath(workspaces(), current.dialogue) : "";
+    return current ? workspacePath(workspaces(), current.segment) : "";
   };
 
   let ids = 0;
   const nextId = () => `m${ids++}`;
 
   const messages = signal<Msg[]>([]);
+  /** Older segments loaded into the transcript, oldest first. */
+  const olderLoaded = signal<string[]>([]);
+  /** The top of the list is opening a page or another segment. */
+  const loadingOlder = signal(false);
   const liveId = signal<string | null>(null);
   const liveReason = signal("");
   const liveThinking = signal<{ start: number; seconds: number | null } | null>(null);
@@ -93,6 +112,8 @@ export function ChatPane(props: { controller: SessionController }) {
 
   let list: ListRef | undefined;
   let ticker: ReturnType<typeof setInterval> | undefined;
+  /** The Session the reset effect last saw, to keep a new segment's history above. */
+  let lastSession: string | null = null;
 
   // Absolute live strings collect here and reach the signals once per frame.
   let pendingMd: string | null = null;
@@ -103,6 +124,46 @@ export function ChatPane(props: { controller: SessionController }) {
   let thinkSeconds: number | null = null;
 
   const running = () => controller().running() || liveId() !== null;
+
+  /** The Bot's segments (oldest first), or just this Session outside history. */
+  const segments = (): ConversationSegment[] => {
+    const current = owner();
+    if (!current) return [];
+    if (!props.history) {
+      const path = workspacePath(workspaces(), current.segment);
+      const row = sessionList().find((item) => item.id === current.segment.sessionId);
+      return [
+        {
+          index: 0,
+          sessionId: current.segment.sessionId,
+          workspaceId: current.segment.workspaceId,
+          path,
+          title: current.segment.title,
+          current: true,
+          updatedAt: row?.updatedAt ?? null,
+          missing: row?.missing ?? false,
+        },
+      ];
+    }
+    const listed = sessionList().map((row) => ({
+      sessionId: row.id,
+      blank: false,
+      updatedAt: row.updatedAt ?? 0,
+      running: row.running,
+    }));
+    return conversationOf(registry(), workspaces(), listed, current.bot.id);
+  };
+  const latest = () => segments()[segments().length - 1] ?? null;
+  /** Segments loaded above the current one, in conversation order. */
+  const loadedSegments = () => {
+    const loaded = new Set(olderLoaded());
+    return segments().filter((segment) => !segment.current && loaded.has(segment.sessionId));
+  };
+  const segmentAt = (segment: ConversationSegment, past: readonly Msg[]): number => {
+    const first = past.find((message) => message.at !== undefined)?.at;
+    return first ?? segment.updatedAt ?? Date.now();
+  };
+  const nowMs = () => now();
 
   const startTicker = () => {
     if (ticker !== undefined) return;
@@ -270,10 +331,20 @@ export function ChatPane(props: { controller: SessionController }) {
     }
   };
 
-  // A different Session (or a reset) starts from nothing.
+  // A different Session (or a reset) starts from nothing. A new segment of the
+  // same Bot keeps the previous transcript above it: the old content stays.
   effect(() => {
     const current = controller();
-    current.sessionId;
+    const nextId = current.sessionId;
+    if (nextId === lastSession) return;
+    const all = segments();
+    const at = all.findIndex((segment) => segment.sessionId === nextId);
+    const previous = lastSession
+      ? all.findIndex((segment) => segment.sessionId === lastSession)
+      : -1;
+    const continues = props.history === true && previous >= 0 && at === previous + 1;
+    const kept = continues ? [...untracked(olderLoaded), lastSession!] : [];
+    lastSession = nextId;
     stopTicker();
     messages.set([]);
     liveId.set(null);
@@ -281,6 +352,20 @@ export function ChatPane(props: { controller: SessionController }) {
     prompting.set(false);
     since.set(null);
     following.set(true);
+    olderLoaded.set([...new Set(kept)]);
+    loadingOlder.set(false);
+  });
+
+  // Older segments stay followed while they are in the transcript.
+  effect(() => {
+    const mounted = olderLoaded().map((sessionId) => {
+      const older = controllerOf(sessionId);
+      older.mount();
+      return older;
+    });
+    cleanup(() => {
+      for (const older of mounted) older.unmount();
+    });
   });
 
   // Follow the Session while a Panel shows it.
@@ -485,6 +570,16 @@ export function ChatPane(props: { controller: SessionController }) {
     const text = current.draft().trim();
     const files = current.draftAttachments();
     if (!text && files.length === 0) return;
+    // `/new` is the palette's 「新话题」 in the composer: a new segment in the
+    // Bot's current working directory; the old transcript stays above.
+    if (text === "/new" && files.length === 0) {
+      const currentBot = bot();
+      if (!currentBot) return;
+      current.clearDraft();
+      const sessionId = await newTopic(currentBot.id);
+      if (sessionId) requestComposerFocus(sessionId);
+      return;
+    }
     following.set(true);
     const image = files.find((item) => item.mediaType);
     const file = files.find((item) => !item.mediaType);
@@ -637,15 +732,136 @@ export function ChatPane(props: { controller: SessionController }) {
     );
   };
 
+  /** Open the next older page: within the oldest loaded segment, then the segment before it. */
+  const loadOlder = async () => {
+    if (loadingOlder()) return;
+    const current = controller();
+    await current.start().catch(() => undefined);
+    if (current.view().olderHasMore) {
+      await current.loadOlder().catch(() => undefined);
+      return;
+    }
+    const loaded = loadedSegments();
+    const oldest = loaded[0];
+    if (oldest) {
+      const older = controllerOf(oldest.sessionId);
+      await older.start().catch(() => undefined);
+      if (older.view().olderHasMore) {
+        loadingOlder.set(true);
+        try {
+          await older.loadOlder().catch(() => undefined);
+        } finally {
+          loadingOlder.set(false);
+        }
+        return;
+      }
+    }
+    const all = segments();
+    const from = oldest ? oldest.index : all.length - 1;
+    const next = all[from - 1];
+    if (!next) return;
+    loadingOlder.set(true);
+    olderLoaded.set([next.sessionId, ...olderLoaded()]);
+    try {
+      await controllerOf(next.sessionId)
+        .start()
+        .catch(() => undefined);
+    } finally {
+      loadingOlder.set(false);
+    }
+  };
+
+  /** The rail's jump: load the target and every newer segment, then scroll to its start. */
+  const jumpToSegment = async (index: number) => {
+    const all = segments();
+    const target = all[index];
+    if (!target) return;
+    const older = all.slice(index, -1).map((segment) => segment.sessionId);
+    olderLoaded.set(older);
+    await Promise.all(
+      older.map((sessionId) =>
+        controllerOf(sessionId)
+          .start()
+          .catch(() => undefined),
+      ),
+    );
+    if (target.current) {
+      toEnd();
+      return;
+    }
+    // The rows exist after the loaded segment's first view lands. The first
+    // pass scrolls by estimate; the second corrects once the list measured
+    // the loaded rows (a long older transcript makes the estimate drift).
+    const place = () => {
+      const at = rows().findIndex(
+        (row) => row.kind === "segment" && row.sessionId === target.sessionId,
+      );
+      if (at < 0) return;
+      following.set(false);
+      list?.scrollToIndex({ index: at, animated: true, viewPosition: 0 });
+    };
+    setTimeout(place, 80);
+    setTimeout(place, 360);
+  };
+
+  const railMarks = (): RailMark[] => {
+    const rows = new Map(sessionList().map((row) => [row.id, row]));
+    return segments().map((segment) => {
+      const view = olderLoaded().includes(segment.sessionId)
+        ? controllerOf(segment.sessionId).view()
+        : null;
+      const at = segmentAt(segment, view?.messages ?? []);
+      const row = rows.get(segment.sessionId);
+      return {
+        sessionId: segment.sessionId,
+        label: row?.label ?? sessionLabel({ title: segment.title }, null),
+        time: `${dayLabel(at, now())} ${clockLabel(at)}`,
+        path: segment.path,
+        current: segment.current,
+      };
+    });
+  };
+
   const rows = () => {
-    const built = buildRows({
-      messages: displayMessages(),
+    if (!props.history) {
+      return buildRows({
+        messages: displayMessages(),
+        liveId: liveId(),
+        running: running(),
+        since: since(),
+        now: now(),
+      });
+    }
+    const at = now();
+    const inputs: SegmentInput[] = [];
+    for (const segment of loadedSegments()) {
+      const past = controllerOf(segment.sessionId).view().messages;
+      inputs.push({
+        sessionId: segment.sessionId,
+        label: dayLabel(segmentAt(segment, past), at),
+        path: segment.path,
+        current: false,
+        messages: past,
+      });
+    }
+    const current = latest();
+    if (current) {
+      const past = displayMessages();
+      inputs.push({
+        sessionId: current.sessionId,
+        label: dayLabel(segmentAt(current, past), at),
+        path: current.path,
+        current: true,
+        messages: past,
+      });
+    }
+    return buildConversationRows({
+      segments: inputs,
       liveId: liveId(),
       running: running(),
       since: since(),
-      now: now(),
+      now: at,
     });
-    return built;
   };
 
   /** Connection trouble only: the shared Connection's, else this Session's. */
@@ -667,6 +883,10 @@ export function ChatPane(props: { controller: SessionController }) {
         bot={bot}
         working={running}
         onRename={(next) => void renameSession(props.controller.sessionId, next)}
+        onWorkspace={(path) => {
+          const current = bot();
+          if (current) void changeWorkingDirectory(current.id, path);
+        }}
       />
       <If when={!!banner()}>
         <View
@@ -719,23 +939,28 @@ export function ChatPane(props: { controller: SessionController }) {
           </View>
         }
       >
-        <Transcript
-          rows={rows}
-          botName={botName}
-          bot={bot}
-          now={() => now()}
-          handlers={handlers}
-          following={following}
-          streaming={running}
-          loadingOlder={() => controller().olderLoading()}
-          onScrollState={(state) => {
-            if (following() !== state.following) following.set(state.following);
-            if (scrolled() !== state.scrolled) scrolled.set(state.scrolled);
-          }}
-          onLoadOlder={() => void controller().loadOlder()}
-          onJump={() => toEnd()}
-          listRef={(node) => (list = node)}
-        />
+        <View style={{ flex: 1, minHeight: 0, position: "relative" }}>
+          <Transcript
+            rows={rows}
+            botName={botName}
+            bot={bot}
+            now={() => now()}
+            handlers={handlers}
+            following={following}
+            streaming={running}
+            loadingOlder={() => loadingOlder() || controller().olderLoading()}
+            onScrollState={(state) => {
+              if (following() !== state.following) following.set(state.following);
+              if (scrolled() !== state.scrolled) scrolled.set(state.scrolled);
+            }}
+            onLoadOlder={() => void loadOlder()}
+            onJump={() => toEnd()}
+            listRef={(node) => (list = node)}
+          />
+          <If when={!!props.history && segments().length > 0}>
+            <HistoryRail marks={railMarks} onJump={(index) => void jumpToSegment(index)} />
+          </If>
+        </View>
       </If>
       <If when={!!dropTrouble()}>
         <Text

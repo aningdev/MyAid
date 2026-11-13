@@ -1,10 +1,10 @@
 /**
- * Registry file format: parse (v5, and the v3 / v4 files that still need a
- * Host to migrate) and serialize. The domain model and its mutations live in
+ * Registry file format: parse (v6, and the v3 / v4 / v5 files that still need
+ * a Host to migrate) and serialize. The domain model and its mutations live in
  * `model.ts`; this module owns only the bytes.
  */
 import { defaultIdentity, readIdentity } from "./identity";
-import type { Bot, BotRegistry, BotTemplate, Dialogue, SessionClaim } from "./model";
+import type { Bot, BotRegistry, BotTemplate, Segment } from "./model";
 import {
   blankToNull,
   isRecord,
@@ -17,7 +17,7 @@ import {
 
 /**
  * A v3 / v4 Dialogue: it carries its own path, name and archive flag, which
- * dsh's Workspace must take over before the file can be read as v5.
+ * dsh's Workspace must take over before the file can be migrated.
  */
 export type LegacyDialogue = {
   id: string;
@@ -26,14 +26,29 @@ export type LegacyDialogue = {
   /** The person's own name; `null` reads as the workspace's last segment. */
   name: string | null;
   archived: boolean;
-  claims: (SessionClaim & { archived: boolean })[];
+  claims: (LegacyClaim & { archived: boolean })[];
 };
 
-/** A v3 / v4 file: the same Bots, Dialogues that still own their path. */
+type LegacyClaim = { sessionId: string; title: string | null };
+
+/**
+ * A v5 Dialogue: it already names a dsh Workspace, but the Bot's conversation
+ * is still split across Dialogues. The migration merges its claims into the
+ * Bot's segments.
+ */
+export type PreviousDialogue = {
+  id: string;
+  botId: string;
+  workspaceId: string;
+  claims: LegacyClaim[];
+};
+
+/** A pre-v6 file: the same Bots, Dialogues that still own the conversation. */
 export type LegacyRegistry = {
+  version: 3 | 4 | 5;
   templates: BotTemplate[];
   bots: Bot[];
-  dialogues: LegacyDialogue[];
+  dialogues: (LegacyDialogue | PreviousDialogue)[];
 };
 
 export type ParseResult =
@@ -55,21 +70,24 @@ export function parseRegistry(text: string): ParseResult {
   if (!isRecord(value)) {
     return { ok: false, message: "注册表不是对象。" };
   }
-  // v3 / v4 files still own their Dialogue paths: they are read whole and
-  // handed to the migration, which writes v5 through `serializeRegistry`.
   const sourceVersion = value.version;
-  if (sourceVersion !== 3 && sourceVersion !== 4 && sourceVersion !== REGISTRY_VERSION) {
+  if (
+    sourceVersion !== 3 &&
+    sourceVersion !== 4 &&
+    sourceVersion !== 5 &&
+    sourceVersion !== REGISTRY_VERSION
+  ) {
     return {
       ok: false,
       message: rejectionMessage({ code: "unsupported-version", version: sourceVersion }),
     };
   }
-  if (
-    !Array.isArray(value.templates) ||
-    !Array.isArray(value.bots) ||
-    !Array.isArray(value.dialogues)
-  ) {
-    return { ok: false, message: "注册表缺少模板、Bot 或 Dialogue 列表。" };
+  if (!Array.isArray(value.templates) || !Array.isArray(value.bots)) {
+    return { ok: false, message: "注册表缺少模板或 Bot 列表。" };
+  }
+  const legacy = sourceVersion === 3 || sourceVersion === 4 || sourceVersion === 5;
+  if (legacy && !Array.isArray(value.dialogues)) {
+    return { ok: false, message: "注册表缺少 Dialogue 列表。" };
   }
   const templates: BotTemplate[] = [];
   const templateIds = new Set<string>();
@@ -83,7 +101,7 @@ export function parseRegistry(text: string): ParseResult {
   const bots: Bot[] = [];
   const botIds = new Set<string>();
   for (const item of value.bots) {
-    const parsed = parseBot(item, sourceVersion);
+    const parsed = parseBot(item, sourceVersion, legacy ? [] : undefined);
     if (typeof parsed === "string") return { ok: false, message: parsed };
     if (botIds.has(parsed.id)) return { ok: false, message: "Bot id 重复。" };
     if (!templateIds.has(parsed.templateId)) {
@@ -92,41 +110,55 @@ export function parseRegistry(text: string): ParseResult {
     botIds.add(parsed.id);
     bots.push(parsed);
   }
-  const legacy = sourceVersion === 3 || sourceVersion === 4;
-  const legacyVersion = sourceVersion === 3 ? 3 : 4;
-  const dialogues: Dialogue[] = [];
-  const legacyDialogues: LegacyDialogue[] = [];
-  const dialogueIds = new Set<string>();
   const sessionIds = new Set<string>();
-  for (const item of value.dialogues) {
-    const parsed = legacy ? parseLegacyDialogue(item, legacyVersion) : parseDialogue(item);
-    if (typeof parsed === "string") return { ok: false, message: parsed };
-    if (dialogueIds.has(parsed.id)) return { ok: false, message: "Dialogue id 重复。" };
-    if (!botIds.has(parsed.botId)) {
-      return { ok: false, message: "Dialogue 引用了不存在的 Bot。" };
-    }
-    for (const claim of parsed.claims) {
-      if (sessionIds.has(claim.sessionId)) return { ok: false, message: "Session id 重复。" };
-      sessionIds.add(claim.sessionId);
-    }
-    dialogueIds.add(parsed.id);
-    if ("workspacePath" in parsed) legacyDialogues.push(parsed);
-    else dialogues.push(parsed);
-  }
-  const all = legacy ? legacyDialogues : dialogues;
   for (const bot of bots) {
-    const hasDialogue = all.some((item) => item.botId === bot.id);
-    if (hasDialogue && !bot.hadDialogue) {
-      return { ok: false, message: "Bot 项无效：存在 Dialogue 但 hadDialogue 为 false。" };
+    for (const segment of bot.segments) {
+      if (sessionIds.has(segment.sessionId)) return { ok: false, message: "Session id 重复。" };
+      sessionIds.add(segment.sessionId);
     }
   }
   if (legacy) {
-    return { ok: true, state: "legacy", legacy: { templates, bots, dialogues: legacyDialogues } };
+    const dialogues: (LegacyDialogue | PreviousDialogue)[] = [];
+    const dialogueIds = new Set<string>();
+    for (const item of value.dialogues as unknown[]) {
+      const parsed =
+        sourceVersion === 5
+          ? parsePreviousDialogue(item)
+          : parseLegacyDialogue(item, sourceVersion);
+      if (typeof parsed === "string") return { ok: false, message: parsed };
+      if (dialogueIds.has(parsed.id)) return { ok: false, message: "Dialogue id 重复。" };
+      if (!botIds.has(parsed.botId)) {
+        return { ok: false, message: "Dialogue 引用了不存在的 Bot。" };
+      }
+      for (const claim of parsed.claims) {
+        if (sessionIds.has(claim.sessionId)) {
+          return { ok: false, message: "Session id 重复。" };
+        }
+        sessionIds.add(claim.sessionId);
+      }
+      dialogueIds.add(parsed.id);
+      dialogues.push(parsed);
+    }
+    for (const bot of bots) {
+      if (dialogues.some((item) => item.botId === bot.id) && !bot.hadDialogue) {
+        return { ok: false, message: "Bot 项无效：存在 Dialogue 但 hadDialogue 为 false。" };
+      }
+    }
+    return {
+      ok: true,
+      state: "legacy",
+      legacy: { version: sourceVersion as 3 | 4 | 5, templates, bots, dialogues },
+    };
+  }
+  for (const bot of bots) {
+    if (bot.segments.length > 0 && !bot.hadDialogue) {
+      return { ok: false, message: "Bot 项无效：存在段但 hadDialogue 为 false。" };
+    }
   }
   return {
     ok: true,
     state: "current",
-    registry: { version: REGISTRY_VERSION, templates, bots, dialogues },
+    registry: { version: REGISTRY_VERSION, templates, bots },
   };
 }
 
@@ -140,7 +172,11 @@ function parseTemplate(value: unknown): BotTemplate | string {
   return { id, name: name.trim(), presetId: presetId.trim() };
 }
 
-function parseBot(value: unknown, version: number): Bot | string {
+function parseBot(
+  value: unknown,
+  version: number,
+  legacySegments?: readonly Segment[],
+): Bot | string {
   if (!isRecord(value)) return "Bot 项无效。";
   const id = readRequiredString(value, "id");
   const name = readRequiredString(value, "name");
@@ -169,8 +205,16 @@ function parseBot(value: unknown, version: number): Bot | string {
     return "Bot 项无效。";
   }
   if (typeof value.hadDialogue !== "boolean") return "Bot 项无效。";
-  // Archived shipped after v5: absent reads as not archived, a present value must be a boolean.
+  // Archived shipped after v3: absent reads as not archived, a present value must be a boolean.
   if ("archived" in value && typeof value.archived !== "boolean") return "Bot 项无效。";
+  let segments: Segment[];
+  if (legacySegments !== undefined) {
+    segments = [...legacySegments];
+  } else {
+    const parsed = parseSegments(value.segments);
+    if (typeof parsed === "string") return parsed;
+    segments = parsed;
+  }
   return {
     id,
     name: name.trim(),
@@ -186,16 +230,34 @@ function parseBot(value: unknown, version: number): Bot | string {
     status,
     boundPresetId: blankToNull(boundPresetId),
     derivedPresetId: blankToNull(derivedPresetId),
+    segments,
   };
 }
 
-function parseDialogue(value: unknown): Dialogue | string {
+function parseSegments(value: unknown): Segment[] | string {
+  if (!Array.isArray(value)) return "Bot 项无效。";
+  const segments: Segment[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (!isRecord(item)) return "Bot 项无效。";
+    const sessionId = readRequiredString(item, "sessionId")?.trim();
+    const workspaceId = readRequiredString(item, "workspaceId")?.trim();
+    const title = readNullableString(item, "title");
+    if (!sessionId || !workspaceId || title === undefined) return "Bot 项无效。";
+    if (seen.has(sessionId)) return "Bot 项无效。";
+    seen.add(sessionId);
+    segments.push({ sessionId, workspaceId, title: blankToNull(title) });
+  }
+  return segments;
+}
+
+function parsePreviousDialogue(value: unknown): PreviousDialogue | string {
   if (!isRecord(value)) return "Dialogue 项无效。";
   const id = readRequiredString(value, "id");
   const botId = readRequiredString(value, "botId");
   const workspaceId = readRequiredString(value, "workspaceId");
   if (!id || !botId || !workspaceId?.trim()) return "Dialogue 项无效。";
-  const claims = parseClaims(value.claims, REGISTRY_VERSION);
+  const claims = parseClaims(value.claims, 5);
   if (typeof claims === "string") return claims;
   return {
     id,
@@ -235,9 +297,9 @@ function parseLegacyDialogue(value: unknown, version: 3 | 4): LegacyDialogue | s
 function parseClaims(
   value: unknown,
   version: number,
-): (SessionClaim & { archived?: boolean })[] | string {
+): (LegacyClaim & { archived?: boolean })[] | string {
   if (!Array.isArray(value)) return "Dialogue 项无效。";
-  const claims: (SessionClaim & { archived?: boolean })[] = [];
+  const claims: (LegacyClaim & { archived?: boolean })[] = [];
   const seen = new Set<string>();
   for (const item of value) {
     if (!isRecord(item)) return "Dialogue 项无效。";

@@ -1,7 +1,7 @@
 /**
  * New Bot: a sheet with the Bot's name, its dsh preset, the mark it wears
  * and its first working directory. Creating it writes the Bot, opens its Pane,
- * then creates the dialogue and (when dsh answers) the first Session, with the
+ * then creates its first segment (when dsh answers), with the
  * keyboard in the composer. The first launch's welcome state leads here, as do
  * ⌘N, the list's "New Bot" row and the palette.
  */
@@ -10,7 +10,7 @@ import { effect, signal, Text, View, windowSize } from "nsh";
 import { openBot } from "../../components/shell/state";
 import { Button, colors, Field, radius, Sheet } from "../../components/ui";
 import { requestComposerFocus } from "../dialogue/chat/focus";
-import { createDialogueOnPath } from "../workspace/dialogues";
+import { startSegment } from "../workspace/conversation";
 import { BotIdentityPicker, BotMark } from "./BotMark";
 import { nextIdentity, type BotIdentity } from "./identity";
 import { createBot, initializeBot, newId } from "./model";
@@ -136,20 +136,13 @@ function Body() {
         localError.set(actionError() ?? "Could not create the Bot.");
         return;
       }
-      // The Bot is saved; its Pane is the surface from here on. The dialogue
-      // lives on a dsh Workspace and its Session needs the Host, so both may
-      // still fail: the Pane then offers to start the conversation again.
+      // The Bot is saved; its Pane is the surface from here on. The segment
+      // lives in a dsh Workspace and needs the Host, so it may still fail: the
+      // Pane then offers to start the conversation again.
       closeNewBot();
       openBot(botId);
-      const dialogue = await createDialogueOnPath(botId, path);
-      if (!dialogue) return;
-      const { createSession } = await import("../dialogue/session/runtime");
-      try {
-        const sessionId = await createSession(dialogue.id);
-        requestComposerFocus(sessionId);
-      } catch {
-        // `sessionError` is shown in the Pane.
-      }
+      const sessionId = await startSegment(botId, path);
+      if (sessionId) requestComposerFocus(sessionId);
     } finally {
       creating.set(false);
     }
@@ -162,7 +155,7 @@ function Body() {
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>New Bot</Text>
           <Text style={{ fontSize: 12, color: colors.muted }}>
-            A name, a look and the workspace of its first Dialogue.
+            A name, a look and the working directory of its first segment.
           </Text>
         </View>
       </View>
@@ -242,7 +235,7 @@ function Body() {
 
       <View style={{ gap: 6 }}>
         <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
-          First Dialogue workspace
+          First segment directory
         </Text>
         <Field
           label="Path"

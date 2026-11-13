@@ -10,11 +10,11 @@ import type { ISessions, SessionListState, SessionSummary } from "@myaid/dsh-web
 import { computed, signal, untracked } from "nsh";
 
 import {
-  claimOwner,
-  claimSession,
+  claimSegment,
   presetForBot,
-  releaseClaim,
-  renameClaim,
+  releaseSegment,
+  renameSegment,
+  segmentOwner,
 } from "../../bots/model";
 import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
 import { changeRegistry, ready, registry } from "../../bots/state";
@@ -164,7 +164,7 @@ function rememberSummary(
   const text = first.text.trim();
   if (summaries.get(sessionId) === text) return;
   summaries.set(sessionId, text);
-  const title = claimOwner(untracked(registry), sessionId)?.claim.title ?? null;
+  const title = segmentOwner(untracked(registry), sessionId)?.segment.title ?? null;
   rosterBase.update((rows) => relabelRow(rows, sessionId, title, text));
   // An unnamed Session takes its name from the first prompt (claim + dsh title).
   if (!title) void nameFromPrompt(sessionId, text);
@@ -174,11 +174,9 @@ function rememberSummary(
 async function nameFromPrompt(sessionId: string, text: string): Promise<void> {
   const title = titleFromPrompt(text);
   if (!title) return;
-  const owner = claimOwner(untracked(registry), sessionId);
-  if (!owner || owner.claim.title) return;
-  const saved = await changeRegistry((reg) =>
-    renameClaim(reg, owner.dialogue.id, sessionId, title),
-  );
+  const owner = segmentOwner(untracked(registry), sessionId);
+  if (!owner || owner.segment.title) return;
+  const saved = await changeRegistry((reg) => renameSegment(reg, owner.bot.id, sessionId, title));
   if (!saved) return;
   await refreshSessionList().catch(() => undefined);
   void claimed
@@ -388,8 +386,8 @@ async function ensureClient(): Promise<ClaimedSessionClient> {
       const connection = await api.ensureConnected();
       return wrapConnection(connection);
     },
-    claim: async (dialogueId, sessionId) => {
-      const saved = await changeRegistry((reg) => claimSession(reg, dialogueId, sessionId));
+    claim: async (botId, workspaceId, sessionId) => {
+      const saved = await changeRegistry((reg) => claimSegment(reg, botId, sessionId, workspaceId));
       return !!saved;
     },
     registry: () => untracked(registry),
@@ -450,25 +448,23 @@ async function connectHost(): Promise<SessionHost> {
   return api;
 }
 
-/** Create a session for an active Dialogue, claim it. The Panel that opens it reads it. */
-export async function createSession(dialogueId: string): Promise<string> {
+/** Create a new Session in `workspaceId` and append it as the Bot's next segment. */
+export async function createSegment(botId: string, workspaceId: string): Promise<string> {
   if (untracked(creatingSession)) throw new Error("正在新建上下文。");
   sessionError.set(null);
   creatingSession.set(true);
   try {
     if (!untracked(ready)) throw new Error("注册表还没准备好。");
-    const dialogue = untracked(registry).dialogues.find((item) => item.id === dialogueId);
-    if (!dialogue) throw new Error("找不到这段 Dialogue。");
-    const bot = untracked(registry).bots.find((item) => item.id === dialogue.botId);
-    if (!bot || bot.status !== "ready") throw new Error("初始化之后才能新建会话。");
+    const bot = untracked(registry).bots.find((item) => item.id === botId);
+    if (!bot) throw new Error("找不到这个 Bot。");
+    if (bot.status !== "ready") throw new Error("初始化之后才能开新段。");
+    if (!workspaceId) throw new Error("这段对话还没有 dsh Workspace。");
     await connectSession();
     const client = await ensureClient();
     const preset = presetForBot(untracked(registry), bot.id);
-    if (!dialogue.workspaceId) throw new Error("这段 Dialogue 还没有 dsh Workspace。");
     const id = await client.createClaimed({
-      dialogueId: dialogue.id,
-      dialogue,
-      bot,
+      botId: bot.id,
+      workspaceId,
       agentPreset: preset,
     });
     await refreshSessionList();
@@ -498,21 +494,21 @@ export async function selectSessionModel(sessionId: string, key: string): Promis
 export async function releaseMissingSession(sessionId: string): Promise<void> {
   const row = untracked(sessionList).find((item) => item.id === sessionId);
   if (!row?.missing) {
-    sessionError.set("dsh 里还在的会话不能解除认领。");
+    sessionError.set("dsh 里还在的会话不能移除。");
     return;
   }
-  const owner = claimOwner(untracked(registry), sessionId);
+  const owner = segmentOwner(untracked(registry), sessionId);
   if (!owner) return;
-  const saved = await changeRegistry((reg) => releaseClaim(reg, owner.dialogue.id, sessionId));
+  const saved = await changeRegistry((reg) => releaseSegment(reg, owner.bot.id, sessionId));
   if (saved) await refreshSessionList();
 }
 
 export async function renameSession(sessionId: string, title: string): Promise<void> {
-  const owner = claimOwner(untracked(registry), sessionId);
+  const owner = segmentOwner(untracked(registry), sessionId);
   if (!owner) return;
   const trimmed = title.trim();
   const saved = await changeRegistry((reg) =>
-    renameClaim(reg, owner.dialogue.id, sessionId, trimmed || null),
+    renameSegment(reg, owner.bot.id, sessionId, trimmed || null),
   );
   if (!saved) return;
   const hostApi = claimed?.getHost();

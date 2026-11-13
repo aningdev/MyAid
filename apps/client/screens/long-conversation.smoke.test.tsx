@@ -1,0 +1,113 @@
+/**
+ * Real-Host smoke: one Bot's long conversation. A first segment in one
+ * directory, a new segment after changing the working directory, `/new`, the
+ * history rail's keyboard jump back to the first segment, and a second launch
+ * that restores the conversation.
+ *
+ * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host
+ * itself (see screens/README.md):
+ *
+ *   SC=$PWD/.myaid-smoke
+ *   mkdir -p "$SC/home" "$SC/proj-a" "$SC/proj-b"
+ *   HOME="$SC/home" MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4881 \
+ *     PATH="$PWD/target/debug:$PATH" \
+ *     nsh test screens/long-conversation.smoke.test.tsx --target macos
+ */
+import { homedir } from "os";
+
+import { expect, test } from "nsh/test";
+
+import { open } from "../test/open";
+import { graphical, hostSmokeRequested, shoot, SHOTS_L2 } from "./shots";
+
+// The scratch root beside the smoke's HOME (`$SC/home`): `$SC/proj-*`.
+const ROOT = homedir().replace(/[\\/]home$/, "");
+const A = `${ROOT}/proj-a`;
+const B = `${ROOT}/proj-b`;
+
+type App = Awaited<ReturnType<typeof open>>;
+
+async function botToChat(app: App, name: string, path: string) {
+  await app.keyboard.press("mod+n");
+  await app.waitFor("id:new-bot-sheet");
+  await app.type("id:new-bot-name", name);
+  await app.type("id:new-bot-workspace", path);
+  await app.waitFor("text:Reading dsh presets…", { state: "gone", timeout: 120000 });
+  await app.press("label:Create Bot");
+  await app.waitFor("id:chat", { timeout: 180000 });
+  await app.waitFor("id:composer", { timeout: 60000 });
+}
+
+async function send(app: App, prompt: string) {
+  await app.type("id:composer", prompt);
+  await app.press("label:Send");
+  await app.waitFor(`text:${prompt}`, { timeout: 60000 });
+  await app.waitFor("label:Stop generating", { state: "gone", timeout: 600000 });
+}
+
+test("two segments in two directories, /new, the rail and a restart", async () => {
+  if (!hostSmokeRequested()) return;
+  const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
+  if (!(await graphical(app))) return;
+  await app.waitFor("text:Host connected", { timeout: 60000 });
+
+  await botToChat(app, "L2 Ada", A);
+  await send(app, "L2-A: first segment message");
+  expect(app.texts().some((text) => text.includes(A))).toBe(true);
+
+  // Change the working directory in the header: a new segment in B.
+  await app.press("id:session-workspace");
+  await app.waitFor("id:session-workspace-input");
+  await app.clear("id:session-workspace-input");
+  await app.type("id:session-workspace-input", B);
+  await app.press("label:Use this working directory");
+  await app.waitFor("id:history-mark-1", { timeout: 120000 });
+  await app.waitFor(`text:· ${B}`, { timeout: 120000 });
+  await shoot(app, "04-directory-change.png", SHOTS_L2);
+  await send(app, "L2-B: second segment message");
+
+  // `/new` opens a third segment in the same directory.
+  await app.type("id:composer", "/new");
+  await app.press("label:Send");
+  await app.waitFor("id:history-mark-2", { timeout: 120000 });
+  await send(app, "L2-B: new topic message");
+
+  // The rail is one keyboard stop: jump back to the first segment.
+  await app.press("id:history-rail");
+  for (let index = 0; index < 6; index++) await app.keyboard.press("up");
+  await app.keyboard.press("enter");
+  await app.waitFor("text:L2-A: first segment message", { timeout: 120000 });
+  await app.waitFor(`text:· ${A}`, { timeout: 120000 });
+  await app.waitFor(`text:· ${B}`, { timeout: 120000 });
+  await shoot(app, "01-transcript-divider.png", SHOTS_L2);
+  await app.hover("id:history-mark-0");
+  await shoot(app, "02-history-rail-hover.png", SHOTS_L2);
+  await app.press("id:history-mark-2");
+  await app.waitFor("text:L2-B: new topic message", { timeout: 120000 });
+  await shoot(app, "03-history-rail-jump.png", SHOTS_L2);
+
+  // A prompt typed while scrolled up still goes to the latest segment; it
+  // creates no new segment.
+  expect(app.shows("id:history-mark-3")).toBe(false);
+  await app.type("id:composer", "L2-B: sent from the older segment");
+  await app.press("label:Send");
+  await app.waitFor("text:L2-B: sent from the older segment", { timeout: 60000 });
+  await app.waitFor("label:Stop generating", { state: "gone", timeout: 600000 });
+
+  // The registry now has three segments; a second launch restores them.
+  const storage = app.storage();
+  const relaunched = await open("../App.tsx", {
+    width: 1440,
+    height: 900,
+    network: "live",
+    storage,
+  });
+  if (!(await graphical(relaunched))) return;
+  await relaunched.waitFor("text:Host connected", { timeout: 60000 });
+  await relaunched.waitUntil(() => relaunched.count("id:chat") === 1, { timeout: 120000 });
+  await relaunched.waitFor("id:history-mark-2", { timeout: 120000 });
+  await relaunched.press("id:history-rail");
+  await relaunched.keyboard.press("up");
+  await relaunched.keyboard.press("enter");
+  await relaunched.waitFor("text:L2-B: new topic message", { timeout: 120000 });
+}, 1_800_000);

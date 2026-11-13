@@ -15,9 +15,8 @@ import {
   userMessage,
 } from "../../../test/sessions";
 import {
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -26,25 +25,23 @@ import {
 import { SessionRegistry } from "./controller";
 
 function readyRegistry(): BotRegistry {
-  return claimSession(
-    claimSession(
-      createDialogue(
-        initializeBot(
-          createBot(
-            createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-            { name: "Ada", templateId: "tmpl", defaultModel: "p/m" },
-            "bot",
-          ),
+  return claimSegment(
+    claimSegment(
+      initializeBot(
+        createBot(
+          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+          { name: "Ada", templateId: "tmpl", defaultModel: "p/m" },
           "bot",
         ),
-        { botId: "bot", workspaceId: "ws-work" },
-        "dlg",
+        "bot",
       ),
-      "dlg",
+      "bot",
       "s1",
+      "ws-work",
     ),
-    "dlg",
+    "bot",
     "s2",
+    "ws-work",
   );
 }
 

@@ -16,6 +16,14 @@ export type AssistantPart =
   | { kind: "text"; md: string };
 
 export type Row =
+  | {
+      kind: "segment";
+      id: string;
+      label: string;
+      path: string;
+      current: boolean;
+      sessionId: string;
+    }
   | { kind: "date"; id: string; label: string }
   | { kind: "user"; id: string; message: User }
   | { kind: "assistant"; id: string; message: Assistant; streaming: boolean }
@@ -33,19 +41,107 @@ export type RowInput = {
   now: number;
 };
 
+/** One segment of a long conversation, as the transcript renders it. */
+export type SegmentInput = {
+  sessionId: string;
+  /** "Today" / "Mar 3", shown between segments. */
+  label: string;
+  /** The Workspace path this segment ran in. */
+  path: string;
+  current: boolean;
+  messages: readonly Msg[];
+};
+
+export type ConversationInput = {
+  /** Oldest loaded segment first; the last one is the current segment. */
+  segments: readonly SegmentInput[];
+  liveId: string | null;
+  running: boolean;
+  since: number | null;
+  now: number;
+};
+
 /** What the transcript shows, top to bottom. */
 export function buildRows(input: RowInput): Row[] {
   const rows: Row[] = [];
   let lastDay = "";
-  for (const message of input.messages) {
+  appendMessages(rows, input.messages, {
+    now: input.now,
+    liveId: input.liveId,
+    idPrefix: "date",
+    onDay: (key) => (lastDay = key),
+    lastDay: () => lastDay,
+  });
+  if (input.running && input.since !== null) {
+    rows.push({ kind: "working", id: "working", since: input.since });
+  }
+  return rows;
+}
+
+/**
+ * A long conversation's rows: each segment opens with its divider (date and
+ * working directory), then its messages. The divider carries the first day, so
+ * that day is not repeated as a date row; later days inside a segment still are.
+ */
+export function buildConversationRows(input: ConversationInput): Row[] {
+  const rows: Row[] = [];
+  for (const [index, segment] of input.segments.entries()) {
+    const current = index === input.segments.length - 1;
+    rows.push({
+      kind: "segment",
+      id: `segment-${segment.sessionId}`,
+      label: segment.label,
+      path: segment.path,
+      current,
+      sessionId: segment.sessionId,
+    });
+    let lastDay = "";
+    appendMessages(rows, segment.messages, {
+      now: input.now,
+      liveId: current ? input.liveId : null,
+      idPrefix: `date-${segment.sessionId}`,
+      // The divider already names this segment's first day.
+      skipFirstDay: true,
+      onDay: (key) => (lastDay = key),
+      lastDay: () => lastDay,
+    });
+  }
+  if (input.running && input.since !== null) {
+    rows.push({ kind: "working", id: "working", since: input.since });
+  }
+  return rows;
+}
+
+function appendMessages(
+  rows: Row[],
+  messages: readonly Msg[],
+  options: {
+    now: number;
+    liveId: string | null;
+    idPrefix: string;
+    skipFirstDay?: boolean;
+    lastDay: () => string;
+    onDay: (key: string) => void;
+  },
+): void {
+  let first = true;
+  for (const message of messages) {
     const at = message.at;
     if (at !== undefined) {
       const key = dayKey(at);
-      if (key !== lastDay) {
-        rows.push({ kind: "date", id: `date-${key}`, label: dayLabel(at, input.now) });
-        lastDay = key;
+      if (key !== options.lastDay()) {
+        const skip = first && options.skipFirstDay === true;
+        if (!skip) {
+          rows.push({
+            kind: "date",
+            id: `${options.idPrefix}-${key}`,
+            label: dayLabel(at, options.now),
+          });
+        }
+        options.onDay(key);
       }
     }
+    first = false;
     if (message.kind === "user") {
       rows.push({ kind: "user", id: message.id, message });
     } else {
@@ -53,14 +149,10 @@ export function buildRows(input: RowInput): Row[] {
         kind: "assistant",
         id: message.id,
         message,
-        streaming: message.id === input.liveId,
+        streaming: message.id === options.liveId,
       });
     }
   }
-  if (input.running && input.since !== null) {
-    rows.push({ kind: "working", id: "working", since: input.since });
-  }
-  return rows;
 }
 
 /** A reply's parts: what it thought, the calls it made, the words it wrote. */

@@ -24,6 +24,9 @@ export const SHOTS_P1 = `${SCRATCHPAD}/pi-shots-p1`;
 /** Bot app smoke: two Bots in two Panes, Pin, drag-in, restart, details edit. */
 export const SHOTS_L1 = `${SCRATCHPAD}/pi-shots-l1`;
 
+/** Long conversation: the divider, the history rail and a directory change. */
+export const SHOTS_L2 = `${SCRATCHPAD}/pi-shots-l2`;
+
 /** Session-model smoke: concurrent Panels, queued prompt, approval, restart, paging. */
 export const SHOTS_SESSION = `${SCRATCHPAD}/pi-shots-d2`;
 

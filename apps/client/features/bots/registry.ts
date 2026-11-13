@@ -1,16 +1,16 @@
 /** Registry file vocabulary: version, rejection issues and the normalizers the file format shares. */
-export const REGISTRY_VERSION = 5 as const;
+export const REGISTRY_VERSION = 6 as const;
 
 export type RegistryIssue =
   | { code: "corrupt" }
   | { code: "legacy-version" }
   | { code: "invalid"; reason: string }
   | { code: "unsupported-version"; version: unknown }
-  | { code: "not-found"; kind: "template" | "bot" | "dialogue"; id: string }
+  | { code: "not-found"; kind: "template" | "bot"; id: string }
   | { code: "missing-template"; templateId: string }
   | { code: "template-in-use"; templateId: string }
   | { code: "not-draft"; botId: string }
-  | { code: "empty-workspace"; dialogueId?: string }
+  | { code: "empty-workspace" }
   | { code: "frozen"; kind: "bot"; id: string; field: "templateId" }
   | { code: "empty-name" }
   | { code: "empty-preset" }
@@ -18,8 +18,7 @@ export type RegistryIssue =
   | { code: "not-ready"; botId: string }
   | { code: "session-claimed"; sessionId: string }
   | { code: "bot-has-dialogues"; botId: string }
-  | { code: "dialogue-has-sessions"; dialogueId: string }
-  | { code: "claim-not-found"; sessionId: string };
+  | { code: "segment-not-found"; sessionId: string };
 
 export class RegistryRejection extends Error {
   readonly issue: RegistryIssue;
@@ -36,7 +35,7 @@ export function rejectionMessage(issue: RegistryIssue): string {
     case "corrupt":
       return "注册表已损坏，未覆盖文件。";
     case "legacy-version":
-      return "注册表是旧版本：先连接 Host 把 Dialogue 迁到 dsh Workspace。";
+      return "注册表是旧版本：先连接 Host 把旧对话迁成 Bot 的长对话。";
     case "invalid":
       return issue.reason;
     case "unsupported-version":
@@ -50,7 +49,7 @@ export function rejectionMessage(issue: RegistryIssue): string {
     case "not-draft":
       return "这个 Bot 已经初始化。";
     case "empty-workspace":
-      return "创建 Dialogue 前要填写工作区路径。";
+      return "开新段前要填写工作目录。";
     case "frozen":
       return "初始化后不能改模板。";
     case "empty-name":
@@ -60,15 +59,13 @@ export function rejectionMessage(issue: RegistryIssue): string {
     case "duplicate-id":
       return "标识已存在。";
     case "not-ready":
-      return "初始化之后才能新建 Dialogue。";
+      return "初始化之后才能开新段。";
     case "session-claimed":
-      return "这条会话已经认领到一段 Dialogue。";
+      return "这条会话已经属于一个 Bot。";
     case "bot-has-dialogues":
-      return "这个 Bot 已经有过 Dialogue。";
-    case "dialogue-has-sessions":
-      return "这段 Dialogue 还有 Session，不能移除。";
-    case "claim-not-found":
-      return "找不到这条会话认领。";
+      return "这个 Bot 已经有过长对话。";
+    case "segment-not-found":
+      return "找不到这段会话。";
   }
 }
 

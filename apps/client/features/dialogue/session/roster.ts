@@ -20,7 +20,6 @@ export type SessionStatus = {
 
 export type SessionRow = {
   id: string;
-  dialogueId: string;
   botId: string;
   botName: string;
   workspacePath: string;
@@ -51,7 +50,6 @@ export function buildSessionRoster(input: {
   registry: BotRegistry;
   listed: ListedSession[] | null;
   workspaces: WorkspaceProjection;
-  scopeDialogueId?: string | null;
   scopeBotId?: string | null;
   summaries: Map<string, string>;
 }): SessionRow[] {
@@ -59,7 +57,6 @@ export function buildSessionRoster(input: {
     (input.listed ?? []).map((item) => [item.sessionId, item.running === true]),
   );
   return listProductSessions(input.registry, input.listed, input.workspaces, {
-    dialogueId: input.scopeDialogueId ?? null,
     botId: input.scopeBotId ?? null,
   }).map((item) => {
     // Host list state covers Sessions this Client does not follow; a
@@ -67,7 +64,6 @@ export function buildSessionRoster(input: {
     const running = listedRunning.get(item.sessionId) ?? false;
     return {
       id: item.sessionId,
-      dialogueId: item.dialogueId,
       botId: item.botId,
       botName: item.botName,
       workspacePath: item.workspacePath,

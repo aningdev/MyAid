@@ -26,9 +26,8 @@ import {
 } from "../../../test/sessions";
 import { workspaceProjection, workspaceRow } from "../../../test/workspaces";
 import {
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -41,7 +40,6 @@ import type { SessionHost } from "../session/claimed";
 import { SessionRegistry } from "../session/controller";
 
 const BOT = "bot";
-const DIALOGUE = "dlg";
 const WORKSPACE = "ws-work";
 const FIRST = "s1";
 const SECOND = "s2";
@@ -73,25 +71,23 @@ const SLOW_WORDS = [
 ];
 
 function harnessRegistry(): BotRegistry {
-  return claimSession(
-    claimSession(
-      createDialogue(
-        initializeBot(
-          createBot(
-            createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-            { name: "Ada", templateId: "tmpl" },
-            BOT,
-          ),
+  return claimSegment(
+    claimSegment(
+      initializeBot(
+        createBot(
+          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+          { name: "Ada", templateId: "tmpl" },
           BOT,
         ),
-        { botId: BOT, workspaceId: WORKSPACE },
-        DIALOGUE,
+        BOT,
       ),
-      DIALOGUE,
+      BOT,
       FIRST,
+      WORKSPACE,
     ),
-    DIALOGUE,
+    BOT,
     SECOND,
+    WORKSPACE,
   );
 }
 

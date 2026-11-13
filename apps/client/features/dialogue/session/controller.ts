@@ -21,7 +21,7 @@ import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
 import { signal, untracked } from "nsh";
 
 import type { BotRegistry } from "../../bots/model";
-import { claimOwner } from "../../bots/model";
+import { segmentOwner } from "../../bots/model";
 import {
   addAttachment,
   attachmentFromFile,
@@ -321,8 +321,8 @@ export class SessionController {
   /** Send a prompt through the official Session; the local bubble is begun by the Pane. */
   async prompt(text: string, content?: readonly PromptContentPart[]): Promise<string> {
     if (this.disposed) throw new Error("这条会话的运行时已释放。");
-    const owner = claimOwner(this.host.registry(), this.sessionId);
-    if (!owner) throw new Error("这条会话还没有认领到 Dialogue。");
+    const owner = segmentOwner(this.host.registry(), this.sessionId);
+    if (!owner) throw new Error("这条会话还没有属于一个 Bot。");
     if (this.host.sessionArchived(this.sessionId)) {
       throw new Error("这条会话已归档，不能继续输入。先恢复它。");
     }

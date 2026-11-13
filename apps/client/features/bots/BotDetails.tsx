@@ -87,7 +87,7 @@ import {
   type CompactRead,
   type UsageRead,
 } from "./sessionFacts";
-import { currentSessionOf } from "./sessions";
+import { currentSegmentOf } from "./sessions";
 import { actionError, changeRegistry, ready, registry, saving } from "./state";
 
 type Tab = "profile" | "runs" | "skills" | "plugins";
@@ -173,17 +173,18 @@ function Body(props: { botId: string; onClose: () => void }) {
 
   /** The Session this Bot's Pane shows: what the segment section describes. */
   const segment = () =>
-    currentSessionOf({
+    currentSegmentOf({
       registry: registry(),
       workspaces: workspaces(),
-      rows: sessionList(),
       botId: props.botId,
     });
 
   /** A Session of this Bot, the current one first: `skills.list` and the
    * preset composition are Session-addressable, not Bot-addressable. */
   const sampleSession = (): string | null =>
-    segment()?.sessionId ?? sessionList().find((row) => row.botId === props.botId)?.id ?? null;
+    segment()?.segment.sessionId ??
+    sessionList().find((row) => row.botId === props.botId)?.id ??
+    null;
 
   const load = async (): Promise<void> => {
     try {
@@ -501,20 +502,14 @@ function Body(props: { botId: string; onClose: () => void }) {
  */
 function SegmentSection(props: { botId: string; onFailure: (message: string) => void }) {
   const segment = () =>
-    currentSessionOf({
+    currentSegmentOf({
       registry: registry(),
       workspaces: workspaces(),
-      rows: sessionList(),
       botId: props.botId,
     });
   /** The Session **id** keys the block: the projection object is rebuilt per read. */
-  const segmentId = () => segment()?.sessionId ?? null;
-  const path = () => {
-    const current = segment();
-    if (!current) return "";
-    const dialogue = registry().dialogues.find((item) => item.id === current.dialogueId);
-    return dialogue ? workspacePath(workspaces(), dialogue) : current.workspacePath;
-  };
+  const segmentId = () => segment()?.segment.sessionId ?? null;
+  const path = () => segment()?.workspacePath ?? "";
   const model = () => {
     const catalog = modelCatalog();
     const key =
@@ -533,7 +528,7 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
     const current = segment();
     if (!current) return;
     untracked(() => {
-      void refreshUsage(current.sessionId);
+      void refreshUsage(current.segment.sessionId);
       void probeReveal();
     });
   });

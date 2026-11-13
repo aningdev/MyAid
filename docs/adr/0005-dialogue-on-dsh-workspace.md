@@ -5,6 +5,8 @@ supersedes: 0003 (Dialogue 名与归档部分)
 
 # Dialogue 建在 dsh Workspace 上
 
+> **后续（L2，注册表 v6）**：Dialogue 对象已从注册表退场，一个 Bot 直接持有它的一条长对话（段列表）；每段记住自己的 **dsh Workspace id**，所以段可以跨 Workspace。本 ADR 关于 **Workspace 拥有 path / title / Session 顺序 / 置顶 / 归档**、`session.create({ workspaceId })` create-then-attach、以及迁移在连上 Host 后才发生的决定继续有效；下文 v5 的 Dialogue 形态保留为历史记录。产品形态见 [ADR 0006](0006-lorca-style-bot-app.md)。
+
 ## 决定
 
 Dialogue 不再自己持有 `workspace path`、名字与归档位：它指向一个 **dsh Workspace**。
@@ -40,3 +42,9 @@ MyAid 注册表  : Bot（identity / template / preset / 偏好）
 - 跨设备同步仍是缺口，但**名字 / 置顶 / 归档已不再只在本机**：它们在 dsh 的 Workspace 注册表里，跟着 dsh 的数据根走。Bot identity 仍是本机注册表数据（[ADR 0003](0003-bot-identity-is-local-registry-data.md) 中 identity 部分继续有效）。
 - 迁移只在连上 Host 时发生；成功后文件即 v5，`bots.json.v4.bak` 留作回退。
 - 迁移里的名字 / 归档 / 置顶是**逐项尽力**：dsh 拒绝的项（title 已被别的 Workspace 占用、旧 Session 已不存在）跳过并计数，Dialogue 仍拿到 `workspaceId`，不让一份旧数据卡住整次迁移。
+
+## 后续：v6 如何取代 Dialogue
+
+- 注册表 v6 的 Bot 字段是 `segments: { sessionId, workspaceId, title }[]`，按认领顺序排列；最后一段是当前段，只有它接受输入。
+- 一个 Bot 的段可以落在不同 Workspace；旧段保留自己的目录。当前工作目录就是最新段的 Workspace path，在 Pane 标题处可改；改目录开新段。
+- v3 / v4 / v5 文件在连上 Host 后迁移：v3 / v4 的路径先 `workspace.create`，v5 的 `workspaceId` 直接沿用；所有认领按文件顺序并成 Bot 的长对话。**v4 的 archived claim（以及 dsh 归档集合里的旧段）迁移时取消归档**，因为产品没有段级归档，历史必须完整。旧文件在写 v6 前备份为 `bots.json.v<旧版本>.bak`；没有 Host 时只读并给出提示。

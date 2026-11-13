@@ -1,4 +1,4 @@
-/** Desktop registry: Bot → Dialogue → Session (claim). Bot capability = Agent preset. */
+/** Desktop registry: Bot → its one long conversation (segments). Bot capability = Agent preset. */
 
 import { defaultIdentity, type BotIdentity } from "./identity";
 import { blankToNull, REGISTRY_VERSION, RegistryRejection } from "./registry";
@@ -9,6 +9,7 @@ export {
   type LegacyDialogue,
   type LegacyRegistry,
   type ParseResult,
+  type PreviousDialogue,
 } from "./format";
 export {
   REGISTRY_VERSION,
@@ -18,9 +19,10 @@ export {
 } from "./registry";
 
 /**
- * v5: a Dialogue names a dsh Workspace instead of a path of its own. The
- * Workspace owns path, title, Session order, pins and the archive set; v3 / v4
- * files migrate once a Host is connected (see `features/workspace/migrate`).
+ * v6: a Bot owns its one long conversation. A **segment** is one dsh Session
+ * and the dsh Workspace it ran in; segments of one Bot may span Workspaces.
+ * v5 (and the older v3 / v4 files) carry Dialogues instead and migrate once a
+ * Host is connected (see `features/workspace/migrate`).
  */
 
 /** Derived presets are Bot-owned; they must not become pickable templates. */
@@ -36,12 +38,15 @@ export type BotTemplate = {
 export type BotStatus = "draft" | "ready";
 
 /**
- * A Harness Session claimed to one Dialogue. The event log, its archive flag
- * and its pin stay in dsh; `title` is the person's own label, because dsh's
- * Session listing carries no title.
+ * One segment of a Bot's long conversation: one dsh Session, in the Workspace
+ * of the directory it ran in. The event log, its archive flag and its pin stay
+ * in dsh; `title` is the person's own label, because dsh's Session listing
+ * carries no title.
  */
-export type SessionClaim = {
+export type Segment = {
   sessionId: string;
+  /** dsh Workspace id; this segment's path, title and order live there. */
+  workspaceId: string;
   title: string | null;
 };
 
@@ -54,9 +59,9 @@ export type Bot = {
   defaultModel: string | null;
   /** Default reasoning effort id of the selected model (`Runs with`). */
   defaultThinking: string | null;
-  /** Workspace path offered when this Bot starts its next Dialogue. */
+  /** Directory offered when this Bot starts its next segment. */
   defaultWorkspacePath: string | null;
-  /** Stays true after any Dialogue existed, so the Bot cannot be deleted. */
+  /** Stays true after any segment existed, so the Bot cannot be deleted. */
   hadDialogue: boolean;
   status: BotStatus;
   /** Preset id captured from the template at initialization. */
@@ -65,33 +70,22 @@ export type Bot = {
   derivedPresetId: string | null;
   /** Archived by the person: out of the Navigator list, still openable by search. */
   archived: boolean;
-  /** The mark shown in the Navigator, the chat and the Inspector. */
+  /** The mark shown in the Navigator, the chat and Bot details. */
   identity: BotIdentity;
-};
-
-/**
- * A Bot's view of one dsh Workspace: the same directory seen by two Bots is
- * two Dialogues over one Workspace (shared order, pins and archive).
- */
-export type Dialogue = {
-  id: string;
-  botId: string;
-  /** dsh Workspace id; path, title, Session order, pins and archive live there. */
-  workspaceId: string;
-  claims: SessionClaim[];
+  /** The Bot's one long conversation, oldest segment first. */
+  segments: Segment[];
 };
 
 export type BotRegistry = {
   version: typeof REGISTRY_VERSION;
   templates: BotTemplate[];
   bots: Bot[];
-  dialogues: Dialogue[];
 };
 
 export type PresetBindingLabel = "跟随模板" | "已绑定" | "单独配置";
 
 export function emptyRegistry(): BotRegistry {
-  return { version: REGISTRY_VERSION, templates: [], bots: [], dialogues: [] };
+  return { version: REGISTRY_VERSION, templates: [], bots: [] };
 }
 
 export function newId(): string {
@@ -219,6 +213,7 @@ export function createBot(
     derivedPresetId: null,
     archived: false,
     identity: input.identity ?? defaultIdentity(id),
+    segments: [],
   };
   return { ...registry, bots: [...registry.bots, bot] };
 }
@@ -283,104 +278,68 @@ export function initializeBot(registry: BotRegistry, botId: string): BotRegistry
   });
 }
 
-/** Create a Dialogue under a ready Bot over an existing dsh Workspace. */
-export function createDialogue(
-  registry: BotRegistry,
-  input: { botId: string; workspaceId: string },
-  id: string = newId(),
-): BotRegistry {
-  const bot = mustBot(registry, input.botId);
-  if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId: bot.id });
-  if (registry.dialogues.some((item) => item.id === id)) {
-    throw new RegistryRejection({ code: "duplicate-id", id });
-  }
-  const workspaceId = input.workspaceId.trim();
-  if (!workspaceId) throw new RegistryRejection({ code: "empty-workspace" });
-  const dialogue: Dialogue = { id, botId: bot.id, workspaceId, claims: [] };
-  return {
-    ...replaceBot(registry, { ...bot, hadDialogue: true }),
-    dialogues: [...registry.dialogues, dialogue],
-  };
-}
-
-/** The Dialogue under `botId` that shows `workspaceId`, if this Bot already has one. */
-export function dialogueOfWorkspace(
-  registry: BotRegistry,
-  botId: string,
-  workspaceId: string,
-): Dialogue | null {
-  return (
-    registry.dialogues.find((item) => item.botId === botId && item.workspaceId === workspaceId) ??
-    null
-  );
+/** The Bot's segments, oldest first; the last one is the segment that accepts prompts. */
+export function segmentsForBot(registry: BotRegistry, botId: string): Segment[] {
+  return mustBot(registry, botId).segments;
 }
 
 /**
- * Drop a Dialogue that never claimed a Session. The dsh Workspace stays: its
- * directory, its other Dialogues and its Sessions are dsh's, not this file's.
+ * Claim a new Harness Session as the next segment of a Bot's long
+ * conversation. Its Workspace is the directory dsh created it in.
  */
-export function removeDialogue(registry: BotRegistry, dialogueId: string): BotRegistry {
-  const dialogue = mustDialogue(registry, dialogueId);
-  if (dialogue.claims.length > 0) {
-    throw new RegistryRejection({ code: "dialogue-has-sessions", dialogueId });
-  }
-  return {
-    ...registry,
-    dialogues: registry.dialogues.filter((item) => item.id !== dialogue.id),
-  };
-}
-
-/** Claim a new Harness Session for a Dialogue. */
-export function claimSession(
+export function claimSegment(
   registry: BotRegistry,
-  dialogueId: string,
+  botId: string,
   sessionId: string,
+  workspaceId: string,
 ): BotRegistry {
-  const dialogue = mustDialogue(registry, dialogueId);
-  const bot = mustBot(registry, dialogue.botId);
-  if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId: bot.id });
+  const bot = mustBot(registry, botId);
+  if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId });
   const id = sessionId.trim();
   if (!id) throw new RegistryRejection({ code: "invalid", reason: "Session id 不能为空。" });
-  if (claimOwner(registry, id))
+  const workspace = workspaceId.trim();
+  if (!workspace) throw new RegistryRejection({ code: "empty-workspace" });
+  if (segmentOwner(registry, id))
     throw new RegistryRejection({ code: "session-claimed", sessionId: id });
-  return replaceDialogue(registry, {
-    ...dialogue,
-    claims: [...dialogue.claims, { sessionId: id, title: null }],
+  return replaceBot(registry, {
+    ...bot,
+    hadDialogue: true,
+    segments: [...bot.segments, { sessionId: id, workspaceId: workspace, title: null }],
   });
 }
 
-export function renameClaim(
+export function renameSegment(
   registry: BotRegistry,
-  dialogueId: string,
+  botId: string,
   sessionId: string,
   title: string | null,
 ): BotRegistry {
-  return mapClaim(registry, dialogueId, sessionId, (claim) => ({
-    ...claim,
+  return mapSegment(registry, botId, sessionId, (segment) => ({
+    ...segment,
     title: blankToNull(title),
   }));
 }
 
 /**
- * Drop a claim whose Harness Session is already gone.
+ * Drop a segment whose Harness Session is already gone.
  * `hadDialogue` on the Bot stays set. Caller must not use this while dsh still has the session.
  */
-export function releaseClaim(
+export function releaseSegment(
   registry: BotRegistry,
-  dialogueId: string,
+  botId: string,
   sessionId: string,
 ): BotRegistry {
-  const dialogue = mustDialogue(registry, dialogueId);
-  if (!dialogue.claims.some((claim) => claim.sessionId === sessionId)) {
-    throw new RegistryRejection({ code: "claim-not-found", sessionId });
+  const bot = mustBot(registry, botId);
+  if (!bot.segments.some((segment) => segment.sessionId === sessionId)) {
+    throw new RegistryRejection({ code: "segment-not-found", sessionId });
   }
-  return replaceDialogue(registry, {
-    ...dialogue,
-    claims: dialogue.claims.filter((claim) => claim.sessionId !== sessionId),
+  return replaceBot(registry, {
+    ...bot,
+    segments: bot.segments.filter((segment) => segment.sessionId !== sessionId),
   });
 }
 
-/** Archive a Bot: it leaves the list, its conversations stay. */
+/** Archive a Bot: it leaves the list, its conversation stays. */
 export function archiveBot(registry: BotRegistry, botId: string): BotRegistry {
   const bot = mustBot(registry, botId);
   return bot.archived ? registry : replaceBot(registry, { ...bot, archived: true });
@@ -392,31 +351,25 @@ export function unarchiveBot(registry: BotRegistry, botId: string): BotRegistry 
   return bot.archived ? replaceBot(registry, { ...bot, archived: false }) : registry;
 }
 
-/** Delete a Bot that has never had a Dialogue. */
+/** Delete a Bot that never had a segment. */
 export function deleteBot(registry: BotRegistry, botId: string): BotRegistry {
   const bot = mustBot(registry, botId);
-  if (bot.hadDialogue || registry.dialogues.some((item) => item.botId === botId)) {
+  if (bot.hadDialogue || bot.segments.length > 0) {
     throw new RegistryRejection({ code: "bot-has-dialogues", botId });
   }
   return { ...registry, bots: registry.bots.filter((item) => item.id !== botId) };
 }
 
-export function claimOwner(
+/** Which Bot owns a Session, and the segment it is. */
+export function segmentOwner(
   registry: BotRegistry,
   sessionId: string,
-): { bot: Bot; dialogue: Dialogue; claim: SessionClaim } | null {
-  for (const dialogue of registry.dialogues) {
-    const claim = dialogue.claims.find((item) => item.sessionId === sessionId);
-    if (!claim) continue;
-    const bot = registry.bots.find((item) => item.id === dialogue.botId);
-    if (!bot) continue;
-    return { bot, dialogue, claim };
+): { bot: Bot; segment: Segment } | null {
+  for (const bot of registry.bots) {
+    const segment = bot.segments.find((item) => item.sessionId === sessionId);
+    if (segment) return { bot, segment };
   }
   return null;
-}
-
-export function dialoguesForBot(registry: BotRegistry, botId: string): Dialogue[] {
-  return registry.dialogues.filter((item) => item.botId === botId);
 }
 
 /** Record a per-bot preset id. The caller has registered that preset on the plugin side. */
@@ -465,39 +418,28 @@ function mustBot(registry: BotRegistry, id: string): Bot {
   return bot;
 }
 
-function mustDialogue(registry: BotRegistry, id: string): Dialogue {
-  const dialogue = registry.dialogues.find((item) => item.id === id);
-  if (!dialogue) throw new RegistryRejection({ code: "not-found", kind: "dialogue", id });
-  return dialogue;
-}
-
 function templateById(registry: BotRegistry, id: string): BotTemplate | null {
   return registry.templates.find((item) => item.id === id) ?? null;
 }
 
-function mapClaim(
+function mapSegment(
   registry: BotRegistry,
-  dialogueId: string,
+  botId: string,
   sessionId: string,
-  change: (claim: SessionClaim) => SessionClaim,
+  change: (segment: Segment) => Segment,
 ): BotRegistry {
-  const dialogue = mustDialogue(registry, dialogueId);
-  if (!dialogue.claims.some((claim) => claim.sessionId === sessionId)) {
-    throw new RegistryRejection({ code: "claim-not-found", sessionId });
+  const bot = mustBot(registry, botId);
+  if (!bot.segments.some((segment) => segment.sessionId === sessionId)) {
+    throw new RegistryRejection({ code: "segment-not-found", sessionId });
   }
-  return replaceDialogue(registry, {
-    ...dialogue,
-    claims: dialogue.claims.map((claim) => (claim.sessionId === sessionId ? change(claim) : claim)),
+  return replaceBot(registry, {
+    ...bot,
+    segments: bot.segments.map((segment) =>
+      segment.sessionId === sessionId ? change(segment) : segment,
+    ),
   });
 }
 
 function replaceBot(registry: BotRegistry, bot: Bot): BotRegistry {
   return { ...registry, bots: registry.bots.map((item) => (item.id === bot.id ? bot : item)) };
-}
-
-function replaceDialogue(registry: BotRegistry, dialogue: Dialogue): BotRegistry {
-  return {
-    ...registry,
-    dialogues: registry.dialogues.map((item) => (item.id === dialogue.id ? dialogue : item)),
-  };
 }

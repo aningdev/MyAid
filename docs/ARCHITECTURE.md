@@ -74,7 +74,7 @@ apps/host/src/
 
 相位（与 `local_api/status.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token（`GET /connection` 单独给，且只在 ready）。ready-URL / 相位校验真源：`parse_ready_url` + `Status::validate`（fixture：`apps/host/testdata/host-contract-cases.json`）。
 
-初始化分工：NSH 管注册表 / 草稿 /（L1 的）Dialogue 指向哪个 Workspace；Host 管数据根、CLI、登录环境、profile 首启；dsh Workspace 拥有 path、title、Session 顺序、置顶与归档。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
+初始化分工：NSH 管注册表 / 草稿 / Bot 的段指向哪个 Workspace；Host 管数据根、CLI、登录环境、profile 首启；dsh Workspace 拥有 path、title、Session 顺序、置顶与归档。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
 
 ## 4. Cordis / 插件装配
 
@@ -107,7 +107,7 @@ apps/client/
 ├── features/
 │   ├── bots/                   # 注册表模型 / store / identity / Bot Pane 与 Bot 详情弹窗
 │   ├── dialogue/               # chat、段（Session）运行时与其控件
-│   ├── workspace/              # 官方 Workspace 模型的产品投影、v4→v5 迁移与 workspace.* 命令
+│   ├── workspace/              # 官方 Workspace 模型的产品投影、v3/v4/v5→v6 迁移、开新段与 workspace.* 命令
 │   └── settings/               # 设置覆盖层：供应商 / 通用 / 后台 / 关于（供应商经 dsh Remote，ADR 0002）
 ├── lib/
 │   ├── dsh/                    # Cookie + 标准 WebSocket、Connection、官方 client model 装配
@@ -125,8 +125,8 @@ apps/client/
 - 页脚订阅启动器的相位：Host 退出时 Client 丢弃当前 Connection 并从新 Host 重建（dsh 自己会一直重试旧登录 URL，不能作为信号）。
 - `nsh.json` 的 `network` 只授予回环 `/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`、Relay 的 `/v1/health` 与 dsh 的 `/connect`、`/api/*`；`process.execute` 只授予 `myaid-host`。
 
-- **壳**：`AppShell` 挂 `components/shell`。左 Navigator 是注册表投影的**扁平 Bot 列表**——搜索框、**Pin** 区、其余 Bot 按最近活动排序（工作中的点、未读数）、「＋ New Bot」——底部是 Host 状态与设置入口；右 Workbench 是 `DockArea` 的 **Pane** 分屏（横 / 纵再拆、拖动分隔线、关闭、⌘ 切换焦点、从列表拖入），一个 Pane 显示一个 Bot 的长对话，**一个 Bot 同时只在一个 Pane 里**。⚙ / ⌘, 打开整页设置覆盖层，Esc 或「返回」回到原布局。Pane 只持 `botId` 与布局，内容由 `features/*` 提供。
-- **数据归属**：注册表（Bot、L1 的 Dialogue / Claim 与归档位）与客户端偏好（Pin 顺序、Pane 布局）是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。dsh 的真源经官方 client model 到达 Client：Workspace 的 path / title / Session 顺序 / 置顶 / 归档由 `ctx.workspaces`（`ClientWorkspaceModel`）拥有，Session 列表、事件窗口、follow、分页、prompt/queue/control 与投影由 `ctx.sessions`（`ClientSessions → SessionManager → Session`）拥有；产品只投影它们的 snapshot（[`features/workspace`](../apps/client/features/workspace/state.ts)、[`features/dialogue/session`](../apps/client/features/dialogue/session/controller.ts)）。Bot identity 归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)），段的落点归 dsh 的 Workspace（[ADR 0006](adr/0006-lorca-style-bot-app.md)）。
+- **壳**：`AppShell` 挂 `components/shell`。左 Navigator 是注册表投影的**扁平 Bot 列表**——搜索框、**Pin** 区、其余 Bot 按最近活动排序（工作中的点、未读数）、「＋ New Bot」——底部是 Host 状态与设置入口；右 Workbench 是 `DockArea` 的 **Pane** 分屏（横 / 纵再拆、拖动分隔线、关闭、⌘ 切换焦点、从列表拖入），一个 Pane 显示一个 Bot 的长对话，**一个 Bot 同时只在一个 Pane 里**。⚙ / ⌘, 打开整页设置覆盖层，Esc 或「返回」回到原布局。Pane 只持 `botId` 与布局，内容由 `features/*` 提供。长对话是一条连续 transcript：段之间是「日期 · 工作目录」分隔线，右侧历史轨逐段定位；向上滚动经官方 Session 模型加载更早的页与段。
+- **数据归属**：注册表（Bot、它的段与归档位）与客户端偏好（Pin 顺序、Pane 布局）是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。dsh 的真源经官方 client model 到达 Client：Workspace 的 path / title / Session 顺序 / 置顶 / 归档由 `ctx.workspaces`（`ClientWorkspaceModel`）拥有，Session 列表、事件窗口、follow、分页、prompt/queue/control 与投影由 `ctx.sessions`（`ClientSessions → SessionManager → Session`）拥有；产品只投影它们的 snapshot（[`features/workspace`](../apps/client/features/workspace/state.ts)、[`features/dialogue/session`](../apps/client/features/dialogue/session/controller.ts)）。Bot identity 与「哪条 Session 属于哪个 Bot、跑在哪个 Workspace」归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)），段的路径 / 名字 / 顺序 / 归档归 dsh 的 Workspace（[ADR 0006](adr/0006-lorca-style-bot-app.md)）。
 - **三层分工**：官方 client model（本地真相镜像：对象 identity、流与一元竞态、重连）→ 产品投影（`TurnProjection` / `rows.ts` / `WorkspaceProjection` / `botList`：把官方窗口与 snapshot 变成对话消息、列表行、状态）→ NSH 视图（`features/*` 的 Pane 与 `components/ui`）。视图不读 transport，投影不重算官方 model 已拥有的状态。
 - **命令与注意**：`components/shell/commands.ts` 是唯一命令表，同时喂应用菜单、`⌘K` 与快捷键；`components/shell/attention.ts` 比较 roster 两帧，决定系统通知与 Dock badge，点通知把那个 Bot 开进 Pane。
 - **dsh 客户端**：`lib/dsh/connection.ts` 建一条 Client generation：挂官方 Remote、在同一条 Cordis Context 上装官方 client model（`ctx.sessions` / `ctx.workspaces` / 文件上传服务），并保留官方未提供的命令（模型目录与选择、skills、`/command`、插件清单、bot preset、目录选择、上传）。Cookie 换票与 mux 见 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。`lib/dsh/sdk.ts` 是 Node 条件入口源，`prepare:sdk` 产出 `sdk.js` 与 `generated/*`（官方 ModuleLoader client 包的静态展开）。

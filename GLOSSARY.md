@@ -14,7 +14,7 @@ _Avoid_：live Agent、Profile 别名、每助手一套 dsh 进程、按项目�
 
 **Bot template（模板）** _[C]_：稳定的产品模板 ID，映射到一个 DSH Agent preset id。不是 preset 正文快照；未初始化的 Bot 跟随模板当前的 preset id。
 
-**Dialogue（对话 / 长对话）** _[C]_：与某个 Bot 的一段长线交往 = **该 Bot 的一条长对话**。其下按时间相连的**段**（Session）；换工作目录开新段，不把对话按 Workspace 拆成多条。本轮注册表仍以 Dialogue + Claim 记录，L2 改为段直接属于 Bot（[ADR 0006](docs/adr/0006-lorca-style-bot-app.md)）。  
+**Dialogue（对话 / 长对话）** _[C]_：与某个 Bot 的一段长线交往 = **该 Bot 的一条长对话**。其下按时间相连的**段**（Session）；换工作目录开新段，不把对话按 Workspace 拆成多条。段直接属于 Bot，可跨 Workspace（[ADR 0006](docs/adr/0006-lorca-style-bot-app.md)）。
 _Avoid_：DSH Session、一个 Bot 多条 Dialogue、在注册表里另存一份路径 / 名字
 
 **长对话（Long conversation）** _[C]_：一个 Bot 的全部历史 = 按时间相连的段；界面上可沿右侧历史轨逐段翻阅。  
@@ -26,7 +26,7 @@ _Avoid_：把段当产品对象另存、把 Workspace 当段、把段级归档�
 **Session（会话）** _[A]_：一条 Harness Session（事件日志真源）；在长对话里它就是**段**。须经注册表认领到某个 Bot 才进入产品。  
 _Avoid_：Dialogue、广义 Task、未认领的 Harness Session
 
-**认领（Claim）** _[C]_：注册表中「一条 Session 属于哪个 Bot」的记录；除了这层归属，只保留人对它的称呼。L1 的认领仍挂在 Dialogue 上，L2 改成 Bot。  
+**认领（Claim）** _[C]_：注册表中「一条 Session 属于哪个 Bot」的记录 = 该 Bot 长对话里的一段；除了这层归属，只保留它跑的 Workspace 与人对它的称呼。
 _Avoid_：把认领写进 dsh 事件日志、把顺序 / 置顶 / 归档写进 Claim
 
 **归档（Archive）** _[A]_：归档 **Bot**：注册表标记，它退出左侧列表，搜索可找回并取消归档；段、日志与 dsh 的 Workspace 都保留。归档不删除 Bot。段的单独归档 / 删除不在本轮。  
@@ -38,7 +38,7 @@ _Avoid_：把 Workspace 当产品对象另存一份、用 workspace 泛指 Pane�
 **Deliverable（交付产物）** _[A/B]_：某一 **段** 场景内的交付物（对齐 DSH 当轮/场景 Deliverable：如 present、工作区变更摘要）。一条长对话可累积多个。产品可加元数据（标题、置顶）；正文真源不另建第二套去抢 Session 日志。  
 _Avoid_：Outcome（已弃用）、把 Deliverable 当成跨域长期「事情结果」档案
 
-**Registry（注册表）**：Bot、L1 的 Dialogue / Claim 与偏好等产品配置的权威集合，桌面独占写入。Session 事件日志在 dsh。
+**Registry（注册表）**：Bot、它的段（认领 / Workspace / 标题）与偏好等产品配置的权威集合，桌面独占写入。Session 事件日志在 dsh。
 
 **Profile（装配单元）** _[A]_：Harness 命名运行组合；多个 Bot 共用一个 `web` profile。  
 _Avoid_：每助手一个 profile、每助手一个执行进程
@@ -104,7 +104,7 @@ _Avoid_：RelayControl、业务 Remote
 **RelayControl**：Relay 的本机控制通道协议与服务；查询/登记事实与就绪状态；不承载业务 remote，不解密载荷。  
 _Avoid_：HostControl、把 Relay 启停塞进 HostControl
 
-**TurnProjection**：Client 内把官方 Session **事件窗口**（`SessionEventLikeEntry` 连续窗口 + 每个 generation 的原子替换）与本地 prompt 生命周期投影为 Dialogue UI 消息 / live 气泡 / freeze 策略的 module；每个 **SessionController** 持有一个。  
+**TurnProjection**：Client 内把官方 Session **事件窗口**（`SessionEventLikeEntry` 连续窗口 + 每个 generation 的原子替换）与本地 prompt 生命周期投影为对话 UI 消息 / live 气泡 / freeze 策略的 module；每个 **SessionController** 持有一个。
 _Avoid_：ChatPane 内二次解析事件、独立 SessionProjector 对外接口、在视图里维护第二份窗口
 
 **SessionController**：按 Session 的运行时 module：从官方 `ctx.sessions` 的一个 Session binding 读运行态与事件窗口（follow / 分页 / 重连 / prompt·queue·cancel 状态都归官方 client model），自己只持有产品新增的部分——**TurnProjection**、草稿与附件、审批展示、每个 Pane 的视图；对外提供 prompt / queue / withdraw / cancel / loadOlder。由 registry 按 sessionId 惰性创建，无 Pane 且未运行、无待审批、草稿已清空时释放（释放延迟一个 tick，避免 Pane 重渲染时拆掉官方本地 generation），运行中的留在后台把回复跑完。  

@@ -1,9 +1,8 @@
 import { expect, test } from "nsh/test";
 
 import {
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -23,21 +22,18 @@ import {
 import { openBot, setPanelBot } from "./state";
 
 function sample(): BotRegistry {
-  return claimSession(
-    createDialogue(
-      initializeBot(
-        createBot(
-          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-          { name: "Ada", templateId: "tmpl" },
-          "bot",
-        ),
+  return claimSegment(
+    initializeBot(
+      createBot(
+        createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+        { name: "Ada", templateId: "tmpl" },
         "bot",
       ),
-      { botId: "bot", workspaceId: "ws-work" },
-      "dlg",
+      "bot",
     ),
-    "dlg",
+    "bot",
     "s1",
+    "ws-work",
   );
 }
 
@@ -180,7 +176,7 @@ test("enabled states follow the active Pane's Bot", () => {
 
 test("the registry's serialized form is the one the palette reads", () => {
   const text = serializeRegistry(sample());
-  expect(text).toContain('"version": 5');
+  expect(text).toContain('"version": 6');
   expect(text).toContain('"workspaceId": "ws-work"');
   expect(text).toContain('"archived": false');
 });

@@ -2,9 +2,8 @@ import { expect, test } from "nsh/test";
 
 import {
   archiveBot,
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -25,7 +24,6 @@ function bots(): BotRegistry {
 
 function row(overrides: Partial<SessionRow> & { id: string; botId: string }): SessionRow {
   return {
-    dialogueId: `dlg-${overrides.botId}`,
     botName: overrides.botId,
     workspacePath: "/work",
     label: overrides.id,
@@ -56,8 +54,8 @@ function projection(at: Record<string, string>): WorkspaceProjection {
 function registryAt(): BotRegistry {
   const base = bots();
   const ready = initializeBot(initializeBot(base, "ada"), "bob");
-  const withAda = createDialogue(ready, { botId: "ada", workspaceId: "ws-ada" }, "dlg-ada");
-  return createDialogue(withAda, { botId: "bob", workspaceId: "ws-bob" }, "dlg-bob");
+  const withAda = claimSegment(ready, "ada", "s-ada", "ws-ada");
+  return claimSegment(withAda, "bob", "s-bob", "ws-bob");
 }
 
 test("the rest of the Bots follow their latest activity, newest first", () => {

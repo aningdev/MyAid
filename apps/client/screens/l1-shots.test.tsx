@@ -16,9 +16,8 @@ import {
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
 import {
-  claimSession,
+  claimSegment,
   createBot,
-  createDialogue,
   createTemplate,
   emptyRegistry,
   initializeBot,
@@ -30,7 +29,7 @@ import { open } from "../test/open";
 import { workspaceStorage, workspaceRow } from "../test/workspaces";
 import { graphical, shoot, SHOTS_L1 } from "./shots";
 
-/** Ada, Bob and Cleo, each ready with one dialogue over one Workspace. */
+/** Ada, Bob and Cleo, each ready with one segment over one Workspace. */
 function fixture(): BotRegistry {
   let registry = createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl");
   for (const [id, name] of [
@@ -39,11 +38,7 @@ function fixture(): BotRegistry {
     ["cleo", "Cleo"],
   ] as const) {
     registry = initializeBot(createBot(registry, { name, templateId: "tmpl" }, id), id);
-    registry = claimSession(
-      createDialogue(registry, { botId: id, workspaceId: `ws-${id}` }, `dlg-${id}`),
-      `dlg-${id}`,
-      `s-${id}`,
-    );
+    registry = claimSegment(registry, id, `s-${id}`, `ws-${id}`);
   }
   return registry;
 }
