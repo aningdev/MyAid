@@ -33,7 +33,7 @@ export {
   toggleNavOpen,
 } from "./layout";
 export { isPinned, pins, setPins, togglePin } from "./pins";
-export { closeSettings, openSettings, settingsOpen, toggleSettings } from "./SettingsOverlay";
+export { closeSettings, openSettings, settingsOpen, toggleSettings } from "./settings";
 export {
   activeBotId,
   activePanelId,

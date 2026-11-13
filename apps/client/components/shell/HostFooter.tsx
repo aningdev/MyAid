@@ -17,7 +17,7 @@ import {
 } from "../../lib/host/launcher";
 import { Button, colors, Icon } from "../ui";
 import { hasHost, retryHost } from "./host";
-import { openSettings } from "./SettingsOverlay";
+import { openSettings } from "./settings";
 
 export function HostFooter() {
   const up = () => hostConnection() === "up";

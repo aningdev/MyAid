@@ -4,35 +4,19 @@
  * were (the overlay covers them, it does not replace them). The groups the
  * settings page will hold — model providers, general, background, about —
  * land next; today it shows the Background Services control the app already
- * has.
+ * has. The open state lives in `settings.ts`, so a unit test can import the
+ * command table without this page's control-channel chain.
  */
-import { cleanup, effect, keymap, signal, Text, View } from "nsh";
+import { cleanup, effect, keymap, Text, View } from "nsh";
 
 import { SettingsPage } from "../../features/settings/Page";
 import { colors, Icon, Press } from "../ui";
-
-const showing = signal(false);
-
-export function settingsOpen(): boolean {
-  return showing();
-}
-
-export function openSettings(): void {
-  showing.set(true);
-}
-
-export function closeSettings(): void {
-  showing.set(false);
-}
-
-export function toggleSettings(): void {
-  showing.set(!showing());
-}
+import { closeSettings, settingsOpen } from "./settings";
 
 /** Escape closes the overlay while it is the top thing on screen. */
 export function closeSettingsOnEscape(): void {
   effect(() => {
-    if (!showing()) return;
+    if (!settingsOpen()) return;
     const off = keymap.bind("escape", closeSettings, { when: "always" });
     cleanup(off);
   });

@@ -23,7 +23,7 @@ import type { IconName } from "../ui";
 import { collectPanelIds } from "./dock";
 import { toggleNavOpen } from "./layout";
 import { requestNavSearchFocus } from "./navFilter";
-import { openSettings } from "./SettingsOverlay";
+import { openSettings } from "./settings";
 import { openBot } from "./state";
 import { activeBotId, closeActivePanel, dockLayout, focusPanel, splitActivePanel } from "./state";
 

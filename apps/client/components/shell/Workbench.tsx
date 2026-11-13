@@ -4,7 +4,8 @@ import { DockArea, type DockAreaRef, type DockPanel } from "nsh/base";
 import { alpha, colors, handleThumb } from "../ui";
 import { PanelChrome } from "./PanelChrome";
 import { PanelView } from "./PanelView";
-import { SettingsOverlay, settingsOpen } from "./SettingsOverlay";
+import { settingsOpen } from "./settings";
+import { SettingsOverlay } from "./SettingsOverlay";
 import {
   activePanelId,
   dockLayout,
