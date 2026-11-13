@@ -2,6 +2,13 @@
  * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
  * No product workbench UI.
  */
+import type {
+  BotPresetDeriveRequest,
+  BotPresetDeriveResult,
+  BotPresetRecord,
+  BotPresetRemoveResult,
+  BotPresetUpdateRequest,
+} from "@myaid/dsh-web-protocol/bot-presets";
 import type { ApprovalOutcome, ApprovalRequestEvent } from "@myaid/dsh-web-protocol/interaction";
 import type { PluginInfo } from "@myaid/dsh-web-protocol/plugins";
 import type {
@@ -20,6 +27,14 @@ import type {
 } from "@myaid/dsh-web-protocol/session";
 import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
 
+export type {
+  BotPresetDeriveRequest,
+  BotPresetDeriveResult,
+  BotPresetRecord,
+  BotPresetRemoveResult,
+  BotPresetSkill,
+  BotPresetUpdateRequest,
+} from "@myaid/dsh-web-protocol/bot-presets";
 import { fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
 import {
@@ -27,6 +42,7 @@ import {
   Gateway,
   TypertRegistry,
   agentPresetsRemote,
+  botPresetsRemote,
   commandsRemote,
   fileUploadsRemote,
   installConnection,
@@ -332,6 +348,7 @@ export class Connection {
       await ctx.plugin(Gateway);
       await ctx.remote.$mount(sessionRemote);
       await ctx.remote.$mount(agentPresetsRemote);
+      await ctx.remote.$mount(botPresetsRemote);
       // Product paths B–D: directory picker, settings, uploads, plugins.
       await ctx.remote.$mount(workspaceRemote);
       await ctx.remote.$mount(settingsRemote);
@@ -425,6 +442,26 @@ export class Connection {
   /** Change composition on an idle Session (same sessionId). Locked while a turn runs. */
   async selectAgentPreset(sessionId: string, agentPreset: string): Promise<string> {
     return String(unwrap(await this.remote.agentPresets.select(sessionId, agentPreset)));
+  }
+
+  /** Copy a Bot's base composition into its own derived preset. */
+  async deriveBotPreset(request: BotPresetDeriveRequest): Promise<BotPresetDeriveResult> {
+    return unwrap(await this.remote.myaidBotPresets.derive(request)) as BotPresetDeriveResult;
+  }
+
+  /** Read one derived preset's saved plugin and skill selections. */
+  async readBotPreset(presetId: string): Promise<BotPresetRecord> {
+    return unwrap(await this.remote.myaidBotPresets.read(presetId)) as BotPresetRecord;
+  }
+
+  /** Replace a derived preset's saved selections. */
+  async updateBotPreset(presetId: string, patch: BotPresetUpdateRequest): Promise<BotPresetRecord> {
+    return unwrap(await this.remote.myaidBotPresets.update(presetId, patch)) as BotPresetRecord;
+  }
+
+  /** Remove a derived preset and its private skill copies. */
+  async removeBotPreset(presetId: string): Promise<BotPresetRemoveResult> {
+    return unwrap(await this.remote.myaidBotPresets.discard(presetId)) as BotPresetRemoveResult;
   }
 
   async modelCatalog(): Promise<FlatModelCatalog> {

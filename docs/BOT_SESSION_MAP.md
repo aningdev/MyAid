@@ -46,12 +46,12 @@ flowchart TB
 
 ## Profile 与 Preset
 
-|            | **Profile**                         | **Agent preset**                                    |
-| ---------- | ----------------------------------- | --------------------------------------------------- |
-| 是什么     | 一次 `dsh` 进程的装配单元           | 该进程里某个 Agent 的子插件组合（`id` + `plugins`） |
-| MyAid 用法 | 全体 Bot **共用**官方 `web` profile | 每个 Bot 一个 preset id（模板绑定或派生）           |
-| 数量       | 一个本机执行面、一个 profile        | 同一 profile 上可有多个 preset                      |
-| 谁持有正文 | profile 装配在 dsh / Host           | preset 正文在 dsh；注册表只存 id                    |
+|            | **Profile**                         | **Agent preset**                                             |
+| ---------- | ----------------------------------- | ------------------------------------------------------------ |
+| 是什么     | 一次 `dsh` 进程的装配单元           | 该进程里某个 Agent 的子插件组合（`id` + `plugins`）          |
+| MyAid 用法 | 全体 Bot **共用**官方 `web` profile | 每个 Bot 一个 preset id（模板绑定或派生）                    |
+| 数量       | 一个本机执行面、一个 profile        | 同一 profile 上可有多个 preset                               |
+| 谁持有正文 | profile 装配在 dsh / Host           | profile preset 在 dsh；Bot 派生 preset 在插件；注册表只存 id |
 
 ```mermaid
 flowchart TB
@@ -85,7 +85,7 @@ flowchart LR
 
 - 能力、默认模型属于 **Bot**（preset）。
 - **workspace path** 属于 **Dialogue**；`session.create` 的 cwd 取自当前 Dialogue。
-- 改能力：更新派生 preset；正在跑的一轮不打断；空闲后按 DSH 规则用新 preset 恢复或新开 Session。
+- 改能力：更新派生 preset；正在跑的一轮不打断。派生正文由 `myaid-plugin-bot-presets` 拥有并注册进官方 registry；改完后**新建**的 Session 用新组合，已存在的 Session 保留它已持有的组合。
 
 ## 认领与生命周期
 
@@ -133,11 +133,12 @@ flowchart TB
 
 ## 真源分工
 
-| 真源       | 持有                                                                 |
-| ---------- | -------------------------------------------------------------------- |
-| 桌面注册表 | Bot、Dialogue、Claim、模板引用、模型偏好、workspace path             |
-| dsh        | Session 日志、执行状态、preset 正文、凭据、Deliverable 相关事件/摘要 |
-| Host       | dsh 生命周期与连接发现；不写业务 Dialogue/Session 权威               |
+| 真源       | 持有                                                                         |
+| ---------- | ---------------------------------------------------------------------------- |
+| 桌面注册表 | Bot、Dialogue、Claim、模板引用、模型偏好、workspace path                     |
+| dsh        | Session 日志、执行状态、profile preset 正文、凭据、Deliverable 相关事件/摘要 |
+| 插件       | 派生 preset 正文与技能副本（`myaid-plugin-bot-presets`，`$DSH_HOME`）        |
+| Host       | dsh 生命周期与连接发现；不写业务 Dialogue/Session 权威                       |
 
 ## 执行占用（按工作区路径）
 

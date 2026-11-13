@@ -23,6 +23,8 @@ pub struct Config {
     pub logs: PathBuf,
     pub version: String,
     pub startup_timeout: Duration,
+    /// Extra dsh overlay patch files (`dsh --patch …`), in application order.
+    pub patches: Vec<PathBuf>,
     /// Explicit dev Host (`serve` / `serve-app`); skips OS registration side effects.
     pub explicit_dev_host: bool,
 }
@@ -56,6 +58,7 @@ impl Config {
             cli: CliSource::Official,
             version: pinned_version()?,
             startup_timeout: STARTUP_TIMEOUT,
+            patches: patches_from_env()?,
             explicit_dev_host: true,
         };
         config.prepare()?;
@@ -68,6 +71,7 @@ impl Config {
         let mut cli = None;
         let mut version = None;
         let mut startup = STARTUP_TIMEOUT.as_millis() as u64;
+        let mut patches = Vec::new();
         let mut args = args.iter();
         while let Some(key) = args.next() {
             match key.as_str() {
@@ -90,6 +94,13 @@ impl Config {
                                 return Err("CLI path must be absolute".into());
                             }
                             cli = Some(CliSource::Executable(path));
+                        }
+                        "--patch" => {
+                            let path = PathBuf::from(value);
+                            if !path.is_absolute() {
+                                return Err("Patch path must be absolute".into());
+                            }
+                            patches.push(path);
                         }
                         "--version" => version = Some(value.clone()),
                         "--startup-ms" => {
@@ -115,6 +126,7 @@ impl Config {
                 None => pinned_version()?,
             },
             startup_timeout: Duration::from_millis(startup),
+            patches,
             explicit_dev_host: true,
         };
         config.prepare()?;
@@ -138,6 +150,10 @@ impl Config {
         args.push(self.version.clone());
         args.push("--startup-ms".into());
         args.push(self.startup_timeout.as_millis().to_string());
+        for patch in &self.patches {
+            args.push("--patch".into());
+            args.push(patch.to_string_lossy().into_owned());
+        }
         args
     }
 
@@ -150,10 +166,33 @@ impl Config {
         {
             return Err("CLI path must be absolute".into());
         }
+        for patch in &self.patches {
+            if !patch.is_absolute() {
+                return Err("Patch path must be absolute".into());
+            }
+        }
         private_dir(&self.root)?;
         private_dir(&self.runtime())?;
         private_dir(&self.logs)
     }
+}
+
+/// Dev-only overlays from `MYAID_DSH_PATCH`; paths are split like `PATH`.
+fn patches_from_env() -> Result<Vec<PathBuf>> {
+    let Some(value) = std::env::var_os("MYAID_DSH_PATCH") else {
+        return Ok(Vec::new());
+    };
+    let mut patches = Vec::new();
+    for path in std::env::split_paths(&value) {
+        if path.as_os_str().is_empty() {
+            continue;
+        }
+        if !path.is_absolute() {
+            return Err("MYAID_DSH_PATCH paths must be absolute".into());
+        }
+        patches.push(path);
+    }
+    Ok(patches)
 }
 
 fn pinned_version() -> Result<String> {

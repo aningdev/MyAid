@@ -18,6 +18,9 @@ export const SHOTS_CHAT = `${SCRATCHPAD}/pi-shots-chat`;
 /** The Settings Panel's pictures. */
 export const SHOTS_A1 = `${SCRATCHPAD}/pi-shots-a1`;
 
+/** The Bot preset plugin smoke: editable tabs, binding label, new Session reply. */
+export const SHOTS_P1 = `${SCRATCHPAD}/pi-shots-p1`;
+
 /** True on a graphical target: a headless run throws here. */
 export async function graphical(app: App): Promise<boolean> {
   try {

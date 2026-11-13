@@ -71,6 +71,7 @@ mod tests {
             cli: CliSource::Executable(root.join("fake-dsh")),
             version: "test-version".into(),
             startup_timeout: Duration::from_millis(400),
+            patches: Vec::new(),
             explicit_dev_host: true,
         }
     }

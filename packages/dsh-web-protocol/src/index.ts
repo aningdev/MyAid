@@ -11,6 +11,7 @@ export type * as Connection from "./connection.ts";
 export type * as Session from "./session.ts";
 export type * as Llm from "./llm.ts";
 export type * as Presets from "./presets.ts";
+export type * as BotPresets from "./bot-presets.ts";
 export type * as Settings from "./settings.ts";
 export type * as Workspace from "./workspace.ts";
 export type * as Job from "./job.ts";

@@ -60,8 +60,12 @@ pub fn run(config: &Config) -> Result<()> {
         return Ok(());
     }
     let mut command = super::environment::command_for_cli(&cli);
+    command.args(["web"]);
+    for patch in &config.patches {
+        command.arg("--patch").arg(patch);
+    }
     command
-        .args(["web", "--host", "127.0.0.1", "--port", "0", "--no-open"])
+        .args(["--host", "127.0.0.1", "--port", "0", "--no-open"])
         .env_clear()
         .envs(env)
         .current_dir(&config.root)

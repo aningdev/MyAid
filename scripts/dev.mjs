@@ -3,10 +3,11 @@
  * Closing the client leaves Host running until Ctrl+C.
  */
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultSocket =
@@ -19,6 +20,25 @@ let host;
 /** @type {import('node:child_process').ChildProcess | undefined} */
 let client;
 let stopping = false;
+/** Temp directory holding the dev-only overlay that loads the Bot preset plugin. */
+let devPluginDir;
+
+/** Build the Bot preset plugin and write a `--patch` overlay naming its absolute entry. */
+async function prepareBotPresetsPatch() {
+  const pluginDir = join(root, "packages/myaid-plugin-bot-presets");
+  const built = await completed(
+    run("bun", ["x", "vp", "run", "@myaid/myaid-plugin-bot-presets#build"]),
+  );
+  if (built !== 0) throw new Error("构建 myaid-plugin-bot-presets 失败");
+  devPluginDir = mkdtempSync(join(tmpdir(), "myaid-dev-"));
+  const patch = join(devPluginDir, "bot-presets.patch.yml");
+  const entry = pathToFileURL(join(pluginDir, "lib", "index.js")).href;
+  writeFileSync(
+    patch,
+    `- insert:\n    - id: myaid-bot-presets\n      name: ${JSON.stringify(entry)}\n`,
+  );
+  return patch;
+}
 
 /** Probe public Host status only — never connectionInfo / auth. */
 function probe() {
@@ -96,18 +116,30 @@ async function main() {
       throw new Error("指定的开发宿主未运行，请先启动该宿主或移除 MYAID_HOST_SOCKET");
     }
     console.log("正在启动开发 Host…");
+    const patch = await prepareBotPresetsPatch();
     const again = await probe();
     if (again === "invalid") throw new Error("宿主控制端点不可用或协议不兼容");
     if (again === "missing") {
-      host = run("cargo", [
-        "run",
-        "--manifest-path",
-        "apps/host/Cargo.toml",
-        "--bin",
-        "myaid-host",
-        "--",
-        "serve-app",
-      ]);
+      host = run(
+        "cargo",
+        [
+          "run",
+          "--manifest-path",
+          "apps/host/Cargo.toml",
+          "--bin",
+          "myaid-host",
+          "--",
+          "serve-app",
+        ],
+        {
+          env: {
+            ...process.env,
+            MYAID_DSH_PATCH: [process.env.MYAID_DSH_PATCH, patch]
+              .filter(Boolean)
+              .join(process.platform === "win32" ? ";" : ":"),
+          },
+        },
+      );
       const exit = completed(host);
       let exited = false;
       void exit.then(() => {
@@ -165,4 +197,8 @@ try {
 } finally {
   stopping = true;
   await stopOwnedHost();
+  if (devPluginDir) {
+    rmSync(devPluginDir, { recursive: true, force: true });
+    devPluginDir = undefined;
+  }
 }

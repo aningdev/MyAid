@@ -8,6 +8,11 @@ import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-proto
 import type {
   ApprovalDecision,
   ApprovalRequest,
+  BotPresetDeriveRequest,
+  BotPresetDeriveResult,
+  BotPresetRecord,
+  BotPresetRemoveResult,
+  BotPresetUpdateRequest,
   CommandOutcome,
   FlatModelCatalog,
   InventoryEntry,
@@ -90,6 +95,13 @@ export type SessionTransport = {
     presets: InventoryPreset[];
     managementAvailable: boolean;
   }>;
+  /** Derived Bot presets (`myaidBotPresets`), when the Host plugin is loaded. */
+  botPresets?: {
+    derive(request: BotPresetDeriveRequest): Promise<BotPresetDeriveResult>;
+    read(presetId: string): Promise<BotPresetRecord>;
+    update(presetId: string, patch: BotPresetUpdateRequest): Promise<BotPresetRecord>;
+    discard(presetId: string): Promise<BotPresetRemoveResult>;
+  };
   /** Whether the Host can hand a path to the desktop's file manager. */
   canReveal?(): Promise<boolean>;
   /** Show a path in the Finder (`session.openWorkspacePath`, action `reveal`). */

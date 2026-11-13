@@ -25,6 +25,10 @@
       "types": "./src/presets.ts",
       "default": "./src/presets.ts"
     },
+    "./bot-presets": {
+      "types": "./src/bot-presets.ts",
+      "default": "./src/bot-presets.ts"
+    },
     "./settings": {
       "types": "./src/settings.ts",
       "default": "./src/settings.ts"

@@ -1,0 +1,6 @@
+# Product overlay when this package is installed into a profile via `dsh plugin add`.
+# The Host / dev launcher can instead apply an absolute `--patch` overlay that
+# names `lib/index.js` directly (see README).
+- insert:
+    - id: myaid-bot-presets
+      name: "@myaid/myaid-plugin-bot-presets"

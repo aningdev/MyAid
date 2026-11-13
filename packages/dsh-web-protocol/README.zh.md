@@ -32,6 +32,7 @@ import type { SessionFollowFrame, ModelCatalog } from "@myaid/dsh-web-protocol/s
 | `/session`                                                                               | session-controller、session、projection、stats、turn-outline、attachment |
 | `/llm`                                                                                   | llm remote + message/content 类型                                        |
 | `/presets`                                                                               | agent-preset-registry、permission-presets                                |
+| `/bot-presets`                                                                           | `myaid-plugin-bot-presets` 的 `myaidBotPresets` DTO                      |
 | `/settings`                                                                              | settings-controller、settings、credentials                               |
 | `/workspace`                                                                             | workspace-controller、workspace-files、workspace、directory-picker       |
 | `/job` `/terminal` `/account` `/commands` `/goals`                                       | 对应 controllers                                                         |
@@ -44,16 +45,17 @@ import type { SessionFollowFrame, ModelCatalog } from "@myaid/dsh-web-protocol/s
 
 ## 产品模块 → Remote → 阶段
 
-| 产品                            | Remotes / 类型                                                                                                                                                                | 阶段               | 说明                               |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ---------------------------------- |
-| Dialogue                        | `session`（`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`）；`SessionFollowFrame`；`approval/request` → `ApprovalOutcome` | A（当前）          | Session 认领到 Dialogue 的循环     |
-| Bots                            | `agentPresets`（`list`/`read`/`select`）；`session.create`                                                                                                                    | A                  | 认领留在桌面注册表                 |
-| Bot workspace path              | 仅 `directoryPicker`                                                                                                                                                          | B                  | 路径存在 Bot 上；作为 `cwd` 传入   |
-| Settings                        | `settings`、`credentials`                                                                                                                                                     | B                  | UI 偏好本地 — 永不进 dsh           |
-| Attachments                     | `fileUploads`、`session.attachment`、`PromptContentPart`                                                                                                                      | C                  | 文本优先之后                       |
-| Plugins nav                     | `pluginManager`（后续 market/inventory）                                                                                                                                      | D                  | 仅启用态 UI                        |
-| Terminal / Jobs / Goals / …     | 对应 remotes                                                                                                                                                                  | 按需               | 非对话循环必需                     |
-| Task / Knowledge / Note / Today | —                                                                                                                                                                             | 非 Session Remotes | Today = HostControl；Task 为生活域 |
+| 产品                            | Remotes / 类型                                                                                                                                                                | 阶段               | 说明                                 |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------ |
+| Dialogue                        | `session`（`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`）；`SessionFollowFrame`；`approval/request` → `ApprovalOutcome` | A（当前）          | Session 认领到 Dialogue 的循环       |
+| Bots                            | `agentPresets`（`list`/`read`/`select`）；`session.create`                                                                                                                    | A                  | 认领留在桌面注册表                   |
+| Bot settings                    | `skills.list`；`pluginInventory.list`；`agentPresets.read`；`myaidBotPresets`（`derive`/`read`/`update`/`discard`）                                                           | 当前               | `myaidBotPresets` 需 Bot preset 插件 |
+| Bot workspace path              | 仅 `directoryPicker`                                                                                                                                                          | B                  | 路径存在 Bot 上；作为 `cwd` 传入     |
+| Settings                        | `settings`、`credentials`                                                                                                                                                     | B                  | UI 偏好本地 — 永不进 dsh             |
+| Attachments                     | `fileUploads`、`session.attachment`、`PromptContentPart`                                                                                                                      | C                  | 文本优先之后                         |
+| Plugins nav                     | `pluginManager`（后续 market/inventory）                                                                                                                                      | D                  | 仅启用态 UI                          |
+| Terminal / Jobs / Goals / …     | 对应 remotes                                                                                                                                                                  | 按需               | 非对话循环必需                       |
+| Task / Knowledge / Note / Today | —                                                                                                                                                                             | 非 Session Remotes | Today = HostControl；Task 为生活域   |
 
 ## MyAid Client 永不调用
 
@@ -64,7 +66,7 @@ import type { SessionFollowFrame, ModelCatalog } from "@myaid/dsh-web-protocol/s
 
 ## Client 挂载状态（`lib/dsh/connection.ts`）
 
-`Connection.connect` 中始终挂载：`session`（+ `skills` / `fileReferences`）、`agentPresets`、`directoryPicker`（经 workspace-controller）、`settings`（+ `credentials`）、`fileUploads`、`pluginManager`。
+`Connection.connect` 中始终挂载：`session`（+ `skills` / `fileReferences`）、`agentPresets`、`botPresets`（`@myaid/myaid-plugin-bot-presets/remote`）、`directoryPicker`（经 workspace-controller）、`settings`（+ `credentials`）、`fileUploads`、`pluginManager`、`pluginInventory`、`commands`。
 
 Dialogue prompt 路径接受 `PromptContentPart`（text / image / file receipt）。图片用内联 image parts；非图片经 `fileUploads.upload` 暂存；持久图片经 `session.attachment` 读回。
 

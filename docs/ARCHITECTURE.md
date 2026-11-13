@@ -36,7 +36,7 @@ flowchart LR
 | `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell；Bot → Dialogue → Session；Settings ⇄ Background Services；HostControl / RelayControl |
 | `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | Lifecycle + control socket 已落地；Bridge 空壳                                                 |
 | `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | `RelayControl` + macOS/Windows 登记适配；转发面仍骨架                                          |
-| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)         | `myaid-plugin-core` 占位                                                                       |
+| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)         | `myaid-plugin-core` 空壳；`myaid-plugin-bot-presets` 提供 Bot 派生 preset 写入口               |
 | 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                   | `bun run dev` → `scripts/dev.mjs`（先起 Host 再起 Client）；`host:dev`                         |
 | `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）    | `.gitmodules`；不参与构建                                                                      |
 
@@ -74,14 +74,13 @@ apps/host/src/
 
 - 产品插件：`packages/myaid-plugin-*`，含 `cordis.patch.yml` 与 `package.json` 的 `dsh.bundle`。
 - 经官方 `dsh plugin add` 或 Host/开发期 `--patch` 指向绝对 `lib/index.js`。
-- NSH 调用公开 Remote；专属数据在 `$DSH_HOME` 下由插件管理。
+- NSH 调用公开 Remote；专属数据在 `$DSH_HOME` 下由插件管理。Bot 派生 preset 的写入口归 [`myaid-plugin-bot-presets`](../packages/myaid-plugin-bot-presets/README.md)；执行组合仍经官方 registry 注册。
 - 参考：`docs/research/HARNESS_PRINCIPLES.md`。
 
 已知缺口与候选插件：
 
 | 缺口                                      | 候选                                               | 影响                                       |
 | ----------------------------------------- | -------------------------------------------------- | ------------------------------------------ |
-| 没有写 Agent preset 正文的 Remote         | `myaid-plugin-bot-presets`                         | Bot Settings 的 Skills / Plugins 保存不了  |
 | Bot identity / Dialogue 名 / 归档只在本机 | `myaid-plugin-bot-identity`（或 session metadata） | 不能跨设备同步                             |
 | 审批没有 “Always allow”                   | approval-policy 插件                               | 每次审批都要人点                           |
 | prompt receipt 不带 queue item id         | 向 dsh 提需求                                      | Withdraw 需要额外一次 `session.state` 读取 |

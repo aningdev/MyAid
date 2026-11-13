@@ -13,7 +13,7 @@ From the repo root:
 ```sh
 bun run host:dev          # cargo run --manifest-path apps/host/Cargo.toml -- serve-app
 cargo run -p myaid-host -- serve-app
-cargo run -p myaid-host -- serve --data-root PATH [--official-dsh|--dsh PATH] …
+cargo run -p myaid-host -- serve --data-root PATH [--official-dsh|--dsh PATH] [--patch FILE]…
 cargo check -p myaid-host
 cargo test -p myaid-host
 ```

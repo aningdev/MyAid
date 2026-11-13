@@ -27,6 +27,7 @@
         "@deepseek-ai/dsh-plugin-manager": "0.2.2-rc.1",
         "@deepseek-ai/dsh-typert-registry": "0.2.2-rc.1",
         "@myaid/dsh-web-protocol": "workspace:*",
+        "@myaid/myaid-plugin-bot-presets": "workspace:*",
         "@myaid/myaid-plugin-core": "workspace:*",
       },
     },
@@ -82,6 +83,27 @@
       },
       "devDependencies": {
         "typescript": "catalog:",
+      },
+    },
+    "packages/myaid-plugin-bot-presets": {
+      "name": "@myaid/myaid-plugin-bot-presets",
+      "version": "0.1.0",
+      "dependencies": {
+        "js-yaml": "^4.1.0",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/js-yaml": "^4.0.9",
+        "@types/node": "catalog:",
+        "typescript": "catalog:",
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "^4.1.0",
+        "@deepseek-ai/cordis-plugin-include": "~1.1.0",
+        "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.1",
+        "@deepseek-ai/dsh-home-paths": "0.2.2-rc.1",
+        "@deepseek-ai/dsh-storage-domain": "0.2.2-rc.1",
+        "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.1",
       },
     },
     "packages/myaid-plugin-core": {
@@ -364,6 +386,8 @@
 
     "@myaid/dsh-web-protocol": ["@myaid/dsh-web-protocol@workspace:packages/dsh-web-protocol"],
 
+    "@myaid/myaid-plugin-bot-presets": ["@myaid/myaid-plugin-bot-presets@workspace:packages/myaid-plugin-bot-presets"],
+
     "@myaid/myaid-plugin-core": ["@myaid/myaid-plugin-core@workspace:packages/myaid-plugin-core"],
 
     "@oxc-project/runtime": ["@oxc-project/runtime@0.157.0", "", {}, "sha512-srnUknwVoji5JdmU664pA4XyjBJXmgxP8rWlnZhFovzw6XQxaICGWAuScZdlLmIHI+ZRc7WgeiC2CURF4tAszQ=="],
@@ -513,6 +537,8 @@
     "@types/deep-eql": ["@types/deep-eql@4.0.2", "", {}, "sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw=="],
 
     "@types/estree": ["@types/estree@1.0.10", "", {}, "sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g=="],
+
+    "@types/js-yaml": ["@types/js-yaml@4.0.9", "", {}, "sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg=="],
 
     "@types/node": ["@types/node@26.6.6", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog=="],
 

@@ -252,6 +252,12 @@ function wrapConnection(
     executeCommand: (sessionId, line) => connection.executeCommand(sessionId, line),
     listSkills: (sessionId) => connection.listSkills(sessionId),
     pluginInventory: () => connection.pluginInventory(),
+    botPresets: {
+      derive: (request) => connection.deriveBotPreset(request),
+      read: (presetId) => connection.readBotPreset(presetId),
+      update: (presetId, patch) => connection.updateBotPreset(presetId, patch),
+      discard: (presetId) => connection.removeBotPreset(presetId),
+    },
     canReveal: () => connection.canRevealPath(),
     revealPath: (path) => connection.revealPath(path),
     approvals: (handler) => connection.approvals(handler),

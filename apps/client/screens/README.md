@@ -58,6 +58,11 @@ HOME="$SC/home" RUSTUP_HOME="$real_home/.rustup" CARGO_HOME="$real_home/.cargo" 
 Then stop the Host and delete the scratch root: it holds a copy of the dsh
 credentials. A headless run stops at the picture probe.
 
+`bot-presets-real-host.smoke.test.tsx` additionally needs
+`myaid-plugin-bot-presets` on the Host command line (`--patch` its built
+`lib/index.js`). It saves a plugin switch, checks the derived preset through
+`agentPresets.read`, and starts a new Session under it.
+
 `nsh test --target macos` can drive presses, typing and screenshots, but not
 the gestures that need a system dialog or dropped paths: `onPick` is headless
 only, and `paste`/`dropFiles` deliver no files on a real desktop. Attachments

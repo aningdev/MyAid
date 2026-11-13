@@ -6,6 +6,7 @@
 import { expect, open, test } from "nsh/test";
 
 import {
+  assignDerivedPreset,
   claimSession,
   createBot,
   createDialogue,
@@ -71,6 +72,33 @@ test("Profile saves the Bot's name and description in the registry", async () =>
   expect(saved.ok ? saved.registry.bots[0]?.description : null).toBe(
     "Keeps the release branch tidy",
   );
+});
+
+test("an added skill can be removed from an already-derived Bot", async () => {
+  const app = await open("./bot-settings-harness.tsx", {
+    ...desktop,
+    storage: {
+      [REGISTRY_STORAGE_KEY]: serializeRegistry(
+        assignDerivedPreset(sampleRegistry(), "bot", "bot-preset-bot"),
+      ),
+    },
+  });
+  await app.waitFor("role:treeitem[Ada]");
+  await app.press("role:treeitem[Ada]");
+  await app.waitFor("id:bot-name");
+  await app.press("Bot Settings…");
+  await app.waitFor("id:bot-settings");
+  await app.press("Skills");
+  await app.waitFor("text:/release-notes");
+  await app.press("label:移除 release-notes");
+  await app.press("id:bot-settings >> 保存");
+  await app.waitUntil(() => !app.shows("id:bot-settings"));
+
+  await app.press("Bot Settings…");
+  await app.waitFor("id:bot-settings");
+  await app.press("Skills");
+  await app.waitUntil(() => app.texts().some((text) => text.includes("还没有添加技能")));
+  expect(app.texts()).not.toContain("移除 release-notes");
 });
 
 test("a capability change on a template-bound Bot derives its own preset", async () => {

@@ -62,7 +62,7 @@ fn main() {
             Config::from_args(rest).and_then(|config| dsh_process::run_guardian(&config))
         }
         _ => Err(
-            "Usage: myaid-host serve-app | serve|guardian --data-root PATH [--official-dsh|--dsh PATH] [--version VERSION] [--startup-ms MS]"
+            "Usage: myaid-host serve-app | serve|guardian --data-root PATH [--official-dsh|--dsh PATH] [--version VERSION] [--startup-ms MS] [--patch PATH]…"
                 .into(),
         ),
     };

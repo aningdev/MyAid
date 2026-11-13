@@ -1,55 +1,121 @@
 /**
- * The one Host-side capability Bot Settings cannot have from dsh today: writing
- * a Bot's Agent preset. dsh exposes `agentPresets.list/read/select` only —
- * preset bodies live in the profile's YAML — so capability edits (a plugin
- * switched off for this Bot, a skill added) have no Remote to land on.
+ * The Host-side capability Bot Settings cannot have from dsh alone: writing a
+ * Bot's Agent preset. dsh exposes `agentPresets.list/read/select` only; preset
+ * bodies live in the profile's YAML. `packages/myaid-plugin-bot-presets` owns
+ * the missing writer and exposes it as the `myaidBotPresets` Remote.
  *
- * The seam stays here rather than in the sheet: `myaid-plugin-*` would supply
- * the writer, the Client keeps the registry's derived-preset rule
- * (BOT_SESSION_MAP "身份与能力"). Until then the writer reports itself
- * unavailable and the sheet shows why, instead of inventing a preset id.
+ * The seam stays here rather than in the sheet: the Client keeps the
+ * registry's derived-preset rule (BOT_SESSION_MAP "身份与能力"), and the sheet
+ * never invents a preset id. A Host without the plugin keeps today's honest
+ * read-only note.
  */
-/** One capability change against the Bot's base preset. */
-export type CapabilityChange = {
-  moduleName: string;
-  enabled: boolean;
-};
+import type {
+  BotPresetDeriveRequest,
+  BotPresetRecord,
+  BotPresetRemoveResult,
+  BotPresetUpdateRequest,
+} from "@myaid/dsh-web-protocol/bot-presets";
 
-export type DeriveRequest = {
-  botId: string;
-  botName: string;
-  templateId: string;
-  /** The preset the Bot reads today (template's, or its own bound one). */
-  basePresetId: string;
-  changes: readonly CapabilityChange[];
-};
+import { sessionTransport } from "../dialogue/session/runtime";
 
+/** One capability change the sheet asks the plugin to save. */
+export type DeriveRequest = BotPresetDeriveRequest;
 export type DeriveResult = { presetId: string } | { unavailable: string };
+export type UpdateResult = BotPresetRecord | { unavailable: string };
 
-/** What a plugin must implement for Bot Settings › Skills / Plugins to save. */
+/** What the plugin implements for Bot Settings › Skills / Plugins to save. */
 export type BotPresetWriter = {
-  /** False when this Host has no way to write a preset body. */
-  available: boolean;
+  /** Whether this Host has the Remote; `read` with an unknown id probes it. */
+  probe(): Promise<boolean>;
+  /** Copy the Bot's current preset into a Bot-owned derived preset. */
   derive(request: DeriveRequest): Promise<DeriveResult>;
+  /** Read one derived preset's saved selections, or null when it is gone. */
+  read(presetId: string): Promise<BotPresetRecord | null>;
+  /** Replace the saved selections; omitted fields stay as saved. */
+  update(presetId: string, patch: BotPresetUpdateRequest): Promise<UpdateResult>;
+  /** Remove a derived preset and its private skill copies. */
+  remove(presetId: string): Promise<BotPresetRemoveResult>;
 };
 
-/** Why capability edits cannot be saved yet, in the sheet and in the docs. */
+/** Why capability edits cannot be saved, in the sheet and in the docs. */
 export const PRESET_WRITE_GAP =
-  "后台只读 Agent preset（list / read / select）：预设正文在 profile 的 YAML 里。" +
-  "能力增删要等 myaid-plugin-bot-presets 提供写入口。";
+  "后台没有挂载 myaid-plugin-bot-presets：Agent preset 仍只读" +
+  "（list / read / select），能力增删无法保存。";
 
-const unavailable: BotPresetWriter = {
-  available: false,
-  derive: async () => ({ unavailable: PRESET_WRITE_GAP }),
-};
+let replacement: BotPresetWriter | undefined;
 
-let writer: BotPresetWriter = unavailable;
-
+/** The writer over the live Remote, or a test's substitute. */
 export function presetWriter(): BotPresetWriter {
-  return writer;
+  return replacement ?? hostWriter();
 }
 
-/** Substitute the Host-side writer (a `myaid-plugin-*` Remote, or a test's fake). */
+/** Substitute the Host-side writer (a test's fake). */
 export function setPresetWriter(next: BotPresetWriter | undefined): void {
-  writer = next ?? unavailable;
+  replacement = next;
+}
+
+function hostWriter(): BotPresetWriter {
+  const transport = () => {
+    const current = sessionTransport();
+    return current?.ready ? current.botPresets : undefined;
+  };
+  return {
+    probe: async () => {
+      const remote = transport();
+      if (!remote) return false;
+      try {
+        await remote.read("__myaid_probe__");
+        return true;
+      } catch (error) {
+        // The namespace is mounted on the Client even when the Host plugin is
+        // absent; only that dispatch failure means the writer is unavailable.
+        return !isMissingRemote(error);
+      }
+    },
+    derive: async (request) => {
+      const remote = transport();
+      if (!remote) return { unavailable: PRESET_WRITE_GAP };
+      try {
+        return await remote.derive(request);
+      } catch (error) {
+        return { unavailable: readable(error) };
+      }
+    },
+    read: async (presetId) => {
+      const remote = transport();
+      if (!remote) return null;
+      try {
+        return await remote.read(presetId);
+      } catch {
+        return null;
+      }
+    },
+    update: async (presetId, patch) => {
+      const remote = transport();
+      if (!remote) return { unavailable: PRESET_WRITE_GAP };
+      try {
+        return await remote.update(presetId, patch);
+      } catch (error) {
+        return { unavailable: readable(error) };
+      }
+    },
+    remove: async (presetId) => {
+      const remote = transport();
+      if (!remote) return { removed: false };
+      return remote.discard(presetId);
+    },
+  };
+}
+
+function isMissingRemote(error: unknown): boolean {
+  const message = readable(error);
+  return (
+    message.includes("invocation-unavailable") ||
+    message.includes("no active Remote method") ||
+    message.includes("not mounted")
+  );
+}
+
+function readable(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

@@ -1,0 +1,49 @@
+{
+  "name": "@myaid/myaid-plugin-bot-presets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Derived Agent presets for MyAid Bots: capability edits saved under $DSH_HOME and contributed to the official preset registry.",
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml"
+  ],
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./remote": {
+      "types": "./src/remote.ts",
+      "default": "./src/remote.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "build": "vp pack",
+    "test": "vp test",
+    "prepare": "vp pack"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/cordis-plugin-include": "~1.1.0",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-home-paths": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-storage-domain": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.1"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

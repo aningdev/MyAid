@@ -53,6 +53,7 @@ fn host_control_registration_query_in_dev_serve() {
         cli: CliSource::Executable(fake_dsh),
         version: "test-version".into(),
         startup_timeout: Duration::from_millis(400),
+        patches: Vec::new(),
         explicit_dev_host: true,
     };
     config.prepare().expect("prepare");

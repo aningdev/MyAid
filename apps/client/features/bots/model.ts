@@ -13,6 +13,9 @@ export {
 
 /** v4: Bot identity, Dialogue names, archived Session claims. v3 files migrate on read. */
 
+/** Derived presets are Bot-owned; they must not become pickable templates. */
+export const DERIVED_PRESET_PREFIX = "myaid-bot-";
+
 export type BotTemplate = {
   id: string;
   name: string;

@@ -6,6 +6,7 @@
 import { platform, signal, untracked } from "nsh";
 
 import {
+  DERIVED_PRESET_PREFIX,
   emptyRegistry,
   importTemplatesFromPresets,
   RegistryRejection,
@@ -76,7 +77,9 @@ export async function importDshTemplates(): Promise<number> {
   try {
     const api = await import("../../lib/dsh/session");
     const connection = await api.ensureConnected();
-    const presets = await api.listAgentPresets(connection);
+    const presets = (await api.listAgentPresets(connection)).filter(
+      (preset) => !preset.id.startsWith(DERIVED_PRESET_PREFIX),
+    );
     const before = untracked(registry).templates.length;
     const next = await repo.commit((reg) => importTemplatesFromPresets(reg, presets));
     registry.set(next);

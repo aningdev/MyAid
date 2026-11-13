@@ -32,6 +32,7 @@ Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companio
 | `/session`                                                                               | session-controller, session, projection, stats, turn-outline, attachment |
 | `/llm`                                                                                   | llm remote + message/content types                                       |
 | `/presets`                                                                               | agent-preset-registry, permission-presets                                |
+| `/bot-presets`                                                                           | `myaid-plugin-bot-presets` `myaidBotPresets` DTOs                        |
 | `/settings`                                                                              | settings-controller, settings, credentials                               |
 | `/workspace`                                                                             | workspace-controller, workspace-files, workspace, directory-picker       |
 | `/job` `/terminal` `/account` `/commands` `/goals`                                       | matching controllers                                                     |
@@ -44,18 +45,18 @@ Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companio
 
 ## Product module → Remote → phase
 
-| Product                         | Remotes / types                                                                                                                                                              | Phase               | Notes                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------- |
-| Dialogue                        | `session` (`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`); `SessionFollowFrame`; `approval/request` → `ApprovalOutcome` | A (now)             | Claim Session → Dialogue loop            |
-| Bots                            | `agentPresets` (`list`/`read`/`select`); `session.create`                                                                                                                    | A                   | Claims stay in desktop registry          |
-| Bot settings                    | `skills.list`; `pluginInventory.list`; `agentPresets.read`                                                                                                                   | now                 | Reads only: preset bodies have no Remote |
-| Inspector                       | `session.projections` (`contextPressure` / `tokenUsage`); `session.canOpenWorkspacePath` / `openWorkspacePath`; `commands.execute` (`/compact`)                              | now                 | Cost is not exposed → no row             |
-| Bot workspace path              | `directoryPicker` only                                                                                                                                                       | B                   | Store path on Bot; pass as `cwd`         |
-| Settings                        | `settings`, `credentials`                                                                                                                                                    | B                   | UI prefs stay local — never dsh          |
-| Attachments                     | `fileUploads`, `session.attachment`, `PromptContentPart`                                                                                                                     | C                   | After text-first                         |
-| Plugins nav                     | `pluginManager` (+ market/inventory later)                                                                                                                                   | D                   | Enablement UI only                       |
-| Terminal / Jobs / Goals / …     | matching remotes                                                                                                                                                             | on demand           | Not required for dialogue loop           |
-| Task / Knowledge / Note / Today | —                                                                                                                                                                            | not Session Remotes | Today = HostControl; Task is life-domain |
+| Product                         | Remotes / types                                                                                                                                                              | Phase               | Notes                                         |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | --------------------------------------------- |
+| Dialogue                        | `session` (`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`); `SessionFollowFrame`; `approval/request` → `ApprovalOutcome` | A (now)             | Claim Session → Dialogue loop                 |
+| Bots                            | `agentPresets` (`list`/`read`/`select`); `session.create`                                                                                                                    | A                   | Claims stay in desktop registry               |
+| Bot settings                    | `skills.list`; `pluginInventory.list`; `agentPresets.read`; `myaidBotPresets` (`derive`/`read`/`update`/`discard`)                                                           | now                 | `myaidBotPresets` needs the Bot preset plugin |
+| Inspector                       | `session.projections` (`contextPressure` / `tokenUsage`); `session.canOpenWorkspacePath` / `openWorkspacePath`; `commands.execute` (`/compact`)                              | now                 | Cost is not exposed → no row                  |
+| Bot workspace path              | `directoryPicker` only                                                                                                                                                       | B                   | Store path on Bot; pass as `cwd`              |
+| Settings                        | `settings`, `credentials`                                                                                                                                                    | B                   | UI prefs stay local — never dsh               |
+| Attachments                     | `fileUploads`, `session.attachment`, `PromptContentPart`                                                                                                                     | C                   | After text-first                              |
+| Plugins nav                     | `pluginManager` (+ market/inventory later)                                                                                                                                   | D                   | Enablement UI only                            |
+| Terminal / Jobs / Goals / …     | matching remotes                                                                                                                                                             | on demand           | Not required for dialogue loop                |
+| Task / Knowledge / Note / Today | —                                                                                                                                                                            | not Session Remotes | Today = HostControl; Task is life-domain      |
 
 ## Never call from MyAid Client
 
@@ -66,7 +67,7 @@ Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companio
 
 ## Client mount status (`lib/dsh/connection.ts`)
 
-Always mounted in `Connection.connect`: `session` (+ `skills` / `fileReferences`), `agentPresets`, `directoryPicker` (via workspace-controller), `settings` (+ `credentials`), `fileUploads`, `pluginManager`, `pluginInventory`, `commands`.
+Always mounted in `Connection.connect`: `session` (+ `skills` / `fileReferences`), `agentPresets`, `botPresets` (`@myaid/myaid-plugin-bot-presets/remote`), `directoryPicker` (via workspace-controller), `settings` (+ `credentials`), `fileUploads`, `pluginManager`, `pluginInventory`, `commands`.
 
 Dialogue prompt path accepts `PromptContentPart` (text / image / file receipt). Image send uses inline image parts; `fileUploads.upload` stages non-image files; `session.attachment` reads durable images back.
 
