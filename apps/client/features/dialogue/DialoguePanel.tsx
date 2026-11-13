@@ -10,9 +10,14 @@ import { setPanelAddress } from "../../components/shell/state";
 import { Badge, Button, colors, hovered, mono, radius } from "../../components/ui";
 import { sessionLabel } from "../bots/sessions";
 import { ready, registry } from "../bots/state";
-import { createAndOpenSession } from "./navigate";
 import { rosterForDialogue } from "./session/roster";
-import { creatingSession, hasPendingApproval, sessionError, sessionList } from "./session/runtime";
+import {
+  createSession,
+  creatingSession,
+  hasPendingApproval,
+  sessionError,
+  sessionList,
+} from "./session/runtime";
 
 export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
   const dialogue = () => registry().dialogues.find((item) => item.id === props.dialogueId) ?? null;
@@ -52,10 +57,10 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
     );
   };
 
-  const createSession = async (): Promise<void> => {
+  const create = async (): Promise<void> => {
     if (!canCreate()) return;
     try {
-      const id = await createAndOpenSession(props.dialogueId);
+      const id = await createSession(props.dialogueId);
       const claim = dialogue()?.claims.find((item) => item.sessionId === id);
       openSession(id, sessionLabel(claim ?? { title: null }, null));
     } catch {
@@ -97,7 +102,7 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
                 variant="accent"
                 size="small"
                 disabled={!canCreate()}
-                onPress={() => void createSession()}
+                onPress={() => void create()}
               />
               <If when={hasPendingApproval()}>
                 <Text style={{ fontSize: 12, color: colors.warn, alignSelf: "center" }}>

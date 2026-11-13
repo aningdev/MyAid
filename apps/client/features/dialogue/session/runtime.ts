@@ -20,7 +20,6 @@ import {
 } from "../../bots/model";
 import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
 import { changeRegistry, ready, registry } from "../../bots/state";
-import { catalogModelKey, sessionScopeBotId, sessionScopeDialogueId } from "../state";
 import {
   ClaimedSessionClient,
   type ApprovalDecision,
@@ -65,6 +64,8 @@ export const sessionReady = signal(false);
 /** Connection-level error; per-Session errors live on the controller. */
 export const sessionError = signal<string | null>(null);
 export const modelCatalog = signal<FlatModelCatalog | null>(null);
+/** Catalog selection when Session is connected: `provider/model`. */
+export const catalogModelKey = signal<string | null>(null);
 /** True while createSession is talking to dsh / writing the claim. */
 export const creatingSession = signal(false);
 
@@ -209,8 +210,6 @@ function rebuildRoster(): void {
     buildSessionRoster({
       registry: untracked(registry),
       listed: listedSessions,
-      scopeDialogueId: untracked(sessionScopeDialogueId),
-      scopeBotId: untracked(sessionScopeBotId),
       summaries,
     }),
   );

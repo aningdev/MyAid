@@ -85,6 +85,17 @@ export function dialogueAddress(input: {
   };
 }
 
+/** The Settings section's real leaf: the two Background Services. */
+export function backgroundSettingsAddress(): NavAddress {
+  return {
+    id: "setting:background",
+    root: "settings",
+    path: ["Background Services"],
+    title: "Background Services",
+    kind: "setting",
+  };
+}
+
 export function sessionAddress(input: {
   sessionId: string;
   label: string;

@@ -1,7 +1,7 @@
 /**
- * Parked Navigator sections (Favorites, Mail, Task, Knowledge, Spaces,
- * Settings) and the Spaces' layout snapshots. Bots and Dialogues are no
- * fixtures: `navData` projects them from the registry.
+ * Parked Navigator sections (Mail, Task, Knowledge, Spaces) and the Spaces'
+ * layout snapshots. Favorites, Bots, Dialogues and Settings are no fixtures:
+ * `navData` projects them from the client's own state.
  */
 import type { TreeItem } from "nsh/base";
 
@@ -27,10 +27,6 @@ const knowDocs = addr("knowledge", ["docs", "guides"], "Guides", "folder");
 const knowNotes = addr("knowledge", ["docs", "notes"], "Notes", "folder");
 const knowRefs = addr("knowledge", ["refs", "papers"], "Papers", "folder");
 
-const setGeneral = addr("settings", ["general", "appearance"], "Appearance", "setting");
-const setBg = addr("settings", ["general", "background"], "Background", "setting");
-const setHost = addr("settings", ["runtime", "host"], "Host", "setting");
-
 /** A Dialogue for the Spaces' layouts. It is a fixture: the registry may not have it. */
 const dlgFixture = dialogueAddress({
   id: "dlg-fixture",
@@ -50,8 +46,8 @@ function folder(id: string, label: string, children: TreeItem[], action?: NavAct
   return { id, label, children };
 }
 
-/** The parked sections, by shell root. Order comes from `navData`; Favorites is real. */
-export const PARKED_NAV: Record<"mail" | "task" | "knowledge" | "spaces" | "settings", TreeItem> = {
+/** The parked sections, by shell root. Order comes from `navData`. */
+export const PARKED_NAV: Record<"mail" | "task" | "knowledge" | "spaces", TreeItem> = {
   mail: folder("root:mail", "Mail", [
     folder("mail:personal", "Personal", [
       leaf(mailInbox.id, mailInbox.title, { type: "address", address: mailInbox }),
@@ -82,15 +78,6 @@ export const PARKED_NAV: Record<"mail" | "task" | "knowledge" | "spaces" | "sett
   spaces: folder("root:spaces", "Spaces", [
     leaf("space-focus", "Focus Dialogue", { type: "space", spaceId: "space-focus" }),
     leaf("space-split", "Mail | Dialogue", { type: "space", spaceId: "space-split" }),
-  ]),
-  settings: folder("root:settings", "Settings", [
-    folder("set:general", "General", [
-      leaf(setGeneral.id, setGeneral.title, { type: "address", address: setGeneral }),
-      leaf(setBg.id, setBg.title, { type: "address", address: setBg }),
-    ]),
-    folder("set:runtime", "Runtime", [
-      leaf(setHost.id, setHost.title, { type: "address", address: setHost }),
-    ]),
   ]),
 };
 

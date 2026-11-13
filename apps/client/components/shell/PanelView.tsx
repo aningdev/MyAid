@@ -1,13 +1,13 @@
 /**
- * A Panel's body: the Bot, Dialogue or Session its Nav address names.
- * Parked kinds (Mail, Task…) keep the B0 placeholder until their features
- * land. A Panel's content follows its address; it holds no state of its own.
+ * A Panel's body: the Bot, Dialogue, Session or Settings view its Nav address
+ * names. A Panel's content follows its address; it holds no state of its own.
  */
 import { View } from "nsh";
 
 import { BotPanel } from "../../features/bots/BotPanel";
 import { DialoguePanel } from "../../features/dialogue/DialoguePanel";
 import { SessionPanel } from "../../features/dialogue/SessionPanel";
+import { SettingsPage } from "../../features/settings/Page";
 import { SlotPlaceholder } from "./SlotPlaceholder";
 import { panelContents } from "./state";
 
@@ -18,21 +18,28 @@ export function PanelView(props: { panelId: string }) {
     <View class="min-h-0 min-w-0 flex-1">
       <If when={address()} else={<SlotPlaceholder panelId={props.panelId} />}>
         <If
-          when={kind() === "session"}
+          when={kind() === "setting"}
           else={
             <If
-              when={kind() === "dialogue"}
+              when={kind() === "session"}
               else={
-                <If when={kind() === "bot"} else={<SlotPlaceholder panelId={props.panelId} />}>
-                  <BotPanel panelId={props.panelId} botId={address()?.botId ?? null} />
+                <If
+                  when={kind() === "dialogue"}
+                  else={
+                    <If when={kind() === "bot"} else={<SlotPlaceholder panelId={props.panelId} />}>
+                      <BotPanel panelId={props.panelId} botId={address()?.botId ?? null} />
+                    </If>
+                  }
+                >
+                  <DialoguePanel panelId={props.panelId} dialogueId={address()?.dialogueId ?? ""} />
                 </If>
               }
             >
-              <DialoguePanel panelId={props.panelId} dialogueId={address()?.dialogueId ?? ""} />
+              <SessionPanel panelId={props.panelId} sessionId={address()?.sessionId ?? ""} />
             </If>
           }
         >
-          <SessionPanel panelId={props.panelId} sessionId={address()?.sessionId ?? ""} />
+          <SettingsPage />
         </If>
       </If>
     </View>

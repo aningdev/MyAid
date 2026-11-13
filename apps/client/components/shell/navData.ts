@@ -14,6 +14,7 @@ import { sessionList, type SessionRow } from "../../features/dialogue/session/ru
 import { favorites } from "./favorites";
 import { PARKED_NAV, parkedActionForId } from "./fixtures";
 import {
+  backgroundSettingsAddress,
   botAddress,
   dialogueAddress,
   dialogueLabels,
@@ -268,6 +269,16 @@ export function projectNav(input: NavInput): NavProjection {
     }
   }
 
+  /** Settings' leaf is real: it opens the Background Services Panel. */
+  const settingsSection = (): TreeItem | null => {
+    const address = backgroundSettingsAddress();
+    if (query && !contains(address.title, query)) return null;
+    const itemId = "settings:background";
+    actions.set(itemId, { type: "address", address });
+    addresses.set(address.id, address);
+    return section("root:settings", "Settings", [{ id: itemId, label: address.title }]);
+  };
+
   // Parked sections keep their fixtures' actions (Spaces apply, others open).
   // A search is about the product's own objects: the parked sections hide.
   const parked = (root: keyof typeof PARKED_NAV): TreeItem => {
@@ -283,8 +294,14 @@ export function projectNav(input: NavInput): NavProjection {
     return PARKED_NAV[root];
   };
 
+  const settingsTree = settingsSection();
   const items: TreeItem[] = query
-    ? [section("root:favorites", "Favorites", favoriteRows), botTree, dialogueTree]
+    ? [
+        section("root:favorites", "Favorites", favoriteRows),
+        botTree,
+        dialogueTree,
+        ...(settingsTree ? [settingsTree] : []),
+      ]
     : [
         section("root:favorites", "Favorites", favoriteRows),
         parked("mail"),
@@ -293,7 +310,7 @@ export function projectNav(input: NavInput): NavProjection {
         botTree,
         dialogueTree,
         parked("spaces"),
-        parked("settings"),
+        ...(settingsTree ? [settingsTree] : []),
       ];
 
   return { items, actions, addresses, statuses };

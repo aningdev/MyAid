@@ -1,11 +1,12 @@
 /**
- * Settings module: product Background orchestration + official dsh `settings.describe`
- * (credentials stay on Host). UI prefs (theme/window) are local Client state.
+ * Settings Panel: the Client side of the two Background Services (ADR 0002).
+ * It shows the Host and Relay registration facts the OS reports and issues
+ * the shared verbs — query, enable, stop. OS facts come from HostControl and
+ * RelayControl; this page only orchestrates and renders them.
  */
-import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
-import { effect, Scroll, signal, Text, View } from "nsh";
+import { effect, Scroll, Text, View } from "nsh";
 
-import { Button, colors } from "../../components/ui";
+import { Badge, Button, colors, type Tone } from "../../components/ui";
 import {
   enableBackgroundFromState,
   loadProductBackgroundState,
@@ -14,168 +15,144 @@ import {
   stopBackgroundFromState,
   type RegistrationPhase,
 } from "../../lib/background";
-import { FeaturePageHeader } from "../pageChrome";
 
 function phaseLabel(phase: RegistrationPhase | undefined): string {
-  if (!phase) return "—";
   switch (phase) {
     case "notRegistered":
-      return "未登记";
+      return "Not registered";
     case "pendingApproval":
-      return "待系统批准";
+      return "Waiting for approval";
     case "registered":
-      return "已登记";
+      return "Registered";
     case "denied":
-      return "已拒绝";
+      return "Denied";
     case "failed":
-      return "失败";
+      return "Failed";
     default:
-      return phase;
+      return "—";
+  }
+}
+
+function phaseTone(phase: RegistrationPhase | undefined): Tone {
+  switch (phase) {
+    case "registered":
+      return "up";
+    case "pendingApproval":
+      return "warn";
+    case "denied":
+    case "failed":
+      return "danger";
+    default:
+      return "neutral";
   }
 }
 
 function availabilityLabel(value: string | undefined): string {
   switch (value) {
     case "full":
-      return "完全可用";
+      return "Full";
     case "degraded":
-      return "降级可用";
+      return "Degraded";
     case "off":
-      return "未启用";
+      return "Off";
     default:
-      return value ?? "—";
-  }
-}
-
-const loading = signal(false);
-const describeError = signal<string | null>(null);
-const snapshot = signal<SettingsDescribeValue | null>(null);
-
-async function reloadDescribe(): Promise<void> {
-  loading.set(true);
-  describeError.set(null);
-  try {
-    const { describeSettings, ensureConnected } = await import("../../lib/dsh/session");
-    await ensureConnected();
-    snapshot.set(await describeSettings());
-  } catch (err) {
-    describeError.set(err instanceof Error ? err.message : String(err));
-    snapshot.set(null);
-  } finally {
-    loading.set(false);
+      return "—";
   }
 }
 
 export function SettingsPage() {
   effect(() => {
     void loadProductBackgroundState();
-    void reloadDescribe();
   });
 
   const state = productBackgroundState;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <FeaturePageHeader title="Settings" root />
+    <View testID="settings-background" style={{ flex: 1, backgroundColor: colors.background }}>
       <Scroll style={{ flex: 1 }} contentStyle={{ padding: 16, gap: 16 }}>
-        <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>产品后台</Text>
-          {!state().runnable ? (
-            <Text style={{ fontSize: 14, color: colors.muted }}>
-              移动端不运行 Background Service；桌面端可在此编排 Host 与 Relay。
-            </Text>
-          ) : (
-            <>
-              <View style={{ gap: 6 }}>
-                <Text style={{ fontSize: 14, color: colors.text }}>
-                  整体：{availabilityLabel(state().view?.availability)}
-                </Text>
-                <Text style={{ fontSize: 14, color: colors.muted }}>
-                  Host：{phaseLabel(state().view?.host.phase)}
-                </Text>
-                <Text style={{ fontSize: 14, color: colors.muted }}>
-                  Relay：{phaseLabel(state().view?.relay.phase)}
-                </Text>
-                {state().error ? (
-                  <Text style={{ fontSize: 13, color: colors.danger }}>{state().error}</Text>
-                ) : null}
-                {state().view?.enableErrors?.host ? (
-                  <Text style={{ fontSize: 13, color: colors.warn }}>
-                    Host 启用：{state().view?.enableErrors?.host}
-                  </Text>
-                ) : null}
-                {state().view?.enableErrors?.relay ? (
-                  <Text style={{ fontSize: 13, color: colors.warn }}>
-                    Relay 启用：{state().view?.enableErrors?.relay}
-                  </Text>
-                ) : null}
-              </View>
-              <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-                <Button
-                  label="启用后台"
-                  variant="accent"
-                  onPress={() => void enableBackgroundFromState()}
-                />
-                <Button label="停止后台" onPress={() => void stopBackgroundFromState()} />
-                <Button
-                  label="刷新"
-                  variant="ghost"
-                  onPress={() => void refreshProductBackgroundState()}
-                />
-              </View>
-            </>
-          )}
-        </View>
-
-        <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>模型与凭据</Text>
-          <Text style={{ fontSize: 13, lineHeight: 20, color: colors.muted }}>
-            模型端点与凭据由官方 dsh settings / credentials
-            管理；密钥不会写入本机产品文件。界面主题等偏好仍在本地。
+        <View style={{ gap: 6, maxWidth: 640 }}>
+          <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
+            Background Services
           </Text>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Button
-              label="刷新"
-              size="small"
-              disabled={loading()}
-              onPress={() => void reloadDescribe()}
-            />
-          </View>
-          <If when={describeError()}>
-            <Text style={{ fontSize: 13, color: colors.danger }}>{describeError()}</Text>
-          </If>
-          <If when={loading() && !snapshot()}>
-            <Text style={{ fontSize: 13, color: colors.muted }}>加载中…</Text>
-          </If>
-          <If when={snapshot()}>
-            <Text style={{ fontSize: 12, color: colors.muted }}>
-              可写：{snapshot()!.writable ? "是" : "否"} · 配置文档：
-              {snapshot()!.hasDocument ? "有" : "无"} · 命名空间 {snapshot()!.namespaces.length}
-            </Text>
-            <Each of={snapshot()!.namespaces}>
-              {(ns) => (
-                <View
-                  style={{
-                    gap: 4,
-                    padding: 12,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                  }}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-                    {ns().ns}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: colors.muted }}>
-                    revision {ns().revision} · secrets {ns().secrets.filter((s) => s.set).length}/
-                    {ns().secrets.length} 已配置
-                  </Text>
-                </View>
-              )}
-            </Each>
-          </If>
+          <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
+            Host and Relay register with the OS as two independent services. Enabling asks for both;
+            stopping withdraws both. Either may stay denied without rolling back the other.
+          </Text>
         </View>
+        <If
+          when={state().runnable}
+          else={
+            <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
+              Background Services run on desktop only. Mobile clients reach the Host through Relay.
+            </Text>
+          }
+        >
+          <View style={{ gap: 12, maxWidth: 640 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={{ fontSize: 13, color: colors.muted }}>Availability</Text>
+              <Badge label={availabilityLabel(state().view?.availability)} />
+            </View>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <UnitPhase
+                testID="settings-host-phase"
+                unit="Host"
+                phase={state().view?.host.phase}
+                error={state().view?.enableErrors?.host}
+              />
+              <UnitPhase
+                testID="settings-relay-phase"
+                unit="Relay"
+                phase={state().view?.relay.phase}
+                error={state().view?.enableErrors?.relay}
+              />
+            </View>
+            <If when={state().error}>
+              <Text style={{ fontSize: 13, color: colors.danger }}>{state().error}</Text>
+            </If>
+            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+              <Button
+                label="Enable"
+                variant="accent"
+                onPress={() => void enableBackgroundFromState()}
+              />
+              <Button label="Stop" onPress={() => void stopBackgroundFromState()} />
+              <Button
+                label="Refresh"
+                variant="ghost"
+                onPress={() => void refreshProductBackgroundState()}
+              />
+            </View>
+          </View>
+        </If>
       </Scroll>
+    </View>
+  );
+}
+
+function UnitPhase(props: {
+  testID: string;
+  unit: string;
+  phase: RegistrationPhase | undefined;
+  error: string | undefined;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        gap: 6,
+        padding: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: colors.line,
+      }}
+    >
+      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>{props.unit}</Text>
+      <View testID={props.testID} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Badge label={phaseLabel(props.phase)} tone={phaseTone(props.phase)} />
+      </View>
+      <If when={props.error}>
+        <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>{props.error}</Text>
+      </If>
     </View>
   );
 }

@@ -35,6 +35,7 @@ import type { Msg, Tool } from "./chat/scripts";
 import { Transcript } from "./chat/Transcript";
 import type { SessionController } from "./session/controller";
 import {
+  catalogModelKey,
   connectSession,
   modelCatalog,
   renameSession,
@@ -43,7 +44,6 @@ import {
   sessionList,
 } from "./session/runtime";
 import { freezeMessages } from "./session/turn";
-import { catalogModelKey } from "./state";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
 
