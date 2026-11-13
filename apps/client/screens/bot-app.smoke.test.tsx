@@ -5,11 +5,13 @@
  * registry and prefs this one wrote restores the Panes, their Bots and the
  * Pin.
  *
- * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch data root, never
- * the user's `~/.myaid` (see screens/README.md):
+ * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host
+ * itself, so nothing runs beforehand (see screens/README.md):
  *
- *   MYAID_SMOKE_HOST_SOCKET=/tmp/myaid-smoke-host.sock \
- *     MYAID_HOST_SOCKET=/tmp/myaid-smoke-host.sock HOME=<scratch>/home \
+ *   SC=$PWD/.myaid-smoke                         # gitignored, outside /tmp
+ *   mkdir -p "$SC/home"
+ *   HOME="$SC/home" MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/bot-app.smoke.test.tsx --target macos
  *
  * A headless run stops at the picture probe.

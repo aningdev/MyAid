@@ -46,7 +46,7 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
   await app.waitFor("text:Host connected", { timeout: 120000 });
   await shoot(app, "01-host-running.png", SHOTS_N1);
 
-  await app.keyboard.press("mod+shift+n");
+  await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", "Launcher Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
@@ -72,7 +72,12 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
   await app.keyboard.press("enter");
   await app.waitFor("text:Host disconnected", { timeout: 180000 });
   await app.waitFor("text:Host connected", { timeout: 240000 });
-  expect(app.texts().filter((text) => text.includes(REPLY_1)).length).toBeGreaterThanOrEqual(2);
+  // "Host connected" is the new generation's probe answering, not its Session window: the Pane
+  // re-subscribes on that generation and reads the log back a moment later. Wait for the window
+  // rather than the probe.
+  await app.waitUntil(() => app.texts().filter((text) => text.includes(REPLY_1)).length >= 2, {
+    timeout: 120000,
+  });
 
   // A turn on the restarted Host: the conversation resumes, not just the transcript.
   await app.waitFor("id:composer", { timeout: 60000 });
