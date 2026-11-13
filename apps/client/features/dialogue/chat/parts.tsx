@@ -128,15 +128,24 @@ export function DateSeparator(props: { label: string }) {
 
 /** The line between two segments of one long conversation: date · directory. */
 export function SegmentDivider(props: {
-  label: string;
-  path: string;
-  current: boolean;
-  sessionId: string;
+  row: () => {
+    label: string;
+    path: string;
+    fullPath: string;
+    current: boolean;
+    sessionId: string;
+  };
 }) {
+  const row = () => props.row();
   return (
     <View
       testID="segment-divider"
-      accessibilityLabel={`Segment ${props.label}${props.path ? `, ${props.path}` : ""}${props.current ? ", current" : ""}`}
+      accessibilityLabel={`Segment ${row().label}${row().fullPath ? `, ${row().fullPath}` : ""}${row().current ? ", current" : ""}`}
+      tooltip={
+        row().fullPath ? (
+          <Text style={{ fontSize: 12, userSelect: "text" }}>{row().fullPath}</Text>
+        ) : undefined
+      }
       style={{
         flexDirection: "row",
         alignItems: "center",
@@ -148,10 +157,10 @@ export function SegmentDivider(props: {
     >
       <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "78%" }}>
-        <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>{props.label}</Text>
-        <If when={!!props.path}>
+        <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>{row().label}</Text>
+        <If when={!!row().path}>
           <Text
-            testID={`segment-path-${props.sessionId}`}
+            testID={`segment-path-${row().sessionId}`}
             style={{
               flexShrink: 1,
               fontSize: 11,
@@ -160,10 +169,10 @@ export function SegmentDivider(props: {
               numberOfLines: 1,
             }}
           >
-            {`· ${props.path}`}
+            {`· ${row().path}`}
           </Text>
         </If>
-        <If when={props.current}>
+        <If when={row().current}>
           <View
             style={{
               width: 5,

@@ -9,13 +9,15 @@ import { Text, View } from "nsh";
 import { signal } from "nsh";
 import { Input } from "nsh/base";
 
-import { colors, Icon, Press } from "../../../components/ui";
+import { colors, Icon, mono, Press } from "../../../components/ui";
 import { BotMark } from "../../bots/BotMark";
 import type { Bot } from "../../bots/model";
 
 export function ChatHeader(props: {
   title: () => string;
   subtitle: () => string;
+  /** The canonical working directory, for the tooltip and screen readers. */
+  fullPath?: () => string;
   modelLabel: () => string;
   scrolled: () => boolean;
   bot: () => Bot | null;
@@ -126,7 +128,12 @@ export function ChatHeader(props: {
             }}
             tooltip={
               props.onWorkspace ? (
-                <Text style={{ fontSize: 12 }}>Click to change the working directory</Text>
+                <View style={{ gap: 3, maxWidth: 460 }}>
+                  <Text style={{ fontSize: 12 }}>Click to change the working directory</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted, fontFamily: mono }}>
+                    {props.fullPath?.() || props.subtitle()}
+                  </Text>
+                </View>
               ) : undefined
             }
             style={{ flexDirection: "row", alignItems: "center", gap: 4, minHeight: 18 }}

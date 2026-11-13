@@ -21,6 +21,7 @@ export type Row =
       id: string;
       label: string;
       path: string;
+      fullPath: string;
       current: boolean;
       sessionId: string;
     }
@@ -46,8 +47,10 @@ export type SegmentInput = {
   sessionId: string;
   /** "Today" / "Mar 3", shown between segments. */
   label: string;
-  /** The Workspace path this segment ran in. */
+  /** The Workspace path as the transcript shows it (`~/…` under home). */
   path: string;
+  /** The canonical path, for the divider's tooltip and screen readers. */
+  fullPath: string;
   current: boolean;
   messages: readonly Msg[];
 };
@@ -92,6 +95,7 @@ export function buildConversationRows(input: ConversationInput): Row[] {
       id: `segment-${segment.sessionId}`,
       label: segment.label,
       path: segment.path,
+      fullPath: segment.fullPath,
       current,
       sessionId: segment.sessionId,
     });

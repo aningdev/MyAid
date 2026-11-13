@@ -1,13 +1,16 @@
 /**
  * The long conversation's history rail: a scrollbar-like strip on the right
  * edge with one mark per segment (oldest at the top), the current segment
- * highlighted. Hovering a mark names the segment and its time; pressing it
- * jumps to the start of that segment. The rail is one keyboard stop: ↑ / ↓
- * move the mark, Return jumps. Every mark carries a VoiceOver label.
+ * highlighted. Hovering a mark opens a card with the segment's title, time and
+ * directory; pressing it jumps to the start of that segment. The rail is one
+ * keyboard stop: ↑ / ↓ move the mark, Return jumps. Every mark carries a
+ * VoiceOver label with the full path.
  */
 import { cleanup, effect, keymap, signal, Text, View } from "nsh";
+import { HoverCard } from "nsh/base";
 
-import { alpha, colors } from "../../../components/ui";
+import { alpha, colors, finish, mono, radius } from "../../../components/ui";
+import { middleEllipsis } from "../../workspace/paths";
 
 export type RailMark = {
   sessionId: string;
@@ -15,10 +18,26 @@ export type RailMark = {
   label: string;
   /** "Today 14:05" — what hover and VoiceOver say. */
   time: string;
-  /** The directory it ran in, for the label. */
+  /** The directory as the transcript reads it (`~/…` under home). */
   path: string;
+  /** The canonical directory, for the label and the card's full value. */
+  fullPath: string;
   current: boolean;
 };
+
+/** The card's surface: the app's popup family, not a bare text bubble. */
+function cardStyle() {
+  return {
+    ...finish.menu,
+    borderWidth: 1,
+    borderCurve: "continuous" as const,
+    borderRadius: radius.control,
+    padding: 10,
+    gap: 5,
+    minWidth: 180,
+    maxWidth: 300,
+  };
+}
 
 export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: number) => void }) {
   const focused = signal(false);
@@ -102,47 +121,87 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
     >
       <Each of={props.marks()} key={(mark) => mark.sessionId}>
         {(mark, index) => (
-          <View
-            testID={`history-mark-${index()}`}
-            role="option"
-            focusable={false}
-            accessibilityLabel={`${mark().label} · ${mark().time}${mark().path ? ` · ${mark().path}` : ""}${mark().current ? " · current" : ""}`}
-            accessibilityState={{ selected: mark().current }}
-            onPress={() => choose(index())}
-            tooltip={
-              <View style={{ gap: 2, maxWidth: 280 }}>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text }}>
-                  {mark().label}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.muted }}>{mark().time}</Text>
-                <If when={!!mark().path}>
-                  <Text style={{ fontSize: 11, color: colors.faint }}>{mark().path}</Text>
-                </If>
+          <HoverCard
+            placement="left"
+            align="center"
+            offset={8}
+            openDelay={120}
+            closeDelay={180}
+            popupStyle={cardStyle()}
+            trigger={
+              <View
+                testID={`history-mark-${index()}`}
+                role="option"
+                focusable={false}
+                accessibilityLabel={`${mark().label} · ${mark().time}${mark().fullPath ? ` · ${mark().fullPath}` : ""}${mark().current ? " · current" : ""}`}
+                accessibilityState={{ selected: mark().current }}
+                onPress={() => choose(index())}
+                style={{
+                  width: 14,
+                  height: 14,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <View
+                  testID={
+                    mark().current
+                      ? `history-current-${mark().sessionId}`
+                      : `history-past-${mark().sessionId}`
+                  }
+                  style={{ width: 14, height: 14, alignItems: "center", justifyContent: "center" }}
+                >
+                  <View
+                    testID={`history-mark-${mark().sessionId}`}
+                    style={{
+                      width: mark().current ? 4 : 3,
+                      height: mark().current ? 14 : 8,
+                      borderRadius: 2,
+                      backgroundColor: mark().current
+                        ? colors.accent
+                        : cursor() === index() && focused()
+                          ? colors.muted
+                          : alpha(colors.text, 0.2),
+                      transitionProperty: "background-color",
+                      transitionDuration: 120,
+                    }}
+                  />
+                </View>
               </View>
             }
-            style={{
-              width: 14,
-              height: 14,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
           >
             <View
-              testID={`history-mark-${mark().sessionId}`}
-              style={{
-                width: mark().current ? 4 : 3,
-                height: mark().current ? 14 : 8,
-                borderRadius: 2,
-                backgroundColor: mark().current
-                  ? colors.accent
-                  : cursor() === index() && focused()
-                    ? colors.muted
-                    : alpha(colors.text, 0.2),
-                transitionProperty: "background-color",
-                transitionDuration: 120,
-              }}
-            />
-          </View>
+              testID="rail-card"
+              accessibilityLabel={`${mark().label} · ${mark().time}${mark().fullPath ? ` · ${mark().fullPath}` : ""}`}
+              style={{ gap: 4 }}
+            >
+              <Text
+                testID="rail-card-title"
+                style={{ numberOfLines: 1, fontSize: 12, fontWeight: "600", color: colors.text }}
+              >
+                {mark().label}
+              </Text>
+              <Text
+                testID="rail-card-time"
+                style={{ fontSize: 11, color: colors.muted, fontVariant: ["tabular-nums"] }}
+              >
+                {mark().time}
+              </Text>
+              <If when={!!mark().path}>
+                <Text
+                  testID="rail-card-path"
+                  style={{
+                    fontSize: 11,
+                    color: colors.faint,
+                    fontFamily: mono,
+                    numberOfLines: 1,
+                  }}
+                >
+                  {middleEllipsis(mark().path, 42)}
+                </Text>
+              </If>
+            </View>
+          </HoverCard>
         )}
       </Each>
     </View>

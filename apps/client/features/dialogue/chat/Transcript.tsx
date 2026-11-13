@@ -117,7 +117,7 @@ export function Transcript(props: {
                   </If>
                 }
               >
-                <SegmentDivider {...(row() as SegmentRow)} />
+                <SegmentDivider row={row as () => SegmentRow} />
               </If>
             </View>
           )}

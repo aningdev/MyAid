@@ -26,6 +26,7 @@ import { segmentOwner } from "../bots/model";
 import { conversationOf, sessionLabel, type ConversationSegment } from "../bots/sessions";
 import { registry } from "../bots/state";
 import { newTopic, changeWorkingDirectory } from "../workspace/conversation";
+import { displayPath } from "../workspace/paths";
 import { workspacePath, workspaces } from "../workspace/state";
 import { ApprovalCard } from "./chat/ApprovalCard";
 import { attachDropped } from "./chat/attach";
@@ -54,6 +55,9 @@ import { freezeMessages } from "./session/turn";
 
 type Assistant = Extract<Msg, { kind: "assistant" }>;
 
+/** A segment with the path as the UI reads it, keeping the canonical one. */
+type ShownSegment = ConversationSegment & { fullPath: string };
+
 /**
  * Dialogue main pane — renders one SessionController's TurnProjection; the
  * controller owns frames, turn freeze, approvals, the draft and its files.
@@ -77,10 +81,12 @@ export function ChatPane(props: {
     const row = sessionList().find((item) => item.id === props.controller.sessionId);
     return row?.label ?? owner()?.segment.title ?? "New Session";
   };
-  const subtitle = () => {
-    const current = owner();
-    return current ? workspacePath(workspaces(), current.segment) : "";
-  };
+  const currentShown = () =>
+    segments().find((segment) => segment.sessionId === controller().sessionId) ??
+    segments()[segments().length - 1] ??
+    null;
+  const subtitle = () => currentShown()?.path ?? "";
+  const fullSubtitle = () => currentShown()?.fullPath ?? "";
 
   let ids = 0;
   const nextId = () => `m${ids++}`;
@@ -125,24 +131,30 @@ export function ChatPane(props: {
 
   const running = () => controller().running() || liveId() !== null;
 
+  /** The path as the UI reads it; the canonical path rides along for tooltips. */
+  const shown = (segment: ConversationSegment): ShownSegment => ({
+    ...segment,
+    fullPath: segment.path,
+    path: displayPath(segment.path),
+  });
+
   /** The Bot's segments (oldest first), or just this Session outside history. */
-  const segments = (): ConversationSegment[] => {
+  const segments = (): ShownSegment[] => {
     const current = owner();
     if (!current) return [];
     if (!props.history) {
-      const path = workspacePath(workspaces(), current.segment);
       const row = sessionList().find((item) => item.id === current.segment.sessionId);
       return [
-        {
+        shown({
           index: 0,
           sessionId: current.segment.sessionId,
           workspaceId: current.segment.workspaceId,
-          path,
+          path: workspacePath(workspaces(), current.segment),
           title: current.segment.title,
           current: true,
           updatedAt: row?.updatedAt ?? null,
           missing: row?.missing ?? false,
-        },
+        }),
       ];
     }
     const listed = sessionList().map((row) => ({
@@ -151,7 +163,7 @@ export function ChatPane(props: {
       updatedAt: row.updatedAt ?? 0,
       running: row.running,
     }));
-    return conversationOf(registry(), workspaces(), listed, current.bot.id);
+    return conversationOf(registry(), workspaces(), listed, current.bot.id).map(shown);
   };
   const latest = () => segments()[segments().length - 1] ?? null;
   /** Segments loaded above the current one, in conversation order. */
@@ -354,6 +366,22 @@ export function ChatPane(props: {
     following.set(true);
     olderLoaded.set([...new Set(kept)]);
     loadingOlder.set(false);
+  });
+
+  // A new segment starts at the bottom: even an empty one shows its divider,
+  // not the previous segment's last viewport.
+  effect(() => {
+    const current = controller();
+    current.sessionId;
+    if (!following()) return;
+    const timers = [80, 400].map((delay) =>
+      setTimeout(() => {
+        if (following()) list?.scrollToEnd({ animated: true });
+      }, delay),
+    );
+    cleanup(() => {
+      for (const timer of timers) clearTimeout(timer);
+    });
   });
 
   // Older segments stay followed while they are in the transcript.
@@ -817,6 +845,7 @@ export function ChatPane(props: {
         label: row?.label ?? sessionLabel({ title: segment.title }, null),
         time: `${dayLabel(at, now())} ${clockLabel(at)}`,
         path: segment.path,
+        fullPath: segment.fullPath,
         current: segment.current,
       };
     });
@@ -840,6 +869,7 @@ export function ChatPane(props: {
         sessionId: segment.sessionId,
         label: dayLabel(segmentAt(segment, past), at),
         path: segment.path,
+        fullPath: segment.fullPath,
         current: false,
         messages: past,
       });
@@ -851,6 +881,7 @@ export function ChatPane(props: {
         sessionId: current.sessionId,
         label: dayLabel(segmentAt(current, past), at),
         path: current.path,
+        fullPath: current.fullPath,
         current: true,
         messages: past,
       });
@@ -878,6 +909,7 @@ export function ChatPane(props: {
       <ChatHeader
         title={() => `${botName()} · ${title()}`}
         subtitle={subtitle}
+        fullPath={fullSubtitle}
         modelLabel={() => model().label}
         scrolled={scrolled}
         bot={bot}
