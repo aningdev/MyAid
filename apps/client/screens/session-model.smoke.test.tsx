@@ -51,7 +51,7 @@ const STREAMING = (tag: string) =>
   `${tag} stream it. Write 60 numbered lines, one short sentence each, and nothing else.`;
 /** Long enough that a prompt queued behind it is still waiting to be withdrawn. */
 const ENDLESS = (tag: string) =>
-  `${tag} keep going. Write 90 numbered lines, one short sentence each, and nothing else.`;
+  `${tag} keep going. Write 150 numbered lines, one short sentence each, and nothing else.`;
 const title = (tag: string) => `${tag} answer slowly`;
 const LONG = (tag: string, words = 2400) =>
   `${tag} write long. Write a technical document of at least ${words} words about release ` +
@@ -149,7 +149,8 @@ test("two Panels stream at once, a queued prompt is withdrawn, an approval round
 
   // A prompt sent while a turn still runs is queued in dsh, and withdrawn by
   // its request id — the second Panel's turn is running (just asserted).
-  await send(app, "QUEUE-DROP say one word.", 1);
+  // Queued against the longer turn, so the agent cannot claim it first.
+  await send(app, "QUEUE-DROP say one word.", 0);
   await app.waitFor("text:QUEUED", { timeout: 60000 });
   await shoot(app, "04-queued.png", SHOTS_SESSION);
   await app.press("label:Withdraw the queued message");
