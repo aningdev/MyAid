@@ -22,7 +22,7 @@ MyAid is a **lorca-style desktop Bot app**: manage a set of Bots, talk with seve
 
 | Piece                                    | Role for you                                                                                             |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Client (NSH)**                         | Multi-end control surface: Bot list, Panes, Bot details, settings, approvals, background                  |
+| **Client (NSH)**                         | Multi-end control surface: Bot list, Panes, Bot details, settings, approvals, background                 |
 | **Host**                                 | Local Background Service: `dsh web` lifecycle, discovery, Bridge                                         |
 | **`dsh web`** (product nickname: Runner) | Official execution plane on the web profile: Sessions, tools, events — _Runner is not a DSH proper noun_ |
 | **Plugins**                              | Capability packs that extend what assistants can do                                                      |

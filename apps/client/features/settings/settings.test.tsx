@@ -11,10 +11,9 @@ const desktop = { platform: "macos" as const, width: 1100, height: 800 };
 
 async function panel() {
   const app = await open("./settings-harness.tsx", desktop);
-  // Settings is the eighth section; reveal it, then open its real leaf.
-  await app.keyboard.press("mod+8");
-  await app.waitFor("role:treeitem[Background Services]");
-  await app.press("role:treeitem[Background Services]");
+  // Settings covers the Panes; the panel is the same one it always was.
+  await app.press("label:Settings");
+  await app.waitFor("id:settings-overlay");
   await app.waitFor("id:settings-background");
   return app;
 }

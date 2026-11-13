@@ -1,7 +1,7 @@
 /**
  * A v3 / v4 registry is read but never written: its Dialogues own paths that
  * only dsh's Workspaces can take over, and that needs a Host. Without one the
- * app says so and leaves the file exactly as it found it.
+ * app says so, opens no Bot, and leaves the file exactly as it found it.
  */
 import { expect, test } from "nsh/test";
 
@@ -53,14 +53,10 @@ test("a v4 registry without a Host stays untouched and says why", async () => {
 
   await app.waitFor("id:migration-notice");
   expect(app.texts().some((text) => text.includes("旧版本"))).toBe(true);
-  // The v4 objects are read, not hidden: Bot and Dialogue by its own path.
-  await app.waitFor("role:treeitem[Ada]");
-  await app.press("role:treeitem[Ada]");
-  await app.waitFor("role:treeitem[myaid]");
-  // Read-only: a row carries no address, so pressing it opens no Panel.
-  await app.press("role:treeitem[myaid]");
-  expect(app.shows("text:New Session")).toBe(false);
-  expect(app.shows("id:tab-panel-1 >> text:Empty")).toBe(true);
+  // Nothing of the old shape becomes a place: the list waits for the Host.
+  expect(app.shows("label:New Bot")).toBe(true);
+  expect(app.texts()).toContain("No Bots yet.");
+  expect(app.shows("label:Ada")).toBe(false);
   // The file keeps its version and its paths; the notice is not a migration.
   expect(app.storage()[REGISTRY_STORAGE_KEY]).toBe(V4);
 });

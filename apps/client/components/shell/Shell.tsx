@@ -1,14 +1,11 @@
 /**
- * The Workspace Shell: collapsible left Navigator (the registry's tree, the
- * Host's state) beside the Workbench (Panels that mount the features).
+ * The Workspace Shell: collapsible left Navigator (the flat Bot list, the
+ * Host's state, Settings) beside the Workbench (the Panes that show Bots).
  */
-import { effect, keymap, platform, untracked, View } from "nsh";
+import { effect, keymap, platform, View } from "nsh";
 import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { isAvailable as hasWindow, Menu, titleBar } from "nsh/desktop";
 
-import { registry } from "../../features/bots/state";
-import { sessionList } from "../../features/dialogue/session/runtime";
-import { workspaces } from "../../features/workspace/state";
 import { colors, handleThumb, Icon } from "../ui";
 import { startAttention } from "./attention";
 import { buildApplicationMenu, COMMANDS, runCommand } from "./commands";
@@ -25,13 +22,14 @@ import {
 } from "./layout";
 import { Navigator } from "./Navigator";
 import { ShellNotices } from "./Notices";
-import { collectShellPrefs, prefsLoaded, resolveAddress, saveShellPrefs } from "./prefs";
-import { panelContents, setPanelAddress } from "./state";
+import { collectShellPrefs, markPrefsLoaded, prefsLoaded, saveShellPrefs } from "./prefs";
+import { closeSettingsOnEscape } from "./SettingsOverlay";
 import { Workbench } from "./Workbench";
 
 /** Left navigator (resizable, collapsible) and the workbench on the right. */
 export function Shell() {
-  // Once, on mount: read the registry, probe the Host, connect dsh when it answers.
+  // Once, on mount: read the registry, probe the Host, connect dsh when it
+  // answers, then apply the prefs (a v4 file waits for its Host instead).
   effect(() => {
     void startShell();
   });
@@ -39,34 +37,15 @@ export function Shell() {
   for (const command of COMMANDS) {
     if (command.shortcut) keymap.bind(command.shortcut, () => runCommand(command.id));
   }
-  // The menu's enabled states follow the active Panel: rebuilding it in an
+  // The menu's enabled states follow the active Pane: rebuilding it in an
   // effect re-reads the signals the commands' `enabled` functions read.
   if (hasWindow) {
     effect(() => {
       Menu.setApplicationMenu(buildApplicationMenu(COMMANDS, { mac: platform.os === "macos" }));
     });
   }
-  // A Session's name can arrive from its first prompt (roster), and a Panel
-  // opened before that kept the old title: retitle that Panel's tab.
-  effect(() => {
-    const labels = new Map(sessionList().map((row) => [row.id, row.label]));
-    for (const [panelId, address] of Object.entries(untracked(panelContents))) {
-      if (!address || address.kind !== "session" || !address.sessionId) continue;
-      const label = labels.get(address.sessionId);
-      if (!label || label === address.title) continue;
-      setPanelAddress(panelId, { ...address, title: label, path: [label] });
-    }
-  });
-  // A Dialogue's name is its Workspace's title: a rename retitles its Panels.
-  effect(() => {
-    const projection = workspaces();
-    const bots = registry();
-    for (const [panelId, address] of Object.entries(untracked(panelContents))) {
-      if (!address || address.kind !== "dialogue") continue;
-      const live = resolveAddress(address, bots, projection);
-      if (live && live.title !== address.title) setPanelAddress(panelId, live);
-    }
-  });
+  // Escape closes Settings while it covers the Panes.
+  closeSettingsOnEscape();
   // A reply or an approval in a Session the person is not watching may notify.
   startAttention();
   // Preferences: one debounced write after the launch applied the old ones.

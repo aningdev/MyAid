@@ -5,7 +5,6 @@ import {
   EMPTY_WORKSPACES,
   orderedClaims,
   orderedDialogues,
-  pinnedClaims,
   workspaceOf,
   workspacePath,
   workspaceRowOf,
@@ -90,13 +89,4 @@ test("a Dialogue's Sessions follow the Workspace order and drop archived ones", 
   expect(orderedClaims(state, { workspaceId: "ws" }, claims).map((item) => item.sessionId)).toEqual(
     ["s1", "s3"],
   );
-});
-
-test("pinned claims keep dsh's pin order and skip archived Sessions", () => {
-  const state = projection({
-    pinned: ["s2", "s1", "s3"],
-    archived: new Set(["s2"]),
-  });
-  const claims = [{ sessionId: "s1" }, { sessionId: "s2" }, { sessionId: "s3" }];
-  expect(pinnedClaims(state, claims).map((item) => item.sessionId)).toEqual(["s1", "s3"]);
 });

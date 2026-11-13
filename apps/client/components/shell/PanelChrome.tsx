@@ -2,43 +2,30 @@ import { Text, View } from "nsh";
 import { Button, type DockAreaRef, type DockTab } from "nsh/base";
 
 import { BotMark } from "../../features/bots/BotMark";
+import { openBotDetails } from "../../features/bots/details";
 import { registry } from "../../features/bots/state";
 import { sessionList } from "../../features/dialogue/session/runtime";
-import { inspectorOpen, toggleInspector } from "../../features/inspector/state";
 import { colors, Icon, type IconName } from "../ui";
-import { navKindIcon } from "./navIcons";
-import { activePanelId, panelContents, panelTitle, splitPanel } from "./state";
+import { activePanelId, panelBotId, panelTitle, splitPanel } from "./state";
 
 /**
- * A Panel's tab: the address's icon and title, then its commands. Only the
- * active Panel's commands always show; the others show while the tab is
- * hovered or one of them has the keyboard focus (each also has a shortcut,
- * bound in `Shell`).
+ * A Pane's header: its Bot's mark and name, then the Bot details button and
+ * the split / zoom / close controls. Only the focused Pane's controls always
+ * show; the others show while the header is hovered or one of them has the
+ * keyboard focus (each also has a shortcut, bound in `Shell`). No tabs.
  */
 export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined }) {
   const tab = props.tab;
-  const address = () => panelContents()[tab.panel];
-  const title = () => panelTitle(tab.panel);
-  const active = () => activePanelId() === tab.panel;
   const bot = () => {
-    const id = address()?.botId;
+    const id = panelBotId(tab.panel);
     return id ? (registry().bots.find((item) => item.id === id) ?? null) : null;
   };
-  /** A running Session under this address: the tab's mark breathes too. */
+  const title = () => panelTitle(tab.panel);
+  const active = () => activePanelId() === tab.panel;
+  /** A running Session of this Bot: the header's mark breathes too. */
   const working = () => {
-    const a = address();
-    if (!a) return false;
-    return sessionList().some(
-      (row) =>
-        row.running &&
-        (a.sessionId
-          ? row.id === a.sessionId
-          : a.dialogueId
-            ? row.dialogueId === a.dialogueId
-            : a.botId
-              ? row.botId === a.botId
-              : false),
-    );
+    const id = bot()?.id;
+    return !!id && sessionList().some((row) => row.running && row.botId === id);
   };
 
   return (
@@ -47,21 +34,8 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
       class="border-border h-9 flex-row items-center gap-1 border-b px-2"
       style={{ backgroundColor: active() ? colors.background : colors.inset }}
     >
-      <If
-        when={bot()}
-        else={
-          <If when={address()}>
-            {(a) => (
-              <Icon
-                name={navKindIcon(a().kind)}
-                size={13}
-                tint={active() ? colors.muted : colors.faint}
-              />
-            )}
-          </If>
-        }
-      >
-        {(b) => <BotMark identity={b().identity} size={16} working={working()} />}
+      <If when={bot()}>
+        {(current) => <BotMark identity={current().identity} size={16} working={working()} />}
       </If>
       <Text
         class="flex-1 text-[13px] font-medium"
@@ -76,13 +50,14 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
             : "flex-row items-center opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none"
         }
       >
-        <If when={address()?.kind === "session"}>
-          <ChromeBtn
-            label={inspectorOpen(tab.panel) ? "Hide Inspector" : "Show Inspector"}
-            icon="panel-right"
-            active={inspectorOpen(tab.panel)}
-            onPress={() => toggleInspector(tab.panel)}
-          />
+        <If when={bot()}>
+          {(current) => (
+            <ChromeBtn
+              label={`Bot details: ${current().name}`}
+              icon="sliders"
+              onPress={() => openBotDetails(current().id)}
+            />
+          )}
         </If>
         <ChromeBtn
           label={`Split ${title()} right`}
@@ -111,20 +86,14 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
   );
 }
 
-function ChromeBtn(props: {
-  label: string;
-  icon: IconName;
-  active?: boolean;
-  onPress: () => void;
-}) {
+function ChromeBtn(props: { label: string; icon: IconName; onPress: () => void }) {
   return (
     <Button
       onPress={props.onPress}
       accessibilityLabel={props.label}
-      selected={props.active}
       class="hover:bg-accent size-7 items-center justify-center rounded-md"
     >
-      <Icon name={props.icon} size={13} tint={props.active ? colors.accent : colors.muted} />
+      <Icon name={props.icon} size={13} tint={colors.muted} />
     </Button>
   );
 }

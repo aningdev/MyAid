@@ -1,23 +1,20 @@
 /**
  * New Bot: a sheet with the Bot's name, its dsh preset, the mark it wears
- * and the workspace of its first Dialogue. Creating it writes the Bot, its
- * Dialogue and (when dsh answers) the first Session, then opens that chat
- * with the keyboard in the composer. The first launch's welcome state leads
- * here, as does ⇧⌘N, the Bots section's `+` and the palette.
+ * and its first working directory. Creating it writes the Bot, opens its Pane,
+ * then creates the dialogue and (when dsh answers) the first Session, with the
+ * keyboard in the composer. The first launch's welcome state leads here, as do
+ * ⌘N, the list's "New Bot" row and the palette.
  */
 import { effect, signal, Text, View, windowSize } from "nsh";
 
-import { dialogueAddress, sessionAddress } from "../../components/shell/navAddresses";
-import { openAddress } from "../../components/shell/state";
+import { openBot } from "../../components/shell/state";
 import { Button, colors, Field, radius, Sheet } from "../../components/ui";
 import { requestComposerFocus } from "../dialogue/chat/focus";
 import { createDialogueOnPath } from "../workspace/dialogues";
-import { workspaceOf, workspaces } from "../workspace/state";
 import { BotIdentityPicker, BotMark } from "./BotMark";
 import { nextIdentity, type BotIdentity } from "./identity";
 import { createBot, initializeBot, newId } from "./model";
 import { closeNewBot, newBotOpen } from "./newBot";
-import { sessionLabel } from "./sessions";
 import {
   actionError,
   changeRegistry,
@@ -139,38 +136,19 @@ function Body() {
         localError.set(actionError() ?? "Could not create the Bot.");
         return;
       }
-      // The Bot is saved; its Panel is the surface from here on. The Dialogue
-      // lives on a dsh Workspace, so that step needs the Host.
+      // The Bot is saved; its Pane is the surface from here on. The dialogue
+      // lives on a dsh Workspace and its Session needs the Host, so both may
+      // still fail: the Pane then offers to start the conversation again.
       closeNewBot();
+      openBot(botId);
       const dialogue = await createDialogueOnPath(botId, path);
-      // A refusal is on `actionError`, which the new Bot's Panel shows.
       if (!dialogue) return;
-      // The Session may still fail, in which case the Dialogue is the surface.
       const { createSession } = await import("../dialogue/session/runtime");
       try {
         const sessionId = await createSession(dialogue.id);
-        const claim =
-          registry()
-            .dialogues.find((item) => item.id === dialogue.id)
-            ?.claims.find((item) => item.sessionId === sessionId) ?? null;
-        openAddress(
-          sessionAddress({
-            sessionId,
-            label: sessionLabel(claim ?? { title: null }, null),
-            botId,
-            dialogueId: dialogue.id,
-          }),
-        );
         requestComposerFocus(sessionId);
       } catch {
-        openAddress(
-          dialogueAddress({
-            id: dialogue.id,
-            title: workspaceOf(workspaces(), dialogue)?.title ?? "",
-            botId,
-            botName: name(),
-          }),
-        );
+        // `sessionError` is shown in the Pane.
       }
     } finally {
       creating.set(false);

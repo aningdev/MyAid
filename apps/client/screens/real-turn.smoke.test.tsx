@@ -26,7 +26,7 @@ test("a real turn ends with Send back and the working dot gone", async () => {
   if (!(await graphical(app))) return;
 
   await app.waitFor("text:Host connected", { timeout: 30000 });
-  await app.keyboard.press("mod+shift+n");
+  await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);

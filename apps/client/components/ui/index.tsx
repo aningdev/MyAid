@@ -784,7 +784,6 @@ export function Sheet(props: {
 }
 
 export { Icon, type IconName } from "./icons";
-export { TreeRow, treeIndent, treeItemClass } from "./tree";
 
 /** A short text as an element's `tooltip`: a `Tooltip` of `nsh/base` in a
  * small bubble of the theme's `popover` tokens. */

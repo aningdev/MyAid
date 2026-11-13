@@ -1,7 +1,8 @@
 /**
- * Shell × features: the Navigator is the registry's projection, and a press
- * opens that object's Panel. The registry is seeded through the app's storage
- * (the web target's store), so the test needs no Host and writes nothing.
+ * Shell × features: the Navigator is the registry's flat projection, and a
+ * press opens that Bot's conversation in a Pane. The registry is seeded
+ * through the app's storage (the web target's store), so the test needs no
+ * Host and writes nothing.
  */
 import { expect, test } from "nsh/test";
 
@@ -12,10 +13,9 @@ import {
   createTemplate,
   emptyRegistry,
   initializeBot,
-  renameClaim,
+  serializeRegistry,
   type BotRegistry,
 } from "../../features/bots/model";
-import { serializeRegistry } from "../../features/bots/model";
 import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
 import { open } from "../../test/open";
 import { workspaceStorage, workspaceRow } from "../../test/workspaces";
@@ -37,9 +37,9 @@ function start(registry: BotRegistry) {
   });
 }
 
-/** Ada (ready) → one Dialogue at /work/myaid → one claimed Session. */
+/** Ada (ready) → one dialogue at /work/myaid → one claimed Session. */
 function sampleRegistry(): BotRegistry {
-  const created = claimSession(
+  return claimSession(
     createDialogue(
       initializeBot(
         createBot(
@@ -55,47 +55,58 @@ function sampleRegistry(): BotRegistry {
     "dlg",
     "s1",
   );
-  return renameClaim(created, "dlg", "s1", "First run");
 }
 
-test("the Navigator lists the registry, and a Session opens its chat", async () => {
+test("the Navigator lists the registry, and a press opens the conversation", async () => {
   const app = await start(sampleRegistry());
 
-  await app.waitFor("role:treeitem[Ada]");
-  await app.press("role:treeitem[Ada]");
+  await app.waitFor("label:Ada");
+  await app.press("label:Ada");
+  await app.waitFor("id:tab-panel-1 >> text:Ada");
+  // The Bot's most recent Session stands in until L2: its chat is the Pane.
+  await app.waitFor("id:chat");
+  expect(app.shows("id:bot-pane")).toBe(true);
+});
+
+test("a draft Bot's Pane sends the person to its details", async () => {
+  const created = createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl");
+  const app = await start(createBot(created, { name: "Ada", templateId: "tmpl" }, "bot"));
+
+  await app.waitFor("label:Ada");
+  await app.press("label:Ada");
+  await app.waitFor("id:bot-pane-empty");
+  expect(app.texts().some((text) => text.includes("No conversation"))).toBe(true);
+  await app.press("label:Bot details…");
+  await app.waitFor("id:bot-details");
+  expect(app.texts()).toContain("Profile");
+});
+
+test("the Bot details button sits in the Pane header with split and close", async () => {
+  const app = await start(sampleRegistry());
+  await app.waitFor("label:Ada");
+  await app.press("label:Ada");
   await app.waitFor("id:tab-panel-1 >> text:Ada");
 
-  // The Bot's row opened it and expanded its Dialogues (the same press).
-  await app.waitFor("role:treeitem[myaid]");
-  await app.press("role:treeitem[myaid]");
-  await app.waitFor("id:tab-panel-1 >> text:Ada · myaid");
-  await app.waitFor("text:New Session");
+  expect(app.shows("label:Bot details: Ada")).toBe(true);
+  expect(app.shows("label:Split Ada right")).toBe(true);
+  // The Inspector drawer and its command are gone.
+  expect(app.shows("label:Show Inspector")).toBe(false);
+  // Close shows once there is a second Pane to fall back to.
+  await app.keyboard.press("mod+\\");
+  await app.waitFor("id:tab-panel-2");
+  expect(app.shows("label:Close Ada")).toBe(true);
 
-  await app.press("role:treeitem[First run]");
-  // The Session's chat opens on its composer, named after its Bot.
-  await app.waitFor("text:Message Ada");
-  expect(app.shows("text:New Session")).toBe(false);
+  await app.press("label:Bot details: Ada");
+  await app.waitFor("id:bot-details");
+  expect(app.texts()).toContain("Runs with");
 });
 
-test("a Dialogue's panel shows its Bot, workspace and claimed Sessions", async () => {
+test("the New Bot row opens the sheet", async () => {
   const app = await start(sampleRegistry());
-
-  // The Dialogues section lists it too, labelled Bot · workspace.
-  await app.waitFor("role:treeitem[Ada · myaid]");
-  await app.press("role:treeitem[Ada · myaid]");
-  await app.waitFor("text:New Session");
-
-  const texts = app.texts();
-  expect(texts.some((t) => t.includes("/work/myaid"))).toBe(true);
-  expect(texts.some((t) => t === "First run")).toBe(true);
-});
-
-test("the Bots section's + opens the New Bot sheet", async () => {
-  const app = await start(sampleRegistry());
-  await app.waitFor("role:treeitem[Ada]");
+  await app.waitFor("label:Ada");
 
   await app.press("label:New Bot");
   await app.waitFor("id:new-bot-sheet");
   await app.waitFor("id:new-bot-name");
-  expect(app.shows("role:treeitem[Ada]")).toBe(true);
+  expect(app.shows("label:Ada")).toBe(true);
 });

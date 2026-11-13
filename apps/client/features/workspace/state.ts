@@ -19,12 +19,9 @@ import {
 
 export {
   EMPTY_WORKSPACES,
-  isDialogueArchived,
   isSessionArchived,
-  isSessionPinned,
   orderedClaims,
   orderedDialogues,
-  pinnedClaims,
   workspaceOf,
   workspacePath,
   workspaceRowOf,
@@ -183,29 +180,9 @@ export async function archiveSession(
   await call("archiveSession", () => model.archiveSession(sessionId as never, options));
 }
 
-export async function unarchiveSession(model: IWorkspaces, sessionId: string): Promise<void> {
-  await call("unarchiveSession", () => model.unarchiveSession(sessionId as never));
-}
-
-/** Pin a Session ahead of unpinned ones; the Favorites section reads this. */
+/** Pin a Session: the migration carries a v4 file's Favorites pins here. */
 export async function pinSession(model: IWorkspaces, sessionId: string): Promise<void> {
   await call("pinSession", () => model.pinSession(sessionId as never));
-}
-
-export async function unpinSession(model: IWorkspaces, sessionId: string): Promise<void> {
-  await call("unpinSession", () => model.unpinSession(sessionId as never));
-}
-
-/** Move one Session within its Workspace's manual order. */
-export async function moveSession(
-  model: IWorkspaces,
-  workspaceId: string,
-  sessionId: string,
-  beforeSessionId?: string,
-): Promise<void> {
-  await call("insertSessionBefore", () =>
-    model.insertSessionBefore(workspaceId as never, sessionId as never, beforeSessionId as never),
-  );
 }
 
 /** One Workspace command; the official service reports failures as `rpcError`. */
@@ -222,32 +199,6 @@ async function call<T>(operation: string, run: () => Promise<T>): Promise<T> {
       rpc.details,
     );
   }
-}
-
-/**
- * The work a `workspace/session-active` refusal names, as one line. The
- * details crossed the process boundary with the error, so they are read with
- * guards like any other wire value.
- */
-export function activitySummary(details: unknown): string {
-  if (!isRecord(details)) return "";
-  const activity = details.activity;
-  if (!Array.isArray(activity)) return "";
-  const parts: string[] = [];
-  for (const item of activity) {
-    if (!isRecord(item) || typeof item.kind !== "string") continue;
-    const labels: string[] = [];
-    if (Array.isArray(item.items)) {
-      for (const entry of item.items) {
-        if (!isRecord(entry)) continue;
-        const label = typeof entry.label === "string" ? entry.label : entry.id;
-        if (typeof label === "string" && label) labels.push(label);
-      }
-    }
-    const named = labels.join("、");
-    parts.push(named ? `${item.kind}（${named}）` : item.kind);
-  }
-  return parts.join(" · ");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

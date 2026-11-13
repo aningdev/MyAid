@@ -1,12 +1,11 @@
 /**
- * Workspace Shell host: the desktop opens the Navigator and Workbench, whose
- * Panels mount the Bot / Dialogue / Session features. Narrow windows are a
- * placeholder for now.
+ * Workspace Shell host: the desktop opens the Navigator and the Panes, whose
+ * bodies mount the Bot feature. Narrow windows are a placeholder for now.
  */
 import { effect, Text, View } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
-import { BotSettings } from "../features/bots/BotSettings";
+import { BotDetails } from "../features/bots/BotDetails";
 import { NewBotSheet } from "../features/bots/NewBotSheet";
 import { isDesktopLayout, Shell, TITLE_CHROME, titleTopInset } from "./shell";
 import { CommandPalette } from "./shell/CommandPalette";
@@ -30,8 +29,8 @@ function DesktopShell() {
   return (
     <View style={{ flex: 1, minHeight: 0, backgroundColor: colors.inset }}>
       <Shell />
-      {/* One sheet for every Bot Settings entry point (Inspector, Bot Panel). */}
-      <BotSettings />
+      {/* One modal for every Bot details entry point (a Pane's header, the list). */}
+      <BotDetails />
       {/* The one New Bot sheet, the palette, and the Navigator's forms. */}
       <NewBotSheet />
       <CommandPalette />

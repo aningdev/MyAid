@@ -1,33 +1,17 @@
 /**
- * A Navigator row's context menu: the commands that act on the Bot, Dialogue
- * or Session the row stands for. A secondary click opens it where the pointer
- * is and does not open (or select) the row; the items close over the row's
- * address, not over whatever is active.
+ * A Bot row's context menu: the verbs of that Bot (and not of whatever Pane
+ * has the focus). A secondary click opens it where the pointer is and does not
+ * open the row.
  */
 import { Text, View, type JSX } from "nsh";
 import { ContextMenu, MenuItem, MenuSeparator } from "nsh/base";
 
-import { claimOwner, deleteBot, type Dialogue } from "../../features/bots/model";
-import { sessionLabel } from "../../features/bots/sessions";
-import { openBotSettings } from "../../features/bots/settings";
-import { changeRegistry, registry, setActionError } from "../../features/bots/state";
-import { requestComposerFocus } from "../../features/dialogue/chat/focus";
-import { createSession } from "../../features/dialogue/session/runtime";
-import {
-  archiveDialogueSession,
-  archiveWholeDialogue,
-  messageOf,
-  removeEmptyDialogue,
-  sessionPinned,
-  setSessionPinned,
-} from "../../features/workspace/dialogues";
-import { isDialogueArchived, workspaceTitle, workspaces } from "../../features/workspace/state";
+import { openBotDetails } from "../../features/bots/details";
+import { archiveBot, type Bot, unarchiveBot } from "../../features/bots/model";
+import { changeRegistry } from "../../features/bots/state";
 import { colors, Icon, type IconName } from "../ui";
-import { dialogueAddress, sessionAddress } from "./navAddresses";
-import { navAddressForId } from "./navData";
-import { openNewDialogue, openRename } from "./navSheets";
-import { openAddress, panelContents, setPanelAddress } from "./state";
-import type { NavAddress } from "./types";
+import { openRename } from "./navSheets";
+import { isPinned, togglePin } from "./pins";
 
 type Entry =
   | { kind: "separator"; id: string }
@@ -40,173 +24,59 @@ type Entry =
       onSelect: () => void;
     };
 
-/** The menu items for a row, by the object its address names. */
-export function contextEntries(address: NavAddress | undefined): Entry[] {
-  if (!address) return [];
-  switch (address.kind) {
-    case "bot": {
-      const bot = registry().bots.find((item) => item.id === address.botId) ?? null;
-      if (!bot) return [];
-      const hasDialogues = registry().dialogues.some((item) => item.botId === bot.id);
-      return [
-        {
+/** The menu items for one Bot. */
+export function contextEntries(bot: Bot | null, options: { pinned: boolean }): Entry[] {
+  if (!bot) return [];
+  return [
+    {
+      kind: "item",
+      id: "bot-pin",
+      label: options.pinned ? "Unpin" : "Pin",
+      icon: "star",
+      onSelect: () => togglePin(bot.id),
+    },
+    {
+      kind: "item",
+      id: "bot-details",
+      label: "Bot details…",
+      icon: "sliders",
+      onSelect: () => openBotDetails(bot.id),
+    },
+    {
+      kind: "item",
+      id: "bot-rename",
+      label: "Rename…",
+      icon: "text",
+      onSelect: () => openRename({ botId: bot.id, value: bot.name }),
+    },
+    { kind: "separator", id: "bot-separator" },
+    bot.archived
+      ? {
           kind: "item",
-          id: "bot-settings",
-          label: "Bot Settings…",
-          icon: "sliders",
-          onSelect: () => openBotSettings(bot.id),
-        },
-        {
-          kind: "item",
-          id: "bot-new-dialogue",
-          label: "New Dialogue…",
-          icon: "plus",
-          disabled: bot.status !== "ready",
-          onSelect: () =>
-            openNewDialogue({
-              botId: bot.id,
-              botName: bot.name,
-              workspacePath: bot.defaultWorkspacePath ?? "",
-            }),
-        },
-        { kind: "separator", id: "bot-separator" },
-        {
-          kind: "item",
-          id: "bot-delete",
-          label: "Delete Bot",
-          icon: "close",
-          disabled: bot.hadDialogue || hasDialogues,
-          onSelect: () => void removeBot(bot.id),
-        },
-      ];
-    }
-    case "dialogue": {
-      const dialogue = registry().dialogues.find((item) => item.id === address.dialogueId);
-      if (!dialogue) return [];
-      const bot = registry().bots.find((item) => item.id === dialogue.botId) ?? null;
-      return [
-        {
-          kind: "item",
-          id: "dialogue-new-session",
-          label: "New Session",
-          icon: "plus",
-          disabled: bot?.status !== "ready",
-          onSelect: () => void newSession(dialogue),
-        },
-        {
-          kind: "item",
-          id: "dialogue-rename",
-          label: "Rename…",
-          icon: "text",
-          onSelect: () =>
-            openRename({
-              kind: "dialogue",
-              dialogueId: dialogue.id,
-              value: workspaceTitle(workspaces(), dialogue),
-            }),
-        },
-        { kind: "separator", id: "dialogue-separator" },
-        {
-          kind: "item",
-          id: "dialogue-archive",
-          label: "Archive Dialogue",
+          id: "bot-unarchive",
+          label: "Unarchive",
           icon: "storage",
-          // Every claimed Session goes to dsh's archive set, not a local flag.
-          disabled: isDialogueArchived(workspaces(), dialogue),
-          onSelect: () => void archiveDialogue(dialogue),
-        },
-        {
+          onSelect: () => void setArchived(bot.id, false),
+        }
+      : {
           kind: "item",
-          id: "dialogue-remove",
-          label: "Remove Dialogue",
-          icon: "close",
-          // Only an empty Dialogue can leave the registry; dsh keeps the Workspace.
-          disabled: dialogue.claims.length > 0,
-          onSelect: () => void removeDialogueEntry(dialogue.id),
-        },
-      ];
-    }
-    case "session": {
-      const owner = address.sessionId ? claimOwner(registry(), address.sessionId) : null;
-      if (!owner) return [];
-      // Favorites' session rows are dsh's pin set, not a client preference.
-      const pinned = sessionPinned(owner.claim.sessionId);
-      return [
-        {
-          kind: "item",
-          id: "session-rename",
-          label: "Rename…",
-          icon: "text",
-          onSelect: () =>
-            openRename({
-              kind: "session",
-              dialogueId: owner.dialogue.id,
-              sessionId: owner.claim.sessionId,
-              value: sessionLabel(owner.claim, null),
-            }),
-        },
-        {
-          kind: "item",
-          id: "session-favorite",
-          label: pinned ? "Remove from Favorites" : "Add to Favorites",
-          icon: "star",
-          onSelect: () => void setPinned(owner.claim.sessionId, !pinned),
-        },
-        { kind: "separator", id: "session-separator" },
-        {
-          kind: "item",
-          id: "session-archive",
-          label: "Archive Session",
+          id: "bot-archive",
+          label: "Archive",
           icon: "storage",
-          onSelect: () => void archiveSession(owner.claim.sessionId),
+          onSelect: () => void setArchived(bot.id, true),
         },
-      ];
-    }
-    default:
-      return [];
-  }
+  ];
 }
 
-/**
- * Archive every Session the Dialogue claims. dsh refuses the ones still
- * working; the notice then stops and archives all of them at once.
- */
-async function archiveDialogue(dialogue: Dialogue): Promise<void> {
-  try {
-    await archiveWholeDialogue(dialogue.id);
-  } catch (error) {
-    setActionError(messageOf(error));
-    return;
-  }
-  // Panels showing a Session of it fall back to the Dialogue.
-  const bot = registry().bots.find((item) => item.id === dialogue.botId) ?? null;
-  for (const [panelId, address] of Object.entries(panelContents())) {
-    if (!address?.sessionId) continue;
-    if (claimOwner(registry(), address.sessionId)?.dialogue.id !== dialogue.id) continue;
-    setPanelAddress(
-      panelId,
-      dialogueAddress({
-        id: dialogue.id,
-        title: workspaceTitle(workspaces(), dialogue),
-        botId: dialogue.botId,
-        botName: bot?.name ?? "",
-      }),
-    );
-  }
+async function setArchived(botId: string, archived: boolean): Promise<void> {
+  await changeRegistry((registry) =>
+    archived ? archiveBot(registry, botId) : unarchiveBot(registry, botId),
+  );
 }
 
-async function removeDialogueEntry(dialogueId: string): Promise<void> {
-  const removed = await removeEmptyDialogue(dialogueId);
-  if (!removed) {
-    setActionError("这段 Dialogue 还有 Session，不能移除。");
-  }
-}
-
-/** Wrap a row in its context menu when it has one. */
-export function NavContextMenu(props: { id: string; children: JSX.Element }) {
-  const address = navAddressForId(props.id);
-  const entries = () => contextEntries(address);
-  if (entries().length === 0) return props.children;
+/** Wrap a Bot row in its context menu. */
+export function NavContextMenu(props: { bot: Bot; children: JSX.Element }) {
+  const entries = () => contextEntries(props.bot, { pinned: isPinned(props.bot.id) });
   return (
     <ContextMenu
       class="min-w-0 flex-1"
@@ -239,68 +109,4 @@ function EntryItem(props: { entry: Entry }) {
       </View>
     </MenuItem>
   );
-}
-
-async function newSession(dialogue: Dialogue): Promise<void> {
-  try {
-    const id = await createSession(dialogue.id);
-    const claim = dialogue.claims.find((item) => item.sessionId === id) ?? null;
-    openAddress(
-      sessionAddress({
-        sessionId: id,
-        label: sessionLabel(claim ?? { title: null }, null),
-        botId: dialogue.botId,
-        dialogueId: dialogue.id,
-      }),
-    );
-    requestComposerFocus(id);
-  } catch {
-    // The runtime's sessionError names the reason in the Panel that shows it.
-  }
-}
-
-async function removeBot(botId: string): Promise<void> {
-  const next = await changeRegistry((registry) => deleteBot(registry, botId));
-  if (!next) setActionError("This Bot cannot be deleted.");
-}
-
-async function setPinned(sessionId: string, pinned: boolean): Promise<void> {
-  try {
-    await setSessionPinned(sessionId, pinned);
-  } catch (error) {
-    setActionError(messageOf(error));
-  }
-}
-
-/**
- * Archive one Session through dsh's Workspace. A Session that still works is
- * refused (`workspace/session-active`); its Panel stays put and the Navigator
- * offers "Stop and archive". An archived Session's Panels fall back to its
- * Dialogue once dsh's own follow frame says so.
- */
-async function archiveSession(sessionId: string): Promise<void> {
-  let archived = false;
-  try {
-    archived = await archiveDialogueSession(sessionId);
-  } catch (error) {
-    setActionError(messageOf(error));
-    return;
-  }
-  // A running Session left a Stop-and-archive notice; its Panel stays put.
-  if (!archived) return;
-  const owner = claimOwner(registry(), sessionId);
-  if (!owner) return;
-  for (const [panelId, address] of Object.entries(panelContents())) {
-    if (address?.sessionId !== sessionId) continue;
-    const bot = registry().bots.find((item) => item.id === owner.bot.id) ?? null;
-    setPanelAddress(
-      panelId,
-      dialogueAddress({
-        id: owner.dialogue.id,
-        title: workspaceTitle(workspaces(), owner.dialogue),
-        botId: owner.bot.id,
-        botName: bot?.name ?? "",
-      }),
-    );
-  }
 }

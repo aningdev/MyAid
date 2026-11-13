@@ -1,26 +1,25 @@
 /**
  * Attention outside the window: a reply that lands or an approval that waits
- * in a Session the person is not looking at becomes a system notification,
- * and the Dock / taskbar badge counts the Sessions that need them. The
+ * in a Session the person is not looking at becomes a system notification —
+ * "Bob replied" — and the Dock / taskbar badge counts what needs them. The
  * decision is a pure function over two roster snapshots, so it is testable
  * without a system notification.
  *
  * A Session is "watched" when the main window has the keyboard focus and its
- * Panel is the active one; anything else (another Panel, another app, a
- * minimized window) may notify.
+ * Bot's Pane is the active one; anything else (another Pane, another app, a
+ * minimized window) may notify. Pressing a notification opens that Bot's Pane.
  */
 import { effect, Notifications, platform, untracked } from "nsh";
 import { Window } from "nsh/desktop";
 
 import { claimOwner } from "../../features/bots/model";
-import { sessionLabel } from "../../features/bots/sessions";
+import { currentSessionOf } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { sessionList, type SessionRow } from "../../features/dialogue/session/runtime";
 import { isSessionArchived, workspaces } from "../../features/workspace/state";
-import { sessionAddress } from "./navAddresses";
-import { activeAddress, openAddress } from "./state";
+import { activeBotId, openBot } from "./state";
 
-/** The notification id prefix; the rest is the Session id a press opens. */
+/** The notification id prefix; the rest is the Session id that fired it. */
 export const NOTIFICATION_PREFIX = "myaid.session.";
 
 export type AttentionKind = "reply" | "approval";
@@ -54,11 +53,11 @@ export function attentionStatuses(rows: readonly SessionRow[]): Map<string, Atte
 export function attentionEvents(
   previous: ReadonlyMap<string, AttentionStatus>,
   rows: readonly SessionRow[],
-  watch: { focused: boolean; visibleSessionId: string | null },
+  watch: { focused: boolean; visibleSessionIds: ReadonlySet<string> },
 ): AttentionEvent[] {
   const events: AttentionEvent[] = [];
   for (const row of rows) {
-    if (watch.focused && row.id === watch.visibleSessionId) continue;
+    if (watch.focused && watch.visibleSessionIds.has(row.id)) continue;
     const before = previous.get(row.id);
     const approval = !before?.attention && row.attention;
     const reply = (!!before?.running && !row.running) || (!before?.unread && row.unread);
@@ -73,14 +72,14 @@ export function attentionCount(rows: readonly SessionRow[]): number {
   return rows.filter((row) => row.unread || row.attention).length;
 }
 
-/** What a notification says: the Bot's name over the Session and the reason. */
+/** What a notification says: who, and why. */
 export function notificationText(
-  row: Pick<SessionRow, "botName" | "label">,
+  row: Pick<SessionRow, "botName">,
   kind: AttentionKind,
 ): { title: string; body: string } {
   return {
     title: row.botName || "MyAid",
-    body: kind === "approval" ? `${row.label} is waiting for approval` : `${row.label} replied`,
+    body: kind === "approval" ? "is waiting for approval" : "replied",
   };
 }
 
@@ -98,9 +97,17 @@ function focused(): boolean {
   return state ? state.focused : true;
 }
 
-function visibleSessionId(): string | null {
-  const address = activeAddress();
-  return address?.kind === "session" ? (address.sessionId ?? null) : null;
+/** The Session the focused window is showing (the active Pane's Bot's). */
+function visibleSessionIds(): ReadonlySet<string> {
+  const botId = activeBotId();
+  if (!botId) return new Set();
+  const current = currentSessionOf({
+    registry: untracked(registry),
+    workspaces: untracked(workspaces),
+    rows: untracked(sessionList),
+    botId,
+  });
+  return new Set(current ? [current.sessionId] : []);
 }
 
 function openFromNotification(id: string): void {
@@ -108,14 +115,7 @@ function openFromNotification(id: string): void {
   if (!sessionId) return;
   const owner = claimOwner(untracked(registry), sessionId);
   if (!owner || isSessionArchived(untracked(workspaces), sessionId)) return;
-  openAddress(
-    sessionAddress({
-      sessionId,
-      label: sessionLabel(owner.claim, null),
-      botId: owner.bot.id,
-      dialogueId: owner.dialogue.id,
-    }),
-  );
+  openBot(owner.bot.id);
   Window.get("main")?.focus();
 }
 
@@ -147,7 +147,7 @@ export function startAttention(): void {
     }
     const events = attentionEvents(previous, list, {
       focused: focused(),
-      visibleSessionId: visibleSessionId(),
+      visibleSessionIds: visibleSessionIds(),
     });
     previous = attentionStatuses(list);
     void updateBadge(attentionCount(list), lastBadge, (count) => (lastBadge = count));

@@ -1,23 +1,28 @@
 /**
- * Bot Settings: one sheet over four tabs, the product face of a Bot's single
- * Agent preset.
+ * Bot details: one modal over the Pane, the product face of a Bot's single
+ * Agent preset — opened from the Pane header (beside split / close), the
+ * list's context menu and the palette.
  *
  * - **Profile** — name and description in the desktop registry, the template
  *   it came from, and how its preset is bound (跟随模板 / 已绑定 / 单独配置).
- * - **Runs with** — the model, its thinking level and the workspace path the
- *   Bot offers its next Dialogue. All three are registry preferences.
+ * - **Runs with** — the model, its thinking level and the default working
+ *   directory a new segment suggests. All three are registry preferences.
  * - **Skills** — the skills dsh reports for this Bot's composition
  *   (`skills.list`). Adding one means writing the preset body.
  * - **Plugins** — the plugin rows of the Bot's preset (`pluginInventory`), and
  *   whether this profile can manage them.
+ * - **Current segment** — the workspace, model, usage / context of the Session
+ *   the Pane shows, and dsh's own Compact.
+ * - **Delete / Archive** — archive hides the Bot from the list (search finds
+ *   it again); delete is only for a Bot that never had a conversation.
  *
  * Capability edits (a skill added, a plugin switched) go through the
  * `presets.ts` seam, backed by `myaid-plugin-bot-presets` when the Host mounts
- * it. Without that Remote the sheet stays honestly read-only. Nothing here
+ * it. Without that Remote the modal stays honestly read-only. Nothing here
  * fakes a preset: the registry records a derived preset id only when the writer
  * returned one.
  *
- * Escape cancels (the sheet's own), Return saves, errors show inline.
+ * Escape closes, Return saves, errors show inline.
  */
 
 import type {
@@ -25,30 +30,67 @@ import type {
   BotPresetRecord,
   BotPresetSkill,
 } from "@myaid/dsh-web-protocol/bot-presets";
-import { cleanup, effect, keymap, Scroll, signal, Text, View, windowSize, type Signal } from "nsh";
+import {
+  Clipboard,
+  cleanup,
+  effect,
+  keymap,
+  Scroll,
+  signal,
+  Text,
+  untracked,
+  View,
+  type Signal,
+} from "nsh";
+import { Dialog } from "nsh/base";
 
-import { Button, colors, Field, mono, Press, Segmented, Sheet } from "../../components/ui";
+import {
+  Button,
+  colors,
+  Field,
+  hovered,
+  Icon,
+  Meter,
+  mono,
+  Press,
+  radius,
+  Segmented,
+} from "../../components/ui";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
-import { modelCatalog, sessionList } from "../dialogue/session/runtime";
+import { catalogModelKey, modelCatalog, sessionList } from "../dialogue/session/runtime";
+import { workspacePath, workspaces } from "../workspace/state";
 import { BotIdentityPicker, BotMark } from "./BotMark";
+import { botDetailsFor, closeBotDetails } from "./details";
 import { botFactsSource } from "./facts";
 import { defaultIdentity, type BotIdentity } from "./identity";
 import {
+  archiveBot,
   assignDerivedPreset,
+  deleteBot,
   presetBinding,
+  unarchiveBot,
   updateBot,
   type Bot,
   type BotTemplate,
   type PresetBindingLabel,
 } from "./model";
 import { presetWriter, PRESET_WRITE_GAP } from "./presets";
-import { closeBotSettings, botSettingsFor } from "./settings";
+import {
+  canReveal,
+  compactCount,
+  compactOf,
+  compactSession,
+  probeReveal,
+  refreshUsage,
+  revealPath,
+  usageOf,
+  type CompactRead,
+  type UsageRead,
+} from "./sessionFacts";
+import { currentSessionOf } from "./sessions";
 import { actionError, changeRegistry, ready, registry, saving } from "./state";
 
 type Tab = "profile" | "runs" | "skills" | "plugins";
-
-/** The sheet's width: one column of settings, narrower than the window. */
-const SHEET_WIDTH = 560;
 
 const TABS: readonly { value: Tab; label: string }[] = [
   { value: "profile", label: "Profile" },
@@ -62,23 +104,23 @@ function pluginKey(row: { entryId: string | null; moduleName: string }): string 
   return row.entryId !== null ? `id:${row.entryId}` : `name:${row.moduleName}`;
 }
 
-/** The Bot Settings sheet, mounted once by the shell; the Bot id lives in `settings.ts`. */
-export function BotSettings() {
-  const botId = () => botSettingsFor();
+/** The Bot details modal, mounted once by the app shell; the Bot id lives in `details.ts`. */
+export function BotDetails() {
+  const botId = () => botDetailsFor();
   return (
-    <Sheet
+    <Dialog
       open={botId() !== null}
-      side="top"
-      onClose={closeBotSettings}
-      // A top sheet sits at the window's leading edge: inset it to the middle.
-      popupStyle={{
-        width: SHEET_WIDTH,
-        marginLeft: Math.max(0, (windowSize().width - SHEET_WIDTH) / 2),
-        gap: 12,
+      animation="fade"
+      accessibilityLabel="Bot details"
+      onCancel={closeBotDetails}
+      onOpenChange={({ open }) => {
+        if (!open) closeBotDetails();
       }}
+      backdropStyle={{ backgroundColor: "rgba(0,0,0,0.32)" }}
+      style={{ margin: "auto", width: 660, maxWidth: "94%", maxHeight: "92%" }}
     >
-      <If when={botId()}>{(id) => <Body botId={id()} onClose={closeBotSettings} />}</If>
-    </Sheet>
+      <If when={botId()}>{(id) => <Body botId={id()} onClose={closeBotDetails} />}</If>
+    </Dialog>
   );
 }
 
@@ -129,14 +171,19 @@ function Body(props: { botId: string; onClose: () => void }) {
   const levels = () => chosenModel()?.thinking ?? [];
   const presetId = () => binding()?.presetId ?? "";
 
-  /** A Session of this Bot, the newest claimed one: `skills.list` and the
+  /** The Session this Bot's Pane shows: what the segment section describes. */
+  const segment = () =>
+    currentSessionOf({
+      registry: registry(),
+      workspaces: workspaces(),
+      rows: sessionList(),
+      botId: props.botId,
+    });
+
+  /** A Session of this Bot, the current one first: `skills.list` and the
    * preset composition are Session-addressable, not Bot-addressable. */
-  const sampleSession = (): string | null => {
-    const rows = sessionList().filter((row) =>
-      registry().dialogues.some((item) => item.id === row.dialogueId && item.botId === props.botId),
-    );
-    return rows[0]?.id ?? null;
-  };
+  const sampleSession = (): string | null =>
+    segment()?.sessionId ?? sessionList().find((row) => row.botId === props.botId)?.id ?? null;
 
   const load = async (): Promise<void> => {
     try {
@@ -170,7 +217,7 @@ function Body(props: { botId: string; onClose: () => void }) {
     void load();
   });
 
-  // Return saves unless a field has the keyboard; Escape is the sheet's.
+  // Return saves unless a field has the keyboard; Escape is the dialog's.
   effect(() => {
     const off = keymap.bind("return", () => void save(), { when: "notEditing" });
     cleanup(off);
@@ -248,8 +295,8 @@ function Body(props: { botId: string; onClose: () => void }) {
         skillsDirty.set(false);
         derivedPresetId = result.presetId;
       }
-      const next = await changeRegistry((reg) => {
-        const updated = updateBot(reg, current.id, {
+      const next = await changeRegistry((registry) => {
+        const updated = updateBot(registry, current.id, {
           name: name(),
           description: description(),
           defaultModel: modelKey() || null,
@@ -269,6 +316,26 @@ function Body(props: { botId: string; onClose: () => void }) {
     } finally {
       savingNow.set(false);
     }
+  };
+
+  const remove = async (): Promise<void> => {
+    const current = bot();
+    if (!current) return;
+    const next = await changeRegistry((registry) => deleteBot(registry, current.id));
+    if (next) {
+      props.onClose();
+      return;
+    }
+    failure.set(actionError() ?? "This Bot cannot be deleted.");
+  };
+
+  const setArchived = async (archived: boolean): Promise<void> => {
+    const current = bot();
+    if (!current) return;
+    const next = await changeRegistry((registry) =>
+      archived ? archiveBot(registry, current.id) : unarchiveBot(registry, current.id),
+    );
+    if (next && archived) props.onClose();
   };
 
   const chooseWorkspace = async (): Promise<void> => {
@@ -306,18 +373,45 @@ function Body(props: { botId: string; onClose: () => void }) {
   };
 
   return (
-    <View style={{ gap: 12 }} testID="bot-settings">
+    <View
+      testID="bot-details"
+      class="overflow-hidden"
+      style={{
+        gap: 12,
+        padding: 16,
+        borderRadius: radius.card,
+        borderCurve: "continuous",
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        flexDirection: "column",
+        maxHeight: "100%",
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <If when={bot()}>{(current) => <BotMark identity={current().identity} size={28} />}</If>
-        <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: colors.text }}>
-          Bot Settings
-        </Text>
-        <Text style={{ fontSize: 12, color: colors.muted, numberOfLines: 1 }}>
-          {bot()?.name ?? ""}
-        </Text>
+        <View style={{ flex: 1, gap: 1 }}>
+          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+            {bot()?.name ?? "Bot details"}
+          </Text>
+          <Text style={{ fontSize: 11, color: colors.faint }}>
+            {bot()?.archived ? "Archived · Profile, Runs with, Skills, Plugins" : "Bot details"}
+          </Text>
+        </View>
+        <Press
+          onPress={props.onClose}
+          accessibilityLabel="Close Bot details"
+          scale={0.96}
+          style={{ padding: 6 }}
+        >
+          <Icon name="close" size={14} tint={colors.muted} />
+        </Press>
       </View>
       <Segmented options={TABS} value={tab()} onChange={tab.set} size="small" />
-      <Scroll style={{ maxHeight: 420 }} contentStyle={{ gap: 14, paddingVertical: 4 }}>
+      <Scroll
+        style={{ flexShrink: 1, minHeight: 0 }}
+        contentStyle={{ gap: 14, paddingVertical: 4 }}
+      >
         <If when={tab() === "profile"}>
           <ProfileTab
             name={name}
@@ -363,14 +457,32 @@ function Body(props: { botId: string; onClose: () => void }) {
             onToggle={toggleRow}
           />
         </If>
+        <SegmentSection botId={props.botId} onFailure={failure.set} />
       </Scroll>
       <If when={!!failure()}>
         <Text style={{ fontSize: 12, lineHeight: 17, color: colors.danger }}>{failure()}</Text>
       </If>
-      <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-        <Button label="取消" variant="secondary" size="small" onPress={props.onClose} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <If when={!!bot()}>
+          <Button
+            label="Delete"
+            variant="ghost"
+            size="small"
+            disabled={saving() || savingNow() || !!bot()?.hadDialogue}
+            onPress={() => void remove()}
+          />
+          <Button
+            label={bot()?.archived ? "Unarchive" : "Archive"}
+            variant="ghost"
+            size="small"
+            disabled={saving() || savingNow()}
+            onPress={() => void setArchived(!bot()?.archived)}
+          />
+        </If>
+        <View style={{ flex: 1 }} />
+        <Button label="Cancel" variant="secondary" size="small" onPress={props.onClose} />
         <Button
-          label="保存"
+          label="Save"
           variant="accent"
           size="small"
           disabled={saving() || savingNow()}
@@ -378,6 +490,226 @@ function Body(props: { botId: string; onClose: () => void }) {
         />
       </View>
     </View>
+  );
+}
+
+/**
+ * The segment the Pane shows: its workspace and model, how much of its context
+ * is spent, and dsh's Compact. Reads the Session's own facts; nothing here is
+ * stored on the Bot.
+ */
+function SegmentSection(props: { botId: string; onFailure: (message: string) => void }) {
+  const segment = () =>
+    currentSessionOf({
+      registry: registry(),
+      workspaces: workspaces(),
+      rows: sessionList(),
+      botId: props.botId,
+    });
+  const path = () => {
+    const current = segment();
+    if (!current) return "";
+    const dialogue = registry().dialogues.find((item) => item.id === current.dialogueId);
+    return dialogue ? workspacePath(workspaces(), dialogue) : current.workspacePath;
+  };
+  const model = () => {
+    const catalog = modelCatalog();
+    const key =
+      catalogModelKey() ??
+      registry().bots.find((bot) => bot.id === props.botId)?.defaultModel ??
+      null;
+    if (!key) return "—";
+    const hit = (catalog?.models ?? []).find((item) => `${item.provider}/${item.model}` === key);
+    return hit ? hit.name || hit.model : key;
+  };
+  const copied = signal(false);
+
+  // Usage is read when the modal opens and after Compact; a running Session
+  // answers with what it has.
+  effect(() => {
+    const current = segment();
+    if (!current) return;
+    untracked(() => {
+      void refreshUsage(current.sessionId);
+      void probeReveal();
+    });
+  });
+
+  const copy = (text: string) => {
+    if (!text) return;
+    void Clipboard.writeText(text);
+    copied.set(true);
+    setTimeout(() => copied.set(false), 1400);
+  };
+
+  const reveal = async (target: string): Promise<void> => {
+    if (!target) return;
+    if (!canReveal()) {
+      copy(target);
+      return;
+    }
+    try {
+      await revealPath(target);
+    } catch {
+      copy(target);
+    }
+  };
+
+  const compact = async (sessionId: string): Promise<void> => {
+    try {
+      await compactSession(sessionId);
+    } catch (error) {
+      props.onFailure(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  return (
+    <View style={{ gap: 10 }} testID="bot-details-segment">
+      <View style={{ height: 1, backgroundColor: colors.line }} />
+      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Current segment</Text>
+      <If
+        when={segment()}
+        else={
+          <Text style={{ fontSize: 11, lineHeight: 16, color: colors.muted }}>
+            This Bot has no segment yet. Send a first message in its Pane.
+          </Text>
+        }
+      >
+        {(current) => (
+          <View style={{ gap: 8 }}>
+            <View style={{ gap: 3 }}>
+              <Text style={{ fontSize: 11, color: colors.muted }}>Working directory</Text>
+              <Text
+                testID="bot-details-path"
+                style={{
+                  fontSize: 12,
+                  color: colors.text,
+                  fontFamily: mono,
+                  userSelect: "text",
+                  numberOfLines: 2,
+                }}
+              >
+                {path()}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <Tiny label={copied() ? "Copied" : "Copy path"} onPress={() => copy(path())} />
+              <If when={canReveal()}>
+                <Tiny label="Reveal in Finder" onPress={() => void reveal(path())} />
+              </If>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
+              <Text style={{ width: 72, fontSize: 11, color: colors.muted }}>Model</Text>
+              <Text
+                testID="bot-details-model"
+                style={{ flex: 1, fontSize: 12, color: colors.text, numberOfLines: 1 }}
+              >
+                {model()}
+              </Text>
+            </View>
+            <Usage
+              read={() => usageOf(current().sessionId)}
+              compactRead={() => compactOf(current().sessionId)}
+              onCompact={() => void compact(current().sessionId)}
+            />
+          </View>
+        )}
+      </If>
+    </View>
+  );
+}
+
+function Usage(props: {
+  read: () => UsageRead;
+  compactRead: () => CompactRead;
+  onCompact: () => void;
+}) {
+  const context = () => {
+    const read = props.read();
+    if (read.status !== "ready") return null;
+    const { contextWindow, pressureTokens, projectedTokens } = read.usage;
+    if (!contextWindow) return null;
+    const used = projectedTokens ?? pressureTokens ?? 0;
+    return { window: contextWindow, used, ratio: used / contextWindow };
+  };
+  const failure = () => {
+    const read = props.read();
+    return read.status === "failed" ? read.error : "";
+  };
+  const outcome = () => {
+    const read = props.compactRead();
+    return read.status === "failed" ? read.error : read.status === "done" ? read.text : "";
+  };
+  return (
+    <View style={{ gap: 6 }} testID="bot-details-usage">
+      <If when={props.read().status === "ready"}>
+        <If
+          when={context()}
+          else={
+            <Text style={{ fontSize: 11, color: colors.muted }}>
+              The backend reports no context window.
+            </Text>
+          }
+        >
+          {(read) => (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+                <Text style={{ flex: 1, fontSize: 11, color: colors.muted }}>Context</Text>
+                <Text
+                  testID="bot-details-context"
+                  style={{ fontSize: 11, color: colors.text, fontVariant: ["tabular-nums"] }}
+                >
+                  {`${Math.round(read().ratio * 100)}% · ${compactCount(read().used)} / ${compactCount(read().window)}`}
+                </Text>
+              </View>
+              <Meter value={read().ratio} tone={read().ratio > 0.85 ? "warn" : "accent"} />
+            </View>
+          )}
+        </If>
+      </If>
+      <If when={props.read().status === "failed"}>
+        <Text style={{ fontSize: 11, lineHeight: 16, color: colors.danger }}>{failure()}</Text>
+      </If>
+      <If when={props.read().status === "idle" || props.read().status === "loading"}>
+        <Text style={{ fontSize: 11, color: colors.muted }}>
+          {props.read().status === "loading"
+            ? "Reading…"
+            : "Usage shows once connected to the backend."}
+        </Text>
+      </If>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Button
+          label={props.compactRead().status === "running" ? "Compacting…" : "Compact"}
+          variant="secondary"
+          size="small"
+          disabled={props.compactRead().status === "running"}
+          onPress={props.onCompact}
+        />
+        <If
+          when={props.compactRead().status !== "idle" && props.compactRead().status !== "running"}
+        >
+          <Text
+            style={{
+              flex: 1,
+              fontSize: 11,
+              lineHeight: 16,
+              color: props.compactRead().status === "failed" ? colors.danger : colors.muted,
+            }}
+          >
+            {outcome()}
+          </Text>
+        </If>
+      </View>
+    </View>
+  );
+}
+
+/** A small accent action. */
+function Tiny(props: { label: string; onPress: () => void }) {
+  return (
+    <Press onPress={props.onPress} accessibilityLabel={props.label} scale={0.96}>
+      <Text style={{ fontSize: 11, fontWeight: "500", color: colors.accent }}>{props.label}</Text>
+    </Press>
   );
 }
 
@@ -394,17 +726,17 @@ function ProfileTab(props: {
     label() === "已绑定" ? colors.accent : label() === "单独配置" ? colors.info : colors.muted;
   return (
     <View style={{ gap: 12 }}>
-      <If when={props.ready()} else={<Hint text="正在读取注册表…" />}>
+      <If when={props.ready()} else={<Hint text="Reading the registry…" />}>
         <Field
           label="名称"
-          testID="bot-settings-name"
+          testID="bot-details-name"
           value={props.name()}
           placeholder="Ada"
           onChange={props.name.set}
         />
         <Field
           label="说明"
-          testID="bot-settings-description"
+          testID="bot-details-description"
           value={props.description()}
           placeholder="一句话说清它帮你做什么"
           onChange={props.description.set}
@@ -434,7 +766,7 @@ function ProfileTab(props: {
             </Text>
             <Text style={{ fontSize: 12, fontWeight: "600", color: tone() }}>{label()}</Text>
           </View>
-          <Hint text="保存能力后，这个 Bot 的新 Session 使用派生 preset；已打开的 Session 不变。" />
+          <Hint text="保存能力后，这个 Bot 的新段使用派生 preset；已打开的段不变。" />
         </View>
       </If>
     </View>
@@ -489,8 +821,8 @@ function RunsTab(props: {
         </If>
       </View>
       <Field
-        label="默认工作区"
-        testID="bot-settings-workspace"
+        label="默认工作目录"
+        testID="bot-details-workspace"
         value={props.workspace()}
         placeholder="/path/to/project"
         onChange={props.workspace.set}
@@ -498,7 +830,7 @@ function RunsTab(props: {
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button label="选择目录…" size="small" onPress={props.onChooseWorkspace} />
       </View>
-      <Hint text="新建 Dialogue 时作为默认工作区；已有的 Dialogue 保留自己的路径。" />
+      <Hint text="开新段时作为默认工作目录；已有的段保留自己的路径。" />
     </View>
   );
 }
@@ -587,7 +919,7 @@ function SkillsTab(props: {
         <Hint text={PRESET_WRITE_GAP} />
       </If>
       <If when={props.writable()}>
-        <Hint text="已添加的技能复制进这个 Bot 的派生 preset；组合自带的技能不受影响。新 Session 使用派生 preset，已打开的 Session 不变。" />
+        <Hint text="已添加的技能复制进这个 Bot 的派生 preset；组合自带的技能不受影响。新段使用派生 preset，已打开的段不变。" />
       </If>
     </View>
   );
@@ -674,7 +1006,7 @@ function PluginsTab(props: {
         <Hint text={PRESET_WRITE_GAP} />
       </If>
       <If when={props.writable()}>
-        <Hint text="切换后保存，这个 Bot 改用派生 preset；新 Session 使用它，已打开的 Session 不变。" />
+        <Hint text="切换后保存，这个 Bot 改用派生 preset；新段使用它，已打开的段不变。" />
       </If>
     </View>
   );
@@ -686,6 +1018,7 @@ function Choice(props: { label: string; detail: string; selected: boolean; onPre
       onPress={props.onPress}
       accessibilityLabel={props.label}
       accessibilityState={{ selected: props.selected }}
+      hoverStyle={hovered()}
       style={{
         paddingHorizontal: 8,
         paddingVertical: 6,

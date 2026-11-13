@@ -33,7 +33,7 @@ import {
   workspaces,
 } from "../../features/workspace/state";
 import { ensureHostRunning, hostLauncher, retryHostLauncher } from "../../lib/host/launcher";
-import { applyShellPrefs, legacySessionPins, loadShellPrefs, markPrefsLoaded } from "./prefs";
+import { applyShellPrefs, loadShellPrefs, markPrefsLoaded } from "./prefs";
 
 /** A Host runs only beside the desktop app (the web target has none). */
 export const hasHost = platform.idiom === "desktop" && platform.os !== "web";
@@ -113,7 +113,6 @@ export async function retryHost(): Promise<void> {
 
 export async function startShell(): Promise<void> {
   await loadRegistry();
-  // Stored Favorites still name v4 Sessions; the migration moves those pins.
   const prefs = await loadShellPrefs();
   // Nothing else in the app starts the Host: do it before the first probe.
   watchHostLauncher();
@@ -123,7 +122,7 @@ export async function startShell(): Promise<void> {
   await loadStoredWorkspaces();
   // A v4 file that could not migrate yet keeps the notice; nothing else shows.
   if (legacyRegistry()) return;
-  applyShellPrefs(prefs, registry(), workspaces());
+  applyShellPrefs(prefs, registry());
   markPrefsLoaded();
 }
 
@@ -169,10 +168,12 @@ async function runMigration(): Promise<void> {
         pinned: () => workspaces().pinned,
         ready: () => whenWorkspacesReady(),
       },
-      legacySessionPins(prefs),
+      // A v4 Session pin was a place of its own; a Bot's conversation has
+      // segments now, so the migration pins nothing (the pins are dropped).
+      [],
     );
     if (await acceptMigratedRegistry(next)) {
-      applyShellPrefs(prefs, registry(), workspaces());
+      applyShellPrefs(prefs, registry());
       markPrefsLoaded();
       if (report.skipped > 0) {
         migrationNotice.set(

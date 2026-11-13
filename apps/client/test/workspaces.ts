@@ -56,7 +56,7 @@ export function workspaceStorage(input: {
       title: row.title,
       sessionIds: row.sessionIds as unknown as WorkspaceBaseline["items"][number]["sessionIds"],
       createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: row.updatedAt,
     })),
     archivedSessionIds: (input.archived ??
       []) as unknown as WorkspaceBaseline["archivedSessionIds"],

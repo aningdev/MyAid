@@ -2,6 +2,7 @@
  * Test-only entry: the Workspace Shell over a Host that *can* write presets and
  * reports one preset composition. `nsh test` opens it; nothing in the product
  * imports it, and no production path installs a writer or a facts source.
+ * The Bot details modal is inside `AppShell`.
  *
  * What it stands in for: `myaid-plugin-bot-presets` (the derived-preset writer)
  * and the Host's `pluginInventory` / `skills` reads.

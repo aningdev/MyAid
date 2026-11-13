@@ -4,50 +4,34 @@
  * enabled state are written once. Menu sections and separators are data too;
  * `buildApplicationMenu` only lays them out.
  *
- * Enabled states read the active Panel and the live Session rows, so the
- * menu is rebuilt as they change (Shell runs the build in an `effect`).
+ * Enabled states read the active Pane and the live Session rows, so the menu
+ * is rebuilt as they change (Shell runs the build in an `effect`).
  */
 import { signal } from "nsh";
 import type { CommandItem } from "nsh/base";
 import type { MenuItem } from "nsh/desktop";
 
-import { type Bot, type Dialogue } from "../../features/bots/model";
+import { openBotDetails } from "../../features/bots/details";
+import type { Bot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
-import { sessionLabel } from "../../features/bots/sessions";
-import { openBotSettings } from "../../features/bots/settings";
+import { currentSessionOf } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { requestComposerFocus } from "../../features/dialogue/chat/focus";
-import {
-  controllerFor,
-  creatingSession,
-  sessionList,
-} from "../../features/dialogue/session/runtime";
-import { toggleInspectorOfActivePanel } from "../../features/inspector/state";
-import {
-  isSessionArchived,
-  orderedDialogues,
-  workspacePath,
-  workspaceTitle,
-  workspaces,
-} from "../../features/workspace/state";
+import { controllerFor, sessionList } from "../../features/dialogue/session/runtime";
+import { orderedDialogues, workspacePath, workspaces } from "../../features/workspace/state";
 import type { IconName } from "../ui";
 import { collectPanelIds } from "./dock";
 import { toggleNavOpen } from "./layout";
-import { sessionAddress } from "./navAddresses";
-import { dialogueLabels } from "./navAddresses";
-import { workspaceSegment } from "./navAddresses";
 import { requestNavSearchFocus } from "./navFilter";
-import { dockLayout, closeActivePanel, focusPanel, openAddress, splitActivePanel } from "./state";
-import { activeAddress } from "./state";
-import type { NavAddress } from "./types";
+import { openSettings } from "./SettingsOverlay";
+import { openBot } from "./state";
+import { activeBotId, closeActivePanel, dockLayout, focusPanel, splitActivePanel } from "./state";
 
 export type CommandMenuSection = "File" | "View" | "Chat";
 
-/** What the active Panel gives a command: the object it would act on. */
+/** What the active Pane gives a command: the Bot it shows, and its segment. */
 export type CommandContext = {
-  address: NavAddress | null;
   bot: Bot | null;
-  dialogue: Dialogue | null;
   sessionId: string | null;
   running: boolean;
 };
@@ -70,54 +54,20 @@ export type ShellCommand = {
   run: () => void | Promise<void>;
 };
 
-/** What the active Panel is showing, read now (signals subscribe the menu build). */
+/** The active Pane's Bot and segment, read now (signals subscribe the build). */
 export function commandContext(): CommandContext {
-  const address = activeAddress();
-  const bot = address?.botId
-    ? (registry().bots.find((item) => item.id === address.botId) ?? null)
+  const botId = activeBotId();
+  const bot = botId ? (registry().bots.find((item) => item.id === botId) ?? null) : null;
+  const sessionId = botId
+    ? (currentSessionOf({
+        registry: registry(),
+        workspaces: workspaces(),
+        rows: sessionList(),
+        botId,
+      })?.sessionId ?? null)
     : null;
-  const dialogue = address?.dialogueId
-    ? (registry().dialogues.find((item) => item.id === address.dialogueId) ?? null)
-    : null;
-  const sessionId = address?.kind === "session" ? (address.sessionId ?? null) : null;
   const row = sessionId ? sessionList().find((item) => item.id === sessionId) : undefined;
-  return { address, bot, dialogue, sessionId, running: row?.running === true };
-}
-
-/** The Dialogue a New Session would start in: the Panel's, or the Bot's newest. */
-export function contextDialogue(): Dialogue | null {
-  const context = commandContext();
-  if (context.dialogue) return context.dialogue;
-  if (!context.bot) return null;
-  const dialogues = orderedDialogues(
-    workspaces(),
-    registry().dialogues.filter((item) => item.botId === context.bot!.id),
-  );
-  return dialogues[0] ?? null;
-}
-
-async function newSession(): Promise<void> {
-  const dialogue = contextDialogue();
-  const bot = dialogue
-    ? (registry().bots.find((item) => item.id === dialogue.botId) ?? null)
-    : null;
-  if (!dialogue || !bot || bot.status !== "ready" || creatingSession()) return;
-  try {
-    const { createSession } = await import("../../features/dialogue/session/runtime");
-    const id = await createSession(dialogue.id);
-    const claim = dialogue.claims.find((item) => item.sessionId === id) ?? null;
-    openAddress(
-      sessionAddress({
-        sessionId: id,
-        label: sessionLabel(claim ?? { title: null }, null),
-        botId: bot.id,
-        dialogueId: dialogue.id,
-      }),
-    );
-    requestComposerFocus(id);
-  } catch {
-    // The runtime puts the reason on sessionError; a chat shows it.
-  }
+  return { bot, sessionId, running: row?.running === true };
 }
 
 function stopActive(): void {
@@ -133,30 +83,19 @@ function focusComposer(): void {
   if (id) requestComposerFocus(id);
 }
 
-function botSettings(): void {
+function botDetails(): void {
   const bot = commandContext().bot;
-  if (bot) openBotSettings(bot.id);
+  if (bot) openBotDetails(bot.id);
 }
 
 /** The command table, in palette order. */
 export const COMMANDS: readonly ShellCommand[] = [
   {
-    id: "session.new",
-    label: "New Session",
-    group: "Commands",
-    keywords: ["chat", "start", "dialogue"],
-    shortcut: "mod+n",
-    menu: { section: "File" },
-    icon: "plus",
-    enabled: () => !!contextDialogue(),
-    run: () => void newSession(),
-  },
-  {
     id: "bot.new",
     label: "New Bot…",
     group: "Commands",
     keywords: ["create", "agent", "assistant"],
-    shortcut: "mod+shift+n",
+    shortcut: "mod+n",
     menu: { section: "File" },
     icon: "spark",
     run: openNewBot,
@@ -172,6 +111,16 @@ export const COMMANDS: readonly ShellCommand[] = [
     run: closeActivePanel,
   },
   {
+    id: "settings.open",
+    label: "Settings…",
+    group: "Commands",
+    keywords: ["preferences", "providers", "background", "about"],
+    shortcut: "mod+,",
+    menu: { section: "File", separatorBefore: true },
+    icon: "sliders",
+    run: openSettings,
+  },
+  {
     id: "nav.toggle",
     label: "Toggle Navigator",
     group: "Commands",
@@ -183,7 +132,7 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "nav.search",
-    label: "Search Navigator",
+    label: "Search Bots",
     group: "Commands",
     keywords: ["filter", "find", "sidebar"],
     shortcut: "mod+f",
@@ -192,23 +141,15 @@ export const COMMANDS: readonly ShellCommand[] = [
     run: requestNavSearchFocus,
   },
   {
-    id: "inspector.toggle",
-    label: "Toggle Inspector",
-    group: "Commands",
-    shortcut: "alt+mod+i",
-    menu: { section: "View" },
-    icon: "panel-right",
-    enabled: () => commandContext().sessionId !== null,
-    run: toggleInspectorOfActivePanel,
-  },
-  {
     id: "panel.split-right",
     label: "Split Right",
     group: "Commands",
     shortcut: "mod+\\",
     menu: { section: "View", separatorBefore: true },
     icon: "panel-right",
-    run: () => splitActivePanel("right"),
+    run: () => {
+      splitActivePanel("right");
+    },
   },
   {
     id: "panel.split-down",
@@ -217,7 +158,9 @@ export const COMMANDS: readonly ShellCommand[] = [
     shortcut: "mod+shift+\\",
     menu: { section: "View" },
     icon: "panel-bottom",
-    run: () => splitActivePanel("down"),
+    run: () => {
+      splitActivePanel("down");
+    },
   },
   {
     id: "panel.previous",
@@ -272,14 +215,14 @@ export const COMMANDS: readonly ShellCommand[] = [
     run: focusComposer,
   },
   {
-    id: "bot.settings",
-    label: "Bot Settings…",
+    id: "bot.details",
+    label: "Bot details…",
     group: "Commands",
-    keywords: ["profile", "preset", "model"],
+    keywords: ["profile", "preset", "model", "skills", "plugins", "archive", "delete"],
     menu: { section: "Chat", separatorBefore: true },
     icon: "sliders",
     enabled: () => commandContext().bot !== null,
-    run: botSettings,
+    run: botDetails,
   },
 ];
 
@@ -314,97 +257,52 @@ export function toggleCommandPalette(): void {
   paletteOpen.set(!paletteOpen());
 }
 
-/** A jump the palette offers: a Bot, a Dialogue or a Session, by address. */
+/** A jump the palette offers: a Bot, by id. */
 export type PaletteJump = {
   id: string;
   label: string;
   keywords: string[];
   group: string;
-  address: NavAddress;
+  botId: string;
 };
 
-/** Every Bot, Dialogue and Session the registry holds, as palette jumps. */
+/**
+ * Every Bot the registry holds, as a jump. Archived Bots are left in: typing
+ * their name is how a person finds one again.
+ */
 export function paletteJumps(): PaletteJump[] {
   const state = registry();
   const projection = workspaces();
-  const rows = new Map(sessionList().map((row) => [row.id, row]));
   const botName = (id: string) => state.bots.find((bot) => bot.id === id)?.name ?? "";
-  const dialogues = orderedDialogues(projection, state.dialogues);
-  const names = dialogueLabels({
-    dialogues: dialogues.map((dialogue) => ({
-      id: dialogue.id,
-      botId: dialogue.botId,
-      title: workspaceTitle(projection, dialogue),
-    })),
-    botName,
-  });
-  const jumps: PaletteJump[] = [];
-
-  for (const bot of state.bots) {
-    jumps.push({
+  return state.bots.map((bot) => {
+    const dialogues = orderedDialogues(
+      projection,
+      state.dialogues.filter((dialogue) => dialogue.botId === bot.id),
+    );
+    const paths = dialogues.map((dialogue) => workspacePath(projection, dialogue)).filter(Boolean);
+    return {
       id: `jump:bot:${bot.id}`,
       label: bot.name,
-      keywords: ["bot", bot.description ?? "", "agent"].filter(Boolean),
-      group: "Bots",
-      address: {
-        id: `bot:${bot.id}`,
-        root: "bots",
-        path: [bot.name],
-        title: bot.name,
-        kind: "bot",
-        botId: bot.id,
-      },
-    });
-  }
-
-  for (const dialogue of dialogues) {
-    const path = workspacePath(projection, dialogue);
-    const label = names.get(dialogue.id)?.full ?? workspaceSegment(path);
-    jumps.push({
-      id: `jump:dialogue:${dialogue.id}`,
-      label,
-      keywords: ["dialogue", botName(dialogue.botId), path, workspaceSegment(path)].filter(Boolean),
-      group: "Dialogues",
-      address: {
-        id: `dialogue:${dialogue.id}`,
-        root: "dialogues",
-        path: [label],
-        title: label,
-        kind: "dialogue",
-        dialogueId: dialogue.id,
-        botId: dialogue.botId,
-      },
-    });
-
-    for (const claim of dialogue.claims) {
-      if (isSessionArchived(projection, claim.sessionId)) continue;
-      const label = rows.get(claim.sessionId)?.label ?? sessionLabel(claim, null);
-      jumps.push({
-        id: `jump:session:${claim.sessionId}`,
-        label,
-        keywords: ["session", "chat", botName(dialogue.botId), path, workspaceSegment(path)].filter(
-          Boolean,
-        ),
-        group: "Sessions",
-        address: sessionAddress({
-          sessionId: claim.sessionId,
-          label,
-          botId: dialogue.botId,
-          dialogueId: dialogue.id,
-        }),
-      });
-    }
-  }
-  return jumps;
+      keywords: [
+        "bot",
+        bot.description ?? "",
+        ...paths,
+        ...(bot.archived ? ["archived"] : []),
+        ...(bot.status === "draft" ? ["draft"] : []),
+      ].filter(Boolean),
+      group: bot.archived ? "Archived" : "Bots",
+      botId: bot.id,
+    };
+  });
 }
 
 /** The palette's rows and what choosing each does, built from the table and the registry. */
 export function paletteItems(): {
   items: CommandItem[];
-  jumps: Map<string, NavAddress>;
+  jumps: Map<string, string>;
 } {
   const items: CommandItem[] = [];
-  const jumps = new Map<string, NavAddress>();
+  const jumps = new Map<string, string>();
   for (const command of COMMANDS) {
     if (command.inPalette === false) continue;
     items.push({
@@ -423,27 +321,25 @@ export function paletteItems(): {
       keywords: jump.keywords,
       group: jump.group,
     });
-    jumps.set(jump.id, jump.address);
+    jumps.set(jump.id, jump.botId);
   }
   return { items, jumps };
 }
 
-/** The icon a palette row shows: the command's, or the object's kind. */
+/** The icon a palette row shows: the command's, or the Bot's. */
 export function paletteIcon(id: string): IconName {
   if (id.startsWith("cmd:")) return commandById(id.slice(4))?.icon ?? "search";
-  if (id.startsWith("jump:bot:")) return "spark";
-  if (id.startsWith("jump:dialogue:")) return "chat";
-  return "code";
+  return "spark";
 }
 
-/** Choose a palette row: run a command, or open a jump's address. */
+/** Choose a palette row: run a command, or open a Bot's Pane. */
 export function runPaletteItem(id: string): void {
   if (id.startsWith("cmd:")) {
     runCommand(id.slice(4));
     return;
   }
-  const address = paletteItems().jumps.get(id);
-  if (address) openAddress(address);
+  const botId = paletteItems().jumps.get(id);
+  if (botId) openBot(botId);
 }
 
 // --- application menu ------------------------------------------------------
@@ -486,7 +382,8 @@ function sectionItems(commands: readonly ShellCommand[], section: CommandMenuSec
 
 /**
  * The application menu, from the command table. macOS puts the app menu
- * (About, Hide, Quit) before File; other platforms leave it to the system.
+ * (About, Settings, Hide, Quit) before File; other platforms leave it to the
+ * system.
  */
 export function buildApplicationMenu(
   commands: readonly ShellCommand[] = COMMANDS,
@@ -498,6 +395,8 @@ export function buildApplicationMenu(
       label: options.appName ?? "MyAid",
       submenu: [
         { role: "about" },
+        { type: "separator" },
+        { label: "Settings…", shortcut: "mod+,", onSelect: openSettings },
         { type: "separator" },
         { role: "hide" },
         { role: "hideOthers" },

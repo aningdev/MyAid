@@ -5,10 +5,19 @@ import { open } from "./test/open";
 /** Wide enough for the desktop shell on both desktop (700) and other (900) idioms. */
 const desktop = { platform: "web" as const, width: 1100, height: 800 };
 
-test("shows the side navigator", async () => {
+test("shows the flat Bot list and the Host footer", async () => {
   const app = await open("./App.tsx", desktop);
   expect(app.shows("label:Collapse navigator")).toBe(true);
-  expect(app.texts().some((t) => t.includes("Favorites"))).toBe(true);
+  expect(app.shows("label:Search Bots")).toBe(true);
+  expect(app.shows("label:New Bot")).toBe(true);
+  expect(app.shows("label:Settings")).toBe(true);
+  // The footer is the launcher's fact row; a test app never runs the launcher
+  // (`test/host-control.test.tsx`), so it reads the neutral line.
+  expect(app.shows("id:host-status >> text:Host disconnected")).toBe(true);
+  // No domain sections any more: the list is the product's only navigator.
+  for (const gone of ["Favorites", "Mail", "Dialogues", "Spaces"]) {
+    expect(app.texts()).not.toContain(gone);
+  }
 });
 
 test("collapses the navigator to a drag strip", async () => {
@@ -16,7 +25,7 @@ test("collapses the navigator to a drag strip", async () => {
   await app.press("label:Collapse navigator");
   expect(app.shows("label:Expand navigator")).toBe(true);
   expect(app.shows("label:Collapse navigator")).toBe(false);
-  expect(app.texts().some((t) => t.includes("Favorites"))).toBe(false);
+  expect(app.shows("label:Search Bots")).toBe(false);
 });
 
 test("narrow window keeps the placeholder", async () => {
@@ -24,46 +33,6 @@ test("narrow window keeps the placeholder", async () => {
   const texts = app.texts();
   expect(texts.some((t) => t.includes("Workspace Shell"))).toBe(true);
   expect(app.shows("label:Collapse navigator")).toBe(false);
-});
-
-test("navigator shows sections with default-expanded contents", async () => {
-  const app = await open("./App.tsx", desktop);
-  const texts = app.texts();
-  for (const section of ["Favorites", "Mail", "Bots", "Dialogues", "Settings"]) {
-    expect(texts.some((t) => t === section)).toBe(true);
-  }
-  // Bots is expanded by default and empty, so it offers the way in; Mail is collapsed.
-  expect(texts.some((t) => t === "New Bot")).toBe(true);
-  expect(texts.some((t) => t === "Personal")).toBe(false);
-  // The Host's reachability is a fact of the shell, always shown. A test app never runs the
-  // launcher (`test/host-control.test.tsx`), so the neutral line is what it shows — never
-  // "Starting Host…" and never a launcher failure.
-  expect(app.shows("id:host-status >> text:Host disconnected")).toBe(true);
-});
-
-test("a single press on a leaf opens its address in the active panel", async () => {
-  const app = await open("./App.tsx", desktop);
-  expect(app.shows("id:tab-panel-1 >> text:Empty")).toBe(true);
-
-  // Task is the third section; reveal it, open its Active folder, then
-  // press the Today leaf.
-  await app.keyboard.press("mod+3");
-  await app.waitFor("role:treeitem[Active]");
-  await app.press("role:treeitem[Active]");
-  await app.waitFor("role:treeitem[Today]");
-  await app.press("role:treeitem[Today]");
-  await app.waitFor("id:tab-panel-1 >> text:Today");
-  expect(app.shows("text:Content coming soon")).toBe(true);
-  expect(app.shows("text:Task › active › today")).toBe(true);
-});
-
-test("an empty Bots section leads to the New Bot sheet", async () => {
-  const app = await open("./App.tsx", desktop);
-  expect(app.shows("id:new-bot-sheet")).toBe(false);
-
-  await app.press("role:treeitem[New Bot]");
-  await app.waitFor("id:new-bot-sheet");
-  expect(app.shows("id:new-bot-name")).toBe(true);
 });
 
 test("the workbench shortcuts split, focus and close panels", async () => {
@@ -90,9 +59,20 @@ test("the workbench shortcuts split, focus and close panels", async () => {
   expect(app.count("id:tab-panel-1")).toBe(1);
 });
 
-test("mod+2 reveals the second Navigator section", async () => {
+test("an empty workbench leads to the first Bot", async () => {
   const app = await open("./App.tsx", desktop);
-  expect(app.shows("role:treeitem[Personal]")).toBe(false);
-  await app.keyboard.press("mod+2");
-  await app.waitFor("role:treeitem[Personal]");
+  await app.waitFor("text:Welcome to MyAid");
+  expect(app.shows("label:Create your first Bot")).toBe(true);
+  await app.press("label:Create your first Bot");
+  await app.waitFor("id:new-bot-sheet");
+});
+
+test("⌘, opens Settings, and Escape comes back", async () => {
+  const app = await open("./App.tsx", desktop);
+  await app.keyboard.press("mod+,");
+  await app.waitFor("id:settings-overlay");
+  expect(app.texts()).toContain("Background Services");
+  await app.keyboard.press("escape");
+  await app.waitUntil(() => !app.shows("id:settings-overlay"));
+  expect(app.shows("id:tab-panel-1")).toBe(true);
 });

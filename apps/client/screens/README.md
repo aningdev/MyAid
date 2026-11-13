@@ -21,6 +21,9 @@ nsh test screens/fs-grant.test.tsx --target macos
 
 # Settings › Background Services over stand-in control channels (no Host).
 nsh test screens/settings-background.test.tsx --target macos
+
+# The Bot list with its Pin group, the palette and a row's menu.
+nsh test screens/navigator-marks.test.tsx --target macos
 ```
 
 ## Real-Host smokes: opt-in, and never the user's registry
@@ -65,15 +68,11 @@ The other real-Host smokes (`real-turn`, `new-bot-real-host`,
 Then stop the Host and delete the scratch root: it holds a copy of the dsh
 credentials. A headless run stops at the picture probe.
 
-`dialogue-workspace.smoke.test.tsx` proves a Dialogue is one Bot's view of a
-dsh Workspace: two Bots open the same directory (one Workspace, two
-Dialogues), a rename retitles the shared Workspace, Favorites reads dsh's pin
-set, an idle Session archives, a running one is refused as
-`workspace/session-active` and then stopped and archived, a whole Dialogue archived
-through the same confirmation, and a second app opened with the first one's
-registry reads title, pin and archive back from dsh. It renames `/tmp`'s
-Workspace, so run it on a fresh scratch data root (recreate the root and
-restart the Host between runs).
+`bot-app.smoke.test.tsx` proves the Bot app's shell against a live Host: two
+Bots over two directories dragged into two Panes stream at the same time, one
+is Pinned, Bot details renames the other (the list and the Pane title follow),
+and a second launch on the registry and prefs the first one wrote restores the
+Panes, their Bots and the Pin.
 
 `bot-presets-real-host.smoke.test.tsx` additionally needs
 `myaid-plugin-bot-presets` on the Host command line (`--patch` its built

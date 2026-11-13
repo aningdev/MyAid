@@ -1,6 +1,15 @@
 /** Workspace Shell: UI + state colocated here. */
 export { Shell } from "./Shell";
 export {
+  botList,
+  botRowOf,
+  botRows,
+  normalizeQuery,
+  type BotList,
+  type BotListInput,
+  type BotRow,
+} from "./botList";
+export {
   asCenterRoot,
   collectPanelIds,
   emptyLayout,
@@ -23,52 +32,30 @@ export {
   titleTopInset,
   toggleNavOpen,
 } from "./layout";
-export { NAV_DEFAULT_EXPANDED, SPACE_FIXTURES, rootLabel, spaceById } from "./fixtures";
+export { isPinned, pins, setPins, togglePin } from "./pins";
+export { closeSettings, openSettings, settingsOpen, toggleSettings } from "./SettingsOverlay";
 export {
-  NEW_BOT_ITEM_ID,
-  navActionForId,
-  navItemIdForAddress,
-  navItems,
-  navKindForId,
-  projectNav,
-  type NavInput,
-  type NavProjection,
-} from "./navData";
-export {
-  botAddress,
-  dialogueAddress,
-  dialogueLabel,
-  sessionAddress,
-  workspaceSegment,
-} from "./navAddresses";
-export {
-  activateNavItem,
-  activeAddress,
+  activeBotId,
   activePanelId,
-  applySpace,
+  applyWorkbench,
   closeActivePanel,
   closePanel,
   dockLayout,
+  dropBot,
   focusPanel,
   onPanelActiveChange,
   onPanelRemove,
-  openAddress,
+  openBot,
+  openBot as openAddress,
+  panelBotId,
   panelContents,
+  panelForBot,
   panelTitle,
   setActivePanel,
   setDockLayout,
-  setPanelAddress,
+  setPanelBot,
   splitActivePanel,
   splitPanel,
   type SplitDirection,
 } from "./state";
-export type {
-  DockAreaLayout,
-  NavAction,
-  NavAddress,
-  NavKind,
-  PanelContents,
-  ShellRoot,
-  SpaceSnapshot,
-  TreeItem,
-} from "./types";
+export type { DockAreaLayout, PanelContent, PanelContents } from "./types";

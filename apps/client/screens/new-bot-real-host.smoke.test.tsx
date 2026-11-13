@@ -27,7 +27,7 @@ test("a new Bot created through the sheet replies", async () => {
   if (!(await graphical(app))) return;
 
   await app.waitFor("text:Host connected", { timeout: 30000 });
-  await app.keyboard.press("mod+shift+n");
+  await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
@@ -40,8 +40,8 @@ test("a new Bot created through the sheet replies", async () => {
 
   await app.type("id:composer", PROMPT);
   await app.keyboard.press("enter");
-  // The Navigator's Bot mark breathes while the turn runs, and the
-  // transcript says who is working.
+  // The Bot's mark breathes while the turn runs, and the transcript says
+  // who is working.
   await app.waitFor("id:bot-mark-working", { timeout: 60000 });
   await app.waitFor("text:Working…", { timeout: 60000 });
   await shoot(app, "06-working.png");

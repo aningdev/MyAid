@@ -3,20 +3,11 @@ import { expect, test } from "nsh/test";
 
 import { fakeWorkspaces, remoteWorkspace, workspaceModel } from "../../test/workspaces";
 import {
-  archiveBlocked,
-  archiveSessionsWith,
-  dismissArchiveBlocked,
-  noteArchive,
-} from "./dialogues";
-import {
-  activitySummary,
   archiveSession,
-  moveSession,
   pinSession,
   renameWorkspace,
   startWorkspaces,
   stopWorkspaces,
-  unpinSession,
   workspaces,
   WorkspaceActionError,
   workspacesReady,
@@ -50,7 +41,6 @@ async function reset(): Promise<void> {
   await stopWorkspaces();
   workspaces.set({ rows: [], archived: new Set(), pinned: [] });
   workspacesReady.set(false);
-  archiveBlocked.set(null);
 }
 
 test("the official baseline replaces the projection and marks the tree readable", async () => {
@@ -117,17 +107,13 @@ test("a replaced baseline supersedes everything before it without a new generati
   await reset();
 });
 
-test("commands pass the Dialogue's Workspace and Session to the official service", async () => {
+test("commands pass the Workspace and Session to the official service", async () => {
   const model = fakeWorkspaces();
   await renameWorkspace(model, "ws", "release");
   await pinSession(model, "s1");
-  await unpinSession(model, "s1");
-  await moveSession(model, "ws", "s2", "s1");
   expect(model.calls).toEqual([
     ["rename", "ws", "release"],
     ["pinSession", "s1"],
-    ["unpinSession", "s1"],
-    ["insertSessionBefore", "ws", "s2", "s1"],
   ]);
 });
 
@@ -148,56 +134,6 @@ test("a refusal keeps dsh's code and details", async () => {
   }
   expect(error instanceof WorkspaceActionError).toBe(true);
   expect((error as WorkspaceActionError).code).toBe("workspace/session-active");
-});
-
-test("an active refusal is collected, and stopping archives with stopActivity", async () => {
-  await reset();
-  const refused = fakeWorkspaces({
-    ok: false,
-    error: {
-      code: "workspace/session-active",
-      message: "still running",
-      details: {
-        sessionId: "s1",
-        activity: [
-          { kind: "turn" },
-          { kind: "subagent", items: [{ id: "a1", label: "Reviewer" }] },
-        ],
-      },
-    },
-  });
-  const result = await archiveSessionsWith(refused, ["s1", "s2"]);
-  expect(result.archived).toEqual([]);
-  expect(result.refusals).toEqual([
-    { sessionId: "s1", activity: "turn · subagent（Reviewer）" },
-    { sessionId: "s2", activity: "turn · subagent（Reviewer）" },
-  ]);
-  expect(noteArchive(null, result.refusals)).toBe(false);
-  expect(archiveBlocked()).toMatchObject({ dialogueId: null, refusals: result.refusals });
-  dismissArchiveBlocked();
-
-  // The retry asks dsh to stop the work; every Session is archived in turn.
-  const accepted = fakeWorkspaces();
-  const retried = await archiveSessionsWith(accepted, ["s1", "s2"], { stopActivity: true });
-  expect(retried.archived).toEqual(["s1", "s2"]);
-  expect(accepted.calls).toEqual([
-    ["archiveSession", "s1", { stopActivity: true }],
-    ["archiveSession", "s2", { stopActivity: true }],
-  ]);
-  expect(noteArchive(null, retried.refusals)).toBe(true);
-  expect(archiveBlocked()).toBe(null);
-  dismissArchiveBlocked();
-});
-
-test("a whole-Dialogue refusal names the Dialogue so its retry covers all", async () => {
-  await reset();
-  expect(noteArchive("dlg", [{ sessionId: "s1", activity: "turn" }])).toBe(false);
-  expect(archiveBlocked()).toEqual({
-    dialogueId: "dlg",
-    refusals: [{ sessionId: "s1", activity: "turn" }],
-  });
-  expect(noteArchive("dlg", [])).toBe(true);
-  expect(archiveBlocked()).toBe(null);
 });
 
 test("a command failure is the same code the product branches on", async () => {

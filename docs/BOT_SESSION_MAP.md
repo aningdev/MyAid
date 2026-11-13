@@ -34,19 +34,19 @@ flowchart TB
 
 要点：
 
-| 产品             | DSH                              | 关系                                                               |
-| ---------------- | -------------------------------- | ------------------------------------------------------------------ |
-| Bot template     | Agent preset id                  | 模板映射 preset；非正文快照                                        |
-| Bot              | 共用 `web` profile 上启动 preset | 能力 = preset（`plugins`：指令、工具、skills、可选 MCP…）          |
-| Dialogue         | **一个 Workspace 的一个视角**    | L1 过渡：`workspaceId`；L2 改成段直接引用 Workspace                 |
-| Session / 会话   | 一条 Harness Session             | 严格一对一；一个上下文场景                                         |
-| Claim            | Session 认领到 Dialogue          | 写在注册表；日志仍在 dsh                                           |
-| Dialogue 名      | Workspace `title`                | 重命名 = `workspace.rename`；同一 Workspace 上共享                 |
-| Session 归档     | Workspace `archived set`         | 运行中被 `workspace/session-active` 拒绝，可 `stopActivity`        |
-| 置顶             | Workspace `pinned sessionIds`    | 最近置顶在前；L1 的界面不再显示段级置顶                            |
-| Session 顺序     | Workspace `sessionIds`           | 新建前插、手动重排；顺序归 dsh                                     |
-| Deliverable      | DSH Deliverable                  | 投影某 Session 场景内交付物；Dialogue 可累积多个                   |
-| （无）           | 未认领 Session                   | 不进入产品列表                                                     |
+| 产品           | DSH                              | 关系                                                        |
+| -------------- | -------------------------------- | ----------------------------------------------------------- |
+| Bot template   | Agent preset id                  | 模板映射 preset；非正文快照                                 |
+| Bot            | 共用 `web` profile 上启动 preset | 能力 = preset（`plugins`：指令、工具、skills、可选 MCP…）   |
+| Dialogue       | **一个 Workspace 的一个视角**    | L1 过渡：`workspaceId`；L2 改成段直接引用 Workspace         |
+| Session / 会话 | 一条 Harness Session             | 严格一对一；一个上下文场景                                  |
+| Claim          | Session 认领到 Dialogue          | 写在注册表；日志仍在 dsh                                    |
+| Dialogue 名    | Workspace `title`                | 重命名 = `workspace.rename`；同一 Workspace 上共享          |
+| Session 归档   | Workspace `archived set`         | 运行中被 `workspace/session-active` 拒绝，可 `stopActivity` |
+| 置顶           | Workspace `pinned sessionIds`    | 最近置顶在前；L1 的界面不再显示段级置顶                     |
+| Session 顺序   | Workspace `sessionIds`           | 新建前插、手动重排；顺序归 dsh                              |
+| Deliverable    | DSH Deliverable                  | 投影某 Session 场景内交付物；Dialogue 可累积多个            |
+| （无）         | 未认领 Session                   | 不进入产品列表                                              |
 
 基数：**Bot 1—N Dialogue**；**Workspace 1—N Dialogue**（同一 Bot 对同一 Workspace 只开一段）；**Dialogue 1—N Session**。
 

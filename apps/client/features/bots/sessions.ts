@@ -1,6 +1,12 @@
 import type { WorkspaceProjection } from "../workspace/projection";
-import { isSessionArchived, workspacePath } from "../workspace/projection";
-import type { BotRegistry } from "./model";
+import {
+  isSessionArchived,
+  orderedClaims,
+  orderedDialogues,
+  workspaceOf,
+  workspacePath,
+} from "../workspace/projection";
+import type { BotRegistry, Dialogue } from "./model";
 
 export type ListedSession = {
   sessionId: string;
@@ -90,4 +96,94 @@ export function titleFromPrompt(text: string, max = 40): string {
   const stop = line.search(/[.!?。！？]\s/);
   const one = stop > 0 ? line.slice(0, stop) : line;
   return one.length > max ? `${one.slice(0, max - 1)}…` : one;
+}
+
+/**
+ * The dialogue a Bot's conversation currently opens on: its most recently
+ * active one (dsh's Workspace `updatedAt`), preferring one that still claims a
+ * live Session. Until the Bot's own long conversation lands (L2), this is the
+ * stand-in the Pane reads.
+ */
+export function currentDialogueOf(
+  registry: BotRegistry,
+  workspaces: WorkspaceProjection,
+  botId: string,
+): Dialogue | null {
+  const dialogues = orderedDialogues(
+    workspaces,
+    registry.dialogues.filter((dialogue) => dialogue.botId === botId),
+  );
+  const live = (dialogue: Dialogue) =>
+    dialogue.claims.some((claim) => !isSessionArchived(workspaces, claim.sessionId));
+  return dialogues.find(live) ?? dialogues[0] ?? null;
+}
+
+/** A Bot's current segment: the Session its Pane shows now. */
+export type CurrentSession = {
+  dialogueId: string;
+  sessionId: string;
+  workspacePath: string;
+  /** The person's name for it, when they gave one. */
+  title: string | null;
+};
+
+/**
+ * The Session a Bot's Pane shows: the one that moved most recently (the dsh
+ * listing's `updatedAt`, which the roster sorts by), else the newest claim in
+ * its most active dialogue's dsh order. L2 replaces this with the Bot's own
+ * long conversation.
+ */
+export function currentSessionOf(input: {
+  registry: BotRegistry;
+  workspaces: WorkspaceProjection;
+  rows: readonly { id: string; botId: string }[];
+  botId: string;
+}): CurrentSession | null {
+  const row = input.rows.find((item) => item.botId === input.botId);
+  const dialogue = currentDialogueOf(input.registry, input.workspaces, input.botId);
+  if (!dialogue) return null;
+  const claimOf = (sessionId: string) =>
+    dialogue.claims.find((claim) => claim.sessionId === sessionId) ?? null;
+  if (row) {
+    const claim = claimOf(row.id);
+    return claim
+      ? {
+          dialogueId: dialogue.id,
+          sessionId: claim.sessionId,
+          workspacePath: workspacePath(input.workspaces, dialogue),
+          title: claim.title,
+        }
+      : null;
+  }
+  const live = orderedClaims(input.workspaces, dialogue, dialogue.claims).filter(
+    (claim) => !isSessionArchived(input.workspaces, claim.sessionId),
+  );
+  const claim = live[live.length - 1];
+  if (!claim) return null;
+  return {
+    dialogueId: dialogue.id,
+    sessionId: claim.sessionId,
+    workspacePath: workspacePath(input.workspaces, dialogue),
+    title: claim.title,
+  };
+}
+
+/** A Bot's most recent activity, in milliseconds: its Workspaces and its live Sessions. */
+export function botActivity(
+  registry: BotRegistry,
+  workspaces: WorkspaceProjection,
+  rows: readonly { botId: string; updatedAt: number | null }[],
+  botId: string,
+): number {
+  let at = 0;
+  for (const dialogue of registry.dialogues) {
+    if (dialogue.botId !== botId) continue;
+    const stamp = Date.parse(workspaceOf(workspaces, dialogue)?.updatedAt ?? "");
+    if (Number.isFinite(stamp) && stamp > at) at = stamp;
+  }
+  for (const row of rows) {
+    if (row.botId !== botId || row.updatedAt === null) continue;
+    if (row.updatedAt > at) at = row.updatedAt;
+  }
+  return at;
 }

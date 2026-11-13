@@ -169,6 +169,8 @@ function parseBot(value: unknown, version: number): Bot | string {
     return "Bot 项无效。";
   }
   if (typeof value.hadDialogue !== "boolean") return "Bot 项无效。";
+  // Archived shipped after v5: absent reads as not archived, a present value must be a boolean.
+  if ("archived" in value && typeof value.archived !== "boolean") return "Bot 项无效。";
   return {
     id,
     name: name.trim(),
@@ -180,6 +182,7 @@ function parseBot(value: unknown, version: number): Bot | string {
     defaultThinking: blankToNull(defaultThinking),
     defaultWorkspacePath: blankToNull(defaultWorkspacePath),
     hadDialogue: value.hadDialogue,
+    archived: value.archived === true,
     status,
     boundPresetId: blankToNull(boundPresetId),
     derivedPresetId: blankToNull(derivedPresetId),

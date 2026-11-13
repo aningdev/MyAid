@@ -57,21 +57,6 @@ export function isSessionArchived(projection: WorkspaceProjection, sessionId: st
   return projection.archived.has(sessionId);
 }
 
-export function isSessionPinned(projection: WorkspaceProjection, sessionId: string): boolean {
-  return projection.pinned.includes(sessionId);
-}
-
-/** A Dialogue none of whose claimed Sessions is active (an empty one is not). */
-export function isDialogueArchived(
-  projection: WorkspaceProjection,
-  dialogue: WorkspaceRef & { claims: readonly { sessionId: string }[] },
-): boolean {
-  return (
-    dialogue.claims.length > 0 &&
-    dialogue.claims.every((claim) => isSessionArchived(projection, claim.sessionId))
-  );
-}
-
 /** The claims a group of ids names, in that order (dsh's own order). */
 function rankOf(ids: readonly string[]): Map<string, number> {
   return new Map(ids.map((id, index) => [id, index]));
@@ -131,21 +116,6 @@ export function orderedClaims<T extends { sessionId: string }>(
     rankOf(row?.sessionIds ?? []),
     (claim) => claim.sessionId,
   );
-}
-
-/** The pinned Sessions of one Dialogue, in pin order (most recent first). */
-export function pinnedClaims<T extends { sessionId: string }>(
-  projection: WorkspaceProjection,
-  claims: readonly T[],
-): T[] {
-  const byId = new Map(claims.map((claim) => [claim.sessionId, claim]));
-  const rows: T[] = [];
-  for (const sessionId of projection.pinned) {
-    if (isSessionArchived(projection, sessionId)) continue;
-    const claim = byId.get(sessionId);
-    if (claim) rows.push(claim);
-  }
-  return rows;
 }
 
 /** Turn one Workspace view into the product's row shape. */

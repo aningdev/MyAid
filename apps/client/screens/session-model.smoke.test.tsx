@@ -3,9 +3,9 @@
  * follow, reconnect, paging or the receipt-to-queue-id plumbing, so this run
  * proves the official Client model carries them.
  *
- * 1. Two Panels stream at the same time, each into its own transcript.
+ * 1. Two Panes stream at the same time, each into its own transcript.
  * 2. A queued prompt shows above the composer and is withdrawn by request id.
- * 3. An approval round-trips: dsh asks, the Panel answers, the tool runs.
+ * 3. An approval round-trips: dsh asks, the Pane answers, the tool runs.
  * 4. A ~16 KB reply renders to its last line; scrolling up loads older pages.
  *
  * The Host-restart path lives in `session-restart.smoke.test.tsx`, which needs
@@ -36,14 +36,14 @@ import { graphical, hostSmokeRequested, shoot, SHOTS_SESSION } from "./shots";
 const WORKSPACE = "/tmp";
 
 /**
- * The second Dialogue's directory. Two Sessions run at once only across
- * Workspaces, and `workspace.create` needs an existing directory: the scratch
- * home already is one.
+ * The second Bot's directory. Two Sessions run at once only across Workspaces,
+ * and `workspace.create` needs an existing directory: the scratch home already
+ * is one.
  */
 const OTHER = homedir();
 
 // A prompt's first sentence becomes the Session's title (`titleFromPrompt`), so
-// each one opens with a short, selector-safe tag.
+// each one opens with a short tag.
 const SLOW = (tag: string) =>
   `${tag} answer slowly. Write 18 numbered lines, one short sentence each, and nothing else.`;
 /** Long enough that two of them certainly overlap on the wire. */
@@ -52,7 +52,6 @@ const STREAMING = (tag: string) =>
 /** Long enough that a prompt queued behind it is still waiting to be withdrawn. */
 const ENDLESS = (tag: string) =>
   `${tag} keep going. Write 150 numbered lines, one short sentence each, and nothing else.`;
-const title = (tag: string) => `${tag} answer slowly`;
 const LONG = (tag: string, words = 2400) =>
   `${tag} write long. Write a technical document of at least ${words} words about release ` +
   "engineering, with a markdown heading every few paragraphs. Begin the reply with " +
@@ -76,18 +75,9 @@ const APPROVAL =
 
 type App = Awaited<ReturnType<typeof open>>;
 
-/** One palette command (⌘K), by its label. */
-async function runPalette(app: App, label: string) {
-  await app.keyboard.press("mod+k");
-  await app.waitFor("id:command-palette");
-  await app.type("id:command-palette", label);
-  await app.keyboard.press("enter");
-  await app.waitUntil(() => !app.shows("id:command-palette"), { timeout: 30000 });
-}
-
 /** Create a Bot on the scratch Host and open its first Session. */
 async function botToChat(app: App, name: string, path = WORKSPACE) {
-  await app.keyboard.press("mod+shift+n");
+  await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", name);
   await app.type("id:new-bot-workspace", path);
@@ -98,25 +88,25 @@ async function botToChat(app: App, name: string, path = WORKSPACE) {
   await app.waitFor("id:composer", { timeout: 60000 });
 }
 
-/** Type a prompt into one Panel's composer and send it. */
+/** Type a prompt into one Pane's composer and send it. */
 async function send(app: App, prompt: string, nth = 0) {
   await app.type(`id:composer >> nth=${nth}`, prompt);
   await app.keyboard.press("enter");
 }
 
-/** Wait until no Session runs: the working row and the Stop button are gone. */
+/** Wait until no Session runs: the working rows and the Stop buttons are gone. */
 async function settled(app: App, timeout = 180000) {
   await app.waitFor("text:Working…", { state: "gone", timeout });
   await app.waitFor("label:Stop generating", { state: "gone", timeout: 60000 });
 }
 
-test("two Panels stream at once, a queued prompt is withdrawn, an approval round-trips", async () => {
+test("two Panes stream at once, a queued prompt is withdrawn, an approval round-trips", async () => {
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
   await app.waitFor("text:Host connected", { timeout: 60000 });
 
-  // Two Dialogues over two directories, so both Sessions may run at once.
+  // Two Bots over two directories, so both Sessions may run at once.
   await botToChat(app, "D2 Alpha");
   await send(app, SLOW("PANEL-A"));
   await settled(app);
@@ -124,13 +114,9 @@ test("two Panels stream at once, a queued prompt is withdrawn, an approval round
   await send(app, SLOW("PANEL-B"));
   await settled(app);
 
-  // A second Panel shows Alpha's Session, so both transcripts are on screen.
-  await runPalette(app, "Split Right");
-  // The Dialogue lists its Sessions only while it is open in the tree.
-  const row = `role:treeitem[${title("PANEL-A")}]`;
-  if (!app.shows(row)) await app.press("role:treeitem[D2 Alpha · tmp]");
-  await app.waitFor(row, { timeout: 60000 });
-  await app.press(row);
+  // Drag Alpha's row into the right side: two Panes, two Bots, two chats.
+  await app.drag("label:D2 Alpha", { x: 220 });
+  await app.waitFor("id:tab-panel-2", { timeout: 60000 });
   await app.waitFor("id:chat >> nth=1", { timeout: 60000 });
   await shoot(app, "01-two-panels.png", SHOTS_SESSION);
 
@@ -140,8 +126,8 @@ test("two Panels stream at once, a queued prompt is withdrawn, an approval round
   await send(app, ENDLESS("PANEL-C"), 0);
   await app.waitFor("label:Stop generating >> nth=0", { timeout: 240000 });
   await send(app, STREAMING("PANEL-D"), 1);
-  // Proof of overlap: the second Panel is running (its Stop button is up) and
-  // the first Panel is still streaming at the same instant.
+  // Proof of overlap: the second Pane is running (its Stop button is up) and
+  // the first Pane is still streaming at the same instant.
   await app.waitFor("label:Stop generating >> nth=1", { timeout: 60000 });
   expect(app.count("text:Working…")).toBe(2);
   expect(app.count("label:Stop generating")).toBe(2);
@@ -180,8 +166,8 @@ test("two Panels stream at once, a queued prompt is withdrawn, an approval round
     );
   }
 
-  // The Beta Panel's workspace is the scratch home, so the marker above is
-  // outside its sandbox: the Host asks, this Panel answers.
+  // The Beta Pane's workspace is the scratch home, so the marker above is
+  // outside its sandbox: the Host asks, this Pane answers.
   await send(app, APPROVAL, 0);
   await app.waitFor("label:Allow once", { timeout: 300000 });
   await shoot(app, "05-approval.png", SHOTS_SESSION);

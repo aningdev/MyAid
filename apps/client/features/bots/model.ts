@@ -63,6 +63,8 @@ export type Bot = {
   boundPresetId: string | null;
   /** Set when this Bot's capabilities diverge. The plugin owns the preset body. */
   derivedPresetId: string | null;
+  /** Archived by the person: out of the Navigator list, still openable by search. */
+  archived: boolean;
   /** The mark shown in the Navigator, the chat and the Inspector. */
   identity: BotIdentity;
 };
@@ -215,6 +217,7 @@ export function createBot(
     status: "draft",
     boundPresetId: null,
     derivedPresetId: null,
+    archived: false,
     identity: input.identity ?? defaultIdentity(id),
   };
   return { ...registry, bots: [...registry.bots, bot] };
@@ -375,6 +378,18 @@ export function releaseClaim(
     ...dialogue,
     claims: dialogue.claims.filter((claim) => claim.sessionId !== sessionId),
   });
+}
+
+/** Archive a Bot: it leaves the list, its conversations stay. */
+export function archiveBot(registry: BotRegistry, botId: string): BotRegistry {
+  const bot = mustBot(registry, botId);
+  return bot.archived ? registry : replaceBot(registry, { ...bot, archived: true });
+}
+
+/** Bring an archived Bot back into the list. */
+export function unarchiveBot(registry: BotRegistry, botId: string): BotRegistry {
+  const bot = mustBot(registry, botId);
+  return bot.archived ? replaceBot(registry, { ...bot, archived: false }) : registry;
 }
 
 /** Delete a Bot that has never had a Dialogue. */

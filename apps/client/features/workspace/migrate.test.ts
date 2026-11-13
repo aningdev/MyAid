@@ -20,6 +20,7 @@ function legacy(): LegacyRegistry {
         status: "ready",
         boundPresetId: "standard",
         derivedPresetId: null,
+        archived: false,
         identity: { color: "rose", glyph: "orbit" },
       },
     ],

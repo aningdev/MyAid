@@ -52,7 +52,7 @@ function fixture(): BotRegistry {
 
 function fixturePrefs(): string {
   const prefs = emptyShellPrefs();
-  prefs.nav.expanded = [...prefs.nav.expanded, "bots:bot", "bots:bot2", "dialogues:dlg"];
+  prefs.pins = ["bot"];
   return serializeShellPrefs(prefs);
 }
 
@@ -72,23 +72,23 @@ test("marks, New Bot, palette and context menu", async () => {
   });
   if (!(await graphical(app))) return;
 
-  await app.waitFor("role:treeitem[Ada]");
-  await app.waitFor("role:treeitem[Release notes for 0.5]");
+  await app.waitFor("label:Ada");
+  await app.waitFor("text:Pin");
   await shoot(app, "02-sidebar-marks.png");
   expect(app.texts()).toContain("Iota");
 
-  await app.keyboard.press("mod+shift+n");
+  await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-sheet");
   await shoot(app, "03-new-bot-sheet.png");
   await app.press("label:Cancel");
 
   await app.keyboard.press("mod+k");
   await app.waitFor("id:command-palette");
-  await app.type("id:command-palette", "release");
+  await app.type("id:command-palette", "Ada");
   await shoot(app, "04-command-palette.png");
   await app.keyboard.press("mod+k");
 
-  await app.rightClick("text:Release notes for 0.5 >> nth=0");
-  await app.waitFor("text:Archive Session");
+  await app.rightClick("label:Iota");
+  await app.waitFor("text:Bot details…");
   await shoot(app, "05-context-menu.png");
 });

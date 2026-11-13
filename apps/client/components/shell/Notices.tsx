@@ -1,35 +1,23 @@
 /**
  * The shell's standing notices above the Host footer: a Workspace stream that
  * is reconnecting, a registry that still needs the one Host that can migrate
- * it, a failed command, and a Session dsh refused to archive because it is
- * still working. Each is a refusal the person can act on, so each carries its
- * own retry or dismissal instead of a sentence in a Panel.
+ * it, and a failed command. Each is a refusal the person can act on, so each
+ * carries its own retry or dismissal instead of a sentence in a Pane.
  */
 import { Text, View } from "nsh";
 
-import { claimOwner } from "../../features/bots/model";
-import { sessionLabel } from "../../features/bots/sessions";
 import {
   actionError,
   clearActionError,
   legacyRegistry,
   migrationNotice,
-  registry,
-  setActionError,
 } from "../../features/bots/state";
-import {
-  archiveBlocked,
-  dismissArchiveBlocked,
-  messageOf,
-  stopAndArchiveBlocked,
-} from "../../features/workspace/dialogues";
 import { workspaceError } from "../../features/workspace/state";
 import { Button, colors } from "../ui";
 import { retryHost } from "./host";
 
 export function ShellNotices() {
-  const anyNotices = () =>
-    !!migrationNotice() || !!archiveBlocked() || !!actionError() || !!workspaceError();
+  const anyNotices = () => !!migrationNotice() || !!actionError() || !!workspaceError();
   return (
     <If when={anyNotices()}>
       <View style={{ gap: 6, paddingHorizontal: 8, paddingBottom: 6 }}>
@@ -56,16 +44,6 @@ export function ShellNotices() {
             tone="danger"
             text={actionError() ?? ""}
             onDismiss={clearActionError}
-          />
-        </If>
-        <If when={!!archiveBlocked()}>
-          <Notice
-            testID="archive-active-notice"
-            tone="warn"
-            text={archiveBlockedText()}
-            action="Stop and archive"
-            onAction={() => void stopAndArchive()}
-            onDismiss={dismissArchiveBlocked}
           />
         </If>
       </View>
@@ -109,30 +87,4 @@ function Notice(props: {
       </View>
     </View>
   );
-}
-
-function archiveBlockedText(): string {
-  const blocked = archiveBlocked();
-  if (!blocked) return "";
-  const names = blocked.refusals.map((refusal) => {
-    const owner = claimOwner(registry(), refusal.sessionId);
-    return owner ? sessionLabel(owner.claim, null) : "这条会话";
-  });
-  const work = [...new Set(blocked.refusals.map((refusal) => refusal.activity))]
-    .filter(Boolean)
-    .join(" · ");
-  const who = names.length > 1 ? `${names.length} 条会话（${names.join("、")}）` : names[0];
-  const activity = work ? `（${work}）` : "";
-  const whole = blocked.dialogueId ? "这段 Dialogue 的会话" : who;
-  return `${whole}还在执行${activity}，dsh 拒绝了归档。先停掉，再归档。`;
-}
-
-async function stopAndArchive(): Promise<void> {
-  try {
-    await stopAndArchiveBlocked();
-  } catch (error) {
-    // A refusal keeps its own notice; anything else is a transport failure.
-    setActionError(messageOf(error));
-    dismissArchiveBlocked();
-  }
 }

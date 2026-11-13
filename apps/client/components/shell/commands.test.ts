@@ -20,8 +20,7 @@ import {
   menuCommands,
   paletteItems,
 } from "./commands";
-import { botAddress, sessionAddress } from "./navAddresses";
-import { openAddress } from "./state";
+import { openBot, setPanelBot } from "./state";
 
 function sample(): BotRegistry {
   return claimSession(
@@ -55,6 +54,12 @@ test("command ids and shortcuts are unique", () => {
   expect(new Set(shortcuts).size).toBe(shortcuts.length);
   // The palette itself is a command but not one of its rows.
   expect(paletteItems().items.some((item) => item.id === "cmd:palette.open")).toBe(false);
+  // ⌘N makes a Bot; ⌘, opens Settings.
+  expect(commandById("bot.new")?.shortcut).toBe("mod+n");
+  expect(commandById("settings.open")?.shortcut).toBe("mod+,");
+  // The Inspector is gone with its shortcut.
+  expect(commandById("inspector.toggle")).toBeUndefined();
+  expect(commandById("session.new")).toBeUndefined();
 });
 
 test("the menu is built from the command table: labels, shortcuts, sections", () => {
@@ -67,6 +72,14 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
     "Chat",
     "Window",
   ]);
+  // The app menu carries Settings on macOS too, as the platform expects.
+  const appMenu = section(menu, "MyAid");
+  expect(
+    appMenu.some(
+      (item) =>
+        typeof item === "object" && item !== null && "label" in item && item.label === "Settings…",
+    ),
+  ).toBe(true);
 
   for (const command of menuCommands()) {
     if (!command.menu) continue;
@@ -99,8 +112,14 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
   }
 });
 
-test("the palette lists every command and every Bot, Dialogue and Session", () => {
-  registry.set(sample());
+test("the palette lists every command and every Bot, archived ones included", () => {
+  const base = sample();
+  const withArchived = {
+    ...base,
+    bots: base.bots.map((bot) => (bot.name === "Ada" ? { ...bot, archived: true } : bot)),
+  };
+  const withBob = createBot(withArchived, { name: "Bob", templateId: "tmpl" }, "bot2");
+  registry.set(withBob);
   workspaces.set(
     workspaceProjection({
       rows: [
@@ -114,13 +133,15 @@ test("the palette lists every command and every Bot, Dialogue and Session", () =
       const present = items.some((item) => item.id === `cmd:${command.id}`);
       expect(present).toBe(command.inPalette !== false);
     }
-    expect(items.some((item) => item.id === "jump:bot:bot" && item.label === "Ada")).toBe(true);
-    expect(items.some((item) => item.id === "jump:dialogue:dlg")).toBe(true);
-    const session = items.find((item) => item.id === "jump:session:s1");
-    expect(session?.label).toBe("未命名上下文");
-    expect(session?.keywords).toContain("/work/myaid");
-    expect(session?.keywords).toContain("Ada");
-    expect(jumps.get("jump:session:s1")?.sessionId).toBe("s1");
+    const ada = items.find((item) => item.id === "jump:bot:bot");
+    expect(ada?.label).toBe("Ada");
+    expect(ada?.group).toBe("Archived");
+    expect(ada?.keywords).toContain("/work/myaid");
+    expect(items.some((item) => item.id === "jump:bot:bot2" && item.group === "Bots")).toBe(true);
+    // No Dialogue or Session is a place of its own any more.
+    expect(items.some((item) => item.id.startsWith("jump:dialogue:"))).toBe(false);
+    expect(items.some((item) => item.id.startsWith("jump:session:"))).toBe(false);
+    expect(jumps.get("jump:bot:bot")).toBe("bot");
   } finally {
     registry.set(emptyRegistry());
     workspaces.set(workspaceProjection());
@@ -137,30 +158,23 @@ test("a palette id never collides between a command and a place", () => {
   }
 });
 
-test("enabled states follow the active Panel", () => {
+test("enabled states follow the active Pane's Bot", () => {
   registry.set(sample());
   try {
     const enabled = (id: string) => commandById(id)?.enabled?.() ?? true;
-    openAddress(botAddress({ id: "bot", name: "Ada" }));
-    expect(enabled("session.new")).toBe(true);
-    expect(enabled("bot.settings")).toBe(true);
-    expect(enabled("inspector.toggle")).toBe(false);
+    setPanelBot("panel-1", null);
+    expect(enabled("bot.details")).toBe(false);
     expect(enabled("composer.focus")).toBe(false);
 
-    openAddress(
-      sessionAddress({
-        sessionId: "s1",
-        label: "First run",
-        botId: "bot",
-        dialogueId: "dlg",
-      }),
-    );
-    expect(enabled("inspector.toggle")).toBe(true);
+    openBot("bot");
+    expect(enabled("bot.details")).toBe(true);
+    // A Bot's most recent claim stands in for its conversation without a Host.
     expect(enabled("composer.focus")).toBe(true);
     // No live row without a Host: Stop stays disabled.
     expect(enabled("session.stop")).toBe(false);
   } finally {
     registry.set(emptyRegistry());
+    setPanelBot("panel-1", null);
   }
 });
 
@@ -168,4 +182,5 @@ test("the registry's serialized form is the one the palette reads", () => {
   const text = serializeRegistry(sample());
   expect(text).toContain('"version": 5');
   expect(text).toContain('"workspaceId": "ws-work"');
+  expect(text).toContain('"archived": false');
 });

@@ -22,8 +22,8 @@ test("a test app keeps registry and prefs in its isolated storage", async () => 
     storage: { [REGISTRY_STORAGE_KEY]: serializeRegistry(template) },
   });
 
-  await app.waitFor("role:treeitem[New Bot]");
-  await app.press("role:treeitem[New Bot]");
+  await app.waitFor("label:New Bot");
+  await app.press("label:New Bot");
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", "Hermetic");
   await app.type("id:new-bot-workspace", "/tmp");

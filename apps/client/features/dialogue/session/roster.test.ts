@@ -134,6 +134,7 @@ test("withStatuses leaves un-followed rows as the listing reported them", () => 
     workspacePath: "/work",
     label: "a",
     detail: sessionDetail({ botName: "Ada", missing: false, workspacePath: "/work" }, true),
+    updatedAt: null,
     missing: false,
     running: true,
     unread: false,

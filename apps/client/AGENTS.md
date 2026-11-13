@@ -13,14 +13,15 @@
 ## 布局（NSH TSX）
 
 - 本目录是纯 TSX 应用：`App.tsx` 入口，`nsh.json` 无 `"rust"` 键，没有 `Cargo.toml` / `src/`（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。原生层是 `lib/host` / `lib/relay` 里的回环 HTTP / WebSocket 客户端与启动器。
-- `components/` 是壳与样式：壳在 `components/shell/`（UI 与状态同目录），样式层在 `components/ui/`；`features/` 放产品域，由 Panel 按 Nav address 挂；`lib/` 放协议、宿主与产品后台适配。
+- `components/` 是壳与样式：壳在 `components/shell/`（UI 与状态同目录），样式层在 `components/ui/`；`features/` 放产品域，由 Pane 按 Bot id 挂；`lib/` 放协议、宿主与产品后台适配。
 - 不另起平行 `frontend/{ui,application,infrastructure}` 树。新增文件先落现有目录；线框不混入产品路径。
 
 ## TSX 与运行时
 
 - 用 NSH 细粒度响应式；不套 React hooks，不引入 `solid-js`。
-- 订阅与原生句柄在 `cleanup` 中释放；组件卸载 ≠ 后台任务停止（运行中的 Session 在 Panel 关掉后继续）。
-- 每个状态 / 策略只有一个所有者：注册表写入口、`SessionController`、壳的 Panel 状态不各自复制一份。派生值用 `computed`，别在视图里重算第二套模型。
+- 订阅与原生句柄在 `cleanup` 中释放；组件卸载 ≠ 后台任务停止（运行中的 Session 在 Pane 关掉后继续）。
+- 每个状态 / 策略只有一个所有者：注册表写入口、`SessionController`、壳的 Pane 状态不各自复制一份。派生值用 `computed`（列表行见 `components/shell/botList.ts`），别在视图里重算第二套模型。
+- 一个 Bot 只在一个 Pane 里：打开走 `state.openBot`（已有 Pane 只切焦点），拖入走 `state.dropBot`；不要在视图里再拼一套去重。
 
 ## UI 边界
 
@@ -34,9 +35,9 @@
 - 认证 WS 用标准 `websocket`：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包装成官方 dsh 要的 EventTarget。`nsh.json` 的 `capabilities.network.http` 只放行回环 dsh 端点；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
 - wire 类型从 [`@myaid/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
 - Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
-- **Dialogue 建在 dsh Workspace 上**（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)）：`workspace.create` / `rename` / `archiveSession` / `unarchiveSession` / `pinSession` / `unpinSession` / `insertSessionBefore` 是名字、置顶、归档与顺序的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。不要在注册表里重建这些字段。
+- **段的落点是 dsh Workspace**（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)，产品形态由 [ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md) 取代、数据在 L2 改）：`workspace.create` / `rename` / `insertSessionBefore` 等是 Workspace 字段的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。不要在注册表里重建 path / title / 顺序。
 - **官方 client model 是 Session / Workspace 状态的唯一所有者**：`lib/dsh/connection.ts` 在装好 Remote 的同一条 Cordis Context 上 `plugin` 官方 `ClientSessions`（`ctx.sessions`：列表、事件窗口、follow、分页、prompt/queue/control、投影）与 `ClientWorkspaceModel`（`ctx.workspaces`：行、顺序、归档、置顶）。产品只投影它们发布的 snapshot（[`features/dialogue/session`](features/dialogue/session/controller.ts)、[`features/workspace/state.ts`](features/workspace/state.ts)），不另建 follow / 重连 / 分页 / 回执映射，也不在视图里重算一遍。官方未提供的命令（模型目录与选择、skills、`/command`、插件清单、bot preset、上传、目录选择）留在 `Connection`。
-- 产品层级是 **Bot → Dialogue → Session**：Session 认领到 Dialogue（一对一官方 Session），未认领不进产品列表。一个 Dialogue = 一个 Bot 对一个 Workspace 的视角；同一个目录上的两个 Bot 共享 Workspace 的顺序、置顶与归档。
+- 产品形态是**一个 Bot 一条长对话**，由按时间相连的段（Session）组成（[ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）。本轮注册表仍是 **Dialogue + Claim**（L2 改），Session 认领到 Dialogue、未认领不进产品；Pane 在 L2 之前显示该 Bot 最近的一条 Session（`features/bots/sessions.ts`），别在视图里另挑一条。
 - `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下无 ESM `installConnection`；用 `bun run prepare:sdk` 打出的 `lib/dsh/sdk.js`（`nsh.json` 的 `resolve.conditions: ["node"]` 兜底）。勿手改该产物。
 - 官方 client model（session / workspace / file-upload 的 `lib/client.js`）是浏览器 `window.__ModuleLoader__.load({id, factory})` 产物，NSH 发行版禁用 `Function` 构造器（不跑字符串代码），因此 `prepare:sdk` 把 factory 主体原样包成静态 ESM，落在 `lib/dsh/generated/`（gitignore）。升 `@deepseek-ai/dsh-*` 后重跑 `prepare:sdk`；它按包版本重写文件，找不到 loader 外壳会直接报错。
 - 认证与心跳细节的唯一下沉文档：[docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
@@ -49,6 +50,11 @@
 - 本机控制端点（Unix socket / named pipe）、`SMAppService` 仅在标准 API 缺口核实后添加；升级后复核可否迁回。
 - 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理与登记事实，不当业务网关。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。
 - Settings ⇢ Background Services 是 [ADR 0002](../../docs/adr/0002-dual-background-services.md) 的客户端侧：只编排 query / enable / stop，不代 Host / Relay 做决定；事实经两个单元自己的回环 HTTP 控制面取（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。
+
+## Bot 详情与设置
+
+- **Bot 详情**是一个弹窗（`features/bots/BotDetails.tsx`），由 Pane 标题的 `Bot details:` 按钮、行的右键菜单与命令面板打开；打开状态只在 `features/bots/details.ts`。里面对段的事实（路径、模型、用量、Compact）来自 `features/bots/sessionFacts.ts`，不在注册表另存。
+- **设置**是盖在 Pane 之上的整页覆盖层（`components/shell/SettingsOverlay.tsx`），不是 Navigator 分区或 Pane；Esc / Back 关掉它，Pane 状态不动。Background Services 面板内部归 N1，壳只负责挂载。
 
 ## 验证
 

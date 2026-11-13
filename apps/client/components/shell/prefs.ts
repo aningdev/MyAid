@@ -2,41 +2,36 @@ import fs from "fs/promises";
 import { dirname } from "path";
 
 /**
- * The shell's client preferences: the Navigator's width and folded sections,
- * the Workbench's layout and the panel addresses in it, and the pinned
- * addresses in Favorites. Kept under the data root (`~/.myaid/prefs`) on the
- * desktop and in the app's storage on the web, so a launch opens where the
- * person left it. A missing object degrades to an empty Panel.
+ * The shell's client preferences: the Navigator's width and open state, the
+ * pinned Bots, and the Workbench's Panes (layout, the Bot each shows, the one
+ * with the focus). Kept under the data root (`~/.myaid/prefs`) on the desktop
+ * and in the app's storage on the web, so a launch opens where the person
+ * left it. A Bot that is gone leaves its Pane empty.
+ *
+ * Version 1 kept Favorites: the old addresses are read once — a Bot pin is
+ * kept, a Dialogue or Session pin becomes the Pane of the Bot it belonged to,
+ * and the session pins themselves are dropped (a Session is a segment now).
  */
 import { platform, signal } from "nsh";
 import { Storage } from "nsh";
 import type { DockAreaLayout, DockNode } from "nsh/base";
 
-import { claimOwner, type BotRegistry, type Dialogue } from "../../features/bots/model";
-import {
-  isSessionArchived,
-  workspaceTitle,
-  type WorkspaceProjection,
-} from "../../features/workspace/state";
+import type { BotRegistry } from "../../features/bots/model";
 import { prefsPath, usesTestStorage } from "../../lib/data-root";
-import { favorites, setFavorites } from "./favorites";
-import { NAV_DEFAULT_EXPANDED } from "./fixtures";
 import {
   NAV_DEFAULT_WIDTH,
   NAV_MAX_WIDTH,
   NAV_MIN_WIDTH,
-  expandedSections,
   navOpen,
   navWidth,
-  setExpandedSections,
   setNavOpen,
   setNavWidth,
 } from "./layout";
-import { botAddress, dialogueAddress, dialogueLabels, sessionAddress } from "./navAddresses";
+import { pins, setPins } from "./pins";
 import { activePanelId, applyWorkbench, dockLayout, panelContents } from "./state";
-import type { NavAddress, PanelContents } from "./types";
+import type { PanelContents } from "./types";
 
-export const SHELL_PREFS_VERSION = 1 as const;
+export const SHELL_PREFS_VERSION = 2 as const;
 export const SHELL_PREFS_STORAGE = "myaid.prefs.shell";
 
 export type ShellPrefs = {
@@ -44,13 +39,9 @@ export type ShellPrefs = {
   nav: {
     width: number;
     open: boolean;
-    expanded: string[];
   };
-  /**
-   * Pinned Navigator addresses, in the person's order. Sessions are pinned in
-   * dsh ({@link WorkspaceProjection.pinned}) and never stored here.
-   */
-  favorites: NavAddress[];
+  /** Pinned Bot ids, in the person's order. */
+  pins: string[];
   workbench: {
     layout: DockAreaLayout;
     contents: PanelContents;
@@ -66,12 +57,8 @@ export function defaultPrefsPath(): string {
 export function emptyShellPrefs(): ShellPrefs {
   return {
     version: SHELL_PREFS_VERSION,
-    nav: {
-      width: NAV_DEFAULT_WIDTH,
-      open: true,
-      expanded: [...NAV_DEFAULT_EXPANDED],
-    },
-    favorites: [],
+    nav: { width: NAV_DEFAULT_WIDTH, open: true },
+    pins: [],
     workbench: {
       layout: emptyLayout("panel-1"),
       contents: { "panel-1": null },
@@ -87,17 +74,14 @@ export function collectShellPrefs(): ShellPrefs {
     nav: {
       width: clampWidth(navWidth()),
       open: navOpen(),
-      expanded: [...expandedSections()],
     },
-    favorites: favorites()
-      .filter((address) => address.kind !== "session")
-      .map((address) => ({ ...address })),
+    pins: [...pins()],
     workbench: {
       layout: dockLayout(),
       contents: Object.fromEntries(
-        Object.entries(panelContents()).map(([panel, address]) => [
+        Object.entries(panelContents()).map(([panel, content]) => [
           panel,
-          address ? { ...address } : null,
+          content ? { botId: content.botId } : null,
         ]),
       ),
       activePanelId: activePanelId(),
@@ -106,97 +90,19 @@ export function collectShellPrefs(): ShellPrefs {
 }
 
 /**
- * Apply stored preferences. Addresses are resolved against the registry and
- * dsh's Workspaces as they are now: an object that is gone leaves its Panel
- * empty. A Session pin read from an older file is dropped — dsh owns pins now.
+ * Apply stored preferences. Panes are resolved against the registry as it is
+ * now: a Bot that is gone leaves its Pane empty, a pinned id that no longer
+ * exists leaves the pins.
  */
-export function applyShellPrefs(
-  prefs: ShellPrefs,
-  registry: BotRegistry,
-  workspaces: WorkspaceProjection,
-): void {
+export function applyShellPrefs(prefs: ShellPrefs, registry: BotRegistry): void {
   setNavWidth(clampWidth(prefs.nav.width));
   setNavOpen(prefs.nav.open);
-  // An empty list is a real state (every section folded), not a missing one.
-  setExpandedSections(prefs.nav.expanded.filter((id) => typeof id === "string"));
-  setFavorites(
-    prefs.favorites
-      .map((address) => resolveAddress(address, registry, workspaces))
-      .filter((address): address is NavAddress => address !== null),
-  );
-  const restored = restoreWorkbenchSnapshot(prefs.workbench, (address) =>
-    resolveAddress(address, registry, workspaces),
+  const known = new Set(registry.bots.map((bot) => bot.id));
+  setPins(prefs.pins.filter((id) => known.has(id)));
+  const restored = restoreWorkbenchSnapshot(prefs.workbench, (botId) =>
+    known.has(botId) ? botId : null,
   );
   applyWorkbench(restored.layout, restored.contents, restored.activePanelId);
-}
-
-/**
- * A stored address against the registry as it is now: current titles, or
- * null when the object is gone (a deleted Bot, an archived Dialogue or
- * Session). This is what makes old preferences safe to open.
- */
-export function resolveAddress(
-  address: NavAddress,
-  registry: BotRegistry,
-  workspaces: WorkspaceProjection,
-): NavAddress | null {
-  switch (address.kind) {
-    case "bot": {
-      const bot = registry.bots.find((item) => item.id === address.botId);
-      return bot ? botAddress(bot) : null;
-    }
-    case "dialogue": {
-      const dialogue = registry.dialogues.find((item) => item.id === address.dialogueId);
-      if (!dialogue) return null;
-      const bot = registry.bots.find((item) => item.id === dialogue.botId);
-      if (!bot) return null;
-      return dialogueAddress({
-        id: dialogue.id,
-        title: workspaceTitle(workspaces, dialogue),
-        botId: bot.id,
-        botName: bot.name,
-        label: dialogueLabelOf(dialogue, registry, workspaces, bot.name),
-      });
-    }
-    case "session": {
-      const owner = address.sessionId ? claimOwner(registry, address.sessionId) : null;
-      if (!owner || isSessionArchived(workspaces, owner.claim.sessionId)) return null;
-      return sessionAddress({
-        sessionId: owner.claim.sessionId,
-        label: owner.claim.title ?? address.title ?? "Session",
-        botId: owner.bot.id,
-        dialogueId: owner.dialogue.id,
-      });
-    }
-    default:
-      return null;
-  }
-}
-
-function dialogueLabelOf(
-  dialogue: Dialogue,
-  registry: BotRegistry,
-  workspaces: WorkspaceProjection,
-  botName: string,
-): string {
-  const names = dialogueLabels({
-    dialogues: registry.dialogues.map((item) => ({
-      id: item.id,
-      botId: item.botId,
-      title: workspaceTitle(workspaces, item),
-    })),
-    botName: (id) => registry.bots.find((bot) => bot.id === id)?.name ?? "",
-  });
-  return names.get(dialogue.id)?.full ?? botName;
-}
-
-/** Session ids an older Favorites list pinned; the migration moves them to dsh. */
-export function legacySessionPins(prefs: ShellPrefs): string[] {
-  const ids: string[] = [];
-  for (const address of prefs.favorites) {
-    if (address.kind === "session" && address.sessionId) ids.push(address.sessionId);
-  }
-  return ids;
 }
 
 /** Parse stored text; anything unreadable is the defaults, never a throw. */
@@ -209,29 +115,23 @@ export function parseShellPrefs(text: string | null): ShellPrefs {
     return emptyShellPrefs();
   }
   if (!isRecord(value)) return emptyShellPrefs();
-  // A future file keeps what this version knows; an older one has no fields.
   const nav = isRecord(value.nav) ? value.nav : {};
   const workbench = isRecord(value.workbench) ? value.workbench : {};
   const layout = sanitizeLayout(workbench.layout);
   const active = typeof workbench.activePanelId === "string" ? workbench.activePanelId : "";
-  const contents = sanitizeContents(workbench.contents, layout, active);
+  const older = value.version === 1;
   return {
     version: SHELL_PREFS_VERSION,
     nav: {
       width: clampWidth(typeof nav.width === "number" ? nav.width : NAV_DEFAULT_WIDTH),
       open: typeof nav.open === "boolean" ? nav.open : true,
-      expanded: Array.isArray(nav.expanded)
-        ? nav.expanded.filter((id): id is string => typeof id === "string")
-        : [...NAV_DEFAULT_EXPANDED],
     },
-    favorites: Array.isArray(value.favorites)
-      ? value.favorites
-          .map(parseAddress)
-          .filter((address): address is NavAddress => address !== null)
-      : [],
+    pins: older ? pinsFromFavorites(value.favorites) : parsePins(value.pins),
     workbench: {
       layout,
-      contents,
+      contents: older
+        ? contentsFromAddresses(workbench.contents, layout, active)
+        : sanitizeContents(workbench.contents, layout, active),
       activePanelId:
         active && collectPanelIds(layout.center).includes(active)
           ? active
@@ -240,21 +140,22 @@ export function parseShellPrefs(text: string | null): ShellPrefs {
   };
 }
 
-/** The restore itself: a workbench whose missing addresses are empty Panels. */
+/** The restore itself: a Workbench whose vanished Bots are empty Panes. */
 export function restoreWorkbenchSnapshot(
   stored: {
     layout: DockAreaLayout;
     contents: PanelContents;
     activePanelId: string;
   },
-  resolve: (address: NavAddress) => NavAddress | null,
+  resolve: (botId: string) => string | null,
 ): { layout: DockAreaLayout; contents: PanelContents; activePanelId: string } {
   const layout = sanitizeLayout(stored.layout);
   const ids = collectPanelIds(layout.center);
   const contents: PanelContents = {};
   for (const id of ids) {
-    const address = stored.contents?.[id] ?? null;
-    contents[id] = address ? resolve(address) : null;
+    const botId = stored.contents?.[id]?.botId ?? null;
+    const resolved = botId ? resolve(botId) : null;
+    contents[id] = resolved ? { botId: resolved } : null;
   }
   const active = ids.includes(stored.activePanelId) ? stored.activePanelId : (ids[0] ?? "panel-1");
   return { layout, contents, activePanelId: active };
@@ -325,7 +226,7 @@ export function markPrefsLoaded(): void {
   loaded.set(true);
 }
 
-/** Queue a write; a burst of resizes and folds lands as one file write. */
+/** Queue a write; a burst of resizes and splits lands as one file write. */
 export function saveShellPrefs(prefs: ShellPrefs): void {
   pending = prefs;
   if (timer !== undefined) return;
@@ -401,38 +302,61 @@ function sanitizeContents(
   const record = isRecord(value) ? value : {};
   const contents: PanelContents = {};
   for (const id of ids) {
-    contents[id] = parseAddress(record[id]);
+    contents[id] = parseContent(record[id]);
   }
   const active = ids.includes(activePanelId) ? activePanelId : (ids[0] ?? "panel-1");
   return { ...contents, [active]: contents[active] ?? null };
 }
 
-function parseAddress(value: unknown): NavAddress | null {
+function parseContent(value: unknown): { botId: string } | null {
   if (!isRecord(value)) return null;
-  const id = typeof value.id === "string" ? value.id : "";
-  const title = typeof value.title === "string" ? value.title : "";
-  const kind = value.kind;
-  if (!id || !title) return null;
-  if (kind !== "bot" && kind !== "dialogue" && kind !== "session") return null;
-  const root =
-    value.root === "bots" || value.root === "dialogues" || value.root === "favorites"
-      ? value.root
-      : kind === "bot"
-        ? "bots"
-        : "dialogues";
-  const path = Array.isArray(value.path)
-    ? value.path.filter((part): part is string => typeof part === "string")
-    : [title];
-  return {
-    id,
-    root,
-    path: path.length > 0 ? path : [title],
-    title,
-    kind,
-    ...(typeof value.botId === "string" ? { botId: value.botId } : {}),
-    ...(typeof value.dialogueId === "string" ? { dialogueId: value.dialogueId } : {}),
-    ...(typeof value.sessionId === "string" ? { sessionId: value.sessionId } : {}),
-  };
+  const botId = typeof value.botId === "string" ? value.botId : "";
+  return botId ? { botId } : null;
+}
+
+/** Pins read from a version 2 file: Bot ids, in order, without duplicates. */
+function parsePins(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const id of value) {
+    if (typeof id !== "string" || !id || out.includes(id)) continue;
+    out.push(id);
+  }
+  return out;
+}
+
+/**
+ * Version 1's Favorites: a Bot pin is kept; a Dialogue or Session pin was a
+ * place of that Bot, which is the Pane it opens now. The Session pins
+ * themselves are dropped.
+ */
+function pinsFromFavorites(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const address of value) {
+    if (!isRecord(address) || address.kind !== "bot") continue;
+    const botId = typeof address.botId === "string" ? address.botId : "";
+    if (botId && !out.includes(botId)) out.push(botId);
+  }
+  return out;
+}
+
+/** Version 1's Panes held addresses; each names the Bot whose Pane it is. */
+function contentsFromAddresses(
+  value: unknown,
+  layout: DockAreaLayout,
+  activePanelId: string,
+): PanelContents {
+  const ids = collectPanelIds(layout.center);
+  const record = isRecord(value) ? value : {};
+  const contents: PanelContents = {};
+  for (const id of ids) {
+    const address = record[id];
+    const botId = isRecord(address) && typeof address.botId === "string" ? address.botId : "";
+    contents[id] = botId ? { botId } : null;
+  }
+  const active = ids.includes(activePanelId) ? activePanelId : (ids[0] ?? "panel-1");
+  return { ...contents, [active]: contents[active] ?? null };
 }
 
 function collectPanelIds(node: DockNode): string[] {

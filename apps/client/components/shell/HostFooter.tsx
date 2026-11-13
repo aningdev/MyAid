@@ -1,6 +1,7 @@
 /**
- * The sidebar's last row: whether this Client reaches the Host, and the way
- * to try again. It is a fact row, not a command bar: one line, one action.
+ * The sidebar's last row: whether this Client reaches the Host, the way to try
+ * again, and the way into Settings. It is a fact row, not a command bar: one
+ * line, one setting.
  *
  * When the launcher cannot run a Host (no binary, a launch that failed, one
  * that keeps exiting) this is the Host empty state: the launcher's status in
@@ -14,8 +15,9 @@ import {
   launcherFailureText,
   MANUAL_HOST_COMMAND,
 } from "../../lib/host/launcher";
-import { Button, colors } from "../ui";
+import { Button, colors, Icon } from "../ui";
 import { hasHost, retryHost } from "./host";
+import { openSettings } from "./SettingsOverlay";
 
 export function HostFooter() {
   const up = () => hostConnection() === "up";
@@ -55,7 +57,7 @@ export function HostFooter() {
         backgroundColor: colors.inset,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <View
           style={{
             width: 6,
@@ -64,7 +66,7 @@ export function HostFooter() {
             backgroundColor: up() ? colors.up : failed() ? colors.danger : colors.faint,
           }}
         />
-        <View testID="host-status" style={{ flex: 1 }}>
+        <View testID="host-status" style={{ flex: 1, minWidth: 0 }}>
           <Text
             style={{
               fontSize: 11,
@@ -83,6 +85,15 @@ export function HostFooter() {
             onPress={() => void retry()}
           />
         </If>
+        <View
+          role="button"
+          onPress={openSettings}
+          accessibilityLabel="Settings"
+          hoverStyle={{ opacity: 0.7 }}
+          style={{ width: 22, height: 22, alignItems: "center", justifyContent: "center" }}
+        >
+          <Icon name="sliders" size={14} tint={colors.muted} />
+        </View>
       </View>
       <If when={!up() && hasHost}>
         <Text

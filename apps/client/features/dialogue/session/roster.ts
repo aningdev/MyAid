@@ -10,7 +10,6 @@ import {
   type ProductSession,
 } from "../../bots/sessions";
 import type { WorkspaceProjection } from "../../workspace/projection";
-import { orderedClaims } from "../../workspace/projection";
 
 /** Live status a SessionController (or a finished off-screen turn) reports. */
 export type SessionStatus = {
@@ -27,6 +26,8 @@ export type SessionRow = {
   workspacePath: string;
   label: string;
   detail: string;
+  /** dsh's last-updated stamp for the Session, in milliseconds (null: unknown). */
+  updatedAt: number | null;
   missing: boolean;
   running: boolean;
   /** A reply finished while no Panel showed this Session. */
@@ -72,6 +73,7 @@ export function buildSessionRoster(input: {
       workspacePath: item.workspacePath,
       label: sessionLabel(item, input.summaries.get(item.sessionId) ?? null),
       detail: sessionDetail(item, running),
+      updatedAt: item.updatedAt,
       missing: item.missing,
       running,
       unread: false,
@@ -96,53 +98,6 @@ export function withStatuses(
       detail: sessionDetail(row, running),
     };
   });
-}
-
-/**
- * One Dialogue's rows in the Workspace's own Session order, then any row the
- * Workspace no longer accounts (a claim dsh did not report, kept visible).
- * Open Panels read this, not a scope signal.
- */
-export function rosterForDialogue(input: {
-  registry: BotRegistry;
-  dialogueId: string;
-  rows: readonly SessionRow[];
-  workspaces: WorkspaceProjection;
-}): SessionRow[] {
-  const dialogue = input.registry.dialogues.find((item) => item.id === input.dialogueId);
-  const live = new Map(input.rows.map((row) => [row.id, row]));
-  const claimed = new Map(
-    listProductSessions(input.registry, null, input.workspaces, {
-      dialogueId: input.dialogueId,
-    }).map((item) => [item.sessionId, item]),
-  );
-  const ordered: SessionRow[] = [];
-  const seen = new Set<string>();
-  for (const claim of dialogue ? orderedClaims(input.workspaces, dialogue, dialogue.claims) : []) {
-    seen.add(claim.sessionId);
-    const row = live.get(claim.sessionId);
-    if (row) {
-      ordered.push(row);
-      continue;
-    }
-    const item = claimed.get(claim.sessionId);
-    if (!item) continue;
-    ordered.push({
-      id: item.sessionId,
-      dialogueId: item.dialogueId,
-      botId: item.botId,
-      botName: item.botName,
-      workspacePath: item.workspacePath,
-      label: sessionLabel(item, null),
-      detail: sessionDetail(item, false),
-      missing: false,
-      running: false,
-      unread: false,
-      attention: false,
-    });
-  }
-  const rest = input.rows.filter((row) => row.dialogueId === input.dialogueId && !seen.has(row.id));
-  return [...ordered, ...rest];
 }
 
 /** Relabel one row after a transient summary changes. */

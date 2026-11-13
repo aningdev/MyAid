@@ -4,6 +4,7 @@ import { DockArea, type DockAreaRef, type DockPanel } from "nsh/base";
 import { alpha, colors, handleThumb } from "../ui";
 import { PanelChrome } from "./PanelChrome";
 import { PanelView } from "./PanelView";
+import { SettingsOverlay, settingsOpen } from "./SettingsOverlay";
 import {
   activePanelId,
   dockLayout,
@@ -12,6 +13,11 @@ import {
   setDockLayout,
 } from "./state";
 
+/**
+ * The Panes, and the settings overlay drawn over them: the overlay covers the
+ * area rather than replacing it, so the Panes keep their layout, their scroll
+ * and their drafts while it is open.
+ */
 export function Workbench() {
   let area!: DockAreaRef;
 
@@ -40,16 +46,30 @@ export function Workbench() {
               No panels
             </Text>
             <Text class="text-xs" style={{ color: colors.muted }}>
-              Split a panel or pick a Navigator item.
+              Split a panel or pick a Bot in the list.
             </Text>
           </View>
         )}
       />
+      <If when={settingsOpen()}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: colors.background,
+          }}
+        >
+          <SettingsOverlay />
+        </View>
+      </If>
     </View>
   );
 }
 
-/** A Panel's content: the active one keeps a quiet accent ring inside its edges. */
+/** A Pane's content: the focused one keeps a quiet accent ring inside its edges. */
 function PanelBody(props: { panel: DockPanel }) {
   const active = () => activePanelId() === props.panel.id;
   return (

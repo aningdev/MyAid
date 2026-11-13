@@ -1,13 +1,13 @@
 /**
- * What the Inspector reads beyond the Panel's own Session view: context
+ * What Bot details reads beyond the Pane's own Session view: context
  * occupancy and token totals (`session.projections`), the Compact command
  * (`commands.execute`), whether the Host can reveal a path, and the files the
  * Session's turns declared. One read per Session, refreshed when a turn ends,
  * after Compact, or when the section is opened; nothing is polled.
  *
- * The Host reads sit behind `InspectorSource`: one seam the product fills from
- * the shared Connection, and `nsh test` substitutes (the same shape as
- * Bot Settings' `botFactsSource`).
+ * The Host reads sit behind `SessionFactsSource`: one seam the product fills
+ * from the shared Connection, and `nsh test` substitutes (the same shape as
+ * Bot details' `botFactsSource`).
  */
 import { signal, untracked } from "nsh";
 
@@ -27,8 +27,8 @@ export type CompactRead =
   | { status: "done"; text: string }
   | { status: "failed"; error: string };
 
-/** Everything the Inspector sections read from the Host or the Session view. */
-export type InspectorSource = {
+/** Everything Bot details reads from the Host or the Session view. */
+export type SessionFactsSource = {
   /** Context occupancy and token totals (empty when the deployment has none). */
   usage(sessionId: string): Promise<SessionUsage>;
   /** One slash command; Compact runs `/compact`. */
@@ -41,7 +41,7 @@ export type InspectorSource = {
   deliverables(sessionId: string): Deliverable[];
 };
 
-const fromHost: InspectorSource = {
+const fromHost: SessionFactsSource = {
   usage: async (sessionId) => {
     const transport = sessionTransport();
     if (!transport?.ready || !transport.sessionUsage) return {};
@@ -67,14 +67,14 @@ const fromHost: InspectorSource = {
   deliverables: (sessionId) => controllerFor(sessionId).view().deliverables,
 };
 
-let source: InspectorSource = fromHost;
+let source: SessionFactsSource = fromHost;
 
-export function inspectorSource(): InspectorSource {
+export function sessionFactsSource(): SessionFactsSource {
   return source;
 }
 
 /** Substitute the Host reads (a test's fake). */
-export function setInspectorSource(next: InspectorSource | undefined): void {
+export function setSessionFactsSource(next: SessionFactsSource | undefined): void {
   source = next ?? fromHost;
 }
 
@@ -111,7 +111,7 @@ export async function refreshUsage(sessionId: string): Promise<void> {
   try {
     writeUsage(sessionId, {
       status: "ready",
-      usage: await inspectorSource().usage(sessionId),
+      usage: await sessionFactsSource().usage(sessionId),
     });
   } catch (error) {
     writeUsage(sessionId, { status: "failed", error: readableError(error) });
@@ -122,7 +122,7 @@ export async function refreshUsage(sessionId: string): Promise<void> {
 export async function probeReveal(): Promise<void> {
   if (untracked(reveal) !== "unknown") return;
   try {
-    reveal.set((await inspectorSource().canReveal()) ? "yes" : "no");
+    reveal.set((await sessionFactsSource().canReveal()) ? "yes" : "no");
   } catch {
     reveal.set("no");
   }
@@ -133,7 +133,7 @@ export async function compactSession(sessionId: string): Promise<void> {
   if (untracked(compact)[sessionId]?.status === "running") return;
   writeCompact(sessionId, { status: "running" });
   try {
-    const outcome = await inspectorSource().command(sessionId, "/compact");
+    const outcome = await sessionFactsSource().command(sessionId, "/compact");
     if (outcome.kind === "success") {
       writeCompact(sessionId, { status: "done", text: outcome.text ?? "已压缩。" });
       await refreshUsage(sessionId);
@@ -147,5 +147,14 @@ export async function compactSession(sessionId: string): Promise<void> {
 
 /** Show a path in the Finder (`session.openWorkspacePath` with `reveal`). */
 export async function revealPath(path: string): Promise<void> {
-  await inspectorSource().reveal(path);
+  await sessionFactsSource().reveal(path);
+}
+
+/** 1 200 → "1.2K", 128 000 → "128K", 1 048 576 → "1.0M". */
+export function compactCount(value: number): string {
+  const scaled = (candidate: number) =>
+    candidate >= 100 ? String(Math.round(candidate)) : String(Math.round(candidate * 10) / 10);
+  if (value < 1_000) return String(Math.round(value));
+  if (value < 1_000_000) return `${scaled(value / 1_000)}K`;
+  return `${scaled(value / 1_000_000)}M`;
 }
