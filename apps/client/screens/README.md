@@ -25,6 +25,9 @@ nsh test screens/settings-background.test.tsx --target macos
 
 # The Bot app's Panes, Bot details and Settings overlay (seeded, no Host).
 nsh test screens/l1-shots.test.tsx --target macos
+
+# Settings' four groups in light and dark, over the fake Host.
+nsh test screens/settings-shots.test.tsx --target macos
 ```
 
 ## Real-Host smokes: opt-in, and never the user's registry
@@ -62,7 +65,8 @@ the footer's empty state with the manual command. Its pictures go to
 `shots.ts`'s `SHOTS_N1`.
 
 The other real-Host smokes (`real-turn`, `new-bot-real-host`, `bot-app`,
-`bot-presets-real-host`, `session-model`, `session-restart`) run the same way;
+`bot-presets-real-host`, `session-model`, `session-restart`,
+`settings-real-host`) run the same way;
 `session-restart` still expects
 `screens/host-restart-watch.mjs --after-turns 1` to stop the Host mid-turn.
 
@@ -74,6 +78,12 @@ Bots over two directories dragged into two Panes stream at the same time, one
 is Pinned, Bot details renames the other (the list and the Pane title follow),
 and a second launch on the registry and prefs the first one wrote restores the
 Panes, their Bots and the Pin.
+
+`settings-real-host.smoke.test.tsx` sets a fake DeepSeek key through
+Settings, clears it, writes a base URL and the default model into dsh's
+settings and reads them back after reopening, then checks About's versions
+and that the dark scheme and accent survive a relaunch. The scratch
+`.credentials.yaml` holds no key once the page's **清除 Key** has run.
 
 `bot-presets-real-host.smoke.test.tsx` additionally needs
 `myaid-plugin-bot-presets` on the Host command line (`--patch` its built

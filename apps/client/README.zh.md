@@ -49,7 +49,11 @@ vp run @myaid/client#package:web
 - **Pane**：`nsh/base` DockArea（center）。一个 Pane 显示一个 Bot 的对话；点行把内容开到活动 Pane，向右拖入在工作 Pane 右侧开新 Pane，已有 Pane 的 Bot 只切焦点。拆分（向右 / 向下）、拖动分隔线、放大、关闭与焦点快捷键来自 DockArea 与命令表。布局、每个 Pane 的 Bot 与活动 Pane 从客户端偏好恢复；Bot 不在则该 Pane 为空。没有标签页。
 - **Pane 标题**：Bot 标记（工作中呼吸）、名字，然后是 **Bot 详情** 与拆分 / 放大 / 关闭并排。旧的每 Pane Inspector 与 `⌥⌘I` 已移除。
 - **Bot 详情**（`features/bots/BotDetails.tsx`）：盖在 Pane 上的一个弹窗——Profile / Runs with / Skills / Plugins、当前段的工作目录、模型、用量 / 上下文与 dsh 的 **Compact**，以及删除 / 归档。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成，preset writer 可用时派生它自己的 preset，否则如实说明写不了。
-- **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。Back 或 Esc 返回。现在装的是 Background Services 面板；模型供应商 / 通用 / 关于在 L3 落地。
+- **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。左栏是 **模型供应商 / 通用 / 后台 / 关于**；Back 或 Esc 返回。
+  - **模型供应商**（`features/settings/ModelProviders.tsx`）：列出 dsh 报告的每个供应商（`llm.listProviders` 合并 `llm.listConfigurableProviders`）与它的 Key 状态。Key 只经 `credentials.describe/set/unset` 写入供应商设置命名空间指定的引用（没有时用 dsh 的 `<ROUTE>_API_KEY` 推导）；页面不保存 Key。供应商字段（base URL 起）与默认模型经 `settings.describe/update` 写入——默认模型在 dsh 描述的 `agent-default-model` 命名空间里，不是写死的清单。没有 Host 时说明原因、不提供输入。
+  - **通用**：语言行（简体中文 / English / 跟随系统；现在只保存，L4 语言包生效）、外观（跟随系统 / 浅色 / 深色）与强调色。立即生效，并保存在客户端偏好里。
+  - **后台**：Host 与 dsh web 的相位、Host 自身版本、dsh 实际版本与要求版本（不一致时两者并列并说明 Host 拒绝启动）、最近错误、启动 / 停止 / 重启 dsh，以及 Background Services 登记面板。
+  - **关于**：MyAid / Host / dsh 版本与 **复制诊断信息**（只有版本与连接状态，没有 Key、令牌或会话内容）。
 - **对话（L2 之前）**：一个 Bot 的 Pane 显示它最近的那条 Session——dsh 最后更新的那条，否则它最活跃 dialogue 里最新的 claim——新段一被认领就跟随。没有对话的 Bot 在默认工作目录里起一段。Bot 的一条长对话（段、历史轨、`/new`）在 L2 落地。
 - **运行态归属**：dsh 状态归官方 React-free client model（`ctx.sessions`：列表、事件窗口、follow、分页、prompt / queue / cancel、投影；`ctx.workspaces`：行、顺序、归档、置顶）。`SessionController` 只保留产品新增的部分——草稿、附件、审批展示、本地这一轮（`TurnProjection`）与 Pane 视图。两个 Pane 的两条 Session（跨 Workspace）可并行流式。
 
@@ -72,14 +76,15 @@ vp run @myaid/client#package:web
 
 - 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 5 存 templates、Bots（`archived` 是可选字段）与——L2 之前——Dialogues（`botId` + `workspaceId`）及其认领的 Session。v3 / v4 文件在连上 Host 前只读：迁移把每个 Dialogue 的 path、名字与 archived claim 交给 dsh Workspace（旧文件备份为 `bots.json.v4.bak`）。Identity 与归档位在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Workspace 路径、名字与 Session 顺序归 dsh（[ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）。
 - Workspace 与 Session：官方 `ClientWorkspaceModel` / `ClientSessions` 装在 Connection 的 Cordis Context 上（`lib/dsh/connection.ts`），每个 Host generation 原子替换它们的 snapshot。`features/workspace` 与 `features/dialogue/session` 只把 snapshot 投影成 NSH signal；Remote 的返回不写这份状态。它们的浏览器 `__ModuleLoader__` 产物由 `prepare:sdk` 展开成静态 ESM（`lib/dsh/generated/`），因为 NSH 不运行字符串代码。
-- 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。版本 2 覆盖 Navigator 的宽度与开合、Pin 的 Bot 顺序与 Pane（布局、每个 Pane 的 Bot、活动 Pane）。版本 1 文件只读一次：Bot pin 保留，Dialogue / Session pin 变成它所属 Bot 的 Pane，Session pin 本身丢弃。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
+- 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。版本 2 覆盖 Navigator 的宽度与开合、Pin 的 Bot 顺序、Pane（布局、每个 Pane 的 Bot、活动 Pane）与通用页的外观和语言（旧文件读默认值）。版本 1 文件只读一次：Bot pin 保留，Dialogue / Session pin 变成它所属 Bot 的 Pane，Session pin 本身丢弃。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
 - `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md)。
 
 ## 已知限制
 
 - 窄窗只显示移动提示页；桌面壳从 700 pt（desktop idiom）/ 900 pt（其他）起。
 - 一个 Bot 的 Pane 在长对话落地（L2）前只显示它最近的那条 Session：还没有历史轨、段分隔线与 `/new`。
-- 壳的文案仍是中英混合；双语在 L4 统一，设置页在 L3 之前只有 Background Services。
+- 壳的文案仍是中英混合；双语在 L4 统一。设置页的语言行只保存选择，语言包落地前不切换文案。
+- dsh 的 Session 模型目录受凭据门控：没有可用 Key 时目录为空，默认模型卡片退回各供应商设置里公布的 `models` 与当前选择。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md)。
 - Host 未挂载 `myaid-plugin-bot-presets` 时 Bot 详情存不了 Skills / Plugins 变更：没有别的 Remote 能写 Agent preset 正文。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md) 的缺口表。
 - 客户端阻塞时 dsh mux 可能因错过两次心跳断开；Session controller 会重跟（3 次、退避）。细节见 [DSH_CLIENT_AUTH](../../docs/DSH_CLIENT_AUTH.md)。
 
@@ -88,7 +93,7 @@ vp run @myaid/client#package:web
 本应用没有 Rust（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。Host 是 `127.0.0.1:4872`（`MYAID_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证；Relay 有自己的 `127.0.0.1:8787` 与 `relay/serve-token`。
 
 - `lib/host/launcher.ts`：没有 Host 就起（`myaid-host serve-app`），有就复用，退出后 1 秒起、翻倍到 15 秒重启；要求 `myaid-host` 在 `PATH` 上（`cargo build -p myaid-host` 产出在 `target/debug`，`scripts/run-with-host-path.mjs` 为 `dev` / `dev:macos` 把它放前面）。日常用根目录 `bun run dev`，它先构建 Host。
-- `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`）。
+- `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`）。Host 的公开状态还带 `hostVersion` 与 guardian 实际找到的 `dshVersion`，供后台与关于页显示。
 - 启动器起不来时，侧栏页脚就是 Host 空状态：原因 + 手动的 `myaid-host serve-app`。
 - `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` 不起 Host——移动端经 Relay，不走本机 Host。
 

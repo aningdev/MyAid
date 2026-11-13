@@ -83,6 +83,9 @@ _Avoid_：第二个 Bot 编辑器页、Pane 内的侧抽屉 Inspector、把 pres
 **Settings（设置）** _[C]_：整页覆盖分屏区的设置：模型供应商 / 通用 / 后台 / 关于；Esc 或「返回」回到原分屏布局，Pane 不变。  
 _Avoid_：把设置做成 Navigator 分区或一个 Pane、在设置里改注册表以外的东西
 
+**Model provider（模型供应商）** _[A]_：dsh 的模型路由与它的设置命名空间。设置页只列 dsh 报告的供应商；API Key 经 `credentials` Remote 写入 dsh 的凭据存储，base URL 等字段与默认模型经 `settings` Remote 写入 dsh 的设置文档。MyAid 不保存 Key，也不在本轮添加自定义供应商。  
+_Avoid_：把供应商清单或字段硬编码进 Client、把 Key 写进 `~/.myaid`、用注册表存供应商设置
+
 **Plugin（插件）** _[A]_：Cordis / 声明式 bundle 装配的能力包（`packages/myaid-plugin-*` 或上游插件）。可进入共用 `web` profile 或某 Bot 派生 preset 的 `plugins`。
 
 **Relay**：一个 Background Service；多端密文帧转发；不持 owner 凭据。  

@@ -54,7 +54,7 @@
 ## Bot 详情与设置
 
 - **Bot 详情**是一个弹窗（`features/bots/BotDetails.tsx`），由 Pane 标题的 `Bot details:` 按钮、行的右键菜单与命令面板打开；打开状态只在 `features/bots/details.ts`。里面对段的事实（路径、模型、用量、Compact）来自 `features/bots/sessionFacts.ts`，不在注册表另存。
-- **设置**是盖在 Pane 之上的整页覆盖层（`components/shell/SettingsOverlay.tsx`），不是 Navigator 分区或 Pane；Esc / Back 关掉它，Pane 状态不动。Background Services 面板内部归 N1，壳只负责挂载。
+- **设置**是盖在 Pane 之上的整页覆盖层（`components/shell/SettingsOverlay.tsx`），不是 Navigator 分区或 Pane；Esc / Back 关掉它，Pane 状态不动。左栏四组：供应商（dsh 目录 + `settings` / `credentials` Remote）/ 通用（客户端外观与语言偏好）/ 后台（Host 事实 + Background Services 面板，后者内部归 N1）/ 关于。供应商字段与默认模型只经 dsh Remote 读写，Key 不进客户端文件。
 
 ## 验证
 
