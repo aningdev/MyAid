@@ -31,14 +31,14 @@ flowchart LR
 
 ## 2. 仓库与组件
 
-| 位置                      | 职责                                                            | 现状                                                                   |
-| ------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell；Bot → Dialogue → Session 接线；HostControl 原生适配          |
-| `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | Lifecycle + control socket 已落地；Bridge 空壳                         |
-| `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | `RelayControl` + macOS/Windows 登记适配；转发面仍骨架                  |
-| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)         | `myaid-plugin-core` 占位                                               |
-| 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                   | `bun run dev` → `scripts/dev.mjs`（先起 Host 再起 Client）；`host:dev` |
-| `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）    | `.gitmodules`；不参与构建                                              |
+| 位置                      | 职责                                                            | 现状                                                                                           |
+| ------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `apps/client`             | NSH **mixed**：TSX + 根 Rust crate；产品 UI / 注册表 / 官方协议 | AppShell；Bot → Dialogue → Session；Settings ⇄ Background Services；HostControl / RelayControl |
+| `apps/host`               | dsh 生命周期、HostControl、后续 Bridge                          | Lifecycle + control socket 已落地；Bridge 空壳                                                 |
+| `apps/relay`              | 多端密文转发；约束见 [AGENTS](../apps/relay/AGENTS.md)          | `RelayControl` + macOS/Windows 登记适配；转发面仍骨架                                          |
+| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)         | `myaid-plugin-core` 占位                                                                       |
+| 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                   | `bun run dev` → `scripts/dev.mjs`（先起 Host 再起 Client）；`host:dev`                         |
+| `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）    | `.gitmodules`；不参与构建                                                                      |
 
 Bun 管理 JS workspace 与唯一 `bun.lock`；Cargo workspace：`apps/client`、`apps/host`、`apps/relay`。不在 Rust 中重实现 Harness。
 
@@ -77,22 +77,47 @@ apps/host/src/
 - NSH 调用公开 Remote；专属数据在 `$DSH_HOME` 下由插件管理。
 - 参考：`docs/research/HARNESS_PRINCIPLES.md`。
 
+已知缺口与候选插件：
+
+| 缺口                                      | 候选                                               | 影响                                       |
+| ----------------------------------------- | -------------------------------------------------- | ------------------------------------------ |
+| 没有写 Agent preset 正文的 Remote         | `myaid-plugin-bot-presets`                         | Bot Settings 的 Skills / Plugins 保存不了  |
+| Bot identity / Dialogue 名 / 归档只在本机 | `myaid-plugin-bot-identity`（或 session metadata） | 不能跨设备同步                             |
+| 审批没有 “Always allow”                   | approval-policy 插件                               | 每次审批都要人点                           |
+| prompt receipt 不带 queue item id         | 向 dsh 提需求                                      | Withdraw 需要额外一次 `session.state` 读取 |
+
+Known limitations：NSH 标准 websocket 在 8 条未读消息时暂停读取；dsh mux 连续 2 次未收到 pong（2 s 心跳）即断开 → 客户端按 3 次退避重跟。实测与细节在 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。
+
 ## 5. 客户端（NSH mixed）
 
 ```text
 apps/client/
-├── App.tsx / App.test.tsx
-├── components/          # AppShell、shell/（空壳 UI+状态）、ui/
-├── features/            # 业务域（主路径可不挂）
-├── lib/dsh/             # Cookie 认证 + AuthenticatedSocket
-├── assets/
-├── nsh.json             # "rust": "."
-├── Cargo.toml / src/    # #[native_module("myaid/native")]；Host / Relay 控制等
+├── App.tsx / App.test.tsx      # mount AppShell
+├── components/
+│   ├── shell/                  # Workspace Shell：Navigator + Workbench + Panels、命令表、偏好、注意
+│   └── ui/                     # 样式化基础层（唯一包装 nsh/base）
+├── features/
+│   ├── bots/                   # 注册表模型 / store / identity / Bot Panel 与 Bot Settings
+│   ├── dialogue/               # chat、session 运行时、Dialogue / Session Panel
+│   ├── inspector/              # Session Panel 的右侧窄栏
+│   └── settings/               # Background Services 面板（ADR 0002）
+├── lib/
+│   ├── dsh/                    # Cookie + 标准 WebSocket、Connection / Session facade
+│   ├── host/ relay/            # HostControl / RelayControl 与登记动词
+│   └── background/             # 两个 Background Service 的产品编排
+├── screens/                    # open(…) 入口、截图与真 Host 冒烟（opt-in）
+├── nsh.json                    # "rust": "."
+└── Cargo.toml / src/           # #[native_module("myaid/native")]；Host / Relay 控制
 ```
 
-对齐 `nsh init --template mixed`（[project structure](https://nsh.dev/docs/project-structure.md)）。**不要**另起独立 `frontend/` 树，除非另有决策。细则见 [apps/client/AGENTS.md](../apps/client/AGENTS.md)。
+- **壳**：`AppShell` 挂 `components/shell`；左 Navigator 是注册表 / roster / Favorites / Settings 的投影树，右 Workbench 是按 Nav address 挂内容的 DockArea。Panel 只持地址，内容由 `features/*` 提供。
+- **数据归属**：注册表与客户端偏好是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。Session 运行态由 dsh follow 帧投影，每个 Session 一个 `SessionController`；Bot identity 归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)）。
+- **命令与注意**：`components/shell/commands.ts` 是唯一命令表，同时喂应用菜单、`⌘K` 与快捷键；`components/shell/attention.ts` 比较 roster 两帧，决定系统通知与 Dock badge。
+- **dsh 客户端**：`lib/dsh/connection.ts` 挂官方 Remote 并做产品 DTO 映射；Cookie 换票与 mux 见 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。`lib/dsh/sdk.ts` 是 Node 条件入口源，`prepare:sdk` 产出 `sdk.js`。
+- **Background**：`lib/background` 只编排 Host 与 Relay 的登记意图；Settings ⇢ Background Services 显示两单元事实并发出 query / enable / stop。原生事实来自 `myaid/native` 的 HostControl / RelayControl。
+- **原生缺口**：控制 socket、`SMAppService` 在 `src/`；HTTP / WebSocket 走 NSH 标准 API，按 `nsh.json` `capabilities.network` 收窄。文件读写只授应用自己的数据（[ADR 0004](adr/0004-client-fs-limited-to-app-data.md)）。
 
-原生缺口（控制 socket、`SMAppService`）在 `src/` 注册；HTTP、WebSocket（含 Cookie 握手头）走 NSH 标准 API，按 `nsh.json` `capabilities.network` 收窄。
+对齐 `nsh init --template mixed`（[project structure](https://nsh.dev/docs/project-structure.md)）。**不要**另起独立 `frontend/` 树。单元契约见 [apps/client/README.md](../apps/client/README.md)，编码护栏见 [apps/client/AGENTS.md](../apps/client/AGENTS.md)。
 
 ## 6. 本机控制协议（原则）
 

@@ -30,7 +30,7 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 
 ## 已知限制：mux 心跳与阻塞的读取
 
-`session.follow` 在长回复中途曾自己重连（W1 的现场）。实测（本机 `dsh` 0.2.2-rc.1 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
+`session.follow` 在长回复中途可能自己重连。实测（本机 `dsh` 0.2.2-rc.1 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
 
 | 一侧            | 行为                                                                                                            | 出处                                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -52,7 +52,7 @@ cargo run -p myaid-host -- serve --data-root ~/.myaid --official-dsh
 
 # 2) 客户端（MYAID_HOST_SOCKET 已由 dev 脚本注入）
 vp run @myaid/client#dev
-# Dialogue → Context →「启动后台」→ connectionInfo → Session
+# Settings ⇢ Background Services → Enable → 一条 Bot 的 Session
 # 无 Host 时仍可用：export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=…'
 ```
 

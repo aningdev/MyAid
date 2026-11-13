@@ -59,18 +59,18 @@ _Avoid_：ProductService、统一聊天接口、权威会话存储、Relay
 
 **Client（交互客户端）**：NSH 桌面（及未来移动）应用；桌面写注册表，移动端只读快照。
 
-## Client 壳（交互空壳）
+## Client 壳
 
 **Workspace Shell（工作区壳）** _[C]_：Client 桌面交互壳 = **左侧可收缩 Navigator** + **右侧 Workbench**；不拥有域数据。  
 _Avoid_：左侧图标轨 SideNav、旧 AppShell / 单 Module 整页挂载、与 Dialogue 的 workspace path 混名
 
-**Navigator（导航树）** _[C]_：左侧可调宽多级树（`nsh/base` Tree），可收缩只留顶部拖拽条；节点是导航地址投影（**去哪里**的目录，不是已打开内容的清单）。由若干 **Navigator Section** 纵向组成（空壳序）：Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings。  
+**Navigator（导航树）** _[C]_：左侧可调宽多级树（`nsh/base` Tree），可收缩只留顶部拖拽条；节点是导航地址投影（**去哪里**的目录，不是已打开内容的清单）。由若干 **Navigator Section** 纵向组成（固定顺序）：Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings。  
 _Avoid_：手写树行、DockArea left dock、把树当成第二套域模型、顶层根名叫 Pin、把 Navigator 当成已打开 Panel 列表
 
 **Navigator Section（导航分区）** _[C]_：Navigator 的一个顶层分组；以分区标题呈现，可整体折叠，其下是该域的可展开树。集合与顺序固定。  
 _Avoid_：区块 / Block（Rex 中 block 指 pane，易与 Panel 混淆）、Module、Space
 
-**Favorites（收藏）** _[C]_：Navigator 顶层分区；Nav address 的快捷入口。  
+**Favorites（收藏）** _[C]_：Navigator 顶层分区；Nav address 的快捷入口，置顶顺序由人决定、存客户端偏好。  
 _Avoid_：Pin（留给各树内置顶）、Space
 
 **Space（空间）** _[C]_：已保存的 Workbench 布局快照（DockArea center 切分树 + 各 Panel 的 Nav address）；打开替换 Workbench。  
@@ -87,6 +87,9 @@ _Avoid_：路由实现细节、把地址当成 Registry 真源
 
 **Inspector（面板侧栏）** _[C]_：Session **Panel** 右侧可收起的窄栏，讲这条会话「在跟谁、花了多少」：Bot / template / preset、Dialogue 与工作区、本会话的 **Deliverable**、上下文与 token 用量（含 dsh 的 Compact），以及通往 **Bot Settings** 的入口。属于 Panel，不属于 Session（同一 Session 的两个 Panel 各自开关）；不拥有域数据。  
 _Avoid_：DSH 官方 Web GUI 的 Inspector、把 Inspector 当第二个 Navigator、把用量/交付物另存一份产品数据
+
+**Bot identity mark（Bot 标记）** _[C]_：Bot 的视觉身份——一个 accent 颜色加一个几何 glyph，出现在 Navigator、对话、Panel 标签、Inspector 与创建 / 设置流程。属于注册表数据，不是 dsh preset 正文。  
+_Avoid_：角色画 / 头像上传、把标记塞进 Agent preset、把颜色当能力
 
 **Bot Settings（助手设置）** _[C]_：Client 壳里的一个 sheet，编辑某个 **Bot** 的 Profile / Runs with / Skills / Plugins；改成注册表偏好（名称、说明、模型、思考档、默认工作区），能力仍是那个 **Agent Preset**。  
 _Avoid_：第二个 Bot 编辑器页、把 preset 正文写进注册表、把全局插件开关伪装成每 Bot 差异
