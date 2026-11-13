@@ -6,6 +6,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../../lib/i18n";
 import { open } from "../../test/open";
 import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import {
@@ -74,7 +75,7 @@ async function details(registry: BotRegistry = sampleRegistry()) {
 test("Profile saves the Bot's name and description in the registry", async () => {
   const app = await details();
   expect(app.texts()).toContain("standard");
-  expect(app.texts()).toContain("已绑定");
+  expect(app.texts()).toContain(t("bot.binding.bound"));
 
   await app.clear("id:bot-details-name");
   await app.type("id:bot-details-name", "Ada L");
@@ -96,35 +97,35 @@ test("an added skill can be removed from an already-derived Bot", async () => {
   const app = await details(assignDerivedPreset(sampleRegistry(), "bot", "bot-preset-bot"));
   await app.press("Skills");
   await app.waitFor("text:/release-notes");
-  await app.press("label:移除 release-notes");
+  await app.press(`label:${t("bot.skills.remove", { name: "release-notes" })}`);
   await app.press("id:bot-details >> Save");
   await app.waitUntil(() => !app.shows("id:bot-details"));
 
   await app.press("label:Bot details: Ada");
   await app.waitFor("id:bot-details");
   await app.press("Skills");
-  await app.waitUntil(() => app.texts().some((text) => text.includes("还没有添加技能")));
-  expect(app.texts()).not.toContain("移除 release-notes");
+  await app.waitUntil(() => app.texts().some((text) => text.includes(t("bot.skills.none"))));
+  expect(app.texts()).not.toContain(t("bot.skills.remove", { name: "release-notes" }));
 });
 
 test("a capability change on a template-bound Bot derives its own preset", async () => {
   const app = await details();
 
   await app.press("Runs with");
-  await app.waitFor("text:思考");
+  await app.waitFor(`text:${t("bot.thinking")}`);
   await app.press("Skills");
   await app.waitFor("text:/release-notes");
 
   await app.press("Plugins");
   await app.waitFor("text:@deepseek-ai/dsh-tool-bash");
   // The Bot's preset is still the template's: turning a row on is its own preset.
-  await app.press("label:切换 Bash");
+  await app.press(`label:${t("bot.plugins.toggle", { name: "Bash" })}`);
   await app.press("id:bot-details >> Save");
 
   await app.waitUntil(() => !app.shows("id:bot-details"));
   await app.press("label:Bot details: Ada");
   await app.waitFor("id:bot-details");
-  await app.waitFor("text:单独配置");
+  await app.waitFor(`text:${t("bot.binding.custom")}`);
   expect(app.texts()).toContain("bot-preset-bot");
 });
 

@@ -11,6 +11,7 @@ import {
 } from "../../features/bots/model";
 import { registry } from "../../features/bots/state";
 import { workspaces } from "../../features/workspace/state";
+import { t } from "../../lib/i18n";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import {
   buildApplicationMenu,
@@ -62,18 +63,21 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
   const menu = buildApplicationMenu(COMMANDS, { mac: true });
   expect(menu.map((item) => ("label" in item ? item.label : ""))).toEqual([
     "MyAid",
-    "File",
-    "Edit",
-    "View",
-    "Chat",
-    "Window",
+    t("menu.file"),
+    t("menu.edit"),
+    t("menu.view"),
+    t("menu.chat"),
+    t("menu.window"),
   ]);
   // The app menu carries Settings on macOS too, as the platform expects.
   const appMenu = section(menu, "MyAid");
   expect(
     appMenu.some(
       (item) =>
-        typeof item === "object" && item !== null && "label" in item && item.label === "Settings…",
+        typeof item === "object" &&
+        item !== null &&
+        "label" in item &&
+        item.label === t("command.settings"),
     ),
   ).toBe(true);
 
@@ -84,7 +88,7 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
         typeof item === "object" &&
         item !== null &&
         "label" in item &&
-        item.label === command.label,
+        item.label === t(command.label),
     );
     expect(items).toHaveLength(1);
     const first = items[0];
@@ -96,7 +100,7 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
   }
 
   // Every command that names a section is in the menu exactly once.
-  const menuLabels = ["File", "View", "Chat"].flatMap((label) =>
+  const menuLabels = [t("menu.file"), t("menu.view"), t("menu.chat")].flatMap((label) =>
     section(menu, label).flatMap((item) =>
       typeof item === "object" && item !== null && "label" in item && item.label
         ? [item.label]
@@ -104,7 +108,7 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
     ),
   );
   for (const command of menuCommands()) {
-    expect(menuLabels.filter((label) => label === command.label)).toHaveLength(1);
+    expect(menuLabels.filter((label) => label === t(command.label))).toHaveLength(1);
   }
 });
 
@@ -131,9 +135,11 @@ test("the palette lists every command and every Bot, archived ones included", ()
     }
     const ada = items.find((item) => item.id === "jump:bot:bot");
     expect(ada?.label).toBe("Ada");
-    expect(ada?.group).toBe("Archived");
+    expect(ada?.group).toBe(t("palette.group.archived"));
     expect(ada?.keywords).toContain("/work/myaid");
-    expect(items.some((item) => item.id === "jump:bot:bot2" && item.group === "Bots")).toBe(true);
+    expect(
+      items.some((item) => item.id === "jump:bot:bot2" && item.group === t("palette.group.bots")),
+    ).toBe(true);
     // No Dialogue or Session is a place of its own any more.
     expect(items.some((item) => item.id.startsWith("jump:dialogue:"))).toBe(false);
     expect(items.some((item) => item.id.startsWith("jump:session:"))).toBe(false);

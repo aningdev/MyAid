@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { t } from "../../../lib/i18n";
 import { scriptedHost, scriptedSessions } from "../../../test/sessions";
 import {
   claimSegment,
@@ -108,7 +109,7 @@ test("occupancy blocks another running Session in the same workspace", () => {
     registry,
     summaries: new Map([["s1", "busy"]]),
   });
-  expect(message).toContain("占用");
+  expect(message).toBe(t("session.workspaceOccupied", { label: "busy" }));
   expect(
     occupancyBlock({
       occupyingSessionIds: ["s1"],
@@ -127,7 +128,7 @@ test("dispose drops the host and rejects later use", async () => {
   await client.dispose();
   expect(client.disposed).toBe(true);
   expect(client.getHost()).toBe(undefined);
-  await expect(client.ensureConnected()).rejects.toThrow(/已释放/);
+  await expect(client.ensureConnected()).rejects.toThrow(t("session.claimReleased"));
 });
 
 test("resolveBotModel matches provider/model and unique name", async () => {

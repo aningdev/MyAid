@@ -4,6 +4,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../i18n";
 import {
   createRelayRegistrationTransport,
   relayRegistrationAccess,
@@ -51,9 +52,11 @@ test("a Relay that is not running is a fact with a reason", async () => {
   try {
     const read = await relayRegistrationAccess.registrationQuery();
     expect(read.relay.phase).toBe("notRegistered");
-    expect(String(read.relay.reason)).toContain("Relay 未运行");
+    expect(String(read.relay.reason)).toContain(t("relay.notRunning"));
     expect(calls[0]?.url).toBe("http://127.0.0.1:8787/v1/health");
-    await expect(relayRegistrationAccess.registrationEnable()).rejects.toThrow(/未运行/);
+    await expect(relayRegistrationAccess.registrationEnable()).rejects.toThrow(
+      t("relay.registerFailed"),
+    );
   } finally {
     setRelayRegistrationTransport(null);
   }

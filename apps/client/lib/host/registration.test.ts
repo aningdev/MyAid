@@ -4,6 +4,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../i18n";
 import {
   createHostRegistrationTransport,
   setHostRegistrationTransport,
@@ -69,7 +70,9 @@ test("a refusal is an error the panel can word", async () => {
     token: async () => "tok",
     fetch,
   });
-  await expect(transport.call("registrationEnable")).rejects.toThrow(/登记请求失败/);
+  await expect(transport.call("registrationEnable")).rejects.toThrow(
+    t("host.registration.request", { path: "/registration/enable", status: 401 }),
+  );
 });
 
 test("the product access decodes a snapshot and a unit", async () => {

@@ -7,6 +7,7 @@
 import { afterEach, expect, test } from "nsh/test";
 
 import { collectShellPrefs, serializeShellPrefs } from "../../components/shell/prefs";
+import { t } from "../../lib/i18n";
 import { createSettingsFixture } from "../../test/settings-fixtures";
 import {
   clearProviderKey,
@@ -53,7 +54,7 @@ test("a saved key is 已配置, never in the page's state or the client prefs", 
   // The client's own files and this page's state never see the key.
   expect(serializeShellPrefs(collectShellPrefs())).not.toContain(KEY);
   expect(JSON.stringify(providersState())).not.toContain(KEY);
-  expect(providersState().message).toContain("已保存");
+  expect(providersState().message).toContain(t("providers.keySaved", { name: "DeepSeek" }));
 
   expect(await clearProviderKey("deepseek-official")).toBe(true);
   const cleared = providersState().rows.find((item) => item.entry.provider === "deepseek-official");
@@ -72,9 +73,9 @@ test("a dormant provider's key records the derived reference in its profile", as
 });
 
 test("a typed key is judged before any write", async () => {
-  expect(keyProblem("")).toContain("请输入");
-  expect(keyProblem("A=B")).toContain("ASCII");
-  expect(keyProblem("sk-ok key")).toContain("ASCII");
+  expect(keyProblem("")).toBe(t("providers.keyNeeded"));
+  expect(keyProblem("A=B")).toBe(t("providers.keyAscii"));
+  expect(keyProblem("sk-ok key")).toBe(t("providers.keyAscii"));
   expect(keyProblem(KEY)).toBe(null);
 });
 
@@ -89,7 +90,7 @@ test("provider fields and the default model write through the settings Remote", 
     ns: "llm-deepseek",
     patch: { baseURL: "http://127.0.0.1:9" },
   });
-  expect(providersState().message).toContain("已保存");
+  expect(providersState().message).toContain(t("providers.settingsSaved", { name: "DeepSeek" }));
 
   expect(await saveDefaultModel("deepseek-official", "deepseek-v4-pro")).toBe(true);
   expect(currentDefault()).toEqual({ provider: "deepseek-official", model: "deepseek-v4-pro" });

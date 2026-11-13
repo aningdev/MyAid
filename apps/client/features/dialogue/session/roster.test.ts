@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { t } from "../../../lib/i18n";
 import { workspaceProjection, workspaceRow } from "../../../test/workspaces";
 import {
   claimSegment,
@@ -74,7 +75,7 @@ test("a controller's status wins over the listing and carries unread / attention
     ]),
   );
   expect(decorated[1]).toMatchObject({ running: false, unread: true, attention: true });
-  expect(decorated[1]?.detail).not.toContain("执行中");
+  expect(decorated[1]?.detail).not.toContain(t("session.status.running"));
   expect(decorated[0]).toMatchObject({ running: true, unread: false, attention: false });
 });
 
@@ -119,7 +120,7 @@ test("unclaimed sessions never appear", () => {
 
 test("sessionDetail names the running state", () => {
   const detail = sessionDetail({ botName: "Ada", missing: false, workspacePath: "/work" }, true);
-  expect(detail).toContain("执行中");
+  expect(detail).toContain(t("session.status.running"));
 });
 
 test("withStatuses leaves un-followed rows as the listing reported them", () => {

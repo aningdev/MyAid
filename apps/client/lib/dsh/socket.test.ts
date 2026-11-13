@@ -7,6 +7,7 @@ import { expect, test } from "nsh/test";
 import type { WebSocketConnection } from "websocket";
 import { connect } from "websocket";
 
+import { t } from "../i18n";
 import { AuthenticatedSocket } from "./socket";
 
 const MUX = "ws://127.0.0.1:1/api/remote.mux";
@@ -159,7 +160,7 @@ test("send writes, close ends the connection, and neither works after it", async
   expect(fake.closes).toBe(1);
   await closed;
   expect(socket.readyState).toBe(3);
-  expect(() => socket.send("after")).toThrow("Socket is not open");
+  expect(() => socket.send("after")).toThrow(t("dsh.error.socketClosed"));
 });
 
 test("nsh.json grants only the loopback dsh endpoints", async () => {

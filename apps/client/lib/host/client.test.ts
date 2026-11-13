@@ -4,6 +4,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../i18n";
 import { createHostTransport, probeHost, type HostSocket } from "./client";
 import type { HostStatus } from "./protocol";
 
@@ -173,5 +174,5 @@ test("a watch without a token reports down instead of opening a socket", async (
     (reason) => down.push(reason),
   );
   expect(sockets).toBe(0);
-  expect(down[0]).toContain("宿主未运行");
+  expect(down[0]).toContain(t("host.error.noToken"));
 });

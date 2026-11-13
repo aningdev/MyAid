@@ -11,6 +11,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../i18n";
 import { dshRequestInit, fetchSessionCookie } from "./auth";
 
 type Call = { url: string; init: RequestInit };
@@ -78,5 +79,5 @@ test("a login that hands back no cookie is a named failure", async () => {
     () => fetchSessionCookie("http://127.0.0.1:9/?token=t0k3n"),
     () => new Response(null, { status: 302 }),
   );
-  expect(String(error)).toContain("认证失败");
+  expect(String(error)).toContain(t("dsh.auth.failed", { status: 302 }));
 });

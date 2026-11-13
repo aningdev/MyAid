@@ -36,6 +36,9 @@ export const SHOTS_N1 = `${SCRATCHPAD}/pi-shots-n1`;
 /** L3 Settings: providers, general, background and about, in both appearances. */
 export const SHOTS_L3 = `${SCRATCHPAD}/pi-shots-l3`;
 
+/** L4 i18n: the list and Panes, Bot details, Settings › General and the footer, in both languages. */
+export const SHOTS_L4 = `${SCRATCHPAD}/pi-shots-l4`;
+
 export { graphical } from "../test/graphical";
 
 /**

@@ -6,6 +6,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../../../lib/i18n";
 import {
   scriptedHost,
   scriptedSessions,
@@ -168,7 +169,9 @@ test("a prompt is refused while another Session runs in the same workspace", asy
   expect(running.running()).toBe(true);
 
   const waiting = controllers.controllerFor("s2");
-  await expect(waiting.prompt("hi")).rejects.toThrow(/占用/);
+  await expect(waiting.prompt("hi")).rejects.toThrow(
+    t("session.workspaceOccupied", { label: "Untitled context" }),
+  );
   expect(host.selected.length).toBe(0);
 });
 

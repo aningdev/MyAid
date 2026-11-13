@@ -9,6 +9,9 @@ import { TEST_HOST_PARAM } from "../lib/data-root";
 
 export function open(entry: string, options: OpenOptions = {}): Promise<App> {
   return openApp(entry, {
+    // Tests read the English catalog unless they name a language: the
+    // machine's locale must not decide what a suite asserts.
+    locale: options.locale ?? "en-US",
     ...options,
     host: {
       ...(options.host ?? {}),

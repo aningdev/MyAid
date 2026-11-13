@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { t } from "../../lib/i18n";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { claimSegment, createBot, createTemplate, emptyRegistry, initializeBot } from "./model";
 import {
@@ -61,7 +62,7 @@ test("product sessions keep the long conversation's order, and missing claims la
 test("a session label uses the segment title, then a transient summary", () => {
   expect(sessionLabel({ title: "修复登录" }, "忽略")).toBe("修复登录");
   expect(sessionLabel({ title: null }, "  第一句话  ")).toBe("第一句话");
-  expect(sessionLabel({ title: null }, null)).toBe("未命名上下文");
+  expect(sessionLabel({ title: null }, null)).toBe(t("facts.untitledContext"));
 });
 
 test("an unnamed Session takes its title from the first prompt's first sentence", () => {

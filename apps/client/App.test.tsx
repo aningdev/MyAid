@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { t } from "./lib/i18n";
 import { open } from "./test/open";
 
 /** Wide enough for the desktop shell on both desktop (700) and other (900) idioms. */
@@ -72,8 +73,13 @@ test("⌘, opens Settings, and Escape comes back", async () => {
   await app.keyboard.press("mod+,");
   await app.waitFor("id:settings-overlay");
   expect(app.shows("id:settings-providers")).toBe(true);
-  for (const group of ["模型供应商", "通用", "后台", "关于"]) {
-    expect(app.texts()).toContain(group);
+  for (const group of [
+    "settings.nav.providers",
+    "settings.nav.general",
+    "settings.nav.background",
+    "settings.nav.about",
+  ] as const) {
+    expect(app.texts()).toContain(t(group));
   }
   await app.keyboard.press("escape");
   await app.waitUntil(() => !app.shows("id:settings-overlay"));

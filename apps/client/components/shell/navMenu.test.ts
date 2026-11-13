@@ -2,6 +2,7 @@ import { expect, test } from "nsh/test";
 
 import { archiveBot, createBot, createTemplate, emptyRegistry } from "../../features/bots/model";
 import { registry } from "../../features/bots/state";
+import { t } from "../../lib/i18n";
 import { contextEntries } from "./navMenu";
 import { setPins } from "./pins";
 
@@ -11,7 +12,7 @@ function ada() {
 }
 
 function labels(entries: ReturnType<typeof contextEntries>): string[] {
-  return entries.flatMap((entry) => (entry.kind === "item" ? [entry.label] : []));
+  return entries.flatMap((entry) => (entry.kind === "item" ? [t(entry.label)] : []));
 }
 
 test("a Bot's row offers its own verbs: Pin, details, rename, archive", () => {
@@ -19,12 +20,12 @@ test("a Bot's row offers its own verbs: Pin, details, rename, archive", () => {
   setPins([]);
   try {
     expect(labels(contextEntries(registry().bots[0]!, { pinned: false }))).toEqual([
-      "Pin",
-      "Bot details…",
-      "Rename…",
-      "Archive",
+      t("menu.pin"),
+      t("menu.botDetails"),
+      t("menu.rename"),
+      t("menu.archive"),
     ]);
-    expect(labels(contextEntries(registry().bots[0]!, { pinned: true }))[0]).toBe("Unpin");
+    expect(labels(contextEntries(registry().bots[0]!, { pinned: true }))[0]).toBe(t("menu.unpin"));
   } finally {
     registry.set(emptyRegistry());
     setPins([]);
@@ -35,7 +36,9 @@ test("an archived Bot offers the way back", () => {
   const archived = archiveBot(ada(), "bot");
   registry.set(archived);
   try {
-    expect(labels(contextEntries(archived.bots[0]!, { pinned: false }))).toContain("Unarchive");
+    expect(labels(contextEntries(archived.bots[0]!, { pinned: false }))).toContain(
+      t("menu.unarchive"),
+    );
   } finally {
     registry.set(emptyRegistry());
   }

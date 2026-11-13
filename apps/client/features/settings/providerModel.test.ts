@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { t } from "../../lib/i18n";
 import {
   providerDirectoryFixture,
   settingsFixture,
@@ -66,7 +67,11 @@ test("default model choices merge the catalog with dsh's declared models", () =>
 });
 
 test("the key state reads as the product's words", () => {
-  expect(credentialLabel({ configured: true, writable: true })).toBe("已配置");
-  expect(credentialLabel({ configured: false, writable: true })).toBe("未配置");
-  expect(credentialLabel(undefined)).toBe("未检查");
+  expect(credentialLabel({ configured: true, writable: true })).toBe(
+    t("providers.credentialConfigured"),
+  );
+  expect(credentialLabel({ configured: false, writable: true })).toBe(
+    t("providers.credentialMissing"),
+  );
+  expect(credentialLabel(undefined)).toBe(t("providers.credentialChecked"));
 });

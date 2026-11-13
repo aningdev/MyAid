@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { t } from "../../lib/i18n";
 import { defaultIdentity } from "./identity";
 import {
   archiveBot,
@@ -43,7 +44,7 @@ function readyWithSegment() {
 test("a draft follows the template preset", () => {
   let registry = codingDraft();
   expect(presetForBot(registry, "bot")).toBe("standard");
-  expect(presetBinding(registry.bots[0], registry.templates[0]).label).toBe("跟随模板");
+  expect(presetBinding(registry.bots[0], registry.templates[0]).binding).toBe("inherit");
 
   registry = updateTemplate(registry, "tmpl", { presetId: "minimal" });
   expect(presetForBot(registry, "bot")).toBe("minimal");
@@ -55,7 +56,7 @@ test("initialization binds the template preset without a workspace", () => {
   registry = initializeBot(registry, "bot");
   expect(registry.bots[0].status).toBe("ready");
   expect(registry.bots[0].boundPresetId).toBe("standard");
-  expect(presetBinding(registry.bots[0], registry.templates[0]).label).toBe("已绑定");
+  expect(presetBinding(registry.bots[0], registry.templates[0]).binding).toBe("bound");
 
   registry = updateTemplate(registry, "tmpl", { presetId: "minimal" });
   expect(presetForBot(registry, "bot")).toBe("standard");
@@ -68,7 +69,7 @@ test("a derived preset wins and the template reference stays", () => {
   let registry = initializeBot(codingDraft(), "bot");
   registry = assignDerivedPreset(registry, "bot", "bot-ada");
   expect(presetForBot(registry, "bot")).toBe("bot-ada");
-  expect(presetBinding(registry.bots[0], registry.templates[0]).label).toBe("单独配置");
+  expect(presetBinding(registry.bots[0], registry.templates[0]).binding).toBe("custom");
   expect(registry.bots[0].templateId).toBe("tmpl");
   expect(() => updateBot(registry, "bot", { templateId: "other" })).toThrow(RegistryRejection);
   const renamed = updateBot(registry, "bot", { name: "Ada 2", defaultModel: "deepseek" });
@@ -96,7 +97,7 @@ test("a corrupt registry is reported and not overwritten", async () => {
   const store = memoryStore("{");
   const repo = new BotRegistryRepository(store);
   const loaded = await repo.load();
-  expect(loaded.corrupt).toBe("注册表不是 JSON。");
+  expect(loaded.corrupt).toBe(t("registry.notJson"));
   await expect(
     repo.commit((registry) =>
       createTemplate(registry, { name: "Coding", presetId: "standard" }, "tmpl"),
@@ -367,7 +368,7 @@ test("a file that becomes unreadable drops the previous snapshot", async () => {
   // The file is edited into nonsense between two reads: nothing stale survives.
   text = "{";
   const second = await repo.load();
-  expect(second.corrupt).toBe("注册表不是 JSON。");
+  expect(second.corrupt).toBe(t("registry.notJson"));
   expect(second.registry.templates).toHaveLength(0);
   expect(second.legacy).toBe(null);
 });
