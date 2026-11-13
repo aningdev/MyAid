@@ -12,7 +12,7 @@ MyAid is an **all-in-one personal assistant**: one place for the parts of life a
 
 - **Connect everyday domains** — mail, Tasks, knowledge, and notes are first-class; Dialogues drive them and jump back from them.
 - **Talk with a Bot** — a **Bot** is a contact-like assistant whose abilities are a (often derived) **Agent preset**; a **Dialogue** is a long thread with that Bot (e.g. one per project workspace); a **Session** is one context scene inside that Dialogue (= one harness Session).
-- **Stay in control of identity** — Bots own preset/capabilities; Dialogues own workspace path; Sessions are claimed to a Dialogue.
+- **Stay in control of identity** — Bots own preset/capabilities; a Dialogue is one Bot's view of a dsh Workspace; Sessions are claimed to a Dialogue.
 - **Keep the desktop reachable** — Host (and later Relay) can stay as OS Background Services so other ends can link when the window is closed; you explicitly enable that.
 - **Extend hands with plugins** — skills attach on the shared `web` profile / derived presets via Cordis bundles.
 

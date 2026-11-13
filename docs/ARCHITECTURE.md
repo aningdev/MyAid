@@ -68,7 +68,7 @@ apps/host/src/
 
 相位（与 `protocol.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token。ready-URL / 相位校验真源：`parse_ready_url` + `Status::validate`（fixture：`apps/host/testdata/host-contract-cases.json`）。
 
-初始化分工：NSH 管注册表 / 草稿 / Dialogue 的 workspace path；Host 管数据根、CLI、登录环境、profile 首启。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
+初始化分工：NSH 管注册表 / 草稿 / Dialogue 指向哪个 Workspace；Host 管数据根、CLI、登录环境、profile 首启；dsh Workspace 拥有 path、title、Session 顺序、置顶与归档。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
 
 ## 4. Cordis / 插件装配
 
@@ -79,11 +79,11 @@ apps/host/src/
 
 已知缺口与候选插件：
 
-| 缺口                                      | 候选                                               | 影响                                       |
-| ----------------------------------------- | -------------------------------------------------- | ------------------------------------------ |
-| Bot identity / Dialogue 名 / 归档只在本机 | `myaid-plugin-bot-identity`（或 session metadata） | 不能跨设备同步                             |
-| 审批没有 “Always allow”                   | approval-policy 插件                               | 每次审批都要人点                           |
-| prompt receipt 不带 queue item id         | 向 dsh 提需求                                      | Withdraw 需要额外一次 `session.state` 读取 |
+| 缺口                              | 候选                                               | 影响                                       |
+| --------------------------------- | -------------------------------------------------- | ------------------------------------------ |
+| Bot identity 只在本机             | `myaid-plugin-bot-identity`（或 session metadata） | identity 不能跨设备同步                    |
+| 审批没有 “Always allow”           | approval-policy 插件                               | 每次审批都要人点                           |
+| prompt receipt 不带 queue item id | 向 dsh 提需求                                      | Withdraw 需要额外一次 `session.state` 读取 |
 
 Known limitations：NSH 标准 websocket 在 8 条未读消息时暂停读取；dsh mux 连续 2 次未收到 pong（2 s 心跳）即断开 → 客户端按 3 次退避重跟。实测与细节在 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。
 
@@ -98,6 +98,7 @@ apps/client/
 ├── features/
 │   ├── bots/                   # 注册表模型 / store / identity / Bot Panel 与 Bot Settings
 │   ├── dialogue/               # chat、session 运行时、Dialogue / Session Panel
+│   ├── workspace/              # dsh Workspace 投影、v4→v5 迁移与 workspace.* 命令
 │   ├── inspector/              # Session Panel 的右侧窄栏
 │   └── settings/               # Background Services 面板（ADR 0002）
 ├── lib/
@@ -110,7 +111,7 @@ apps/client/
 ```
 
 - **壳**：`AppShell` 挂 `components/shell`；左 Navigator 是注册表 / roster / Favorites / Settings 的投影树，右 Workbench 是按 Nav address 挂内容的 DockArea。Panel 只持地址，内容由 `features/*` 提供。
-- **数据归属**：注册表与客户端偏好是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。Session 运行态由 dsh follow 帧投影，每个 Session 一个 `SessionController`；Bot identity 归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)）。
+- **数据归属**：注册表（Bot、Dialogue 的 `botId` + `workspaceId`、Claim）与客户端偏好是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。Workspace 的 path / title / Session 顺序 / 置顶 / 归档与 Session 运行态都由 dsh 投影：前者一条 `workspace.follow` 流（[`features/workspace`](../apps/client/features/workspace/state.ts)），后者每个 Session 一个 `SessionController`；Bot identity 归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)），Dialogue 名与归档归 dsh（[ADR 0005](adr/0005-dialogue-on-dsh-workspace.md)）。
 - **命令与注意**：`components/shell/commands.ts` 是唯一命令表，同时喂应用菜单、`⌘K` 与快捷键；`components/shell/attention.ts` 比较 roster 两帧，决定系统通知与 Dock badge。
 - **dsh 客户端**：`lib/dsh/connection.ts` 挂官方 Remote 并做产品 DTO 映射；Cookie 换票与 mux 见 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。`lib/dsh/sdk.ts` 是 Node 条件入口源，`prepare:sdk` 产出 `sdk.js`。
 - **Background**：`lib/background` 只编排 Host 与 Relay 的登记意图；Settings ⇢ Background Services 显示两单元事实并发出 query / enable / stop。原生事实来自 `myaid/native` 的 HostControl / RelayControl。

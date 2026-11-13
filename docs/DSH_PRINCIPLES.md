@@ -13,11 +13,11 @@
 
 ## 2. 职责三分：Client / Host / dsh
 
-| 角色              | 职责                                                                                                      | 不负责                                      |
-| ----------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **Client**（NSH） | UI、注册表（Bot / Dialogue / Claim）、本地草稿、Dialogue workspace path、产品策略；官方协议客户端直连 dsh | dsh 启停、ready 发现、进程回收              |
-| **Host**（Rust）  | App 后台身份、唯一 dsh 生命周期、连接发现、后续 Bridge                                                    | 业务 remote、统一聊天网关、`ProductService` |
-| **dsh / Harness** | Session、执行、工具、模型凭据、共享 settings                                                              | Bot 注册表权威写入                          |
+| 角色              | 职责                                                                                                                    | 不负责                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Client**（NSH） | UI、注册表（Bot / Dialogue / Claim）、本地草稿、产品策略；官方协议客户端直连 dsh，Workspace 状态取自 `workspace.follow` | dsh 启停、ready 发现、进程回收、Workspace 真源 |
+| **Host**（Rust）  | App 后台身份、唯一 dsh 生命周期、连接发现、后续 Bridge                                                                  | 业务 remote、统一聊天网关、`ProductService`    |
+| **dsh / Harness** | Session、执行、工具、模型凭据、共享 settings                                                                            | Bot 注册表权威写入                             |
 
 不设 Rust `ProductService`：本地配置与产品交互由 NSH 完成；已有 dsh remote 由官方客户端调用。
 
@@ -36,6 +36,7 @@
 - Bot 能力**优先复用**官方 `dsh web` / 已安装的 dsh 插件；实现前对照只读 [`references/deepseek-harness`](../references/deepseek-harness) 的能力面、preset 与 Remote 形态（机制结论见 [HARNESS_PRINCIPLES](research/HARNESS_PRINCIPLES.md)）。
 - 产品缺口放 `packages/myaid-plugin-*`，经 `cordis.patch.yml` / 声明式 bundle / `--patch` 装配进 `web` profile；约束见 [packages/AGENTS.md](../packages/AGENTS.md)。
 - 能力规则、专属数据与执行注入归插件；NSH 只经公开 Remote / 接口做管理与产品交互。
+- 上游已拥有的对象优先复用：Dialogue 的名字、Session 顺序、置顶与归档都在官方 Workspace 上（[ADR 0005](adr/0005-dialogue-on-dsh-workspace.md)），不在注册表重建。
 - 共享 profile 的全局插件开关不伪装成「每 Bot 差异」；派生组合真源在插件侧。
 - 对照 harness **只取能力与协议形态**；不迁入其 Web GUI / 审批页 / 品牌文案（见 §7）。
 

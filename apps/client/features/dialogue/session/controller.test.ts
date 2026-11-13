@@ -30,7 +30,7 @@ function readyRegistry(): BotRegistry {
           ),
           "bot",
         ),
-        { botId: "bot", workspacePath: "/work" },
+        { botId: "bot", workspaceId: "ws-work" },
         "dlg",
       ),
       "dlg",
@@ -118,6 +118,7 @@ function setup(registry: BotRegistry = readyRegistry()) {
     ensureTransport: async () => transport,
     transport: () => transport,
     registry: () => registry,
+    sessionArchived: () => false,
     summaries: () => new Map(),
     onChange: () => {
       changes += 1;

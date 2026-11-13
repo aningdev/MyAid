@@ -21,7 +21,7 @@ import type {
   SkillSummary,
 } from "../../../lib/dsh/connection";
 import { claimOwner, type Bot, type BotRegistry, type Dialogue } from "../../bots/model";
-import { sessionLabel, workspaceKey } from "../../bots/sessions";
+import { sessionLabel } from "../../bots/sessions";
 
 export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog };
 export type { CommandOutcome, InventoryEntry, InventoryPreset, SessionUsage, SkillSummary };
@@ -32,6 +32,8 @@ export type ModelCatalog = FlatModelCatalog;
 export type SessionTransport = {
   ready: boolean;
   createSession(request: {
+    /** The dsh Workspace the Session joins; the Host attaches it after create. */
+    workspaceId?: string;
     cwd?: string;
     agentPreset?: string;
     sessionId?: string;
@@ -141,9 +143,7 @@ export function occupancyBlock(input: {
     if (occupant === input.targetSessionId) continue;
     const left = claimOwner(input.registry, occupant);
     if (!left) continue;
-    if (workspaceKey(left.dialogue.workspacePath) !== workspaceKey(right.dialogue.workspacePath)) {
-      continue;
-    }
+    if (left.dialogue.workspaceId !== right.dialogue.workspaceId) continue;
     return `工作区正被「${sessionLabel(left.claim, input.summaries.get(occupant) ?? null)}」占用。`;
   }
   return null;
@@ -199,7 +199,11 @@ export class ClaimedSessionClient {
     return this.transport;
   }
 
-  /** Create the Harness Session, claim it to the Dialogue. Following starts per SessionController. */
+  /**
+   * Create the Harness Session in the Dialogue's Workspace, then claim it.
+   * `session.create({ workspaceId })` is dsh's own create-then-attach: the
+   * Workspace records the new Session before this call returns.
+   */
   async createClaimed(input: {
     dialogueId: string;
     dialogue: Dialogue;
@@ -209,7 +213,7 @@ export class ClaimedSessionClient {
     this.assertAlive();
     const transport = await this.ensureConnected();
     const created = await transport.createSession({
-      cwd: input.dialogue.workspacePath,
+      workspaceId: input.dialogue.workspaceId,
       agentPreset: input.agentPreset,
     });
     const saved = await this.hooks.claim(input.dialogueId, created.sessionId);

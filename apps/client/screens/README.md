@@ -55,6 +55,15 @@ HOME="$SC/home" RUSTUP_HOME="$real_home/.rustup" CARGO_HOME="$real_home/.cargo" 
 Then stop the Host and delete the scratch root: it holds a copy of the dsh
 credentials. A headless run stops at the picture probe.
 
+`dialogue-workspace.smoke.test.tsx` proves a Dialogue is one Bot's view of a
+dsh Workspace: two Bots open the same directory (one Workspace, two
+Dialogues), a rename retitles the shared Workspace, Favorites reads dsh's pin
+set, an idle Session archives, a running one is refused as
+`workspace/session-active` and then stopped and archived, and a second app
+opened with the first one's registry reads title, pin and archive back from
+dsh. It renames `/tmp`'s Workspace, so run it on a fresh scratch data root
+(recreate the root and restart the Host between runs).
+
 `bot-presets-real-host.smoke.test.tsx` additionally needs
 `myaid-plugin-bot-presets` on the Host command line (`--patch` its built
 `lib/index.js`). It saves a plugin switch, checks the derived preset through

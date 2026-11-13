@@ -6,7 +6,9 @@ import { effect, keymap, platform, untracked, View } from "nsh";
 import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { isAvailable as hasWindow, Menu, titleBar } from "nsh/desktop";
 
+import { registry } from "../../features/bots/state";
 import { sessionList } from "../../features/dialogue/session/runtime";
+import { workspaces } from "../../features/workspace/state";
 import { colors, handleThumb, Icon } from "../ui";
 import { startAttention } from "./attention";
 import { buildApplicationMenu, COMMANDS, runCommand } from "./commands";
@@ -22,7 +24,8 @@ import {
   toggleNavOpen,
 } from "./layout";
 import { Navigator } from "./Navigator";
-import { collectShellPrefs, prefsLoaded, saveShellPrefs } from "./prefs";
+import { ShellNotices } from "./Notices";
+import { collectShellPrefs, prefsLoaded, resolveAddress, saveShellPrefs } from "./prefs";
 import { panelContents, setPanelAddress } from "./state";
 import { Workbench } from "./Workbench";
 
@@ -52,6 +55,16 @@ export function Shell() {
       const label = labels.get(address.sessionId);
       if (!label || label === address.title) continue;
       setPanelAddress(panelId, { ...address, title: label, path: [label] });
+    }
+  });
+  // A Dialogue's name is its Workspace's title: a rename retitles its Panels.
+  effect(() => {
+    const projection = workspaces();
+    const bots = registry();
+    for (const [panelId, address] of Object.entries(untracked(panelContents))) {
+      if (!address || address.kind !== "dialogue") continue;
+      const live = resolveAddress(address, bots, projection);
+      if (live && live.title !== address.title) setPanelAddress(panelId, live);
     }
   });
   // A reply or an approval in a Session the person is not watching may notify.
@@ -112,6 +125,7 @@ function Sidebar() {
     >
       <SidebarHeader />
       <Navigator />
+      <ShellNotices />
       <HostFooter />
     </View>
   );

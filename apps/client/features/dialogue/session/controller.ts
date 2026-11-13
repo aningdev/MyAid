@@ -73,6 +73,8 @@ export type SessionControllerHost = {
   ensureTransport(): Promise<SessionTransport>;
   transport(): SessionTransport | undefined;
   registry(): BotRegistry;
+  /** dsh archived this Session: it stays readable, but no new turn starts. */
+  sessionArchived(sessionId: string): boolean;
   summaries(): Map<string, string>;
   /** Sessions currently executing (same-workspace guard). */
   occupyingSessionIds(): readonly string[];
@@ -283,7 +285,9 @@ export class SessionController {
     if (this.disposed) throw new Error("这条会话的运行时已释放。");
     const owner = claimOwner(this.host.registry(), this.sessionId);
     if (!owner) throw new Error("这条会话还没有认领到 Dialogue。");
-    if (owner.dialogue.archived) throw new Error("这段 Dialogue 已归档，不能继续输入。");
+    if (this.host.sessionArchived(this.sessionId)) {
+      throw new Error("这条会话已归档，不能继续输入。先恢复它。");
+    }
     const blocked = occupancyBlock({
       occupyingSessionIds: this.host.occupyingSessionIds(),
       targetSessionId: this.sessionId,
@@ -548,6 +552,8 @@ export type SessionRegistryHost = {
   ensureTransport(): Promise<SessionTransport>;
   transport(): SessionTransport | undefined;
   registry(): BotRegistry;
+  /** dsh archived this Session: it stays readable, but no new turn starts. */
+  sessionArchived(sessionId: string): boolean;
   summaries(): Map<string, string>;
   /** Controller membership, unread, running or approval changed. */
   onChange(): void;
@@ -572,6 +578,7 @@ export class SessionRegistry {
       ensureTransport: () => this.host.ensureTransport(),
       transport: () => this.host.transport(),
       registry: () => this.host.registry(),
+      sessionArchived: (id) => this.host.sessionArchived(id),
       summaries: () => this.host.summaries(),
       occupyingSessionIds: () => this.runningSessionIds(),
       onView: (id, view) => this.host.onView?.(id, view),

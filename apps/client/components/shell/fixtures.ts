@@ -30,7 +30,7 @@ const knowRefs = addr("knowledge", ["refs", "papers"], "Papers", "folder");
 /** A Dialogue for the Spaces' layouts. It is a fixture: the registry may not have it. */
 const dlgFixture = dialogueAddress({
   id: "dlg-fixture",
-  workspacePath: "/Users/you/Work/home",
+  title: "home",
   botName: "Aid",
 });
 

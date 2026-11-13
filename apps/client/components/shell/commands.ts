@@ -23,6 +23,13 @@ import {
   sessionList,
 } from "../../features/dialogue/session/runtime";
 import { toggleInspectorOfActivePanel } from "../../features/inspector/state";
+import {
+  isSessionArchived,
+  orderedDialogues,
+  workspacePath,
+  workspaceTitle,
+  workspaces,
+} from "../../features/workspace/state";
 import type { IconName } from "../ui";
 import { collectPanelIds } from "./dock";
 import { toggleNavOpen } from "./layout";
@@ -80,12 +87,13 @@ export function commandContext(): CommandContext {
 /** The Dialogue a New Session would start in: the Panel's, or the Bot's newest. */
 export function contextDialogue(): Dialogue | null {
   const context = commandContext();
-  if (context.dialogue && !context.dialogue.archived) return context.dialogue;
+  if (context.dialogue) return context.dialogue;
   if (!context.bot) return null;
-  const dialogues = registry().dialogues.filter(
-    (item) => item.botId === context.bot!.id && !item.archived,
+  const dialogues = orderedDialogues(
+    workspaces(),
+    registry().dialogues.filter((item) => item.botId === context.bot!.id),
   );
-  return dialogues[dialogues.length - 1] ?? null;
+  return dialogues[0] ?? null;
 }
 
 async function newSession(): Promise<void> {
@@ -140,7 +148,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     shortcut: "mod+n",
     menu: { section: "File" },
     icon: "plus",
-    enabled: () => !!contextDialogue() && commandContext().dialogue?.archived !== true,
+    enabled: () => !!contextDialogue(),
     run: () => void newSession(),
   },
   {
@@ -318,10 +326,18 @@ export type PaletteJump = {
 /** Every Bot, Dialogue and Session the registry holds, as palette jumps. */
 export function paletteJumps(): PaletteJump[] {
   const state = registry();
+  const projection = workspaces();
   const rows = new Map(sessionList().map((row) => [row.id, row]));
   const botName = (id: string) => state.bots.find((bot) => bot.id === id)?.name ?? "";
-  const dialogues = state.dialogues.filter((dialogue) => !dialogue.archived);
-  const names = dialogueLabels({ dialogues, botName });
+  const dialogues = orderedDialogues(projection, state.dialogues);
+  const names = dialogueLabels({
+    dialogues: dialogues.map((dialogue) => ({
+      id: dialogue.id,
+      botId: dialogue.botId,
+      title: workspaceTitle(projection, dialogue),
+    })),
+    botName,
+  });
   const jumps: PaletteJump[] = [];
 
   for (const bot of state.bots) {
@@ -342,16 +358,12 @@ export function paletteJumps(): PaletteJump[] {
   }
 
   for (const dialogue of dialogues) {
-    const label = names.get(dialogue.id)?.full ?? workspaceSegment(dialogue.workspacePath);
+    const path = workspacePath(projection, dialogue);
+    const label = names.get(dialogue.id)?.full ?? workspaceSegment(path);
     jumps.push({
       id: `jump:dialogue:${dialogue.id}`,
       label,
-      keywords: [
-        "dialogue",
-        botName(dialogue.botId),
-        dialogue.workspacePath,
-        workspaceSegment(dialogue.workspacePath),
-      ].filter(Boolean),
+      keywords: ["dialogue", botName(dialogue.botId), path, workspaceSegment(path)].filter(Boolean),
       group: "Dialogues",
       address: {
         id: `dialogue:${dialogue.id}`,
@@ -365,18 +377,14 @@ export function paletteJumps(): PaletteJump[] {
     });
 
     for (const claim of dialogue.claims) {
-      if (claim.archived) continue;
+      if (isSessionArchived(projection, claim.sessionId)) continue;
       const label = rows.get(claim.sessionId)?.label ?? sessionLabel(claim, null);
       jumps.push({
         id: `jump:session:${claim.sessionId}`,
         label,
-        keywords: [
-          "session",
-          "chat",
-          botName(dialogue.botId),
-          dialogue.workspacePath,
-          workspaceSegment(dialogue.workspacePath),
-        ].filter(Boolean),
+        keywords: ["session", "chat", botName(dialogue.botId), path, workspaceSegment(path)].filter(
+          Boolean,
+        ),
         group: "Sessions",
         address: sessionAddress({
           sessionId: claim.sessionId,

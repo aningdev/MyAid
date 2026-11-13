@@ -4,9 +4,14 @@
  */
 import { effect, signal, Text, View, windowSize } from "nsh";
 
-import { createDialogue, renameDialogue } from "../../features/bots/model";
-import { changeRegistry } from "../../features/bots/state";
+import { registry } from "../../features/bots/state";
 import { createSession, renameSession } from "../../features/dialogue/session/runtime";
+import {
+  createDialogueOnPath,
+  messageOf,
+  renameDialogue,
+} from "../../features/workspace/dialogues";
+import { workspaceOf, workspaces } from "../../features/workspace/state";
 import { Button, colors, Field, Sheet } from "../ui";
 import { dialogueAddress, sessionAddress } from "./navAddresses";
 import { closeNewDialogue, closeRename, newDialogueTarget, renameTarget } from "./navSheets";
@@ -46,13 +51,8 @@ function RenameSheet() {
       if (current.kind === "session") {
         await renameSession(current.sessionId, next);
       } else {
-        const saved = await changeRegistry((registry) =>
-          renameDialogue(registry, current.dialogueId, next),
-        );
-        if (!saved) {
-          failure.set("Could not rename the Dialogue.");
-          return;
-        }
+        // A Dialogue's name is its Workspace's title (shared by its Bots).
+        await renameDialogue(current.dialogueId, next);
       }
       closeRename();
     } finally {
@@ -140,20 +140,16 @@ function NewDialogueSheet() {
     busy.set(true);
     failure.set(null);
     try {
-      const next = await changeRegistry((registry) =>
-        createDialogue(registry, { botId: current.botId, workspacePath: path }),
-      );
-      if (!next) {
+      const created = await createDialogueOnPath(current.botId, path);
+      if (!created) {
         failure.set("Could not start the Dialogue.");
         return;
       }
-      const created = next.dialogues.filter((item) => item.botId === current.botId).at(-1);
       closeNewDialogue();
-      if (!created) return;
       openAddress(
         dialogueAddress({
           id: created.id,
-          workspacePath: created.workspacePath,
+          title: workspaceOf(workspaces(), created)?.title ?? "",
           botId: current.botId,
           botName: current.botName,
         }),
@@ -161,7 +157,10 @@ function NewDialogueSheet() {
       // A new Dialogue is useful at once: start its first Session when dsh answers.
       try {
         const sessionId = await createSession(created.id);
-        const claim = created.claims.find((item) => item.sessionId === sessionId) ?? null;
+        const claim =
+          registry()
+            .dialogues.find((item) => item.id === created.id)
+            ?.claims.find((item) => item.sessionId === sessionId) ?? null;
         openAddress(
           sessionAddress({
             sessionId,
@@ -175,6 +174,8 @@ function NewDialogueSheet() {
       } catch {
         // The Dialogue is open; its own New Session retries when dsh is up.
       }
+    } catch (error) {
+      failure.set(messageOf(error));
     } finally {
       busy.set(false);
     }

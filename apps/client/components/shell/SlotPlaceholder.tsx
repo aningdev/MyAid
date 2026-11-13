@@ -3,7 +3,7 @@ import { keymap, Text, View } from "nsh";
 import { BotMark } from "../../features/bots/BotMark";
 import { nextIdentity } from "../../features/bots/identity";
 import { openNewBot } from "../../features/bots/newBot";
-import { loadError, ready, registry } from "../../features/bots/state";
+import { legacyRegistry, loadError, ready, registry } from "../../features/bots/state";
 import { Button, colors, Icon } from "../ui";
 import { rootLabel } from "./fixtures";
 import { navKindIcon } from "./navIcons";
@@ -44,7 +44,8 @@ function AddressSlot(props: { address: NavAddress }) {
 }
 
 function EmptySlot() {
-  const firstLaunch = () => ready() && !loadError() && registry().bots.length === 0;
+  const firstLaunch = () =>
+    ready() && !loadError() && !legacyRegistry() && registry().bots.length === 0;
   return (
     <If
       when={ready() && !!loadError()}

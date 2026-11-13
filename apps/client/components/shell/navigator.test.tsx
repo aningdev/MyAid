@@ -18,6 +18,7 @@ import {
 } from "../../features/bots/model";
 import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
 import { open } from "../../test/open";
+import { workspaceStorage, workspaceRow } from "../../test/workspaces";
 import { sessionAddress } from "./navAddresses";
 import { emptyShellPrefs, serializeShellPrefs, SHELL_PREFS_STORAGE } from "./prefs";
 
@@ -35,7 +36,7 @@ function sample(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work/myaid" },
+      { botId: "bot", workspaceId: "ws-work" },
       "dlg",
     ),
     "dlg",
@@ -52,12 +53,18 @@ function expandedPrefs(): string {
   return serializeShellPrefs(prefs);
 }
 
-function start(options: { prefs?: string } = {}) {
+function start(options: { prefs?: string; pinned?: string[] } = {}) {
   return open("../../App.tsx", {
     ...desktop,
     storage: {
       [REGISTRY_STORAGE_KEY]: serializeRegistry(sample()),
       [SHELL_PREFS_STORAGE]: options.prefs ?? expandedPrefs(),
+      ...workspaceStorage({
+        rows: [
+          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+        ],
+        ...(options.pinned ? { pinned: options.pinned } : {}),
+      }),
     },
   });
 }
@@ -70,6 +77,18 @@ function sessionAddressOf() {
     dialogueId: "dlg",
   });
 }
+
+test("a Session pinned in dsh's Workspace stands in Favorites", async () => {
+  const app = await start({ pinned: ["s1"] });
+  // The Dialogues section and Favorites both show it (Bots is folded one level up).
+  await app.waitUntil(() => app.count("role:treeitem[First run]") === 2, { timeout: 5000 });
+  const texts = app.texts();
+  // Favorites is the first section, so its row comes before the Dialogues one.
+  const first = texts.findIndex((text) => text === "First run");
+  const dialogues = texts.indexOf("Dialogues");
+  expect(first).toBeGreaterThanOrEqual(0);
+  expect(first).toBeLessThan(dialogues);
+});
 
 test("the filter narrows the tree to matching Bots, Dialogues and Sessions", async () => {
   const app = await start();
@@ -98,14 +117,17 @@ test("a row's context menu acts on that row and does not open it", async () => {
   // The right click opened no Panel: the Workbench is still empty.
   expect(app.shows("id:tab-panel-1 >> text:Empty")).toBe(true);
 
+  // Pinning goes to dsh's Workspace. With no Host the call is refused, the
+  // row stays, and the refusal is what the shell shows.
   await app.press("text:Add to Favorites");
-  // The same Session now stands in Bots and in Favorites.
-  await app.waitUntil(() => app.count("role:treeitem[First run]") === 2);
-  expect(app.texts()).not.toContain("Archive Session");
+  await app.waitFor("id:action-error-notice");
+  expect(app.count("role:treeitem[First run]")).toBe(1);
 
   await app.rightClick("text:First run >> nth=0");
   await app.press("text:Archive Session");
-  await app.waitUntil(() => app.count("role:treeitem[First run]") === 0);
+  // Same refusal for the archive: dsh owns it, and it is not running here.
+  await app.waitFor("id:action-error-notice");
+  expect(app.count("role:treeitem[First run]")).toBe(1);
 });
 
 test("renaming a Session from its menu relabels the row", async () => {

@@ -9,6 +9,8 @@ import {
   type ListedSession,
   type ProductSession,
 } from "../../bots/sessions";
+import type { WorkspaceProjection } from "../../workspace/projection";
+import { orderedClaims } from "../../workspace/projection";
 
 /** Live status a SessionController (or a finished off-screen turn) reports. */
 export type SessionStatus = {
@@ -25,7 +27,6 @@ export type SessionRow = {
   workspacePath: string;
   label: string;
   detail: string;
-  archived: boolean;
   missing: boolean;
   running: boolean;
   /** A reply finished while no Panel showed this Session. */
@@ -35,12 +36,11 @@ export type SessionRow = {
 };
 
 export function sessionDetail(
-  item: Pick<ProductSession, "botName" | "archived" | "missing" | "workspacePath">,
+  item: Pick<ProductSession, "botName" | "missing" | "workspacePath">,
   running: boolean,
 ): string {
   const bits = [item.botName, item.workspacePath];
   if (running) bits.push("执行中");
-  if (item.archived) bits.push("已归档");
   if (item.missing) bits.push("待核对");
   return bits.join(" · ");
 }
@@ -49,6 +49,7 @@ export function sessionDetail(
 export function buildSessionRoster(input: {
   registry: BotRegistry;
   listed: ListedSession[] | null;
+  workspaces: WorkspaceProjection;
   scopeDialogueId?: string | null;
   scopeBotId?: string | null;
   summaries: Map<string, string>;
@@ -56,7 +57,7 @@ export function buildSessionRoster(input: {
   const listedRunning = new Map(
     (input.listed ?? []).map((item) => [item.sessionId, item.running === true]),
   );
-  return listProductSessions(input.registry, input.listed, {
+  return listProductSessions(input.registry, input.listed, input.workspaces, {
     dialogueId: input.scopeDialogueId ?? null,
     botId: input.scopeBotId ?? null,
   }).map((item) => {
@@ -71,7 +72,6 @@ export function buildSessionRoster(input: {
       workspacePath: item.workspacePath,
       label: sessionLabel(item, input.summaries.get(item.sessionId) ?? null),
       detail: sessionDetail(item, running),
-      archived: item.archived,
       missing: item.missing,
       running,
       unread: false,
@@ -99,22 +99,35 @@ export function withStatuses(
 }
 
 /**
- * One Dialogue's rows: the live roster's rows for it, then every claim the
- * roster does not have yet (before dsh is listed, or a claim dsh did not
- * report). Open Panels read this, not a scope signal.
+ * One Dialogue's rows in the Workspace's own Session order, then any row the
+ * Workspace no longer accounts (a claim dsh did not report, kept visible).
+ * Open Panels read this, not a scope signal.
  */
 export function rosterForDialogue(input: {
   registry: BotRegistry;
   dialogueId: string;
   rows: readonly SessionRow[];
+  workspaces: WorkspaceProjection;
 }): SessionRow[] {
-  const known = input.rows.filter((row) => row.dialogueId === input.dialogueId);
-  const seen = new Set(known.map((row) => row.id));
-  const unlisted = listProductSessions(input.registry, null, {
-    dialogueId: input.dialogueId,
-  })
-    .filter((item) => !seen.has(item.sessionId))
-    .map((item) => ({
+  const dialogue = input.registry.dialogues.find((item) => item.id === input.dialogueId);
+  const live = new Map(input.rows.map((row) => [row.id, row]));
+  const claimed = new Map(
+    listProductSessions(input.registry, null, input.workspaces, {
+      dialogueId: input.dialogueId,
+    }).map((item) => [item.sessionId, item]),
+  );
+  const ordered: SessionRow[] = [];
+  const seen = new Set<string>();
+  for (const claim of dialogue ? orderedClaims(input.workspaces, dialogue, dialogue.claims) : []) {
+    seen.add(claim.sessionId);
+    const row = live.get(claim.sessionId);
+    if (row) {
+      ordered.push(row);
+      continue;
+    }
+    const item = claimed.get(claim.sessionId);
+    if (!item) continue;
+    ordered.push({
       id: item.sessionId,
       dialogueId: item.dialogueId,
       botId: item.botId,
@@ -122,13 +135,14 @@ export function rosterForDialogue(input: {
       workspacePath: item.workspacePath,
       label: sessionLabel(item, null),
       detail: sessionDetail(item, false),
-      archived: item.archived,
       missing: false,
       running: false,
       unread: false,
       attention: false,
-    }));
-  return [...unlisted, ...known];
+    });
+  }
+  const rest = input.rows.filter((row) => row.dialogueId === input.dialogueId && !seen.has(row.id));
+  return [...ordered, ...rest];
 }
 
 /** Relabel one row after a transient summary changes. */

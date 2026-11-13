@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded by 0005 for Dialogue name and archive
 ---
 
 # Bot identity、Dialogue 名与归档是客户端注册表数据
+
+> **Dialogue 名与归档已被 [ADR 0005](0005-dialogue-on-dsh-workspace.md) 取代**：名字是 dsh Workspace 的 title，归档是 Session 级的 dsh 归档集合。本文剩下 **Bot identity 归注册表** 这一部分继续有效；下文 v4 的字段描述保留为历史。
 
 ## 决定
 

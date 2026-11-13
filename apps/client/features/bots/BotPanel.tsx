@@ -18,10 +18,11 @@ import {
   radius,
   type Tone,
 } from "../../components/ui";
+import { createDialogueOnPath } from "../workspace/dialogues";
+import { orderedDialogues, workspaceOf, workspacePath, workspaces } from "../workspace/state";
 import { defaultIdentity } from "./identity";
 import {
   createBot,
-  createDialogue,
   createTemplate,
   deleteBot,
   initializeBot,
@@ -87,7 +88,10 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
   const template = () => templates().find((item) => item.id === chosenTemplateId()) ?? null;
   const readyBot = () => stored()?.status === "ready";
   const dialogues = () =>
-    registry().dialogues.filter((item) => item.botId === props.botId && !item.archived);
+    orderedDialogues(
+      workspaces(),
+      registry().dialogues.filter((item) => item.botId === props.botId),
+    );
 
   /** The Bot as the form would save it (a draft included), for the preset line. */
   const draftBot = (): Bot => {
@@ -154,18 +158,15 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
     const bot = stored();
     const path = workspace().trim();
     if (!bot || !path) return;
-    const next = await changeRegistry((reg) =>
-      createDialogue(reg, { botId: bot.id, workspacePath: path }),
-    );
-    if (!next) return;
-    const created = next.dialogues.filter((item) => item.botId === bot.id).at(-1);
+    const created = await createDialogueOnPath(bot.id, path);
+    // A refusal (no Host, an unknown directory) is already on `actionError`.
     if (!created) return;
     workspace.set("");
     setPanelAddress(
       props.panelId,
       dialogueAddress({
         id: created.id,
-        workspacePath: created.workspacePath,
+        title: workspaceOf(workspaces(), created)?.title ?? "",
         botId: bot.id,
         botName: bot.name,
       }),
@@ -406,7 +407,7 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
               <Each of={dialogues()}>
                 {(dialogue) => (
                   <EntryRow
-                    title={dialogue().workspacePath}
+                    title={workspacePath(workspaces(), dialogue()) || dialogue().workspaceId}
                     detail={`${dialogue().claims.length} 个 Session`}
                     onPress={() => {
                       const bot = stored();
@@ -415,7 +416,7 @@ export function BotPanel(props: { panelId: string; botId: string | null }) {
                         props.panelId,
                         dialogueAddress({
                           id: dialogue().id,
-                          workspacePath: dialogue().workspacePath,
+                          title: workspaceOf(workspaces(), dialogue())?.title ?? "",
                           botId: bot.id,
                           botName: bot.name,
                         }),

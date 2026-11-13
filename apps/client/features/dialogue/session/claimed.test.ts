@@ -31,7 +31,7 @@ function readyRegistry(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work" },
+      { botId: "bot", workspaceId: "ws-work" },
       "dlg",
     ),
     "dlg",
@@ -125,6 +125,29 @@ test("createClaimed creates then claims, and leaves following to the Session con
   expect(id).toBe("created");
   expect(order).toEqual(["create", "claim:dlg:created"]);
   expect(client.getTransport()?.ready).toBe(true);
+});
+
+test("createClaimed asks the session controller for the Dialogue's Workspace", async () => {
+  const registry = readyRegistry();
+  const requests: { workspaceId?: string; agentPreset?: string; cwd?: string }[] = [];
+  const transport = fakeTransport({
+    createSession: async (request) => {
+      requests.push(request);
+      return { sessionId: "created" };
+    },
+  });
+  const client = new ClaimedSessionClient(hooks(registry, transport));
+  const bot = registry.bots[0]!;
+  const dialogue = registry.dialogues[0]!;
+  await client.createClaimed({
+    dialogueId: dialogue.id,
+    dialogue,
+    bot,
+    agentPreset: "standard",
+  });
+  // dsh's session.create({ workspaceId }) is the create-then-attach flow: the
+  // Workspace records the Session, so the Client passes no cwd of its own.
+  expect(requests).toEqual([{ workspaceId: "ws-work", agentPreset: "standard" }]);
 });
 
 test("occupancy blocks another running Session in the same workspace", () => {

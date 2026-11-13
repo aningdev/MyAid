@@ -33,8 +33,10 @@
 
 - 认证 WS 用标准 `websocket`：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包装成官方 dsh 要的 EventTarget。`nsh.json` 的 `capabilities.network.http` 只放行回环 dsh 端点；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
 - wire 类型从 [`@myaid/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
-- Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。**永不调用** `workspace.*` 会话容器与 `account.*`。
-- 产品层级是 **Bot → Dialogue → Session**：Session 认领到 Dialogue（一对一官方 Session），未认领不进产品列表；workspace path 属 Dialogue。
+- Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
+- **Dialogue 建在 dsh Workspace 上**（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)）：`workspace.create` / `rename` / `archiveSession` / `unarchiveSession` / `pinSession` / `unpinSession` / `insertSessionBefore` 是名字、置顶、归档与顺序的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。不要在注册表里重建这些字段。
+- `workspace.follow` 是 Workspace 状态的**唯一读入口**：`features/workspace/state.ts` 把帧投影成 NSH signal（`updatedAt` 新者胜），视图只读它。官方 `ClientWorkspaceModel` 只发布浏览器 ModuleLoader 形态、无 `node` 条件（且依赖未发布包），NSH 加载不了——不要改回直接 import 它。
+- 产品层级是 **Bot → Dialogue → Session**：Session 认领到 Dialogue（一对一官方 Session），未认领不进产品列表。一个 Dialogue = 一个 Bot 对一个 Workspace 的视角；同一个目录上的两个 Bot 共享 Workspace 的顺序、置顶与归档。
 - `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下无 ESM `installConnection`；用 `bun run prepare:sdk` 打出的 `lib/dsh/sdk.js`（`nsh.json` 的 `resolve.conditions: ["node"]` 兜底）。勿手改该产物。
 - 认证与心跳细节的唯一下沉文档：[docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
 
@@ -52,7 +54,7 @@
 - 应用生命周期走官方 `nsh check` / `nsh test`；工作区编排用 `vp run @myaid/client#…`。命令清单在 README。
 - Bun 单测不能证明 NSH 权限或原生绑定；触及这些能力时用 `nsh test` / 集成入口。
 - 真 Host 冒烟是 opt-in（`MYAID_SMOKE_HOST_SOCKET`）；默认 `nsh test` 不得需要活 Host。
-- 测试隔离：所有打开 app 的测试经 [`test/open`](test/open.ts)（`nsh test` 的 host 参数 `myaidTest`），注册表与 prefs 落到该 app 的 Storage，绝不用真实 `~/.myaid`；`test/data-root.test.tsx` 是这条 seam 的 guard。
+- 测试隔离：所有打开 app 的测试经 [`test/open`](test/open.ts)（`nsh test` 的 host 参数 `myaidTest`），注册表与 prefs 落到该 app 的 Storage，绝不用真实 `~/.myaid`；`test/data-root.test.tsx` 是这条 seam 的 guard。没有 Host 的 app 测试用 [`test/workspaces`](test/workspaces.ts) 预置 Workspace baseline（与 dsh 发出的帧同形），生产路径只读 `workspace.follow`。
 - 宿主发现、generation、换连与退役清理应有单一协调者；切换对象后丢弃旧异步结果。
 
 ## 文档

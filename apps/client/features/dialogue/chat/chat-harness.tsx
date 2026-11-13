@@ -16,6 +16,7 @@ import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { mount, signal, Text, View } from "nsh";
 
 import { Press } from "../../../components/ui";
+import { workspaceProjection, workspaceRow } from "../../../test/workspaces";
 import {
   claimSession,
   createBot,
@@ -26,6 +27,7 @@ import {
   type BotRegistry,
 } from "../../bots/model";
 import { ready, registry } from "../../bots/state";
+import { workspaces } from "../../workspace/state";
 import { ChatPane } from "../ChatPane";
 import {
   type ApprovalDecision,
@@ -40,6 +42,7 @@ type Queued = { id: string; requestId: string; text: string };
 
 const BOT = "bot";
 const DIALOGUE = "dlg";
+const WORKSPACE = "ws-work";
 const FIRST = "s1";
 const SECOND = "s2";
 
@@ -81,7 +84,7 @@ function harnessRegistry(): BotRegistry {
           ),
           BOT,
         ),
-        { botId: BOT, workspacePath: "/work/myaid" },
+        { botId: BOT, workspaceId: WORKSPACE },
         DIALOGUE,
       ),
       DIALOGUE,
@@ -357,12 +360,18 @@ function contentText(content: readonly unknown[] | undefined): string {
 function Harness() {
   registry.set(harnessRegistry());
   ready.set(true);
+  workspaces.set(
+    workspaceProjection({
+      rows: [workspaceRow({ id: WORKSPACE, path: "/work/myaid", sessionIds: [SECOND, FIRST] })],
+    }),
+  );
 
   const transport = scriptedTransport();
   const controllers = new SessionRegistry({
     ensureTransport: async () => transport,
     transport: () => transport,
     registry: () => registry(),
+    sessionArchived: () => false,
     summaries: () => new Map(),
     onChange: () => undefined,
   });

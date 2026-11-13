@@ -7,21 +7,21 @@
 import { Text, View, type JSX } from "nsh";
 import { ContextMenu, MenuItem, MenuSeparator } from "nsh/base";
 
-import {
-  archiveClaim,
-  archiveDialogue,
-  claimOwner,
-  deleteBot,
-  type Dialogue,
-} from "../../features/bots/model";
+import { claimOwner, deleteBot, type Dialogue } from "../../features/bots/model";
 import { sessionLabel } from "../../features/bots/sessions";
 import { openBotSettings } from "../../features/bots/settings";
 import { changeRegistry, registry, setActionError } from "../../features/bots/state";
 import { requestComposerFocus } from "../../features/dialogue/chat/focus";
 import { createSession } from "../../features/dialogue/session/runtime";
+import {
+  archiveDialogueSession,
+  messageOf,
+  sessionPinned,
+  setSessionPinned,
+} from "../../features/workspace/dialogues";
+import { WorkspaceActionError, workspaceTitle, workspaces } from "../../features/workspace/state";
 import { colors, Icon, type IconName } from "../ui";
-import { isFavorite, removeFavorite, toggleFavorite } from "./favorites";
-import { dialogueSegment, sessionAddress, dialogueAddress } from "./navAddresses";
+import { dialogueAddress, sessionAddress } from "./navAddresses";
 import { navAddressForId } from "./navData";
 import { openNewDialogue, openRename } from "./navSheets";
 import { openAddress, panelContents, setPanelAddress } from "./state";
@@ -88,7 +88,7 @@ export function contextEntries(address: NavAddress | undefined): Entry[] {
           id: "dialogue-new-session",
           label: "New Session",
           icon: "plus",
-          disabled: dialogue.archived || bot?.status !== "ready",
+          disabled: bot?.status !== "ready",
           onSelect: () => void newSession(dialogue),
         },
         {
@@ -96,29 +96,20 @@ export function contextEntries(address: NavAddress | undefined): Entry[] {
           id: "dialogue-rename",
           label: "Rename…",
           icon: "text",
-          disabled: dialogue.archived,
           onSelect: () =>
             openRename({
               kind: "dialogue",
               dialogueId: dialogue.id,
-              value: dialogueSegment(dialogue),
+              value: workspaceTitle(workspaces(), dialogue),
             }),
-        },
-        { kind: "separator", id: "dialogue-separator" },
-        {
-          kind: "item",
-          id: "dialogue-archive",
-          label: "Archive Dialogue",
-          icon: "storage",
-          disabled: dialogue.archived,
-          onSelect: () => void removeDialogue(dialogue.id),
         },
       ];
     }
     case "session": {
       const owner = address.sessionId ? claimOwner(registry(), address.sessionId) : null;
       if (!owner) return [];
-      const favorite = isFavorite(address.id);
+      // Favorites' session rows are dsh's pin set, not a client preference.
+      const pinned = sessionPinned(owner.claim.sessionId);
       return [
         {
           kind: "item",
@@ -136,12 +127,9 @@ export function contextEntries(address: NavAddress | undefined): Entry[] {
         {
           kind: "item",
           id: "session-favorite",
-          label: favorite ? "Remove from Favorites" : "Add to Favorites",
+          label: pinned ? "Remove from Favorites" : "Add to Favorites",
           icon: "star",
-          onSelect: () => {
-            if (favorite) removeFavorite(address.id);
-            else toggleFavorite(address);
-          },
+          onSelect: () => void setPinned(owner.claim.sessionId, !pinned),
         },
         { kind: "separator", id: "session-separator" },
         {
@@ -149,7 +137,7 @@ export function contextEntries(address: NavAddress | undefined): Entry[] {
           id: "session-archive",
           label: "Archive Session",
           icon: "storage",
-          onSelect: () => void archiveSession(owner.dialogue, owner.claim.sessionId),
+          onSelect: () => void archiveSession(owner.claim.sessionId),
         },
       ];
     }
@@ -220,23 +208,41 @@ async function removeBot(botId: string): Promise<void> {
   if (!next) setActionError("This Bot cannot be deleted.");
 }
 
-async function removeDialogue(dialogueId: string): Promise<void> {
-  await changeRegistry((registry) => archiveDialogue(registry, dialogueId));
+async function setPinned(sessionId: string, pinned: boolean): Promise<void> {
+  try {
+    await setSessionPinned(sessionId, pinned);
+  } catch (error) {
+    setActionError(messageOf(error));
+  }
 }
 
-async function archiveSession(dialogue: Dialogue, sessionId: string): Promise<void> {
-  const next = await changeRegistry((registry) => archiveClaim(registry, dialogue.id, sessionId));
-  if (!next) return;
-  // Panels showing the archived Session fall back to its Dialogue.
-  const bot = registry().bots.find((item) => item.id === dialogue.botId) ?? null;
+/**
+ * Archive one Session through dsh's Workspace. A Session that still works is
+ * refused (`workspace/session-active`); its Panel stays put and the Navigator
+ * offers "Stop and archive". An archived Session's Panels fall back to its
+ * Dialogue once dsh's own follow frame says so.
+ */
+async function archiveSession(sessionId: string): Promise<void> {
+  try {
+    await archiveDialogueSession(sessionId);
+  } catch (error) {
+    // The active refusal already has its own Stop-and-archive notice.
+    if (!(error instanceof WorkspaceActionError && error.code === "workspace/session-active")) {
+      setActionError(messageOf(error));
+    }
+    return;
+  }
+  const owner = claimOwner(registry(), sessionId);
+  if (!owner) return;
   for (const [panelId, address] of Object.entries(panelContents())) {
     if (address?.sessionId !== sessionId) continue;
+    const bot = registry().bots.find((item) => item.id === owner.bot.id) ?? null;
     setPanelAddress(
       panelId,
       dialogueAddress({
-        id: dialogue.id,
-        workspacePath: dialogue.workspacePath,
-        botId: dialogue.botId,
+        id: owner.dialogue.id,
+        title: workspaceTitle(workspaces(), owner.dialogue),
+        botId: owner.bot.id,
         botName: bot?.name ?? "",
       }),
     );

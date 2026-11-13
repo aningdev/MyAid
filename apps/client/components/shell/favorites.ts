@@ -1,8 +1,9 @@
 /**
- * The Favorites section's pins: Navigator addresses a person keeps at the
- * top. They live in client preferences (prefs.ts reads and writes this
- * signal), not in the registry: they are a view of this computer, and the
- * address they name may outlive a Dialogue or a Session.
+ * The Favorites section's own pins: Bot / Dialogue / Settings addresses a
+ * person keeps at the top. They live in client preferences (prefs.ts reads and
+ * writes this signal), not in the registry: they are a view of this computer,
+ * and the address they name may outlive the object. Sessions are pinned in
+ * dsh's Workspace instead and never stored here.
  */
 import { signal, untracked } from "nsh";
 

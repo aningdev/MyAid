@@ -73,7 +73,8 @@ vp run @myaid/client#package:web
 
 ## 数据
 
-- 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 4 存 templates、Bots 与 Dialogues；v3 文件读取时迁移，v2 及更早拒绝。Identity、Dialogue 名与归档都在注册表，不在 dsh preset 正文 —— 见 [ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)。
+- 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 5 存 templates、Bots 与 Dialogues（`botId` + `workspaceId`）。v3 / v4 文件在连上 Host 前只读：迁移把每个 Dialogue 的 path、名字与 archived claim 交给 dsh Workspace（旧文件备份为 `bots.json.v4.bak`）。Identity 仍在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Dialogue 名、Session 顺序、置顶与归档归 dsh Workspace（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)）。
+- Workspace：`features/workspace` 把 `workspace.follow` 投影成 signal。官方 `ClientWorkspaceModel` 只发布浏览器 `window.__ModuleLoader__` 形态（无 `node` 条件，且依赖未发布的 `dsh-client-store`），NSH 改为直接消费 Remote 的帧与返回。
 - 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。覆盖 Navigator、Workbench 与 Favorites。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
 - `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md)。
 

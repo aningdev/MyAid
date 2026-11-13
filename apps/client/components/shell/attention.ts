@@ -16,6 +16,7 @@ import { claimOwner } from "../../features/bots/model";
 import { sessionLabel } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { sessionList, type SessionRow } from "../../features/dialogue/session/runtime";
+import { isSessionArchived, workspaces } from "../../features/workspace/state";
 import { sessionAddress } from "./navAddresses";
 import { activeAddress, openAddress } from "./state";
 
@@ -106,7 +107,7 @@ function openFromNotification(id: string): void {
   const sessionId = sessionFromNotification(id);
   if (!sessionId) return;
   const owner = claimOwner(untracked(registry), sessionId);
-  if (!owner || owner.claim.archived || owner.dialogue.archived) return;
+  if (!owner || isSessionArchived(untracked(workspaces), sessionId)) return;
   openAddress(
     sessionAddress({
       sessionId,

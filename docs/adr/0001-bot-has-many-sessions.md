@@ -13,13 +13,13 @@ Bot 曾被定义成唯一一条持续会话。产品要在同一 Bot 下并行�
 
 在「Bot 下多条 Harness Session」之上增加产品对象 **Dialogue**：
 
-| 对象         | 角色                                                                                             |
-| ------------ | ------------------------------------------------------------------------------------------------ |
-| **Bot**      | 联系人式档案；能力真源 = 一个（常派生的）Agent preset                                            |
-| **Dialogue** | 与该 Bot 的一段长线对话；绑定一个 workspace path；**1 Bot : N Dialogue**（如 coding bot 多项目） |
-| **Session**  | Dialogue 内的一个上下文场景 = 一条 DSH Session；**1 Dialogue : N Session**                       |
-| **Claim**    | Session → Dialogue                                                                               |
-| **Archive**  | 默认归档 Dialogue；其下 Session 退出活跃入口；不删 dsh 日志                                      |
+| 对象         | 角色                                                                                                                                                |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bot**      | 联系人式档案；能力真源 = 一个（常派生的）Agent preset                                                                                               |
+| **Dialogue** | 与该 Bot 的一段长线对话；指向一个 dsh Workspace（见 [ADR 0005](0005-dialogue-on-dsh-workspace.md)）；**1 Bot : N Dialogue**（如 coding bot 多项目） |
+| **Session**  | Dialogue 内的一个上下文场景 = 一条 DSH Session；**1 Dialogue : N Session**                                                                          |
+| **Claim**    | Session → Dialogue                                                                                                                                  |
+| **Archive**  | 归档 Session（dsh Workspace 的归档集合）；不删 dsh 日志                                                                                             |
 
 连续聊默认同一 Session；显式「新上下文」才新 Session。产品口语 **Runner** = `dsh web` / web profile，非 DSH 专名。
 
@@ -32,6 +32,6 @@ Bot 曾被定义成唯一一条持续会话。产品要在同一 Bot 下并行�
 
 ## 后果
 
-同一 workspace path 同时只执行一条 Session。归档默认落在 Dialogue。Bot 视图与 Dialogue / Session 视图读同一份注册表。广义 Task 等生活域不是 Session。Deliverable 对齐 DSH 场景交付物，长 Dialogue 可有多个。
+同一 Workspace 同时只执行一条 Session。归档落在 dsh 的 Session 归档集合（[ADR 0005](0005-dialogue-on-dsh-workspace.md)）。Bot 视图与 Dialogue / Session 视图读同一份注册表。广义 Task 等生活域不是 Session。Deliverable 对齐 DSH 场景交付物，长 Dialogue 可有多个。
 
 映射图见 [BOT_SESSION_MAP](../BOT_SESSION_MAP.md)。

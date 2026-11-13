@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { workspaceProjection, workspaceRow } from "../../../test/workspaces";
 import {
   claimSession,
   createBot,
@@ -9,6 +10,11 @@ import {
   initializeBot,
 } from "../../bots/model";
 import { buildSessionRoster, sessionDetail, withStatuses, type SessionRow } from "./roster";
+
+/** The Dialogue's Workspace: path "/work", Session order old then new. */
+const WORKS = workspaceProjection({
+  rows: [workspaceRow({ id: "ws-work", path: "/work", title: "work", sessionIds: ["old", "new"] })],
+});
 
 function readyBot() {
   return claimSession(
@@ -22,7 +28,7 @@ function readyBot() {
           ),
           "bot",
         ),
-        { botId: "bot", workspacePath: "/work" },
+        { botId: "bot", workspaceId: "ws-work" },
         "dlg",
       ),
       "dlg",
@@ -41,6 +47,7 @@ test("roster marks missing claims and Host-reported running", () => {
       { sessionId: "new", blank: true, updatedAt: 20, running: true },
       { sessionId: "old", blank: false, updatedAt: 10, running: false },
     ],
+    workspaces: WORKS,
     scopeBotId: "bot",
     summaries: new Map([["new", "修复登录"]]),
   });
@@ -59,6 +66,7 @@ test("a controller's status wins over the listing and carries unread / attention
   const rows = buildSessionRoster({
     registry,
     listed: [{ sessionId: "new", blank: false, updatedAt: 20, running: true }],
+    workspaces: WORKS,
     summaries: new Map(),
   });
   const decorated = withStatuses(
@@ -78,6 +86,7 @@ test("missing claims are marked and never running", () => {
   const rows = buildSessionRoster({
     registry,
     listed: [{ sessionId: "new", blank: false, updatedAt: 20 }],
+    workspaces: WORKS,
     summaries: new Map(),
   });
   expect(rows.find((row) => row.id === "old")?.missing).toBe(true);
@@ -89,6 +98,7 @@ test("scopeDialogueId filters to one Dialogue", () => {
   const rows = buildSessionRoster({
     registry,
     listed: null,
+    workspaces: WORKS,
     scopeDialogueId: "dlg",
     summaries: new Map(),
   });
@@ -103,6 +113,7 @@ test("unclaimed sessions never appear", () => {
       { sessionId: "new", blank: false, updatedAt: 1 },
       { sessionId: "stranger", blank: false, updatedAt: 99 },
     ],
+    workspaces: WORKS,
     scopeBotId: null,
     summaries: new Map(),
   });
@@ -110,10 +121,7 @@ test("unclaimed sessions never appear", () => {
 });
 
 test("sessionDetail names the running state", () => {
-  const detail = sessionDetail(
-    { botName: "Ada", archived: false, missing: false, workspacePath: "/work" },
-    true,
-  );
+  const detail = sessionDetail({ botName: "Ada", missing: false, workspacePath: "/work" }, true);
   expect(detail).toContain("执行中");
 });
 
@@ -125,11 +133,7 @@ test("withStatuses leaves un-followed rows as the listing reported them", () => 
     botName: "Ada",
     workspacePath: "/work",
     label: "a",
-    detail: sessionDetail(
-      { botName: "Ada", archived: false, missing: false, workspacePath: "/work" },
-      true,
-    ),
-    archived: false,
+    detail: sessionDetail({ botName: "Ada", missing: false, workspacePath: "/work" }, true),
     missing: false,
     running: true,
     unread: false,

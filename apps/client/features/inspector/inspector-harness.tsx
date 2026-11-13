@@ -12,6 +12,7 @@ import { mount, View } from "nsh";
 import { sessionAddress } from "../../components/shell/navAddresses";
 import { setPanelAddress } from "../../components/shell/state";
 import { colors } from "../../components/ui";
+import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { BotSettings } from "../bots/BotSettings";
 import { setBotFactsSource } from "../bots/facts";
 import {
@@ -28,12 +29,14 @@ import { ChatPane } from "../dialogue/ChatPane";
 import type { SessionTransport } from "../dialogue/session/claimed";
 import { SessionRegistry } from "../dialogue/session/controller";
 import { modelCatalog, refreshSessionList, sessionReady } from "../dialogue/session/runtime";
+import { workspaces } from "../workspace/state";
 import { setInspectorSource } from "./facts";
 import { Inspector } from "./Inspector";
 
 export const BOT = "bot";
 export const DIALOGUE = "dlg";
 export const SESSION = "s1";
+const WORKSPACE = "ws-release";
 
 registry.set(
   renameClaim(
@@ -54,7 +57,7 @@ registry.set(
           ),
           BOT,
         ),
-        { botId: BOT, workspacePath: "/Users/ada/release" },
+        { botId: BOT, workspaceId: WORKSPACE },
         DIALOGUE,
       ),
       DIALOGUE,
@@ -66,6 +69,18 @@ registry.set(
   ),
 );
 ready.set(true);
+workspaces.set(
+  workspaceProjection({
+    rows: [
+      workspaceRow({
+        id: WORKSPACE,
+        path: "/Users/ada/release",
+        title: "release",
+        sessionIds: [SESSION],
+      }),
+    ],
+  }),
+);
 // The Inspector reads usage once the Connection is up; this harness is its Host.
 sessionReady.set(true);
 void refreshSessionList();
@@ -166,6 +181,7 @@ const controllers = new SessionRegistry({
   ensureTransport: async () => transport,
   transport: () => transport,
   registry: () => registry(),
+  sessionArchived: () => false,
   summaries: () => new Map(),
   onChange: () => undefined,
 });

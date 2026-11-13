@@ -49,24 +49,24 @@ MyAid 要做 **all-in-one 个人助手**：把个人生活与工作里「人与 
 决定见 [ADR 0001](adr/0001-bot-has-many-sessions.md)。映射图见 [BOT_SESSION_MAP](BOT_SESSION_MAP.md)。
 
 - **Bot**：联系人式档案；能力真源为共用 `web` profile 上的一个 Agent preset（模板绑定或派生；`plugins` 承载指令、工具、skills、可选 MCP 等）。**1 : N Dialogue**。≠ live Agent。
-- **Dialogue**：与该 Bot 的一段长线对话；**绑定一个 workspace path**。Coding bot 多项目 = 同一 Bot 下多个 Dialogue。草稿 Bot 无 Dialogue。
+- **Dialogue**：与该 Bot 的一段长线对话 = 该 Bot 对一个 **dsh Workspace** 的视角。Coding bot 多项目 = 同一 Bot 下多个 Dialogue；两个 Bot 看同一目录 → 两个 Dialogue、一个 Workspace。草稿 Bot 无 Dialogue。
 - **Session**：Dialogue 内的一个上下文场景 = 一条 DSH Session。连续聊默认同一 Session；显式「新上下文」才新建。
 - **认领**：Session → Dialogue（Dialogue 已属 Bot）。未认领 Session 不进产品列表。
-- **归档**：默认归档 **Dialogue**；其下 Session 退出活跃入口；不删除 dsh 日志；不退役 Bot。
+- **归档**：归档 **Session**（dsh Workspace 的归档集合）；退出活跃入口；不删除 dsh 日志；不退役 Bot。名字、置顶与顺序也归 dsh Workspace（[ADR 0005](adr/0005-dialogue-on-dsh-workspace.md)）。
 - 进入 Bot 先看到其 Dialogue 列表；进入 Dialogue 再看/切换其下 Session。不自动打开某一条。
-- 能力与默认模型属于 **Bot**（preset）；工作区路径属于 **Dialogue**。同一 workspace path 同时只有一条 Session 可执行；路径不同可并行。
+- 能力与默认模型属于 **Bot**（preset）；工作区属于 dsh 的 **Workspace**，Dialogue 只引用它。同一 Workspace 同时只有一条 Session 可执行；Workspace 不同可并行。
 - 可先保存未就绪 Bot，条件满足后再初始化；失败保留草稿与修复入口。
 - 执行结束 ≠ Task 完成。有未决审批时留在该 Session 及其 Dialogue / Bot 上下文中；缺少审批 UI 不能默认放行。
 - 域对象不是 Session；禁止把域列表塞进 Session 事件模型冒充产品存储。
 
 ## 配置所有权
 
-| 真源                | 内容                                                                        |
-| ------------------- | --------------------------------------------------------------------------- |
-| dsh / 上游 settings | 模型供应商、端点、凭据（密钥不入客户端文件）                                |
-| 桌面注册表          | Bot / Dialogue / Claim、模板引用、默认模型偏好、Dialogue 的 workspace path  |
-| 界面偏好            | 主题、窗口等非关键状态                                                      |
-| 域数据（目标）      | 邮件索引、Task、知识与笔记等；权威落点按域另定，不默认写入 dsh Session 日志 |
+| 真源                | 内容                                                                             |
+| ------------------- | -------------------------------------------------------------------------------- |
+| dsh / 上游 settings | 模型供应商、端点、凭据（密钥不入客户端文件）                                     |
+| 桌面注册表          | Bot / Dialogue（botId + workspaceId）/ Claim、模板引用、默认模型与默认工作区偏好 |
+| 界面偏好            | 主题、窗口等非关键状态                                                           |
+| 域数据（目标）      | 邮件索引、Task、知识与笔记等；权威落点按域另定，不默认写入 dsh Session 日志      |
 
 桌面独占写注册表；移动端（未来）只读快照。
 

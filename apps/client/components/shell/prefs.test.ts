@@ -10,6 +10,8 @@ import {
   renameClaim,
   type BotRegistry,
 } from "../../features/bots/model";
+import type { WorkspaceProjection } from "../../features/workspace/state";
+import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { botAddress, dialogueAddress, sessionAddress } from "./navAddresses";
 import {
   emptyShellPrefs,
@@ -19,6 +21,11 @@ import {
   serializeShellPrefs,
   type ShellPrefs,
 } from "./prefs";
+
+/** The fixture Dialogue's Workspace: title "myaid", Session "s1". */
+const WORKS: WorkspaceProjection = workspaceProjection({
+  rows: [workspaceRow({ id: "ws-myaid", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] })],
+});
 
 function sample(): BotRegistry {
   const created = claimSession(
@@ -31,7 +38,7 @@ function sample(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work/myaid" },
+      { botId: "bot", workspaceId: "ws-myaid" },
       "dlg",
     ),
     "dlg",
@@ -105,7 +112,9 @@ test("a restored Workbench resolves current titles and empties missing objects",
     },
     activePanelId: "p2",
   };
-  const restored = restoreWorkbenchSnapshot(stored, (address) => resolveAddress(address, registry));
+  const restored = restoreWorkbenchSnapshot(stored, (address) =>
+    resolveAddress(address, registry, WORKS),
+  );
   expect(restored.contents.p1).toMatchObject({
     id: "session:s1",
     title: "First run",
@@ -115,36 +124,35 @@ test("a restored Workbench resolves current titles and empties missing objects",
   expect(restored.activePanelId).toBe("p2");
 });
 
-test("an archived Dialogue or claim does not resolve; a renamed Dialogue does", () => {
+test("an archived Session does not resolve; a renamed Workspace does", () => {
   const registry = sample();
   const dialogue = dialogueAddress({
     id: "dlg",
-    workspacePath: "/work/myaid",
+    title: "myaid",
     botId: "bot",
     botName: "Ada",
     label: "Old name",
   });
-  expect(resolveAddress(dialogue, registry)?.title).toBe("Ada · myaid");
+  expect(resolveAddress(dialogue, registry, WORKS)?.title).toBe("Ada · myaid");
 
-  const archivedClaims = {
-    ...registry,
-    dialogues: registry.dialogues.map((item) => ({
-      ...item,
-      claims: item.claims.map((claim) => ({ ...claim, archived: true })),
-    })),
-  };
+  // dsh archived the Session: its address comes back as nothing.
+  const archived = workspaceProjection({
+    rows: [workspaceRow({ id: "ws-myaid", path: "/work/myaid", title: "myaid" })],
+    archived: ["s1"],
+  });
   expect(
     resolveAddress(
       sessionAddress({ sessionId: "s1", label: "First run", botId: "bot", dialogueId: "dlg" }),
-      archivedClaims,
+      registry,
+      archived,
     ),
   ).toBe(null);
 
-  const archived = {
-    ...registry,
-    dialogues: registry.dialogues.map((item) => ({ ...item, archived: true })),
-  };
-  expect(resolveAddress(dialogue, archived)).toBe(null);
+  // A retitled Workspace reads its new name, not the stored label.
+  const renamed = workspaceProjection({
+    rows: [workspaceRow({ id: "ws-myaid", path: "/work/myaid", title: "release" })],
+  });
+  expect(resolveAddress(dialogue, registry, renamed)?.title).toBe("Ada · release");
 });
 
 test("an invalid layout degrades to one empty panel", () => {

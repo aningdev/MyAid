@@ -12,7 +12,7 @@ MyAid 是 **all-in-one 个人助手**：把生活与工作里「人与 AI 一起
 
 - **串起日常域** — 邮件、Task、知识、笔记是一等公民；Dialogue 驱动它们，也可从它们回到对话。
 - **和 Bot 对话** — **Bot** 像联系人，能力来自（常派生的）**Agent preset**；**Dialogue** 是与该 Bot 的一段长线（例如每个项目工作区一段）；**Session（会话）** 是 Dialogue 内的一个上下文场景（= 一条 harness Session）。
-- **身份由你掌控** — Bot 管 preset/能力；Dialogue 管 workspace path；Session 认领到 Dialogue。
+- **身份由你掌控** — Bot 管 preset/能力；Dialogue 是某个 Bot 对 dsh Workspace 的视角；Session 认领到 Dialogue。
 - **桌面常驻可连** — Host（以及后续 Relay）可作为 OS Background Service，让关窗后本机仍可被多端链接；须你明确启用。
 - **用插件伸手** — 能力经 Cordis / 声明式 bundle 挂在共用 `web` profile 或派生 preset 上。
 

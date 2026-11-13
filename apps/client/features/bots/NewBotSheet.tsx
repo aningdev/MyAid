@@ -11,9 +11,11 @@ import { dialogueAddress, sessionAddress } from "../../components/shell/navAddre
 import { openAddress } from "../../components/shell/state";
 import { Button, colors, Field, radius, Sheet } from "../../components/ui";
 import { requestComposerFocus } from "../dialogue/chat/focus";
+import { createDialogueOnPath } from "../workspace/dialogues";
+import { workspaceOf, workspaces } from "../workspace/state";
 import { BotIdentityPicker, BotMark } from "./BotMark";
 import { nextIdentity, type BotIdentity } from "./identity";
-import { createBot, createDialogue, initializeBot, newId } from "./model";
+import { createBot, initializeBot, newId } from "./model";
 import { closeNewBot, newBotOpen } from "./newBot";
 import { sessionLabel } from "./sessions";
 import {
@@ -114,56 +116,57 @@ function Body() {
     const template = chosen();
     if (!template) return;
     const botId = newId();
-    const dialogueId = newId();
     const path = workspace().trim();
     creating.set(true);
     localError.set(null);
     try {
-      const next = await changeRegistry((reg) =>
-        createDialogue(
-          initializeBot(
-            createBot(
-              reg,
-              {
-                name: name(),
-                templateId: template.id,
-                defaultWorkspacePath: path,
-                identity: identity(),
-              },
-              botId,
-            ),
+      const bot = await changeRegistry((reg) =>
+        initializeBot(
+          createBot(
+            reg,
+            {
+              name: name(),
+              templateId: template.id,
+              defaultWorkspacePath: path,
+              identity: identity(),
+            },
             botId,
           ),
-          { botId, workspacePath: path },
-          dialogueId,
+          botId,
         ),
       );
-      if (!next) {
+      if (!bot) {
         localError.set(actionError() ?? "Could not create the Bot.");
         return;
       }
-      // The sheet closes once the objects exist; the Session may still fail
-      // (no Host), in which case the Dialogue is the useful surface.
+      // The Bot is saved; its Panel is the surface from here on. The Dialogue
+      // lives on a dsh Workspace, so that step needs the Host.
       closeNewBot();
+      const dialogue = await createDialogueOnPath(botId, path);
+      // A refusal is on `actionError`, which the new Bot's Panel shows.
+      if (!dialogue) return;
+      // The Session may still fail, in which case the Dialogue is the surface.
       const { createSession } = await import("../dialogue/session/runtime");
       try {
-        const sessionId = await createSession(dialogueId);
-        const dialogue = next.dialogues.find((item) => item.id === dialogueId) ?? null;
-        const claim = dialogue?.claims.find((item) => item.sessionId === sessionId) ?? null;
+        const sessionId = await createSession(dialogue.id);
+        const claim =
+          registry()
+            .dialogues.find((item) => item.id === dialogue.id)
+            ?.claims.find((item) => item.sessionId === sessionId) ?? null;
         openAddress(
           sessionAddress({
             sessionId,
             label: sessionLabel(claim ?? { title: null }, null),
             botId,
-            dialogueId,
+            dialogueId: dialogue.id,
           }),
         );
         requestComposerFocus(sessionId);
       } catch {
         openAddress(
           dialogueAddress({
-            id: dialogueId,
-            workspacePath: path,
+            id: dialogue.id,
+            title: workspaceOf(workspaces(), dialogue)?.title ?? "",
             botId,
             botName: name(),
           }),

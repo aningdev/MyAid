@@ -2,8 +2,6 @@ import { expect, test } from "nsh/test";
 
 import { defaultIdentity } from "./identity";
 import {
-  archiveClaim,
-  archiveDialogue,
   assignDerivedPreset,
   claimSession,
   createBot,
@@ -11,6 +9,7 @@ import {
   createTemplate,
   deleteBot,
   deleteTemplate,
+  dialogueOfWorkspace,
   emptyRegistry,
   importTemplatesFromPresets,
   initializeBot,
@@ -19,8 +18,7 @@ import {
   presetForBot,
   RegistryRejection,
   releaseClaim,
-  renameDialogue,
-  restoreClaim,
+  renameClaim,
   serializeRegistry,
   updateBot,
   updateTemplate,
@@ -38,7 +36,7 @@ function codingDraft() {
 
 function readyWithDialogue() {
   let registry = initializeBot(codingDraft(), "bot");
-  return createDialogue(registry, { botId: "bot", workspacePath: "/work" }, "dlg");
+  return createDialogue(registry, { botId: "bot", workspaceId: "ws-work" }, "dlg");
 }
 
 test("a draft follows the template preset", () => {
@@ -86,9 +84,9 @@ test("deleting a template that a bot still uses is refused", () => {
   expect(gone.templates.length).toBe(0);
 });
 
-test("creating a dialogue requires a workspace path", () => {
+test("creating a dialogue requires a dsh Workspace id", () => {
   const registry = initializeBot(codingDraft(), "bot");
-  expect(() => createDialogue(registry, { botId: "bot", workspacePath: "  " }, "dlg")).toThrow(
+  expect(() => createDialogue(registry, { botId: "bot", workspaceId: "  " }, "dlg")).toThrow(
     RegistryRejection,
   );
   expect(registry.dialogues).toHaveLength(0);
@@ -113,12 +111,9 @@ test("a ready bot creates dialogues, claims sessions, and cannot be deleted afte
 
   registry = readyWithDialogue();
   expect(registry.bots[0].hadDialogue).toBe(true);
-  expect(registry.dialogues[0]?.workspacePath).toBe("/work");
+  expect(registry.dialogues[0]?.workspaceId).toBe("ws-work");
   registry = claimSession(registry, "dlg", "s1");
   expect(registry.dialogues[0]?.claims).toHaveLength(1);
-  registry = archiveDialogue(registry, "dlg");
-  expect(registry.dialogues[0]?.archived).toBe(true);
-  expect(() => claimSession(registry, "dlg", "s2")).toThrow(RegistryRejection);
   registry = releaseClaim(registry, "dlg", "s1");
   expect(registry.dialogues[0]?.claims).toHaveLength(0);
   expect(() => deleteBot(registry, "bot")).toThrow(RegistryRejection);
@@ -127,13 +122,19 @@ test("a ready bot creates dialogues, claims sessions, and cannot be deleted afte
   );
 });
 
-test("one session belongs to one dialogue", () => {
+test("a Dialogue is one Bot's view of one Workspace", () => {
   let registry = claimSession(readyWithDialogue(), "dlg", "s1");
+  // Two Bots on one Workspace: two Dialogues, one Workspace id, separate claims.
   registry = createDialogue(
     initializeBot(createBot(registry, { name: "Bea", templateId: "tmpl" }, "bea"), "bea"),
-    { botId: "bea", workspacePath: "/else" },
+    { botId: "bea", workspaceId: "ws-work" },
     "dlg2",
   );
+  expect(registry.dialogues.map((item) => item.workspaceId)).toEqual(["ws-work", "ws-work"]);
+  expect(dialogueOfWorkspace(registry, "bot", "ws-work")?.id).toBe("dlg");
+  expect(dialogueOfWorkspace(registry, "bea", "ws-work")?.id).toBe("dlg2");
+  expect(dialogueOfWorkspace(registry, "bot", "ws-other")).toBe(null);
+  // A Session belongs to one Dialogue, even when both look at one Workspace.
   expect(() => claimSession(registry, "dlg2", "s1")).toThrow(RegistryRejection);
 });
 
@@ -168,6 +169,7 @@ test("a missing registry starts empty and commits stay serial", async () => {
   const repo = new BotRegistryRepository(store);
   const loaded = await repo.load();
   expect(loaded.corrupt).toBe(null);
+  expect(loaded.legacy).toBe(null);
   expect(loaded.registry.templates).toHaveLength(0);
   expect(loaded.registry.dialogues).toHaveLength(0);
 
@@ -177,9 +179,9 @@ test("a missing registry starts empty and commits stay serial", async () => {
   ]);
   const parsed = parseRegistry(store.text() ?? "");
   expect(parsed.ok).toBe(true);
-  if (!parsed.ok) return;
+  if (!parsed.ok || parsed.state !== "current") return;
   expect(parsed.registry.templates.map((item) => item.id).sort()).toEqual(["a", "b"]);
-  expect(parsed.registry.version).toBe(4);
+  expect(parsed.registry.version).toBe(5);
 });
 
 test("Bot preferences — description, thinking, default workspace — round-trip and stay optional", () => {
@@ -198,12 +200,12 @@ test("Bot preferences — description, thinking, default workspace — round-tri
   registry = updateBot(registry, "bot", { defaultThinking: "low" });
   const parsed = parseRegistry(serialize(registry));
   expect(parsed.ok).toBe(true);
-  const bot = parsed.ok ? parsed.registry.bots[0] : undefined;
+  const bot = parsed.ok && parsed.state === "current" ? parsed.registry.bots[0] : undefined;
   expect(bot?.description).toBe("Keeps the release branch tidy");
   expect(bot?.defaultThinking).toBe("low");
   expect(bot?.defaultWorkspacePath).toBe("/work/myaid");
 
-  // A v3 file written before these preferences existed still loads, as null.
+  // A v5 file written before these preferences existed still loads, as null.
   const older = JSON.parse(serialize(registry)) as {
     bots: Record<string, unknown>[];
   };
@@ -212,13 +214,51 @@ test("Bot preferences — description, thinking, default workspace — round-tri
   delete older.bots[0]!.defaultWorkspacePath;
   const legacy = parseRegistry(JSON.stringify(older));
   expect(legacy.ok).toBe(true);
-  const restored = legacy.ok ? legacy.registry.bots[0] : undefined;
+  const restored = legacy.ok && legacy.state === "current" ? legacy.registry.bots[0] : undefined;
   expect(restored?.description).toBe(null);
   expect(restored?.defaultThinking).toBe(null);
   expect(restored?.defaultWorkspacePath).toBe(null);
 });
 
-test("a v3 registry migrates to v4: identities, Dialogue names, claim archives", () => {
+test("a v4 registry is read as legacy: its Dialogues still own path, name and archive", () => {
+  const v4 = {
+    version: 4,
+    templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
+    bots: [
+      {
+        id: "bot",
+        name: "Ada",
+        templateId: "tmpl",
+        defaultModel: null,
+        hadDialogue: true,
+        status: "ready",
+        boundPresetId: "standard",
+        derivedPresetId: null,
+        identity: defaultIdentity("bot"),
+      },
+    ],
+    dialogues: [
+      {
+        id: "dlg",
+        botId: "bot",
+        workspacePath: "/work",
+        name: "Release notes",
+        archived: false,
+        claims: [{ sessionId: "s1", title: "First run", archived: true }],
+      },
+    ],
+  };
+
+  const parsed = parseRegistry(JSON.stringify(v4));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok || parsed.state !== "legacy") return;
+  expect(parsed.legacy.dialogues[0]?.workspacePath).toBe("/work");
+  expect(parsed.legacy.dialogues[0]?.name).toBe("Release notes");
+  expect(parsed.legacy.dialogues[0]?.claims[0]?.archived).toBe(true);
+  expect(parsed.legacy.bots[0]?.identity).toEqual(defaultIdentity("bot"));
+});
+
+test("a v3 registry is read as legacy: identity derived, no name, no archived claim", () => {
   const v3 = {
     version: 3,
     templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
@@ -247,18 +287,47 @@ test("a v3 registry migrates to v4: identities, Dialogue names, claim archives",
 
   const parsed = parseRegistry(JSON.stringify(v3));
   expect(parsed.ok).toBe(true);
-  if (!parsed.ok) return;
-  expect(parsed.registry.version).toBe(4);
+  if (!parsed.ok || parsed.state !== "legacy") return;
   // The mark is derived from the Bot's id, so every read agrees.
-  expect(parsed.registry.bots[0]?.identity).toEqual(defaultIdentity("bot"));
-  expect(parsed.registry.dialogues[0]?.name).toBe(null);
-  expect(parsed.registry.dialogues[0]?.claims[0]?.archived).toBe(false);
+  expect(parsed.legacy.bots[0]?.identity).toEqual(defaultIdentity("bot"));
+  expect(parsed.legacy.dialogues[0]?.name).toBe(null);
+  expect(parsed.legacy.dialogues[0]?.claims[0]?.archived).toBe(false);
+});
 
-  // Written back as v4, it reads the same (identity included).
-  const again = parseRegistry(serializeRegistry(parsed.registry));
-  expect(again.ok).toBe(true);
-  if (!again.ok) return;
-  expect(again.registry.bots[0]?.identity).toEqual(defaultIdentity("bot"));
+test("a v5 registry round-trips with its Workspace ids and claims", () => {
+  let registry = claimSession(readyWithDialogue(), "dlg", "s1");
+  registry = renameClaim(registry, "dlg", "s1", "Release notes");
+  const parsed = parseRegistry(serializeRegistry(registry));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok || parsed.state !== "current") return;
+  expect(parsed.registry.dialogues[0]?.workspaceId).toBe("ws-work");
+  expect(parsed.registry.dialogues[0]?.claims[0]).toEqual({
+    sessionId: "s1",
+    title: "Release notes",
+  });
+});
+
+test("a v4 file is never written over by a commit; only a migration replaces it", async () => {
+  const v4 = {
+    version: 4,
+    templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
+    bots: [],
+    dialogues: [],
+  };
+  const store = memoryStore(JSON.stringify(v4));
+  const repo = new BotRegistryRepository(store);
+  const loaded = await repo.load();
+  expect(loaded.legacy).not.toBe(null);
+  await expect(
+    repo.commit((registry) => createTemplate(registry, { name: "A", presetId: "one" }, "a")),
+  ).rejects.toMatchObject({ issue: { code: "legacy-version" } });
+  expect(store.text()).toBe(JSON.stringify(v4));
+
+  const migrated = await repo.replace(emptyRegistry());
+  expect(migrated.version).toBe(5);
+  // The pre-migration text is kept beside the new file.
+  expect(store.backupText()).toBe(JSON.stringify(v4));
+  expect(store.text()).toContain('"version": 5');
 });
 
 test("a Bot's identity round-trips; an unknown one falls back to the default", () => {
@@ -268,7 +337,9 @@ test("a Bot's identity round-trips; an unknown one falls back to the default", (
     "bot",
   );
   const parsed = parseRegistry(serializeRegistry(registry));
-  expect(parsed.ok ? parsed.registry.bots[0]?.identity : null).toEqual({
+  expect(
+    parsed.ok && parsed.state === "current" ? parsed.registry.bots[0]?.identity : null,
+  ).toEqual({
     color: "rose",
     glyph: "orbit",
   });
@@ -278,21 +349,20 @@ test("a Bot's identity round-trips; an unknown one falls back to the default", (
   };
   broken.bots[0]!.identity = { color: "burgundy", glyph: "hexagon" };
   const fallback = parseRegistry(JSON.stringify(broken));
-  expect(fallback.ok ? fallback.registry.bots[0]?.identity : null).toEqual(defaultIdentity("bot"));
-  registry = parsed.ok ? parsed.registry : registry;
+  expect(
+    fallback.ok && fallback.state === "current" ? fallback.registry.bots[0]?.identity : null,
+  ).toEqual(defaultIdentity("bot"));
+  registry = parsed.ok && parsed.state === "current" ? parsed.registry : registry;
   expect(registry.bots[0]?.identity.color).toBe("rose");
 });
 
-test("a Dialogue takes a name, and a claim can leave the lists and come back", () => {
+test("a claim carries the person's own title and can leave a Dialogue", () => {
   let registry = claimSession(readyWithDialogue(), "dlg", "s1");
-  registry = renameDialogue(registry, "dlg", "Release notes");
-  expect(registry.dialogues[0]?.name).toBe("Release notes");
-  registry = archiveClaim(registry, "dlg", "s1");
-  expect(registry.dialogues[0]?.claims[0]?.archived).toBe(true);
-  registry = restoreClaim(registry, "dlg", "s1");
-  expect(registry.dialogues[0]?.claims[0]?.archived).toBe(false);
-  registry = renameDialogue(registry, "dlg", "  ");
-  expect(registry.dialogues[0]?.name).toBe(null);
+  registry = renameClaim(registry, "dlg", "s1", "Release notes");
+  expect(registry.dialogues[0]?.claims[0]?.title).toBe("Release notes");
+  registry = renameClaim(registry, "dlg", "s1", "  ");
+  expect(registry.dialogues[0]?.claims[0]?.title).toBe(null);
+  expect(() => releaseClaim(registry, "dlg", "s2")).toThrow(RegistryRejection);
 });
 
 function serialize(registry: ReturnType<typeof emptyRegistry>): string {

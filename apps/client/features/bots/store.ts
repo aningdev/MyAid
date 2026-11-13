@@ -10,18 +10,26 @@ import {
   RegistryRejection,
   serializeRegistry,
   type BotRegistry,
+  type LegacyRegistry,
 } from "./model";
 
-/** Missing file reads as `null`. Any other failure rejects. Corrupt text is left for the repository. */
+/**
+ * Missing file reads as `null`. Any other failure rejects. Corrupt text is left
+ * for the repository. `backup` keeps the pre-migration text beside the file
+ * under the store's own name.
+ */
 export interface RegistryStore {
   read(): Promise<string | null>;
   write(text: string): Promise<void>;
+  backup?(text: string): Promise<void>;
 }
 
 export function memoryStore(initial: string | null = null): RegistryStore & {
   text(): string | null;
+  backupText(): string | null;
 } {
   let text = initial;
+  let backup: string | null = null;
   return {
     async read() {
       return text;
@@ -29,8 +37,14 @@ export function memoryStore(initial: string | null = null): RegistryStore & {
     async write(next) {
       text = next;
     },
+    async backup(previous) {
+      backup = previous;
+    },
     text() {
       return text;
+    },
+    backupText() {
+      return backup;
     },
   };
 }
@@ -43,10 +57,11 @@ export function storageStore(key: string = REGISTRY_STORAGE_KEY): RegistryStore 
   return {
     read: () => Storage.getItem(key),
     write: (text) => Storage.setItem(key, text),
+    backup: (text) => Storage.setItem(`${key}.v4`, text),
   };
 }
 
-/** `~/.myaid/registry/bots.json` (v3: templates + bots + dialogues). Beside the dsh profile, not inside a preset patch. */
+/** `~/.myaid/registry/bots.json` (templates + bots + dialogues). Beside the dsh profile, not inside a preset patch. */
 export function defaultRegistryPath(): string {
   return registryPath();
 }
@@ -67,18 +82,25 @@ export function fileStore(path: string): RegistryStore {
       await fs.writeFile(temporary, text);
       await fs.rename(temporary, path);
     },
+    async backup(text) {
+      await fs.mkdir(dirname(path), { recursive: true });
+      await fs.writeFile(`${path}.v4.bak`, text);
+    },
   };
 }
 
 export type RegistrySnapshot = {
   registry: BotRegistry;
-  /** Set when the file is present but unreadable as version 1. The file is left untouched. */
+  /** A v3 / v4 file, read whole: its Dialogues need a Host before v5. */
+  legacy: LegacyRegistry | null;
+  /** Set when the file is present but unreadable. The file is left untouched. */
   corrupt: string | null;
 };
 
 export class BotRegistryRepository {
   private tail: Promise<void> = Promise.resolve();
   private registry: BotRegistry = emptyRegistry();
+  private legacy: LegacyRegistry | null = null;
   private corrupt: string | null = null;
   private loaded = false;
 
@@ -100,6 +122,7 @@ export class BotRegistryRepository {
         this.loaded = true;
       }
       if (this.corrupt) throw new RegistryRejection({ code: "corrupt" });
+      if (this.legacy) throw new RegistryRejection({ code: "legacy-version" });
       const next = change(this.registry);
       await this.store.write(serializeRegistry(next));
       this.registry = next;
@@ -107,10 +130,33 @@ export class BotRegistryRepository {
     });
   }
 
+  /**
+   * Replace the whole file with a migrated v5 registry. The pre-migration
+   * text is backed up first, so a failed migration leaves v4 readable.
+   */
+  replace(registry: BotRegistry): Promise<BotRegistry> {
+    return this.enqueue(async () => {
+      if (!this.loaded) {
+        await this.readState();
+        this.loaded = true;
+      }
+      if (this.corrupt) throw new RegistryRejection({ code: "corrupt" });
+      if (this.legacy) {
+        const text = await this.store.read();
+        if (text !== null) await this.store.backup?.(text);
+      }
+      await this.store.write(serializeRegistry(registry));
+      this.registry = registry;
+      this.legacy = null;
+      return registry;
+    });
+  }
+
   private async readState(): Promise<void> {
     const text = await this.store.read();
     if (text === null) {
       this.registry = emptyRegistry();
+      this.legacy = null;
       this.corrupt = null;
       return;
     }
@@ -119,12 +165,19 @@ export class BotRegistryRepository {
       this.corrupt = parsed.message;
       return;
     }
+    if (parsed.state === "legacy") {
+      this.registry = emptyRegistry();
+      this.legacy = parsed.legacy;
+      this.corrupt = null;
+      return;
+    }
     this.registry = parsed.registry;
+    this.legacy = null;
     this.corrupt = null;
   }
 
   private snapshot(): RegistrySnapshot {
-    return { registry: this.registry, corrupt: this.corrupt };
+    return { registry: this.registry, legacy: this.legacy, corrupt: this.corrupt };
   }
 
   private enqueue<T>(job: () => Promise<T>): Promise<T> {

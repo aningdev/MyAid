@@ -48,6 +48,7 @@ import {
 } from "../dialogue/session/runtime";
 import { modelCatalog } from "../dialogue/session/runtime";
 import type { Deliverable } from "../dialogue/session/turn";
+import { workspacePath, workspaces } from "../workspace/state";
 import {
   canReveal,
   compactOf,
@@ -138,7 +139,7 @@ export function Inspector(props: { panelId: string; sessionId: string }) {
 
   const newSession = async (): Promise<void> => {
     const current = dialogue();
-    if (!current || current.archived) return;
+    if (!current) return;
     try {
       const id = await createSession(current.id);
       const claim = current.claims.find((item) => item.sessionId === id);
@@ -148,10 +149,14 @@ export function Inspector(props: { panelId: string; sessionId: string }) {
     }
   };
 
-  /** Sessions of the Panel's Dialogue, newest first, the shown one marked. */
+  /** Sessions of the Panel's Dialogue in dsh's order, the shown one marked. */
   const sessionsOf = (dialogueId: string) =>
     sessionList()
-      .filter((row) => claimOwner(registry(), row.id)?.dialogue.id === dialogueId)
+      .filter(
+        (row) =>
+          claimOwner(registry(), row.id)?.dialogue.id === dialogueId &&
+          !workspaces().archived.has(row.id),
+      )
       .map((row) => ({ id: row.id, label: row.label, detail: row.detail }));
 
   return (
@@ -312,18 +317,18 @@ function DialogueSection(props: {
                     numberOfLines: 2,
                   }}
                 >
-                  {current().workspacePath}
+                  {workspacePath(workspaces(), current())}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", gap: 10, paddingLeft: 18 }}>
                 <TinyAction
                   label={props.copied() ? "Copied" : "Copy path"}
-                  onPress={() => props.onCopy(current().workspacePath)}
+                  onPress={() => props.onCopy(workspacePath(workspaces(), current()))}
                 />
                 <If when={canReveal()}>
                   <TinyAction
                     label="Reveal in Finder"
-                    onPress={() => props.onReveal(current().workspacePath)}
+                    onPress={() => props.onReveal(workspacePath(workspaces(), current()))}
                   />
                 </If>
               </View>
@@ -344,13 +349,7 @@ function DialogueSection(props: {
                 <Muted text="No Sessions yet." />
               </If>
             </View>
-            <Button
-              label="New Session"
-              variant="secondary"
-              size="small"
-              disabled={current().archived}
-              onPress={props.onNew}
-            />
+            <Button label="New Session" variant="secondary" size="small" onPress={props.onNew} />
           </View>
         )}
       </If>

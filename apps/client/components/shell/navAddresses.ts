@@ -13,17 +13,16 @@ export function workspaceSegment(path: string): string {
   return at >= 0 ? trimmed.slice(at + 1) || trimmed : trimmed;
 }
 
-/** "Bot · workspace" — how a Dialogue reads outside its Bot's tree. */
-export function dialogueLabel(botName: string, workspacePath: string): string {
-  const segment = workspaceSegment(workspacePath);
-  if (!botName) return segment;
-  return segment ? `${botName} · ${segment}` : botName;
+/** "Bot · title" — how a Dialogue reads outside its Bot's tree. */
+export function dialogueLabel(botName: string, title: string): string {
+  const name = title.trim();
+  if (!botName) return name;
+  return name ? `${botName} · ${name}` : botName;
 }
 
-/** A Dialogue's own name, else the last segment of its workspace. */
-export function dialogueSegment(dialogue: { name?: string | null; workspacePath: string }): string {
-  const name = dialogue.name?.trim();
-  return name ? name : workspaceSegment(dialogue.workspacePath);
+/** A Dialogue's name is its Workspace's title; unknown reads as empty. */
+export function dialogueSegment(title: string): string {
+  return title.trim();
 }
 
 /**
@@ -32,22 +31,22 @@ export function dialogueSegment(dialogue: { name?: string | null; workspacePath:
  * `segment` is the name inside its Bot's tree, `full` the one outside it.
  */
 export function dialogueLabels(input: {
-  dialogues: readonly { id: string; botId: string; workspacePath: string; name?: string | null }[];
+  dialogues: readonly { id: string; botId: string; title: string }[];
   botName: (botId: string) => string;
 }): Map<string, { full: string; segment: string }> {
   const totals = new Map<string, number>();
   for (const dialogue of input.dialogues) {
-    const key = `=${dialogue.botId}=${dialogueSegment(dialogue)}`;
+    const key = `=${dialogue.botId}=${dialogueSegment(dialogue.title)}`;
     totals.set(key, (totals.get(key) ?? 0) + 1);
   }
   const seen = new Map<string, number>();
   const labels = new Map<string, { full: string; segment: string }>();
   for (const dialogue of input.dialogues) {
-    const key = `=${dialogue.botId}=${dialogueSegment(dialogue)}`;
+    const key = `=${dialogue.botId}=${dialogueSegment(dialogue.title)}`;
     const index = (seen.get(key) ?? 0) + 1;
     seen.set(key, index);
     const suffix = (totals.get(key) ?? 0) > 1 ? ` · ${index}` : "";
-    const segment = `${dialogueSegment(dialogue)}${suffix}`;
+    const segment = `${dialogueSegment(dialogue.title)}${suffix}`;
     const bot = input.botName(dialogue.botId);
     labels.set(dialogue.id, { full: bot ? `${bot} · ${segment}` : segment, segment });
   }
@@ -67,13 +66,14 @@ export function botAddress(bot: { id: string; name: string }): NavAddress {
 
 export function dialogueAddress(input: {
   id: string;
-  workspacePath: string;
+  /** The Workspace title (the Dialogue's name). */
+  title: string;
   botId?: string;
   botName: string;
-  /** The disambiguated name, when two Dialogues share a workspace. */
+  /** The disambiguated name, when two Dialogues read the same inside a Bot. */
   label?: string;
 }): NavAddress {
-  const label = input.label ?? dialogueLabel(input.botName, input.workspacePath);
+  const label = input.label ?? dialogueLabel(input.botName, input.title);
   return {
     id: `dialogue:${input.id}`,
     root: "dialogues",

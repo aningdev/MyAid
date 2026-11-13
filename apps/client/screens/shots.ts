@@ -21,6 +21,9 @@ export const SHOTS_A1 = `${SCRATCHPAD}/pi-shots-a1`;
 /** The Bot preset plugin smoke: editable tabs, binding label, new Session reply. */
 export const SHOTS_P1 = `${SCRATCHPAD}/pi-shots-p1`;
 
+/** D1: two Bots on one dsh Workspace, rename, pin, archive, restart. */
+export const SHOTS_D1 = `${SCRATCHPAD}/pi-shots-d1`;
+
 export { graphical } from "../test/graphical";
 
 /** Real-Host smokes are opt-in: no default suite may need a live Host. */

@@ -19,7 +19,6 @@ function row(overrides: Partial<SessionRow> = {}): SessionRow {
     workspacePath: "/work/myaid",
     label: "First run",
     detail: "Ada · /work/myaid",
-    archived: false,
     missing: false,
     running: false,
     unread: false,

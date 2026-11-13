@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import {
   claimSession,
   createBot,
@@ -10,6 +11,11 @@ import {
 } from "./model";
 import { listProductSessions, sessionLabel, titleFromPrompt } from "./sessions";
 
+/** The Dialogue's Workspace: path "/work", both claims accounted. */
+const WORKS = workspaceProjection({
+  rows: [workspaceRow({ id: "ws-work", path: "/work", title: "work", sessionIds: ["new", "old"] })],
+});
+
 function readyBot() {
   let registry = initializeBot(
     createBot(
@@ -19,31 +25,36 @@ function readyBot() {
     ),
     "bot",
   );
-  registry = createDialogue(registry, { botId: "bot", workspacePath: "/work" }, "dlg");
+  registry = createDialogue(registry, { botId: "bot", workspaceId: "ws-work" }, "dlg");
   return claimSession(claimSession(registry, "dlg", "old"), "dlg", "new");
 }
 
 test("product sessions sort by dsh time and leave missing claims last", () => {
   const registry = readyBot();
-  const rows = listProductSessions(registry, [
-    { sessionId: "old", blank: false, updatedAt: 10 },
-    { sessionId: "new", blank: true, updatedAt: 20 },
-  ]);
+  const rows = listProductSessions(
+    registry,
+    [
+      { sessionId: "old", blank: false, updatedAt: 10 },
+      { sessionId: "new", blank: true, updatedAt: 20 },
+    ],
+    WORKS,
+  );
   expect(rows.map((row) => row.sessionId)).toEqual(["new", "old"]);
   expect(rows[0]?.dialogueId).toBe("dlg");
   expect(rows[0]?.workspacePath).toBe("/work");
   const missing = listProductSessions(
     registry,
     [{ sessionId: "new", blank: true, updatedAt: 20 }],
+    WORKS,
     { botId: "bot" },
   );
   expect(missing.map((row) => row.sessionId)).toEqual(["new", "old"]);
   expect(missing[1]?.missing).toBe(true);
-  expect(listProductSessions(registry, null, { botId: "bot" }).every((row) => !row.missing)).toBe(
-    true,
-  );
   expect(
-    listProductSessions(registry, null, { dialogueId: "dlg" }).map((row) => row.sessionId),
+    listProductSessions(registry, null, WORKS, { botId: "bot" }).every((row) => !row.missing),
+  ).toBe(true);
+  expect(
+    listProductSessions(registry, null, WORKS, { dialogueId: "dlg" }).map((row) => row.sessionId),
   ).toEqual(["new", "old"]);
 });
 

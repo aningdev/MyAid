@@ -1,3 +1,5 @@
+import type { WorkspaceProjection } from "../workspace/projection";
+import { isSessionArchived, workspacePath } from "../workspace/projection";
 import type { BotRegistry } from "./model";
 
 export type ListedSession = {
@@ -15,18 +17,20 @@ export type ProductSession = {
   botName: string;
   workspacePath: string;
   title: string | null;
-  /** True when the owning Dialogue is archived. */
-  archived: boolean;
   /** True only after dsh has been listed and this claim is absent. */
   missing: boolean;
   blank: boolean;
   updatedAt: number | null;
 };
 
-/** Claims joined to a dsh listing. `listed === null` means the listing is unknown. */
+/**
+ * Claims joined to a dsh listing and the Workspace projection. `listed ===
+ * null` means the listing is unknown; a Session dsh archived leaves the lists.
+ */
 export function listProductSessions(
   registry: BotRegistry,
   listed: ListedSession[] | null,
+  workspaces: WorkspaceProjection,
   scope: { dialogueId?: string | null; botId?: string | null } = {},
 ): ProductSession[] {
   const known = listed ? new Map(listed.map((item) => [item.sessionId, item])) : null;
@@ -38,17 +42,16 @@ export function listProductSessions(
     const bot = botById.get(dialogue.botId);
     if (!bot) continue;
     for (const claim of dialogue.claims) {
-      // An archived claim stays in the registry (and dsh) but leaves the lists.
-      if (claim.archived) continue;
+      // dsh keeps an archived Session; it leaves the product's lists.
+      if (isSessionArchived(workspaces, claim.sessionId)) continue;
       const info = known?.get(claim.sessionId);
       rows.push({
         sessionId: claim.sessionId,
         dialogueId: dialogue.id,
         botId: bot.id,
         botName: bot.name,
-        workspacePath: dialogue.workspacePath,
+        workspacePath: workspacePath(workspaces, dialogue),
         title: claim.title,
-        archived: dialogue.archived,
         missing: known ? !info : false,
         blank: info?.blank ?? false,
         updatedAt: info?.updatedAt ?? null,
@@ -75,11 +78,6 @@ export function sessionLabel(
   const text = summary?.trim();
   if (!text) return "未命名上下文";
   return text.length > 32 ? `${text.slice(0, 32)}…` : text;
-}
-
-export function workspaceKey(path: string): string {
-  const trimmed = path.trim().replace(/\/+$/, "");
-  return trimmed.length > 0 ? trimmed : "/";
 }
 
 /**

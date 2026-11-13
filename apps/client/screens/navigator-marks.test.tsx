@@ -25,6 +25,7 @@ import {
 } from "../features/bots/model";
 import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
 import { open } from "../test/open";
+import { workspaceStorage, workspaceRow } from "../test/workspaces";
 import { graphical, shoot } from "./shots";
 
 /** Ada with a release-notes Session, and Iota as a second Bot. */
@@ -39,7 +40,7 @@ function fixture(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work/release" },
+      { botId: "bot", workspaceId: "ws-work" },
       "dlg",
     ),
     "dlg",
@@ -62,6 +63,11 @@ test("marks, New Bot, palette and context menu", async () => {
     storage: {
       [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
       [SHELL_PREFS_STORAGE]: fixturePrefs(),
+      ...workspaceStorage({
+        rows: [
+          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+        ],
+      }),
     },
   });
   if (!(await graphical(app))) return;

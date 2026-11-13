@@ -10,6 +10,8 @@ import { setPanelAddress } from "../../components/shell/state";
 import { Badge, Button, colors, hovered, mono, radius } from "../../components/ui";
 import { sessionLabel } from "../bots/sessions";
 import { ready, registry } from "../bots/state";
+import { unarchiveDialogueSession } from "../workspace/dialogues";
+import { workspacePath, workspaceTitle, workspaces } from "../workspace/state";
 import { rosterForDialogue } from "./session/roster";
 import {
   createSession,
@@ -30,17 +32,29 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
       registry: registry(),
       dialogueId: props.dialogueId,
       rows: sessionList(),
+      workspaces: workspaces(),
     });
-  const canCreate = () =>
-    !!dialogue() && !dialogue()?.archived && bot()?.status === "ready" && !creatingSession();
+  const canCreate = () => !!dialogue() && bot()?.status === "ready" && !creatingSession();
 
-  /** The name this Dialogue reads by among its siblings (two can share a workspace). */
+  /** Sessions dsh archived for this Dialogue: kept, but out of the lists. */
+  const archivedRows = () => {
+    const current = dialogue();
+    if (!current) return [];
+    const claims = new Set(current.claims.map((claim) => claim.sessionId));
+    return sessionList().filter((row) => claims.has(row.id) && workspaces().archived.has(row.id));
+  };
+
+  /** The name this Dialogue reads by among its siblings (two can share a title). */
   const label = () => {
     const current = dialogue();
     if (!current) return "";
     const names = dialogueLabels({
-      dialogues: registry().dialogues.filter((item) => !item.archived),
-      botName: (id) => registry().bots.find((item) => item.id === id)?.name ?? "",
+      dialogues: registry().dialogues.map((item) => ({
+        id: item.id,
+        botId: item.botId,
+        title: workspaceTitle(workspaces(), item),
+      })),
+      botName: (id) => registry().bots.find((bot) => bot.id === id)?.name ?? "",
     });
     return names.get(current.id)?.full ?? "";
   };
@@ -55,6 +69,14 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
         dialogueId: props.dialogueId,
       }),
     );
+  };
+
+  const unarchive = async (sessionId: string): Promise<void> => {
+    try {
+      await unarchiveDialogueSession(sessionId);
+    } catch {
+      // sessionError names the reason (Host down, missing Session).
+    }
   };
 
   const create = async (): Promise<void> => {
@@ -78,9 +100,6 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
                 <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", color: colors.text }}>
                   {label()}
                 </Text>
-                <If when={current().archived}>
-                  <Badge label="已归档" tone="warn" />
-                </If>
               </View>
               <Text style={{ fontSize: 12, color: colors.muted }}>
                 {bot()?.name ?? "Bot 不在了"}
@@ -93,7 +112,7 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
                   userSelect: "text",
                 }}
               >
-                {current().workspacePath}
+                {workspacePath(workspaces(), current())}
               </Text>
             </View>
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
@@ -122,9 +141,7 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
                 when={rows().length > 0}
                 else={
                   <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>
-                    {current().archived
-                      ? "这段 Dialogue 已归档，历史会话仍可打开。"
-                      : "还没有 Session。点上面「New Session」开一条。"}
+                    还没有 Session。点上面「New Session」开一条。
                   </Text>
                 }
               >
@@ -143,6 +160,36 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
                 </View>
               </If>
             </View>
+            <If when={archivedRows().length > 0}>
+              <View style={{ gap: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>已归档</Text>
+                <View style={{ gap: 2 }}>
+                  <Each of={archivedRows()}>
+                    {(row) => (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                        }}
+                      >
+                        <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>
+                          {row().label}
+                        </Text>
+                        <Button
+                          label="Unarchive"
+                          size="small"
+                          variant="ghost"
+                          onPress={() => void unarchive(row().id)}
+                        />
+                      </View>
+                    )}
+                  </Each>
+                </View>
+              </View>
+            </If>
           </View>
         )}
       </If>

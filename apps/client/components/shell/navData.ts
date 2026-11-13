@@ -11,6 +11,15 @@ import type { Bot, BotRegistry, Dialogue, SessionClaim } from "../../features/bo
 import { sessionLabel } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { sessionList, type SessionRow } from "../../features/dialogue/session/runtime";
+import {
+  orderedClaims,
+  orderedDialogues,
+  pinnedClaims,
+  workspacePath,
+  workspaceTitle,
+  workspaces,
+  type WorkspaceProjection,
+} from "../../features/workspace/state";
 import { favorites } from "./favorites";
 import { PARKED_NAV, parkedActionForId } from "./fixtures";
 import {
@@ -18,7 +27,6 @@ import {
   botAddress,
   dialogueAddress,
   dialogueLabels,
-  dialogueSegment,
   sessionAddress,
 } from "./navAddresses";
 import { navQuery } from "./navFilter";
@@ -55,6 +63,8 @@ function mergeStatus(into: Map<string, NavStatus>, itemId: string, status: NavSt
 
 export type NavInput = {
   registry: BotRegistry;
+  /** dsh's Workspace rows: Dialogue names, paths, Session order and pins. */
+  workspaces: WorkspaceProjection;
   /** Live roster rows: their labels are the newest session titles. */
   rows: readonly SessionRow[];
   /** Pinned addresses (Favorites), already in the person's order. */
@@ -102,20 +112,24 @@ export function projectNav(input: NavInput): NavProjection {
       ? { working: row.running, unread: row.unread, attention: row.attention }
       : EMPTY_STATUS;
   };
+  const titleOf = (dialogue: Dialogue) => workspaceTitle(input.workspaces, dialogue);
+  const pathOf = (dialogue: Dialogue) => workspacePath(input.workspaces, dialogue);
+  const claimsOf = (dialogue: Dialogue) =>
+    orderedClaims(input.workspaces, dialogue, dialogue.claims);
   const claimMatches = (claim: SessionClaim, dialogue: Dialogue): boolean => {
     const label = labelOf(claim);
     return (
       contains(label, query) ||
       contains(botName(dialogue.botId), query) ||
-      contains(dialogue.workspacePath, query) ||
-      contains(dialogue.name, query)
+      contains(pathOf(dialogue), query) ||
+      contains(titleOf(dialogue), query)
     );
   };
   const dialogueMatches = (dialogue: Dialogue): boolean =>
-    contains(dialogueSegment(dialogue), query) ||
-    contains(dialogue.workspacePath, query) ||
+    contains(titleOf(dialogue), query) ||
+    contains(pathOf(dialogue), query) ||
     contains(botName(dialogue.botId), query) ||
-    dialogue.claims.some((claim) => !claim.archived && claimMatches(claim, dialogue));
+    dialogue.claims.some((claim) => claimMatches(claim, dialogue));
   const botMatches = (bot: Bot, dialogues: readonly Dialogue[]): boolean =>
     contains(bot.name, query) ||
     contains(bot.description, query) ||
@@ -127,9 +141,9 @@ export function projectNav(input: NavInput): NavProjection {
     ancestors: string[],
     include: (claim: SessionClaim) => boolean,
   ): TreeItem[] =>
-    dialogue.claims
-      // An archived claim left the product's lists; dsh still has the Session.
-      .filter((claim) => !claim.archived && include(claim))
+    // dsh's Workspace order, minus the Sessions dsh archived.
+    claimsOf(dialogue)
+      .filter(include)
       .map((claim) => {
         const label = labelOf(claim);
         const address = sessionAddress({
@@ -146,11 +160,17 @@ export function projectNav(input: NavInput): NavProjection {
         return { id: itemId, label };
       });
 
-  // Dialogues keep the registry's order (it has no timestamp to sort by);
-  // a Dialogue's sessions keep the claims' order (new sessions last).
-  const active = input.registry.dialogues.filter((dialogue) => !dialogue.archived);
-  // Two Dialogues on one workspace read apart ("myaid", "myaid · 2").
-  const dialogueNames = dialogueLabels({ dialogues: active, botName });
+  // Dialogues follow dsh's Workspace order; their Sessions that Workspace's
+  // manual order. Two Dialogues on one title read apart ("myaid", "myaid · 2").
+  const active = orderedDialogues(input.workspaces, input.registry.dialogues);
+  const dialogueNames = dialogueLabels({
+    dialogues: active.map((dialogue) => ({
+      id: dialogue.id,
+      botId: dialogue.botId,
+      title: titleOf(dialogue),
+    })),
+    botName,
+  });
 
   /** An empty Bots section still offers the way in: the new-Bot sheet. */
   const newBotLeaf = (): TreeItem => {
@@ -169,7 +189,7 @@ export function projectNav(input: NavInput): NavProjection {
             const names = dialogueNames.get(dialogue.id);
             const dialogueAddr = dialogueAddress({
               id: dialogue.id,
-              workspacePath: dialogue.workspacePath,
+              title: titleOf(dialogue),
               botId: bot.id,
               botName: bot.name,
               ...(names ? { label: names.full } : {}),
@@ -181,7 +201,7 @@ export function projectNav(input: NavInput): NavProjection {
               !query || botHit || dialogueMatches(dialogue) || claimMatches(claim, dialogue);
             return {
               id: `bots:${bot.id}/${dialogue.id}`,
-              label: names?.segment ?? dialogueSegment(dialogue),
+              label: names?.segment ?? titleOf(dialogue),
               children: sessionLeaves(
                 `bots:${bot.id}/${dialogue.id}`,
                 dialogue,
@@ -226,7 +246,7 @@ export function projectNav(input: NavInput): NavProjection {
           const names = dialogueNames.get(dialogue.id);
           const address = dialogueAddress({
             id: dialogue.id,
-            workspacePath: dialogue.workspacePath,
+            title: titleOf(dialogue),
             botId: dialogue.botId,
             botName: name,
             ...(names ? { label: names.full } : {}),
@@ -248,25 +268,28 @@ export function projectNav(input: NavInput): NavProjection {
   const botTree = botSection();
   const dialogueTree = dialogueSection();
 
-  // Favorites last to build, first to show: their rows read the addresses
-  // the sections above just made, so a renamed Bot or Session reads current.
+  // Favorites: the Sessions pinned in dsh come first (its pin order), then the
+  // addresses a person pinned in client prefs. Both read live addresses, so a
+  // renamed Bot or title shows current.
   const favoriteRows: TreeItem[] = [];
-  if (!query) {
-    const seen = new Set<string>();
-    for (const pin of input.favorites ?? []) {
-      const live = addresses.get(pin.id);
-      if (!live || seen.has(live.id)) continue;
-      seen.add(live.id);
-      addressAction(`fav:${live.id}`, live);
-      favoriteRows.push({ id: `fav:${live.id}`, label: live.title });
+  const seenFavorite = new Set<string>();
+  for (const dialogue of active) {
+    for (const claim of pinnedClaims(input.workspaces, dialogue.claims)) {
+      const address = addresses.get(`session:${claim.sessionId}`);
+      if (!address || seenFavorite.has(address.id)) continue;
+      if (query && !contains(address.title, query)) continue;
+      seenFavorite.add(address.id);
+      addressAction(`fav:${address.id}`, address);
+      favoriteRows.push({ id: `fav:${address.id}`, label: address.title });
     }
-  } else {
-    for (const pin of input.favorites ?? []) {
-      const live = addresses.get(pin.id);
-      if (!live || !contains(live.title, query)) continue;
-      addressAction(`fav:${live.id}`, live);
-      favoriteRows.push({ id: `fav:${live.id}`, label: live.title });
-    }
+  }
+  for (const pin of input.favorites ?? []) {
+    const live = addresses.get(pin.id);
+    if (!live || seenFavorite.has(live.id)) continue;
+    if (query && !contains(live.title, query)) continue;
+    seenFavorite.add(live.id);
+    addressAction(`fav:${live.id}`, live);
+    favoriteRows.push({ id: `fav:${live.id}`, label: live.title });
   }
 
   /** Settings' leaf is real: it opens the Background Services Panel. */
@@ -332,6 +355,7 @@ export function navBotForId(id: string): Bot | null {
 const projection = computed(() =>
   projectNav({
     registry: registry(),
+    workspaces: workspaces(),
     rows: sessionList(),
     favorites: favorites(),
     query: navQuery(),

@@ -26,6 +26,14 @@ import type {
   SessionUpdateQueueRequest,
 } from "@myaid/dsh-web-protocol/session";
 import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
+import type {
+  WorkspaceArchiveSessionRequest,
+  WorkspaceArchiveValue,
+  WorkspaceCreateValue,
+  WorkspaceFollowFrame,
+  WorkspacePinValue,
+  WorkspaceValue,
+} from "@myaid/dsh-web-protocol/workspace";
 
 export type {
   BotPresetDeriveRequest,
@@ -61,6 +69,11 @@ export type AgentPresetSummary = {
   isDefault: boolean;
   broken?: string;
 };
+
+/** One Workspace command's outcome; a Host refusal keeps its code for the UI. */
+export type WorkspaceResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; code: string; message: string; details?: unknown };
 
 export type AgentPresetDetail = {
   agentPreset: string;
@@ -470,11 +483,16 @@ export class Connection {
   }
 
   async createSession(request?: {
+    /** The Workspace the Session joins; the Host attaches it after create. */
+    workspaceId?: string;
     cwd?: string;
     sessionId?: string;
     agentPreset?: string;
   }): Promise<{ sessionId: string }> {
     const body: SessionCreateRequest = {
+      ...(request?.workspaceId
+        ? { workspaceId: request.workspaceId as SessionCreateRequest["workspaceId"] }
+        : {}),
       ...(request?.cwd ? { cwd: request.cwd } : {}),
       ...(request?.sessionId
         ? { sessionId: request.sessionId as SessionCreateRequest["sessionId"] }
@@ -483,6 +501,107 @@ export class Connection {
     };
     const value = unwrap(await this.remote.session.create(body)) as { sessionId: string };
     return { sessionId: String(value.sessionId) };
+  }
+
+  /**
+   * One `workspace.follow` generation: a baseline, then ordered increments.
+   * The caller owns reconnect policy; `dispose` ends the stream.
+   */
+  workspaceFrames(signal: AbortSignal): {
+    frames: AsyncIterable<WorkspaceFollowFrame>;
+    dispose(): void;
+  } {
+    if (!this.ctx) throw new Error("尚未连接后台");
+    const stream = this.remote.workspace.follow(signal);
+    return {
+      frames: stream as AsyncIterable<WorkspaceFollowFrame>,
+      dispose: () => {
+        try {
+          stream.dispose();
+        } catch {
+          /* already closed */
+        }
+      },
+    };
+  }
+
+  /** Create or reuse the Workspace over an existing directory. */
+  createWorkspace(path: string): Promise<WorkspaceResult<WorkspaceCreateValue>> {
+    return this.workspaceCall(() => this.remote.workspace.create({ path }));
+  }
+
+  /** Rename a Workspace (the Dialogue's name). */
+  renameWorkspace(workspaceId: string, title: string): Promise<WorkspaceResult<WorkspaceValue>> {
+    return this.workspaceCall(() => this.remote.workspace.rename({ workspaceId, title }));
+  }
+
+  /** Archive one Session; `stopActivity` stops its running work instead of refusing. */
+  archiveWorkspaceSession(
+    sessionId: string,
+    stopActivity?: boolean,
+  ): Promise<WorkspaceResult<WorkspaceArchiveValue>> {
+    const request: WorkspaceArchiveSessionRequest = {
+      sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
+      ...(stopActivity === true ? { stopActivity: true } : {}),
+    };
+    return this.workspaceCall(() => this.remote.workspace.archiveSession(request));
+  }
+
+  unarchiveWorkspaceSession(sessionId: string): Promise<WorkspaceResult<WorkspaceArchiveValue>> {
+    return this.workspaceCall(() =>
+      this.remote.workspace.unarchiveSession({
+        sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
+      }),
+    );
+  }
+
+  pinWorkspaceSession(sessionId: string): Promise<WorkspaceResult<WorkspacePinValue>> {
+    return this.workspaceCall(() =>
+      this.remote.workspace.pinSession({
+        sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
+      }),
+    );
+  }
+
+  unpinWorkspaceSession(sessionId: string): Promise<WorkspaceResult<WorkspacePinValue>> {
+    return this.workspaceCall(() =>
+      this.remote.workspace.unpinSession({
+        sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
+      }),
+    );
+  }
+
+  /** Move one accounted Session within its Workspace, DOM-insertBefore-like. */
+  moveWorkspaceSession(
+    workspaceId: string,
+    sessionId: string,
+    beforeSessionId?: string,
+  ): Promise<WorkspaceResult<WorkspaceValue>> {
+    return this.workspaceCall(() =>
+      this.remote.workspace.insertSessionBefore({
+        workspaceId,
+        sessionId,
+        ...(beforeSessionId === undefined ? {} : { beforeSessionId }),
+      }),
+    );
+  }
+
+  /** One Workspace command; a Host refusal keeps its code so the UI can branch. */
+  private async workspaceCall<T>(
+    run: () => Promise<
+      | { ok: true; value: T }
+      | { ok: false; error?: { code?: string; message?: string; details?: unknown } }
+    >,
+  ): Promise<WorkspaceResult<T>> {
+    const result = await run();
+    if (result.ok === true) return { ok: true, value: result.value };
+    const error = result.error ?? { code: "unknown/error", message: "Workspace 调用失败。" };
+    return {
+      ok: false,
+      code: error.code ?? "unknown/error",
+      message: error.message ?? "Workspace 调用失败。",
+      ...(error.details === undefined ? {} : { details: error.details }),
+    };
   }
 
   async listSessions(): Promise<

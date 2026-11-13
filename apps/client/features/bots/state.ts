@@ -12,6 +12,7 @@ import {
   importTemplatesFromPresets,
   RegistryRejection,
   type BotRegistry,
+  type LegacyRegistry,
 } from "./model";
 import { BotRegistryRepository, defaultRegistryPath, fileStore, storageStore } from "./store";
 
@@ -20,6 +21,13 @@ const opened = openRepository();
 const repo = opened.repo;
 
 export const registry = signal<BotRegistry>(emptyRegistry());
+/**
+ * A v3 / v4 file: Dialogues that still own their path. It is read-only until a
+ * Host is up and the migration writes v5; nothing writes the old shape.
+ */
+export const legacyRegistry = signal<LegacyRegistry | null>(null);
+/** Why the v4 file has not migrated yet (no Host, or a failing step). */
+export const migrationNotice = signal<string | null>(null);
 export const ready = signal(false);
 export const saving = signal(false);
 export const loadError = signal<string | null>(null);
@@ -30,7 +38,13 @@ export async function loadRegistry(): Promise<void> {
   try {
     const result = await repo.load();
     registry.set(result.registry);
+    legacyRegistry.set(result.legacy);
     loadError.set(result.corrupt);
+    migrationNotice.set(
+      result.legacy
+        ? "注册表还是旧版本（v4）：连接 Host 后会把这些 Dialogue 迁到 dsh Workspace。"
+        : null,
+    );
   } catch (error) {
     loadError.set(messageOf(error));
   } finally {
@@ -38,9 +52,30 @@ export async function loadRegistry(): Promise<void> {
   }
 }
 
-/** True when a write would not go through (still loading, unreadable file, another write). */
+/**
+ * Store a migrated v5 registry (the v4 file is backed up first). Returns false
+ * when the write failed; the v4 file then stays the only copy.
+ */
+export async function acceptMigratedRegistry(next: BotRegistry): Promise<boolean> {
+  if (loadError() !== null) return false;
+  saving.set(true);
+  try {
+    await repo.replace(next);
+    registry.set(next);
+    legacyRegistry.set(null);
+    migrationNotice.set(null);
+    return true;
+  } catch (error) {
+    migrationNotice.set(`迁移结果没能写入：${messageOf(error)}`);
+    return false;
+  } finally {
+    saving.set(false);
+  }
+}
+
+/** True when a write would not go through (still loading, unreadable or v4 file, another write). */
 export function writeBlocked(): boolean {
-  return !ready() || loadError() !== null || saving();
+  return !ready() || loadError() !== null || legacyRegistry() !== null || saving();
 }
 
 export function clearActionError(): void {

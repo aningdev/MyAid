@@ -2,16 +2,36 @@
  * Host reachability for the shell: read the registry, then the Host, and
  * connect dsh when the Host answers. Web and other non-desktop runs have no
  * Host to ask, so the shell stays usable and the footer says "disconnected".
+ *
+ * A v3 / v4 registry is read-only until this happens: its Dialogues own
+ * paths that dsh must take over, so the migration waits for the one Host that
+ * can own them (see `features/workspace/migrate`).
  */
 import { platform } from "nsh";
 
-import { loadRegistry, registry } from "../../features/bots/state";
+import {
+  acceptMigratedRegistry,
+  legacyRegistry,
+  loadRegistry,
+  migrationNotice,
+  registry,
+} from "../../features/bots/state";
 import {
   connectSession,
   hostConnection,
   refreshHostStatus,
 } from "../../features/dialogue/session/runtime";
-import { loadAndApplyShellPrefs } from "./prefs";
+import { migrateRegistry } from "../../features/workspace/migrate";
+import {
+  archiveSession,
+  loadStoredWorkspaces,
+  openWorkspace,
+  pinSession,
+  renameWorkspace,
+  whenWorkspacesReady,
+  workspaces,
+} from "../../features/workspace/state";
+import { applyShellPrefs, legacySessionPins, loadShellPrefs, markPrefsLoaded } from "./prefs";
 
 /** A Host runs only beside the desktop app (the web target has none). */
 export const hasHost = platform.idiom === "desktop" && platform.os !== "web";
@@ -40,11 +60,65 @@ export async function connectWhenHosted(): Promise<void> {
 export async function retryHost(): Promise<void> {
   await refreshHost();
   await connectWhenHosted();
+  // A v4 file becomes v5 as soon as a Host can own its Workspaces.
+  if (legacyRegistry() && hostConnection() === "up") await migrateLegacy();
 }
 
 export async function startShell(): Promise<void> {
   await loadRegistry();
-  // The stored workbench points at registry objects: load them together.
-  await loadAndApplyShellPrefs(registry());
+  // Stored Favorites still name v4 Sessions; the migration moves those pins.
+  const prefs = await loadShellPrefs();
   await retryHost();
+  // A Host-less test app reads the baseline a fixture put in its Storage.
+  await loadStoredWorkspaces();
+  // A v4 file that could not migrate yet keeps the notice; nothing else shows.
+  if (legacyRegistry()) return;
+  applyShellPrefs(prefs, registry(), workspaces());
+  markPrefsLoaded();
+}
+
+/**
+ * Move a v4 registry's paths, names and archives into dsh, then store v5.
+ * Every step is idempotent, so a retry after a failure starts over safely.
+ */
+async function migrateLegacy(): Promise<void> {
+  const legacy = legacyRegistry();
+  if (!legacy) return;
+  try {
+    const { ensureConnected } = await import("../../lib/dsh/session");
+    const connection = await ensureConnected();
+    await whenWorkspacesReady();
+    const prefs = await loadShellPrefs();
+    const { registry: next, report } = await migrateRegistry(
+      legacy,
+      {
+        async create(path) {
+          const workspace = await openWorkspace(connection, path);
+          return { workspaceId: workspace.id, title: workspace.title };
+        },
+        rename: async (workspaceId, title) => {
+          await renameWorkspace(connection, workspaceId, title);
+        },
+        archiveSession: (sessionId) => archiveSession(connection, sessionId),
+        pinSession: (sessionId) => pinSession(connection, sessionId),
+        archived: () => workspaces().archived,
+        pinned: () => workspaces().pinned,
+        ready: () => whenWorkspacesReady(),
+      },
+      legacySessionPins(prefs),
+    );
+    if (await acceptMigratedRegistry(next)) {
+      applyShellPrefs(prefs, registry(), workspaces());
+      markPrefsLoaded();
+      if (report.skipped > 0) {
+        migrationNotice.set(
+          `迁移完成；${report.skipped} 项 dsh 没有接受（名字可能重名，或旧 Session 已不存在）。`,
+        );
+      }
+    }
+  } catch (error) {
+    migrationNotice.set(
+      `迁移中断：${error instanceof Error ? error.message : String(error)}；连接 Host 后会重试。`,
+    );
+  }
 }

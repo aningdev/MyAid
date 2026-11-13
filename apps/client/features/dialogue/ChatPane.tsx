@@ -24,6 +24,7 @@ import { alpha, Appear, colors, IconTile, Press, radius } from "../../components
 import { BotMark } from "../bots/BotMark";
 import { claimOwner } from "../bots/model";
 import { registry } from "../bots/state";
+import { workspacePath, workspaces } from "../workspace/state";
 import { ApprovalCard } from "./chat/ApprovalCard";
 import { attachDropped } from "./chat/attach";
 import { ChatHeader } from "./chat/ChatHeader";
@@ -61,7 +62,10 @@ export function ChatPane(props: { controller: SessionController }) {
     const row = sessionList().find((item) => item.id === props.controller.sessionId);
     return row?.label ?? owner()?.claim.title ?? "New Session";
   };
-  const subtitle = () => owner()?.dialogue.workspacePath ?? "";
+  const subtitle = () => {
+    const current = owner();
+    return current ? workspacePath(workspaces(), current.dialogue) : "";
+  };
 
   let ids = 0;
   const nextId = () => `m${ids++}`;

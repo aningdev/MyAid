@@ -13,6 +13,11 @@ import { Storage } from "nsh";
 import type { DockAreaLayout, DockNode } from "nsh/base";
 
 import { claimOwner, type BotRegistry, type Dialogue } from "../../features/bots/model";
+import {
+  isSessionArchived,
+  workspaceTitle,
+  type WorkspaceProjection,
+} from "../../features/workspace/state";
 import { prefsPath, usesTestStorage } from "../../lib/data-root";
 import { favorites, setFavorites } from "./favorites";
 import { NAV_DEFAULT_EXPANDED } from "./fixtures";
@@ -41,7 +46,10 @@ export type ShellPrefs = {
     open: boolean;
     expanded: string[];
   };
-  /** Pinned Navigator addresses, in the person's order. */
+  /**
+   * Pinned Navigator addresses, in the person's order. Sessions are pinned in
+   * dsh ({@link WorkspaceProjection.pinned}) and never stored here.
+   */
   favorites: NavAddress[];
   workbench: {
     layout: DockAreaLayout;
@@ -81,7 +89,9 @@ export function collectShellPrefs(): ShellPrefs {
       open: navOpen(),
       expanded: [...expandedSections()],
     },
-    favorites: favorites().map((address) => ({ ...address })),
+    favorites: favorites()
+      .filter((address) => address.kind !== "session")
+      .map((address) => ({ ...address })),
     workbench: {
       layout: dockLayout(),
       contents: Object.fromEntries(
@@ -96,21 +106,26 @@ export function collectShellPrefs(): ShellPrefs {
 }
 
 /**
- * Apply stored preferences. Addresses are resolved against the registry that
- * just loaded: a Bot, Dialogue or Session that is gone leaves its Panel empty.
+ * Apply stored preferences. Addresses are resolved against the registry and
+ * dsh's Workspaces as they are now: an object that is gone leaves its Panel
+ * empty. A Session pin read from an older file is dropped — dsh owns pins now.
  */
-export function applyShellPrefs(prefs: ShellPrefs, registry: BotRegistry): void {
+export function applyShellPrefs(
+  prefs: ShellPrefs,
+  registry: BotRegistry,
+  workspaces: WorkspaceProjection,
+): void {
   setNavWidth(clampWidth(prefs.nav.width));
   setNavOpen(prefs.nav.open);
   // An empty list is a real state (every section folded), not a missing one.
   setExpandedSections(prefs.nav.expanded.filter((id) => typeof id === "string"));
   setFavorites(
     prefs.favorites
-      .map((address) => resolveAddress(address, registry))
+      .map((address) => resolveAddress(address, registry, workspaces))
       .filter((address): address is NavAddress => address !== null),
   );
   const restored = restoreWorkbenchSnapshot(prefs.workbench, (address) =>
-    resolveAddress(address, registry),
+    resolveAddress(address, registry, workspaces),
   );
   applyWorkbench(restored.layout, restored.contents, restored.activePanelId);
 }
@@ -120,7 +135,11 @@ export function applyShellPrefs(prefs: ShellPrefs, registry: BotRegistry): void 
  * null when the object is gone (a deleted Bot, an archived Dialogue or
  * Session). This is what makes old preferences safe to open.
  */
-export function resolveAddress(address: NavAddress, registry: BotRegistry): NavAddress | null {
+export function resolveAddress(
+  address: NavAddress,
+  registry: BotRegistry,
+  workspaces: WorkspaceProjection,
+): NavAddress | null {
   switch (address.kind) {
     case "bot": {
       const bot = registry.bots.find((item) => item.id === address.botId);
@@ -128,20 +147,20 @@ export function resolveAddress(address: NavAddress, registry: BotRegistry): NavA
     }
     case "dialogue": {
       const dialogue = registry.dialogues.find((item) => item.id === address.dialogueId);
-      if (!dialogue || dialogue.archived) return null;
+      if (!dialogue) return null;
       const bot = registry.bots.find((item) => item.id === dialogue.botId);
       if (!bot) return null;
       return dialogueAddress({
         id: dialogue.id,
-        workspacePath: dialogue.workspacePath,
+        title: workspaceTitle(workspaces, dialogue),
         botId: bot.id,
         botName: bot.name,
-        label: dialogueLabelOf(dialogue, registry, bot.name),
+        label: dialogueLabelOf(dialogue, registry, workspaces, bot.name),
       });
     }
     case "session": {
       const owner = address.sessionId ? claimOwner(registry, address.sessionId) : null;
-      if (!owner || owner.claim.archived || owner.dialogue.archived) return null;
+      if (!owner || isSessionArchived(workspaces, owner.claim.sessionId)) return null;
       return sessionAddress({
         sessionId: owner.claim.sessionId,
         label: owner.claim.title ?? address.title ?? "Session",
@@ -154,12 +173,30 @@ export function resolveAddress(address: NavAddress, registry: BotRegistry): NavA
   }
 }
 
-function dialogueLabelOf(dialogue: Dialogue, registry: BotRegistry, botName: string): string {
+function dialogueLabelOf(
+  dialogue: Dialogue,
+  registry: BotRegistry,
+  workspaces: WorkspaceProjection,
+  botName: string,
+): string {
   const names = dialogueLabels({
-    dialogues: registry.dialogues.filter((item) => !item.archived),
+    dialogues: registry.dialogues.map((item) => ({
+      id: item.id,
+      botId: item.botId,
+      title: workspaceTitle(workspaces, item),
+    })),
     botName: (id) => registry.bots.find((bot) => bot.id === id)?.name ?? "",
   });
   return names.get(dialogue.id)?.full ?? botName;
+}
+
+/** Session ids an older Favorites list pinned; the migration moves them to dsh. */
+export function legacySessionPins(prefs: ShellPrefs): string[] {
+  const ids: string[] = [];
+  for (const address of prefs.favorites) {
+    if (address.kind === "session" && address.sessionId) ids.push(address.sessionId);
+  }
+  return ids;
 }
 
 /** Parse stored text; anything unreadable is the defaults, never a throw. */
@@ -300,13 +337,6 @@ export function saveShellPrefs(prefs: ShellPrefs): void {
     if (!store) store = prefsStore();
     void store.write(serializeShellPrefs(next)).catch(() => undefined);
   }, 400);
-}
-
-/** The launch's prefs read, and the shell's start once the registry is read. */
-export async function loadAndApplyShellPrefs(registry: BotRegistry): Promise<void> {
-  const prefs = await loadShellPrefs();
-  applyShellPrefs(prefs, registry);
-  markPrefsLoaded();
 }
 
 // --- pure shapes -----------------------------------------------------------

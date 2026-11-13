@@ -34,7 +34,7 @@ function sampleRegistry(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work/myaid" },
+      { botId: "bot", workspaceId: "ws-work" },
       "dlg",
     ),
     "dlg",
@@ -70,7 +70,7 @@ test("Profile saves the Bot's name and description in the registry", async () =>
   await app.waitFor("role:treeitem[Ada L]");
   const saved = parseRegistry(app.storage()[REGISTRY_STORAGE_KEY] ?? "");
   expect(saved.ok).toBe(true);
-  expect(saved.ok ? saved.registry.bots[0]?.description : null).toBe(
+  expect(saved.ok && saved.state === "current" ? saved.registry.bots[0]?.description : null).toBe(
     "Keeps the release branch tidy",
   );
 });

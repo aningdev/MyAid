@@ -1,8 +1,9 @@
 /** Registry file vocabulary: version, rejection issues and the normalizers the file format shares. */
-export const REGISTRY_VERSION = 4 as const;
+export const REGISTRY_VERSION = 5 as const;
 
 export type RegistryIssue =
   | { code: "corrupt" }
+  | { code: "legacy-version" }
   | { code: "invalid"; reason: string }
   | { code: "unsupported-version"; version: unknown }
   | { code: "not-found"; kind: "template" | "bot" | "dialogue"; id: string }
@@ -10,12 +11,11 @@ export type RegistryIssue =
   | { code: "template-in-use"; templateId: string }
   | { code: "not-draft"; botId: string }
   | { code: "empty-workspace"; dialogueId?: string }
-  | { code: "frozen"; kind: "bot" | "dialogue"; id: string; field: "templateId" | "workspacePath" }
+  | { code: "frozen"; kind: "bot"; id: string; field: "templateId" }
   | { code: "empty-name" }
   | { code: "empty-preset" }
   | { code: "duplicate-id"; id: string }
   | { code: "not-ready"; botId: string }
-  | { code: "dialogue-archived"; dialogueId: string }
   | { code: "session-claimed"; sessionId: string }
   | { code: "bot-has-dialogues"; botId: string }
   | { code: "claim-not-found"; sessionId: string };
@@ -34,6 +34,8 @@ export function rejectionMessage(issue: RegistryIssue): string {
   switch (issue.code) {
     case "corrupt":
       return "注册表已损坏，未覆盖文件。";
+    case "legacy-version":
+      return "注册表是旧版本：先连接 Host 把 Dialogue 迁到 dsh Workspace。";
     case "invalid":
       return issue.reason;
     case "unsupported-version":
@@ -49,9 +51,7 @@ export function rejectionMessage(issue: RegistryIssue): string {
     case "empty-workspace":
       return "创建 Dialogue 前要填写工作区路径。";
     case "frozen":
-      return issue.field === "templateId"
-        ? "初始化后不能改模板。"
-        : "创建后不能改 Dialogue 工作区。";
+      return "初始化后不能改模板。";
     case "empty-name":
       return "名称不能为空。";
     case "empty-preset":
@@ -60,8 +60,6 @@ export function rejectionMessage(issue: RegistryIssue): string {
       return "标识已存在。";
     case "not-ready":
       return "初始化之后才能新建 Dialogue。";
-    case "dialogue-archived":
-      return "这段 Dialogue 已归档。";
     case "session-claimed":
       return "这条会话已经认领到一段 Dialogue。";
     case "bot-has-dialogues":

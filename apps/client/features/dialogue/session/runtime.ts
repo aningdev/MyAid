@@ -5,13 +5,9 @@
  * Sessions stay alive, and mark the Session unread when the reply lands).
  * Host control + official dsh SDK load lazily so AppShell / Today stay free.
  */
-import { homedir } from "os";
-import { join } from "path";
-
 import { computed, signal, untracked } from "nsh";
 
 import {
-  archiveDialogue,
   claimOwner,
   claimSession,
   presetForBot,
@@ -20,6 +16,12 @@ import {
 } from "../../bots/model";
 import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
 import { changeRegistry, ready, registry } from "../../bots/state";
+import {
+  startWorkspaces,
+  stopWorkspaces,
+  whenWorkspacesReady,
+  workspaces,
+} from "../../workspace/state";
 import {
   ClaimedSessionClient,
   type ApprovalDecision,
@@ -79,6 +81,7 @@ const sessionControllers = new SessionRegistry({
   ensureTransport: () => connectTransport(),
   transport: () => claimed?.getTransport(),
   registry: () => untracked(registry),
+  sessionArchived: (sessionId) => untracked(workspaces).archived.has(sessionId),
   summaries: () => summaries,
   onChange: () => {
     changeTick.update((value) => value + 1);
@@ -108,14 +111,6 @@ let claimed: ClaimedSessionClient | undefined;
 let connectWork: Promise<void> | undefined;
 let dsh: DshSession | undefined;
 let host: HostControlApi | undefined;
-
-function resolveWorkspace(path: string): string {
-  const trimmed = path.trim();
-  if (!trimmed) return trimmed;
-  if (trimmed === "~") return homedir();
-  if (trimmed.startsWith("~/")) return join(homedir(), trimmed.slice(2));
-  return trimmed;
-}
 
 async function loadDsh(): Promise<DshSession> {
   if (!dsh) dsh = await import("../../../lib/dsh/session");
@@ -210,6 +205,7 @@ function rebuildRoster(): void {
     buildSessionRoster({
       registry: untracked(registry),
       listed: listedSessions,
+      workspaces: untracked(workspaces),
       summaries,
     }),
   );
@@ -312,8 +308,19 @@ export function connectSession(_sessionId?: string): Promise<void> {
     // A dead transport is being replaced: tell controllers before their
     // stale follow streams are dropped, so a shown Session re-follows.
     const previous = client.getTransport();
-    if (previous && !previous.ready) sessionControllers.connectionLost();
+    if (previous && !previous.ready) {
+      sessionControllers.connectionLost();
+      // The old Connection is going away with its follow stream.
+      await stopWorkspaces();
+    }
     const transport = await client.ensureConnected();
+    // The Workspace projection holds the tree's paths, titles and order.
+    const connection = dsh?.getConnection();
+    if (connection) {
+      startWorkspaces(connection);
+      // Restored Panel addresses need a Workspace title and path.
+      await whenWorkspacesReady();
+    }
     await refreshHostStatus();
     try {
       modelCatalog.set(await transport.modelCatalog());
@@ -351,17 +358,15 @@ export async function createSession(dialogueId: string): Promise<string> {
     if (!untracked(ready)) throw new Error("注册表还没准备好。");
     const dialogue = untracked(registry).dialogues.find((item) => item.id === dialogueId);
     if (!dialogue) throw new Error("找不到这段 Dialogue。");
-    if (dialogue.archived) throw new Error("这段 Dialogue 已归档。");
     const bot = untracked(registry).bots.find((item) => item.id === dialogue.botId);
     if (!bot || bot.status !== "ready") throw new Error("初始化之后才能新建会话。");
     await connectSession();
     const client = await ensureClient();
     const preset = presetForBot(untracked(registry), bot.id);
-    const cwd = resolveWorkspace(dialogue.workspacePath);
-    if (!cwd) throw new Error("这段 Dialogue 没有工作区路径。");
+    if (!dialogue.workspaceId) throw new Error("这段 Dialogue 还没有 dsh Workspace。");
     const id = await client.createClaimed({
       dialogueId: dialogue.id,
-      dialogue: { ...dialogue, workspacePath: cwd },
+      dialogue,
       bot,
       agentPreset: preset,
     });
@@ -387,23 +392,6 @@ export async function selectSessionModel(sessionId: string, key: string): Promis
   } catch (error) {
     sessionError.set(error instanceof Error ? error.message : String(error));
   }
-}
-
-/** Archive the Dialogue that owns this session (product default). */
-export async function archiveOwningDialogue(sessionId: string): Promise<void> {
-  if (sessionControllers.peek(sessionId)?.running()) {
-    sessionError.set("正在执行，先停止或等这轮结束。");
-    return;
-  }
-  const owner = claimOwner(untracked(registry), sessionId);
-  if (!owner || owner.dialogue.archived) return;
-  const saved = await changeRegistry((reg) => archiveDialogue(reg, owner.dialogue.id));
-  if (saved) await refreshSessionList();
-}
-
-/** @deprecated Prefer {@link archiveOwningDialogue}. */
-export async function archiveSession(sessionId: string): Promise<void> {
-  await archiveOwningDialogue(sessionId);
 }
 
 export async function releaseMissingSession(sessionId: string): Promise<void> {
@@ -445,6 +433,7 @@ export async function disposeRuntime(): Promise<void> {
   rosterBase.set([]);
   listedSessions = null;
   summaries.clear();
+  await stopWorkspaces();
   if (claimed) await claimed.dispose().catch(() => undefined);
   claimed = undefined;
   if (dsh) await dsh.disposeSession().catch(() => undefined);

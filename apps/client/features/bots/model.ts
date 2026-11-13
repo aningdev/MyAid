@@ -3,7 +3,13 @@
 import { defaultIdentity, type BotIdentity } from "./identity";
 import { blankToNull, REGISTRY_VERSION, RegistryRejection } from "./registry";
 
-export { parseRegistry, serializeRegistry, type ParseResult } from "./format";
+export {
+  parseRegistry,
+  serializeRegistry,
+  type LegacyDialogue,
+  type LegacyRegistry,
+  type ParseResult,
+} from "./format";
 export {
   REGISTRY_VERSION,
   RegistryRejection,
@@ -11,7 +17,11 @@ export {
   type RegistryIssue,
 } from "./registry";
 
-/** v4: Bot identity, Dialogue names, archived Session claims. v3 files migrate on read. */
+/**
+ * v5: a Dialogue names a dsh Workspace instead of a path of its own. The
+ * Workspace owns path, title, Session order, pins and the archive set; v3 / v4
+ * files migrate once a Host is connected (see `features/workspace/migrate`).
+ */
 
 /** Derived presets are Bot-owned; they must not become pickable templates. */
 export const DERIVED_PRESET_PREFIX = "myaid-bot-";
@@ -25,12 +35,14 @@ export type BotTemplate = {
 
 export type BotStatus = "draft" | "ready";
 
-/** A Harness Session claimed to one Dialogue. The event log stays in dsh. */
+/**
+ * A Harness Session claimed to one Dialogue. The event log, its archive flag
+ * and its pin stay in dsh; `title` is the person's own label, because dsh's
+ * Session listing carries no title.
+ */
 export type SessionClaim = {
   sessionId: string;
   title: string | null;
-  /** Hidden from the product's lists; dsh keeps the Session. */
-  archived: boolean;
 };
 
 export type Bot = {
@@ -55,14 +67,15 @@ export type Bot = {
   identity: BotIdentity;
 };
 
-/** Long-running thread with a Bot; binds one workspace path. */
+/**
+ * A Bot's view of one dsh Workspace: the same directory seen by two Bots is
+ * two Dialogues over one Workspace (shared order, pins and archive).
+ */
 export type Dialogue = {
   id: string;
   botId: string;
-  workspacePath: string;
-  /** A person's name for it; null reads as the workspace's last segment. */
-  name: string | null;
-  archived: boolean;
+  /** dsh Workspace id; path, title, Session order, pins and archive live there. */
+  workspaceId: string;
   claims: SessionClaim[];
 };
 
@@ -267,10 +280,10 @@ export function initializeBot(registry: BotRegistry, botId: string): BotRegistry
   });
 }
 
-/** Create a Dialogue under a ready Bot. Workspace path is required and frozen afterwards. */
+/** Create a Dialogue under a ready Bot over an existing dsh Workspace. */
 export function createDialogue(
   registry: BotRegistry,
-  input: { botId: string; workspacePath: string },
+  input: { botId: string; workspaceId: string },
   id: string = newId(),
 ): BotRegistry {
   const bot = mustBot(registry, input.botId);
@@ -278,64 +291,34 @@ export function createDialogue(
   if (registry.dialogues.some((item) => item.id === id)) {
     throw new RegistryRejection({ code: "duplicate-id", id });
   }
-  const workspacePath = input.workspacePath.trim();
-  if (!workspacePath) throw new RegistryRejection({ code: "empty-workspace" });
-  const dialogue: Dialogue = {
-    id,
-    botId: bot.id,
-    workspacePath,
-    name: null,
-    archived: false,
-    claims: [],
-  };
+  const workspaceId = input.workspaceId.trim();
+  if (!workspaceId) throw new RegistryRejection({ code: "empty-workspace" });
+  const dialogue: Dialogue = { id, botId: bot.id, workspaceId, claims: [] };
   return {
     ...replaceBot(registry, { ...bot, hadDialogue: true }),
     dialogues: [...registry.dialogues, dialogue],
   };
 }
 
-export function archiveDialogue(registry: BotRegistry, dialogueId: string): BotRegistry {
-  const dialogue = mustDialogue(registry, dialogueId);
-  return replaceDialogue(registry, { ...dialogue, archived: true });
-}
-
-/** Name a Dialogue; a blank name goes back to its workspace's segment. */
-export function renameDialogue(
+/** The Dialogue under `botId` that shows `workspaceId`, if this Bot already has one. */
+export function dialogueOfWorkspace(
   registry: BotRegistry,
-  dialogueId: string,
-  name: string | null,
-): BotRegistry {
-  const dialogue = mustDialogue(registry, dialogueId);
-  return replaceDialogue(registry, { ...dialogue, name: blankToNull(name) });
+  botId: string,
+  workspaceId: string,
+): Dialogue | null {
+  return (
+    registry.dialogues.find((item) => item.botId === botId && item.workspaceId === workspaceId) ??
+    null
+  );
 }
 
-/** Hide a claimed Session from the product's lists (the claim and dsh stay). */
-export function archiveClaim(
-  registry: BotRegistry,
-  dialogueId: string,
-  sessionId: string,
-): BotRegistry {
-  return mapClaim(registry, dialogueId, sessionId, (claim) => ({ ...claim, archived: true }));
-}
-
-/** Bring an archived claim back into the product's lists. */
-export function restoreClaim(
-  registry: BotRegistry,
-  dialogueId: string,
-  sessionId: string,
-): BotRegistry {
-  return mapClaim(registry, dialogueId, sessionId, (claim) => ({ ...claim, archived: false }));
-}
-
-/** Claim a new Harness Session for an active Dialogue. */
+/** Claim a new Harness Session for a Dialogue. */
 export function claimSession(
   registry: BotRegistry,
   dialogueId: string,
   sessionId: string,
 ): BotRegistry {
   const dialogue = mustDialogue(registry, dialogueId);
-  if (dialogue.archived)
-    throw new RegistryRejection({ code: "dialogue-archived", dialogueId: dialogue.id });
   const bot = mustBot(registry, dialogue.botId);
   if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId: bot.id });
   const id = sessionId.trim();
@@ -344,7 +327,7 @@ export function claimSession(
     throw new RegistryRejection({ code: "session-claimed", sessionId: id });
   return replaceDialogue(registry, {
     ...dialogue,
-    claims: [...dialogue.claims, { sessionId: id, title: null, archived: false }],
+    claims: [...dialogue.claims, { sessionId: id, title: null }],
   });
 }
 

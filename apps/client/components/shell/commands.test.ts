@@ -11,6 +11,8 @@ import {
   type BotRegistry,
 } from "../../features/bots/model";
 import { registry } from "../../features/bots/state";
+import { workspaces } from "../../features/workspace/state";
+import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import {
   buildApplicationMenu,
   COMMANDS,
@@ -32,7 +34,7 @@ function sample(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work/myaid" },
+      { botId: "bot", workspaceId: "ws-work" },
       "dlg",
     ),
     "dlg",
@@ -99,6 +101,13 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
 
 test("the palette lists every command and every Bot, Dialogue and Session", () => {
   registry.set(sample());
+  workspaces.set(
+    workspaceProjection({
+      rows: [
+        workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+      ],
+    }),
+  );
   try {
     const { items, jumps } = paletteItems();
     for (const command of COMMANDS) {
@@ -114,6 +123,7 @@ test("the palette lists every command and every Bot, Dialogue and Session", () =
     expect(jumps.get("jump:session:s1")?.sessionId).toBe("s1");
   } finally {
     registry.set(emptyRegistry());
+    workspaces.set(workspaceProjection());
   }
 });
 
@@ -156,5 +166,6 @@ test("enabled states follow the active Panel", () => {
 
 test("the registry's serialized form is the one the palette reads", () => {
   const text = serializeRegistry(sample());
-  expect(text).toContain('"version": 4');
+  expect(text).toContain('"version": 5');
+  expect(text).toContain('"workspaceId": "ws-work"');
 });

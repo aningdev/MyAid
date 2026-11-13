@@ -8,6 +8,7 @@ import { expect, test } from "nsh/test";
 
 import { graphical } from "../../test/graphical";
 import { open } from "../../test/open";
+import { workspaceStorage, workspaceRow } from "../../test/workspaces";
 import {
   claimSession,
   createBot,
@@ -35,7 +36,7 @@ function sampleRegistry(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work/myaid" },
+      { botId: "bot", workspaceId: "ws-work" },
       "dlg",
     ),
     "dlg",
@@ -47,7 +48,14 @@ function sampleRegistry(): BotRegistry {
 async function session() {
   const app = await open("../../App.tsx", {
     ...desktop,
-    storage: { [REGISTRY_STORAGE_KEY]: serializeRegistry(sampleRegistry()) },
+    storage: {
+      [REGISTRY_STORAGE_KEY]: serializeRegistry(sampleRegistry()),
+      ...workspaceStorage({
+        rows: [
+          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+        ],
+      }),
+    },
   });
   // Bot → Dialogue (expands its Sessions) → the claimed Session.
   await app.waitFor("role:treeitem[Ada]");

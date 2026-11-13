@@ -50,7 +50,7 @@ vp run @myaid/client#package:web
 - **Workbench**: `nsh/base` DockArea (center) whose Panels can split, zoom, resize, move and close. The layout, each Panel's Nav address, the active Panel and the Navigator's width / folded sections are restored from client prefs; an address whose object is gone resolves to an empty Panel.
 - **Panels**: `session` → `SessionPanel` → `ChatPane` (header, transcript, approval, composer) with an optional **Inspector**; `dialogue` → `DialoguePanel`; `bot` → `BotPanel`; `setting` → Background Services. An empty Panel shows the welcome state until the first Bot exists.
 - **Runtime ownership**: `SessionController` holds a Session's follow stream, draft, attachments and approval queue. Two Panels on one Session share it; two Sessions can stream at once. Navigator rows show working / unread / waiting-for-approval dots.
-- **New Bot**: one sheet (`features/bots/NewBotSheet.tsx`) for the Bots section's `+`, `⇧⌘N`, the welcome page and the palette. It creates a Bot + Dialogue + first Session when the Host is up.
+- **New Bot**: one sheet (`features/bots/NewBotSheet.tsx`) for the Bots section's `+`, `⇧⌘N`, the welcome page and the palette. It saves the Bot without a Host; its first Dialogue needs one, because a Dialogue opens on a dsh Workspace (`workspace.create`) and its first Session is a `session.create({ workspaceId })`.
 - **Inspector**: Session Panel's right rail (268–320), toggled per Panel by `⌥⌘I`. Bot / Dialogue / Sessions / Deliverables / Usage; Compact runs `/compact`; the workspace path reveals in Finder when the Host allows it.
 - **Bot Settings**: one sheet with Profile / Runs with / Skills / Plugins. Profile and Runs with write registry preferences; Skills and Plugins read the Bot's preset composition. A capability change derives the Bot's own preset when the preset writer is available; otherwise it says why it cannot save.
 
@@ -73,7 +73,8 @@ vp run @myaid/client#package:web
 
 ## Data
 
-- Registry: `~/.myaid/registry/bots.json` on desktop; `nsh` Storage (`myaid.registry.bots`) on web / mobile. Version 4 holds templates, Bots and Dialogues. v3 files migrate on read; v2 and older are refused. Identity, Dialogue names and archived claims are registry data, not dsh preset content — see [ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md).
+- Registry: `~/.myaid/registry/bots.json` on desktop; `nsh` Storage (`myaid.registry.bots`) on web / mobile. Version 5 holds templates, Bots and Dialogues (`botId` + `workspaceId`). A v3 / v4 file is read-only until a Host is connected: the migration hands each Dialogue's path, name and archived claims to a dsh Workspace (`bots.json.v4.bak` keeps the old file). Identity stays registry data ([ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)); the Dialogue's name, Session order, pins and archive are dsh's Workspace ([ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)).
+- Workspaces: `features/workspace` projects `workspace.follow` into signals. The official `ClientWorkspaceModel` only ships a browser `window.__ModuleLoader__` entry (no `node` condition, and it imports an unpublished `dsh-client-store`), so NSH consumes the Remote's frames and results directly.
 - Client prefs: `~/.myaid/prefs/client.json` on desktop; Storage (`myaid.prefs.shell`) elsewhere. They cover the Navigator, Workbench and Favorites. The chat's send-key preference is a small Storage key of its own (`myaid.prefs.sendKey`).
 - `capabilities.fs` grants read/write only `${homeDir}/.myaid`. Attachments come from the system picker; a drop or paste outside the grant falls back to the same picker — see [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md).
 

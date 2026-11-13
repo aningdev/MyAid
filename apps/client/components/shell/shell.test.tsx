@@ -18,6 +18,7 @@ import {
 import { serializeRegistry } from "../../features/bots/model";
 import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
 import { open } from "../../test/open";
+import { workspaceStorage, workspaceRow } from "../../test/workspaces";
 
 const desktop = { platform: "web" as const, width: 1100, height: 800 };
 
@@ -25,7 +26,14 @@ const desktop = { platform: "web" as const, width: 1100, height: 800 };
 function start(registry: BotRegistry) {
   return open("../../App.tsx", {
     ...desktop,
-    storage: { [REGISTRY_STORAGE_KEY]: serializeRegistry(registry) },
+    storage: {
+      [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+      ...workspaceStorage({
+        rows: [
+          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+        ],
+      }),
+    },
   });
 }
 
@@ -41,7 +49,7 @@ function sampleRegistry(): BotRegistry {
         ),
         "bot",
       ),
-      { botId: "bot", workspacePath: "/work/myaid" },
+      { botId: "bot", workspaceId: "ws-work" },
       "dlg",
     ),
     "dlg",
