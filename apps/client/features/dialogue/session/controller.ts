@@ -172,6 +172,8 @@ export class SessionController {
   private disposed = false;
   /** Prompt request ids the projection has not echoed yet. */
   private echo = new Map<string, string>();
+  /** The visible error came from the official snapshot, so a healthy one clears it. */
+  private modelError = false;
 
   constructor(
     readonly sessionId: string,
@@ -398,6 +400,7 @@ export class SessionController {
 
   applyError(message: string): void {
     const wasRunning = untracked(this.running);
+    this.modelError = false;
     this.error.set(message);
     this.prompting = false;
     this.publish(this.turns.applyError(message));
@@ -478,9 +481,16 @@ export class SessionController {
     const wasRunning = untracked(this.running);
     this.olderLoading.set(state.loadingOlder);
     if (state.promptError) {
+      this.modelError = true;
       this.error.set(`${state.promptError.error.code}: ${state.promptError.error.message}`);
     } else if (state.openError) {
+      this.modelError = true;
       this.error.set(`${state.openError.code}: ${state.openError.message}`);
+    } else if (this.modelError && state.openState === "open") {
+      // A new Host generation served this Session again: the loss notice is
+      // historical, not a standing fault.
+      this.modelError = false;
+      this.error.set(null);
     }
     const view = this.turns.apply(window, state.running);
     this.publish(view);
@@ -551,6 +561,7 @@ export class SessionController {
 
   private fail(message: string): void {
     if (this.disposed) return;
+    this.modelError = false;
     this.error.set(message);
     this.prompting = false;
     this.maybeDispose();

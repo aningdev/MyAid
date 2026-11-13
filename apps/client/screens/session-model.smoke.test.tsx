@@ -7,22 +7,25 @@
  * 2. A queued prompt shows above the composer and is withdrawn by request id.
  * 3. An approval round-trips: dsh asks, the Panel answers, the tool runs.
  * 4. A ~16 KB reply renders to its last line; scrolling up loads older pages.
- * 5. The Host is killed mid-turn and restarted: the window comes back without
- *    duplicates and the turn settles.
+ *
+ * The Host-restart path lives in `session-restart.smoke.test.tsx`, which needs
+ * an outside watcher and is started on its own.
  *
  * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch data root, never
  * the user's `~/.myaid` (see screens/README.md). The restart step needs an
  * outside hand — the app cannot signal a process — so it writes
- * `~/.myaid/d2-restart-request` in the scratch home and waits for the Host to
- * come back:
+ * step has no inside trigger at all: the app cannot signal a process and this
+ * dev host mounts neither a filesystem nor arbitrary HTTP for a test app. An
+ * outside watcher kills the Host once the turn is in the session log and the
+ * log is still growing, then starts a fresh Host on the same data root:
  *
- *   while [ ! -f "$SC/home/.myaid/d2-restart-request" ]; do sleep 1; done
- *   pkill -9 -f 'myaid-host serve'; ./target/debug/myaid-host serve \
- *     --data-root "$SC/data" --official-dsh &
+ *   node apps/client/screens/restart-watcher.mjs \
+ *     --data-root "$SC/data" --socket /tmp/myaid-rc2-host.sock
+ *
+ * Start it just before this test (it acts once, on the first live turn).
  *
  * A headless run stops at the picture probe.
  */
-import { writeFile } from "fs/promises";
 import { homedir } from "os";
 
 import { expect, test } from "nsh/test";
@@ -31,13 +34,13 @@ import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_SESSION } from "./shots";
 
 const WORKSPACE = "/tmp";
+
 /**
  * The second Dialogue's directory. Two Sessions run at once only across
  * Workspaces, and `workspace.create` needs an existing directory: the scratch
  * home already is one.
  */
 const OTHER = homedir();
-const RESTART_REQUEST = `${homedir()}/.myaid/d2-restart-request`;
 
 // A prompt's first sentence becomes the Session's title (`titleFromPrompt`), so
 // each one opens with a short, selector-safe tag.
@@ -45,18 +48,23 @@ const SLOW = (tag: string) =>
   `${tag} answer slowly. Write 18 numbered lines, one short sentence each, and nothing else.`;
 /** Long enough that two of them certainly overlap on the wire. */
 const STREAMING = (tag: string) =>
-  `${tag} stream it. Write 140 numbered lines, one short sentence each, and nothing else.`;
+  `${tag} stream it. Write 60 numbered lines, one short sentence each, and nothing else.`;
+/** Long enough that a prompt queued behind it is still waiting to be withdrawn. */
+const ENDLESS = (tag: string) =>
+  `${tag} keep going. Write 90 numbered lines, one short sentence each, and nothing else.`;
 const title = (tag: string) => `${tag} answer slowly`;
-const LONG = (tag: string) =>
-  `${tag} write long. Write a technical document of at least 2400 words about release ` +
+const LONG = (tag: string, words = 2400) =>
+  `${tag} write long. Write a technical document of at least ${words} words about release ` +
   "engineering, with a markdown heading every few paragraphs. Begin the reply with " +
   `${tag}-START and end it with ${tag}-END, on their own lines.`;
-const longTitle = (tag: string) => `${tag} write long`;
-// `workspace-write` auto-approves a plain `echo`; a network call is what asks.
+/** A fresh tag per run, so the model cannot answer from this machine's caches. */
+
+// `workspace-write` lets bash write inside the workspace; a write outside it
+// (here: the scratch home) is what asks for approval.
 const APPROVAL =
   "APPROVAL-D2 run it. Use the Bash tool to run " +
-  "`curl -sS -o /dev/null -w D2-APPROVAL-OK https://example.com` and then report its " +
-  "output in one short line.";
+  '`sh -c "echo D2-APPROVAL-OK > ~/d2-approval-marker && cat ~/d2-approval-marker"` ' +
+  "and then report its output in one short line.";
 
 type App = Awaited<ReturnType<typeof open>>;
 
@@ -88,10 +96,10 @@ async function send(app: App, prompt: string, nth = 0) {
   await app.keyboard.press("enter");
 }
 
-/** Wait until no Session runs: the composer offers Send again. */
+/** Wait until no Session runs: the working row and the Stop button are gone. */
 async function settled(app: App, timeout = 180000) {
   await app.waitFor("text:Working…", { state: "gone", timeout });
-  await app.waitFor("label:Send", { timeout: 60000 });
+  await app.waitFor("label:Stop generating", { state: "gone", timeout: 60000 });
 }
 
 test("two Panels stream at once, a queued prompt is withdrawn, an approval round-trips", async () => {
@@ -119,16 +127,18 @@ test("two Panels stream at once, a queued prompt is withdrawn, an approval round
   await shoot(app, "01-two-panels.png", SHOTS_SESSION);
 
   // Both stream at the same time: the second send starts while the first runs.
-  // Back to back, so both turns are certainly in flight together.
-  await send(app, STREAMING("PANEL-C"), 0);
+  // The first turn is long enough that the second certainly starts while it
+  // runs; the read below is the claim itself, taken the instant it is sent.
+  await send(app, ENDLESS("PANEL-C"), 0);
+  await app.waitFor("label:Stop generating >> nth=0", { timeout: 240000 });
   await send(app, STREAMING("PANEL-D"), 1);
-  await app.waitUntil(
-    () => app.count("label:Stop generating") === 2 && app.count("text:Working…") === 2,
-    { timeout: 240000 },
-  );
-  expect(app.count("id:nav-status-working")).toBeGreaterThanOrEqual(2);
+  // Proof of overlap: the second Panel is running (its Stop button is up) and
+  // the first Panel is still streaming at the same instant.
+  await app.waitFor("label:Stop generating >> nth=1", { timeout: 60000 });
+  expect(app.count("text:Working…")).toBe(2);
+  expect(app.count("label:Stop generating")).toBe(2);
   await shoot(app, "02-two-working.png", SHOTS_SESSION);
-  await settled(app, 420000);
+  await settled(app, 600000);
   await app.waitUntil(
     () =>
       app.texts().some((text) => text.includes("PANEL-C")) &&
@@ -137,17 +147,17 @@ test("two Panels stream at once, a queued prompt is withdrawn, an approval round
   );
   await shoot(app, "03-both-settled.png", SHOTS_SESSION);
 
-  // A prompt sent while a turn runs is queued in dsh, and withdrawn by its id.
-  await send(app, STREAMING("QUEUE-HOLD"), 0);
-  // The Navigator dot is the Host-asserted running state: only once it shows
-  // does the composer treat the next Enter as a queued prompt.
-  await app.waitFor("id:nav-status-working", { timeout: 120000 });
-  await send(app, "QUEUE-DROP say one word.", 0);
-  await app.waitFor("text:QUEUED", { timeout: 90000 });
+  // A prompt sent while a turn still runs is queued in dsh, and withdrawn by
+  // its request id — the second Panel's turn is running (just asserted).
+  await send(app, "QUEUE-DROP say one word.", 1);
+  await app.waitFor("text:QUEUED", { timeout: 60000 });
   await shoot(app, "04-queued.png", SHOTS_SESSION);
   await app.press("label:Withdraw the queued message");
   await app.waitUntil(() => !app.shows("text:QUEUED"), { timeout: 60000 });
-  await settled(app);
+  expect(app.shows("text:QUEUE-DROP say one word.")).toBe(false);
+  await settled(app, 420000);
+  // Withdrawn means withdrawn: the prompt never became a turn of its own.
+  expect(app.texts().some((text) => text.trim().startsWith("QUEUE-DROP"))).toBe(false);
 
   // An approval: dsh asks, the Panel answers, the tool's output comes back.
   await send(app, APPROVAL, 1);
@@ -191,29 +201,3 @@ test("a long reply renders to its last line, and older pages load above it", asy
   });
   await shoot(app, "08-older-page.png", SHOTS_SESSION);
 }, 1_800_000);
-
-test("the Host restarted mid-turn restores the window without duplicates", async () => {
-  if (!hostSmokeRequested()) return;
-  const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
-  if (!(await graphical(app))) return;
-  await app.waitFor("text:Host connected", { timeout: 60000 });
-
-  await botToChat(app, "D2 Restart");
-  await send(app, LONG("RESTART-D2"));
-  await app.waitFor("label:Stop generating", { timeout: 180000 });
-
-  // Hand the kill to the outside: the app cannot signal a process.
-  await writeFile(RESTART_REQUEST, new Date().toISOString());
-  await app.waitFor("text:Host disconnected", { timeout: 300000 });
-  await shoot(app, "09-host-down.png", SHOTS_SESSION);
-  await app.waitFor("text:Host connected", { timeout: 300000 });
-  await shoot(app, "10-host-back.png", SHOTS_SESSION);
-
-  // The replaced window holds the prompt once, and the turn is over.
-  await app.waitFor("text:Working…", { state: "gone", timeout: 300000 });
-  await app.waitUntil(
-    () => app.texts().filter((text) => text.includes("RESTART-D2")).length === 1,
-    { timeout: 180000 },
-  );
-  await shoot(app, "11-window-restored.png", SHOTS_SESSION);
-}, 900_000);

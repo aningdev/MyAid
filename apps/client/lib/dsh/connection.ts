@@ -38,7 +38,7 @@ export type {
   BotPresetSkill,
   BotPresetUpdateRequest,
 } from "@myaid/dsh-web-protocol/bot-presets";
-import { fetchSessionCookie } from "./auth";
+import { dshRequestInit, fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
 import {
   Context,
@@ -323,14 +323,23 @@ export class Connection {
   private generationSubscription?: () => void;
   private ctx?: Installed;
   private approval?: (request: ApprovalRequest) => Promise<ApprovalDecision>;
+  private approvalFallback?: () => string | undefined;
   ready = false;
   origin = "";
 
   onGenerationChange?: (ready: boolean) => void;
 
-  /** Without a handler, approvals fail closed (`unavailable`). */
-  approvals(handler: (request: ApprovalRequest) => Promise<ApprovalDecision>): void {
+  /**
+   * Install the approval handler. Without one, approvals fail closed
+   * (`unavailable`). `fallback` names the Session when the request itself
+   * cannot be traced to one (see `answerApproval`).
+   */
+  approvals(
+    handler: (request: ApprovalRequest) => Promise<ApprovalDecision>,
+    fallback?: () => string | undefined,
+  ): void {
     this.approval = handler;
+    this.approvalFallback = fallback;
   }
 
   async connect(loginUrl: string): Promise<void> {
@@ -363,16 +372,15 @@ export class Connection {
         transport: {
           streamBaseUrl: `${origin}/`,
           fetch: (input: string | URL, init: RequestInit = {}) => {
-            const headers = new Headers(init.headers);
-            headers.set("cookie", cookie);
+            // `dshRequestInit` supplies our cookie and switches the platform's
+            // shared jar off (see its note: unmanaged cookies answer 431).
             const signal = init.signal
               ? AbortSignal.any([init.signal, controller.signal])
               : controller.signal;
-            return fetch(new URL(String(input), origin).toString(), {
-              ...init,
-              headers,
-              signal,
-            });
+            return fetch(
+              new URL(String(input), origin).toString(),
+              dshRequestInit(cookie, { ...init, signal }),
+            );
           },
           createWebSocket: (target: string) => new AuthenticatedSocket(target, cookie),
         },
@@ -732,13 +740,20 @@ export class Connection {
   }
 
   private async answerApproval(ctx: any, request: ApprovalRequestEvent): Promise<ApprovalDecision> {
-    const sessionId = (() => {
-      try {
-        return ctx.sessions?.sessionOf?.(request.agent)?.sessionId as string | undefined;
-      } catch {
-        return undefined;
-      }
-    })();
+    // The request arrives on the Agent-scoped Context the official model
+    // resolved. Its tag is the direct read; `sessionOf` also confirms the
+    // scope is still live, which a Host generation replacement can take away
+    // between the ask and this answer. A Host that asks on a Context this
+    // Client no longer tags leaves the product to name its own Session.
+    const sessionId =
+      (() => {
+        try {
+          return (ctx.sessions?.scopeOf?.(request.agent) ??
+            ctx.sessions?.sessionOf?.(request.agent)?.sessionId) as string | undefined;
+        } catch {
+          return undefined;
+        }
+      })() ?? this.approvalFallback?.();
     if (!sessionId) return "unavailable";
     if (request.signal?.aborted) return "cancelled";
     if (!this.approval) return "unavailable";

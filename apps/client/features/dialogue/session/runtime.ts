@@ -115,6 +115,8 @@ let claimed: ClaimedSessionClient | undefined;
 let connectWork: Promise<void> | undefined;
 let dsh: DshSession | undefined;
 let host: HostControlApi | undefined;
+/** Set while a lost Host is being watched for its return. */
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 /** Stop the official list subscription when the Connection goes away. */
 let stopList: (() => void) | undefined;
 
@@ -303,11 +305,54 @@ function onGenerationChange(up: boolean): void {
     // The official models keep the last published window while their streams
     // reconnect; the product only names the gap until the next frame.
     sessionError.set("后台连接已断开。");
+    watchForHost();
     return;
   }
   sessionError.set(null);
   sessionControllers.reattach();
   void refreshSessionList().catch(() => undefined);
+}
+
+/**
+ * A Host that went away may come back on a new port, with a new login URL and
+ * a new dsh. Nothing in the official Connection can cross that (it owns one
+ * Host generation), so the product asks the Host control socket until it
+ * answers and then rebuilds the Connection — controllers re-bind to the new
+ * model and every Session window is restored from it.
+ */
+function watchForHost(): void {
+  if (reconnectTimer !== undefined) return;
+  const since = Date.now();
+  let attempt = 0;
+  let replaced = false;
+  const schedule = (delay: number) => {
+    reconnectTimer = setTimeout(() => void tick(), delay);
+  };
+  const tick = async () => {
+    reconnectTimer = undefined;
+    if (sessionReady()) return;
+    attempt += 1;
+    await refreshHostStatus().catch(() => undefined);
+    if (hostConnection() !== "up") {
+      // Back off while the Host itself is away (a restart takes seconds).
+      schedule(Math.min(30_000, 1_000 * 2 ** Math.min(attempt, 5)));
+      return;
+    }
+    // A Host that answers but never serves a generation again — a mux the
+    // Host's dsh terminated, a dsh that died under it — gets one replacement:
+    // a new Connection re-runs `/connect` against whatever dsh serves now.
+    // Retrying more often than that only churns sockets.
+    if (!replaced && Date.now() - since > 8_000) {
+      replaced = true;
+      await claimed
+        ?.getHost()
+        ?.dispose()
+        .catch(() => undefined);
+    }
+    await connectSession().catch(() => undefined);
+    if (!sessionReady()) schedule(Math.min(30_000, 1_000 * 2 ** Math.min(attempt, 5)));
+  };
+  schedule(2_000);
 }
 
 async function ensureClient(): Promise<ClaimedSessionClient> {
@@ -316,8 +361,14 @@ async function ensureClient(): Promise<ClaimedSessionClient> {
   claimed = new ClaimedSessionClient({
     connect: async () => {
       const connection = await api.ensureConnected();
-      connection.approvals((request) =>
-        sessionControllers.controllerFor(request.sessionId).requestApproval(request),
+      connection.approvals(
+        (request) => sessionControllers.controllerFor(request.sessionId).requestApproval(request),
+        // An approval belongs to the turn that asked; when the Host's request
+        // carries no Session this Client can name, the one running turn is it.
+        () => {
+          const running = sessionControllers.runningSessionIds();
+          return running.length === 1 ? running[0] : undefined;
+        },
       );
       connection.onGenerationChange = (up) => onGenerationChange(up);
       return wrapConnection(connection);
@@ -462,6 +513,10 @@ export function sessionTransport(): SessionHost | undefined {
 }
 
 export async function disposeRuntime(): Promise<void> {
+  if (reconnectTimer !== undefined) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = undefined;
+  }
   sessionControllers.disposeAll();
   sessionReady.set(false);
   sessionError.set(null);

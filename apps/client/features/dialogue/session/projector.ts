@@ -173,6 +173,8 @@ export class SessionProjector {
   private rpcIds = new Set<string>();
   private attempt: string | undefined;
   private revision = -1;
+  /** Built messages and deliverables, dropped when a durable event lands. */
+  private durable: { messages: Msg[]; deliverables: Deliverable[] } | null = null;
   status = "";
   /** The snapshot cut off older events (`hasMore` on the window). */
   hasMore = false;
@@ -205,7 +207,29 @@ export class SessionProjector {
     return this.events.some((event) => event.type === "turn/start" && event.seq > (seq ?? 0));
   }
 
+  /**
+   * The folded view. Live chunks only touch the live reply, so the durable
+   * transcript is built once per durable event — a long reply streams without
+   * re-walking its own history at every token.
+   */
   snapshot(): ProjectedChat {
+    const durable = (this.durable ??= this.buildDurable());
+    const liveTools = [...this.liveToolMap.values()].map((tool) =>
+      withResult(tool, this.toolResults.get(tool.id)),
+    );
+    return {
+      messages: durable.messages,
+      status: this.status,
+      liveMd: this.live,
+      liveReason: this.liveReasonText,
+      liveTools,
+      olderHasMore: this.hasMore,
+      deliverables: durable.deliverables,
+    };
+  }
+
+  /** Build the durable transcript and its deliverables from the window. */
+  private buildDurable(): { messages: Msg[]; deliverables: Deliverable[] } {
     const messages: Msg[] = [];
     for (const event of this.events) {
       if (event.type === "user/message" && fromUser(event.data)) {
@@ -238,21 +262,12 @@ export class SessionProjector {
       }
     }
 
-    const liveTools = [...this.liveToolMap.values()].map((tool) =>
-      withResult(tool, this.toolResults.get(tool.id)),
-    );
-
     return {
       messages: messages.filter(
         (m) =>
           (m.kind === "user" && m.text.length > 0) ||
           (m.kind === "assistant" && (m.md.length > 0 || m.tools.length > 0 || !!m.reasoning)),
       ),
-      status: this.status,
-      liveMd: this.live,
-      liveReason: this.liveReasonText,
-      liveTools,
-      olderHasMore: this.hasMore,
       deliverables: this.deliverables(),
     };
   }
@@ -302,6 +317,7 @@ export class SessionProjector {
 
   private rebuild(entries: readonly SessionEventLikeEntry[]): void {
     this.events = [];
+    this.durable = null;
     this.status = "";
     this.toolResults.clear();
     this.rpcIds.clear();
@@ -320,6 +336,7 @@ export class SessionProjector {
       older.push(event);
     }
     this.events = [...older, ...this.events].sort((left, right) => left.seq - right.seq);
+    this.durable = null;
   }
 
   private entry(entry: SessionEventLikeEntry): void {
@@ -373,6 +390,8 @@ export class SessionProjector {
   private event(value: unknown): void {
     const event = this.wireEvent(value);
     if (!event) return;
+    // A durable event changes what the transcript shows.
+    this.durable = null;
     const op = object(event.surfaceOp);
     if (op.op === "replace" && typeof op.startSeq === "number" && typeof op.endSeq === "number") {
       const start = op.startSeq;

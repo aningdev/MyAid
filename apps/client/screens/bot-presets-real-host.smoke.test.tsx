@@ -50,7 +50,7 @@ test("a Bot saves a derived preset and a new Session uses it", async () => {
   // The Inspector names the derived preset the new Session runs.
 
   // New Session of the same Bot runs the derived preset.
-  await app.press("label:/tmp");
+  await app.press("role:treeitem[tmp]");
   await app.waitFor("text:New Session", { timeout: 30000 });
   await app.press("label:New Session");
   await app.waitFor("id:chat", { timeout: 120000 });

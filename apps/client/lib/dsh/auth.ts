@@ -9,6 +9,28 @@ export type DshLogin = {
 };
 
 /**
+ * The options every dsh HTTP call on this Client carries.
+ *
+ * The platform's shared cookie jar must never reach dsh. NSH's `fetch` sends
+ * the system jar by default, dsh mints a fresh `dsh-auth-<random>` cookie on
+ * every `/connect`, and the jar replays every one of them: after a normal
+ * number of reconnects a Client sent 57 stale cookies (16 KB) and dsh answered
+ * `431 Request Header Fields Too Large`. On NSH's native stack `credentials:
+ * "omit"` alone does **not** stop that — an explicit `Cookie` header does, and
+ * an empty one suppresses the jar without naming any cookie. The session
+ * cookie dsh hands us is passed here instead, so nothing depends on that jar.
+ *
+ * @param cookie - the `/connect` cookie, or `null` before there is one.
+ * @param init - the call's own options; its headers are kept.
+ * @returns the call's options with the ambient jar switched off.
+ */
+export function dshRequestInit(cookie: string | null, init: RequestInit = {}): RequestInit {
+  const headers = new Headers(init.headers);
+  headers.set("cookie", cookie ?? "");
+  return { ...init, headers, credentials: "omit" };
+}
+
+/**
  * Prefer explicit argument, then Host `connectionInfo` (async path via `resolveDshLoginUrl`),
  * then `MYAID_DSH_LOGIN_URL` for manual smoke without Host.
  */
@@ -45,6 +67,7 @@ export async function fetchSessionCookie(
   url.searchParams.set("interactions", "answer");
 
   const response = await fetch(url.toString(), {
+    ...dshRequestInit(null),
     redirect: "manual",
     signal: signal
       ? AbortSignal.any([signal, AbortSignal.timeout(10_000)])
