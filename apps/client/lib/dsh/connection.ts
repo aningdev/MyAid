@@ -18,6 +18,7 @@ import type {
 } from "@myaid/dsh-web-protocol/bot-presets";
 import type { ISessions, IWorkspaces } from "@myaid/dsh-web-protocol/client";
 import type { ApprovalOutcome, ApprovalRequestEvent } from "@myaid/dsh-web-protocol/interaction";
+import type { LlmConfigurableProvider, LlmProviderInfo } from "@myaid/dsh-web-protocol/llm";
 import type { PluginInfo } from "@myaid/dsh-web-protocol/plugins";
 import type {
   ImageAttachmentRef,
@@ -28,8 +29,13 @@ import type {
   SessionProjectionsRequest,
   SessionRenameRequest,
 } from "@myaid/dsh-web-protocol/session";
-import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
+import type {
+  CredentialInfo,
+  SettingsDescribeValue,
+  SettingsNamespaceView,
+} from "@myaid/dsh-web-protocol/settings";
 
+import { joinProviderDirectory, type ModelProviderEntry } from "./providers";
 export type {
   BotPresetDeriveRequest,
   BotPresetDeriveResult,
@@ -50,6 +56,7 @@ import {
   fileUploadClient,
   fileUploadsRemote,
   installConnection,
+  llmRemote,
   officialSessionClient,
   officialWorkspaceClient,
   pluginInventoryRemote,
@@ -407,6 +414,7 @@ export class Connection {
       await ctx.remote.$mount(botPresetsRemote);
       await ctx.remote.$mount(workspaceRemote);
       await ctx.remote.$mount(settingsRemote);
+      await ctx.remote.$mount(llmRemote);
       await ctx.remote.$mount(fileUploadsRemote);
       await ctx.remote.$mount(pluginManagerRemote);
       await ctx.remote.$mount(pluginInventoryRemote);
@@ -542,6 +550,44 @@ export class Connection {
   async modelCatalog(): Promise<FlatModelCatalog> {
     const value = unwrap(await this.remote.session.modelCatalog()) as OfficialModelCatalog;
     return flattenModelCatalog(value);
+  }
+
+  /** Every provider dsh can configure: its live routes joined with its declared directory. */
+  async listModelProviders(): Promise<ModelProviderEntry[]> {
+    const registered = unwrap(await this.remote.llm.listProviders()) as LlmProviderInfo[];
+    const directory = unwrap(
+      await this.remote.llm.listConfigurableProviders(),
+    ) as LlmConfigurableProvider[];
+    return joinProviderDirectory(registered, directory);
+  }
+
+  /** The redacted settings document every configuration form renders from. */
+  async describeSettings(): Promise<SettingsDescribeValue> {
+    return unwrap(await this.remote.settings.describe()) as SettingsDescribeValue;
+  }
+
+  /** Merge a patch into one namespace's user section; `revision` refuses a stale write. */
+  async updateSettings(
+    ns: string,
+    patch: Record<string, unknown>,
+    revision?: number,
+  ): Promise<SettingsNamespaceView> {
+    return unwrap(await this.remote.settings.update(ns, patch, revision)) as SettingsNamespaceView;
+  }
+
+  /** Redacted credential facts for the references a provider row names. */
+  async describeCredentials(refs: string[]): Promise<Record<string, CredentialInfo>> {
+    return unwrap(await this.remote.credentials.describe(refs)) as Record<string, CredentialInfo>;
+  }
+
+  /** Store one provider key. The value goes in only; no read path returns it. */
+  async setCredential(ref: string, value: string): Promise<void> {
+    unwrap(await this.remote.credentials.set(ref, value));
+  }
+
+  /** Remove one provider key; removing an absent reference is a no-op. */
+  async unsetCredential(ref: string): Promise<void> {
+    unwrap(await this.remote.credentials.unset(ref));
   }
 
   /** Create a Session in a Workspace (the official model catalogues it). */
@@ -716,10 +762,6 @@ export class Connection {
   /** Show a verified Host path in the Finder (`session.openWorkspacePath`). */
   async revealPath(path: string): Promise<void> {
     unwrap(await this.remote.session.openWorkspacePath({ path, action: "reveal" }));
-  }
-
-  async describeSettings(): Promise<SettingsDescribeValue> {
-    return unwrap(await this.remote.settings.describe()) as SettingsDescribeValue;
   }
 
   async listPlugins(): Promise<PluginInfo[]> {

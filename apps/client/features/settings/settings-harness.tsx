@@ -1,15 +1,19 @@
 /**
- * Test-only entry: the Workspace Shell over HostControl / RelayControl
- * stand-ins that report registration facts and accept the shared verbs.
- * `nsh test` opens it; nothing in the product imports it, and no production
- * path installs these transports.
+ * Test-only entry: the Workspace Shell over stand-ins for the Host, dsh and
+ * the two Background Services. The provider directory, settings document,
+ * credential store, model catalog and Host status are all fakes in
+ * `test/settings-fixtures`; `nsh test` opens this file, the product never
+ * imports it, and no production path installs these sources.
  */
-import { mount } from "nsh";
+import { host, mount } from "nsh";
 
 import { AppShell } from "../../components/AppShell";
 import { backgroundAvailability, type RegistrationPhase } from "../../lib/background/protocol";
 import { setHostRegistrationTransport } from "../../lib/host/registration";
 import { setRelayRegistrationTransport } from "../../lib/relay/registration";
+import { createHostFactsFixture, createSettingsFixture } from "../../test/settings-fixtures";
+import { setHostFactsSource } from "./hostFacts";
+import { setProvidersSource } from "./providers";
 
 let hostPhase: RegistrationPhase = "notRegistered";
 let relayPhase: RegistrationPhase = "pendingApproval";
@@ -49,6 +53,20 @@ function transport(
     },
   };
 }
+
+// The Host and dsh pages read this instead of the local control plane.
+setProvidersSource(createSettingsFixture().source);
+setHostFactsSource(
+  createHostFactsFixture(
+    host.params.mismatch === true
+      ? {
+          dshVersion: "0.2.2-rc.1",
+          phase: "failed",
+          reason: "官方 dsh 版本不兼容：实际 0.2.2-rc.1，需要 0.2.2-rc.2",
+        }
+      : {},
+  ),
+);
 
 setHostRegistrationTransport(
   transport("host", (phase) => {

@@ -3,20 +3,37 @@ import { dirname } from "path";
 
 /**
  * The shell's client preferences: the Navigator's width and open state, the
- * pinned Bots, and the Workbench's Panes (layout, the Bot each shows, the one
- * with the focus). Kept under the data root (`~/.myaid/prefs`) on the desktop
- * and in the app's storage on the web, so a launch opens where the person
- * left it. A Bot that is gone leaves its Pane empty.
+ * pinned Bots, the Workbench's Panes (layout, the Bot each shows, the one
+ * with the focus), and the General page's appearance and language. Kept under
+ * the data root (`~/.myaid/prefs`) on the desktop and in the app's storage on
+ * the web, so a launch opens where the person left it. A Bot that is gone
+ * leaves its Pane empty.
  *
  * Version 1 kept Favorites: the old addresses are read once — a Bot pin is
  * kept, a Dialogue or Session pin becomes the Pane of the Bot it belonged to,
  * and the session pins themselves are dropped (a Session is a segment now).
+ * `appearance` joined the same version as an optional section, so a file
+ * written before it reads as the defaults.
  */
 import { platform, signal } from "nsh";
 import { Storage } from "nsh";
 import type { DockAreaLayout, DockNode } from "nsh/base";
 
+import {
+  ACCENTS,
+  APPEARANCE_SCHEMES,
+  appearanceNow,
+  applyAppearance,
+  type AccentChoice,
+  type AppearanceScheme,
+} from "../../components/ui/appearance";
 import type { BotRegistry } from "../../features/bots/model";
+import {
+  LANGUAGES,
+  languagePref,
+  setLanguagePref,
+  type LanguagePref,
+} from "../../features/settings/language";
 import { prefsPath, usesTestStorage } from "../../lib/data-root";
 import {
   NAV_DEFAULT_WIDTH,
@@ -42,6 +59,12 @@ export type ShellPrefs = {
   };
   /** Pinned Bot ids, in the person's order. */
   pins: string[];
+  /** The General page's appearance and language, never dsh's settings. */
+  appearance: {
+    scheme: AppearanceScheme;
+    accent: AccentChoice;
+    language: LanguagePref;
+  };
   workbench: {
     layout: DockAreaLayout;
     contents: PanelContents;
@@ -59,6 +82,7 @@ export function emptyShellPrefs(): ShellPrefs {
     version: SHELL_PREFS_VERSION,
     nav: { width: NAV_DEFAULT_WIDTH, open: true },
     pins: [],
+    appearance: { scheme: "system", accent: "default", language: "system" },
     workbench: {
       layout: emptyLayout("panel-1"),
       contents: { "panel-1": null },
@@ -76,6 +100,7 @@ export function collectShellPrefs(): ShellPrefs {
       open: navOpen(),
     },
     pins: [...pins()],
+    appearance: { ...appearanceNow(), language: languagePref() },
     workbench: {
       layout: dockLayout(),
       contents: Object.fromEntries(
@@ -97,6 +122,8 @@ export function collectShellPrefs(): ShellPrefs {
 export function applyShellPrefs(prefs: ShellPrefs, registry: BotRegistry): void {
   setNavWidth(clampWidth(prefs.nav.width));
   setNavOpen(prefs.nav.open);
+  applyAppearance({ scheme: prefs.appearance.scheme, accent: prefs.appearance.accent });
+  setLanguagePref(prefs.appearance.language);
   const known = new Set(registry.bots.map((bot) => bot.id));
   setPins(prefs.pins.filter((id) => known.has(id)));
   const restored = restoreWorkbenchSnapshot(prefs.workbench, (botId) =>
@@ -127,6 +154,7 @@ export function parseShellPrefs(text: string | null): ShellPrefs {
       open: typeof nav.open === "boolean" ? nav.open : true,
     },
     pins: older ? pinsFromFavorites(value.favorites) : parsePins(value.pins),
+    appearance: parseAppearance(value.appearance),
     workbench: {
       layout,
       contents: older
@@ -323,6 +351,25 @@ function parsePins(value: unknown): string[] {
     out.push(id);
   }
   return out;
+}
+
+/**
+ * The appearance section, or the defaults: a file written before the section
+ * existed, or a value this build does not offer, keeps the default rather
+ * than putting the palette in a state no control can leave.
+ */
+function parseAppearance(value: unknown): ShellPrefs["appearance"] {
+  const record = isRecord(value) ? value : {};
+  const scheme = APPEARANCE_SCHEMES.some((entry) => entry.id === record.scheme)
+    ? (record.scheme as AppearanceScheme)
+    : "system";
+  const accent = ACCENTS.some((entry) => entry.id === record.accent)
+    ? (record.accent as AccentChoice)
+    : "default";
+  const language = LANGUAGES.some((entry) => entry.id === record.language)
+    ? (record.language as LanguagePref)
+    : "system";
+  return { scheme, accent, language };
 }
 
 /**

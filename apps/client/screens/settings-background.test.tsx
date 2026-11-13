@@ -21,6 +21,7 @@ test("the Background Services panel shows both registered units", async () => {
   // Settings covers the Panes; the Background Services panel is what it holds.
   await app.press("label:Settings");
   await app.waitFor("id:settings-overlay", { timeout: 30000 });
+  await app.press("id:settings-nav-background");
   await app.waitFor("id:settings-background", { timeout: 30000 });
   await app.press("label:Enable");
   await app.waitUntil(() => app.texts().filter((text) => text === "Registered").length === 2);

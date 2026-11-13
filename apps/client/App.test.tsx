@@ -71,7 +71,10 @@ test("⌘, opens Settings, and Escape comes back", async () => {
   const app = await open("./App.tsx", desktop);
   await app.keyboard.press("mod+,");
   await app.waitFor("id:settings-overlay");
-  expect(app.texts()).toContain("Background Services");
+  expect(app.shows("id:settings-providers")).toBe(true);
+  for (const group of ["模型供应商", "通用", "后台", "关于"]) {
+    expect(app.texts()).toContain(group);
+  }
   await app.keyboard.press("escape");
   await app.waitUntil(() => !app.shows("id:settings-overlay"));
   expect(app.shows("id:tab-panel-1")).toBe(true);

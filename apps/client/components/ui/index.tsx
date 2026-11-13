@@ -35,6 +35,7 @@ import {
 } from "./theme";
 
 export * from "./theme";
+export * from "./appearance";
 export { Segmented } from "./segmented";
 export * from "./data-table";
 export * from "./slider";
@@ -73,6 +74,7 @@ export function bindRefresh(refresh: () => void): string | null {
  * spring runs natively; only press in / out reach JS).
  */
 export function Press(props: {
+  testID?: string;
   onPress?: () => void;
   disabled?: boolean;
   /** How far it shrinks (default 0.97). Skipped when reduced motion is on. */
@@ -98,6 +100,7 @@ export function Press(props: {
   };
   return (
     <BaseButton
+      testID={props.testID}
       onPress={props.onPress}
       disabled={props.disabled || props.accessibilityState?.disabled}
       selected={props.accessibilityState?.selected}

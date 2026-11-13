@@ -263,6 +263,9 @@ test("Settings covers the area, and Back returns to the same Panes", async () =>
 
   await app.press("label:Settings");
   await app.waitFor("id:settings-overlay");
+  expect(app.shows("id:settings-providers")).toBe(true);
+  await app.press("id:settings-nav-background");
+  await app.waitFor("id:settings-background");
   expect(app.texts()).toContain("Background Services");
 
   await app.press("label:Back to Panes");

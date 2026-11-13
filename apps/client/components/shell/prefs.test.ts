@@ -151,3 +151,41 @@ test("an invalid layout degrades to one empty panel", () => {
   expect(ids).toHaveLength(1);
   expect(prefs.workbench.contents[ids[0]!]).toBe(null);
 });
+
+test("the appearance and language round-trip, and an older file reads the defaults", () => {
+  const prefs: ShellPrefs = {
+    ...emptyShellPrefs(),
+    appearance: { scheme: "dark", accent: "violet", language: "en" },
+  };
+  const parsed = parseShellPrefs(serializeShellPrefs(prefs));
+  expect(parsed.appearance).toEqual({ scheme: "dark", accent: "violet", language: "en" });
+
+  const before = parseShellPrefs(
+    JSON.stringify({
+      version: 2,
+      nav: { width: 232, open: true },
+      pins: [],
+      workbench: {
+        layout: { center: { type: "tabs", panels: ["p1"], activeIndex: 0 } },
+        contents: { p1: null },
+        activePanelId: "p1",
+      },
+    }),
+  );
+  expect(before.appearance).toEqual({ scheme: "system", accent: "default", language: "system" });
+
+  const invalid = parseShellPrefs(
+    JSON.stringify({
+      version: 2,
+      appearance: { scheme: "sepia", accent: "chartreuse", language: "fr" },
+      nav: { width: 232, open: true },
+      pins: [],
+      workbench: {
+        layout: { center: { type: "tabs", panels: ["p1"], activeIndex: 0 } },
+        contents: { p1: null },
+        activePanelId: "p1",
+      },
+    }),
+  );
+  expect(invalid.appearance).toEqual({ scheme: "system", accent: "default", language: "system" });
+});

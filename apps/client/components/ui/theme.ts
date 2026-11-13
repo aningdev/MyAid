@@ -1,9 +1,9 @@
 // Design tokens and finishes for MyAid UI atoms.
 // Colors map onto NSH's shadcn `neutral` theme plus apps/client/theme.json.
 import type { Tokens, ViewStyle } from "nsh";
-import { token } from "nsh";
-import { Easing } from "nsh";
-import { colorScheme } from "nsh";
+import { colorScheme, Easing, token } from "nsh";
+
+import { accentColor, onAccentColor } from "./appearance";
 
 /** Whether the UI shows its dark palette (reactive: reading it subscribes). */
 export const isDark = () => colorScheme() !== "light";
@@ -74,7 +74,7 @@ function tokens<K extends string>(names: Record<K, keyof Tokens>): Record<K, str
  * Structural roles (inset / raised / field / …) reuse muted / secondary /
  * input / card rather than gallery-only extensions.
  */
-export const colors: Palette = tokens<keyof Palette>({
+const palette = tokens<keyof Palette>({
   background: "background",
   surface: "card",
   inset: "muted",
@@ -104,6 +104,21 @@ export const colors: Palette = tokens<keyof Palette>({
   viewer: "viewer",
   viewerForeground: "viewer-foreground",
 });
+
+/**
+ * The palette, with the two accent roles following the person's accent
+ * choice. `default` falls through to the theme's `primary`; every other role
+ * is the theme's own token unchanged.
+ */
+export const colors: Palette = new Proxy(palette, {
+  get(target, key, receiver) {
+    const custom = accentColor();
+    if (custom && key === "accent") return custom;
+    if (custom && key === "accentFill") return custom;
+    if (custom && key === "onAccent") return onAccentColor();
+    return Reflect.get(target, key, receiver);
+  },
+}) as Palette;
 
 /** `color` at opacity `a`. */
 export function alpha(color: string, a: number) {
@@ -164,6 +179,14 @@ function primaryFinish(): Finish {
   };
 }
 
+/** A custom accent fill: the chosen hue, deepening at the bottom like the primary fill. */
+function accentFinish(color: string): Finish {
+  return {
+    backgroundImage: `linear-gradient(180deg, ${color} 0%, color-mix(in oklab, ${color} 78%, black) 100%)`,
+    boxShadow: `inset 0 1px 0 ${shine(24)}, 0 1px 1px ${shade(20)}, 0 8px 18px -8px ${shade(35)}`,
+  };
+}
+
 /**
  * Depth shared by cards, controls, and popups. Colors are theme tokens;
  * the geometry of the shadow stays here because it is not a color role.
@@ -191,7 +214,8 @@ export const finish = {
     return primaryFinish();
   },
   get accent(): Finish {
-    return primaryFinish();
+    const custom = accentColor();
+    return custom ? accentFinish(custom) : primaryFinish();
   },
   get track(): Finish {
     return { boxShadow: `inset 0 1px 2px ${shade(16)}` };

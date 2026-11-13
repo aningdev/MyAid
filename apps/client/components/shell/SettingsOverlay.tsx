@@ -1,11 +1,10 @@
 /**
  * Settings: a whole-page overlay over the Workbench. ⚙ in the Navigator's
  * footer and ⌘, open it; Back or Escape brings the Panes back exactly as they
- * were (the overlay covers them, it does not replace them). The groups the
- * settings page will hold — model providers, general, background, about —
- * land next; today it shows the Background Services control the app already
- * has. The open state lives in `settings.ts`, so a unit test can import the
- * command table without this page's control-channel chain.
+ * were (the overlay covers them, it does not replace them). The page's left
+ * rail holds model providers, general, background and about; each section
+ * owns its reads. The open state lives in `settings.ts`, so a unit test can
+ * import the command table without this page's control-channel chain.
  */
 import { cleanup, effect, keymap, Text, View } from "nsh";
 

@@ -30,6 +30,9 @@ export const SHOTS_SESSION = `${SCRATCHPAD}/pi-shots-d2`;
 /** Native-layer smoke: the Host running, its restart and resume, its empty state. */
 export const SHOTS_N1 = `${SCRATCHPAD}/pi-shots-n1`;
 
+/** L3 Settings: providers, general, background and about, in both appearances. */
+export const SHOTS_L3 = `${SCRATCHPAD}/pi-shots-l3`;
+
 export { graphical } from "../test/graphical";
 
 /**
