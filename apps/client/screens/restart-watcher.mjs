@@ -14,7 +14,7 @@
  * left alone. It acts once (`--repeat` watches for further turns).
  *
  *   node apps/client/screens/restart-watcher.mjs \
- *     --data-root /tmp/myaid-rc2/data --socket /tmp/myaid-rc2-host.sock
+ *     --data-root .myaid-smoke/data --socket .myaid-smoke/host.sock
  *
  * Logs each restart to stdout; stop with Ctrl-C.
  */
@@ -58,8 +58,27 @@ function kill(pattern) {
   }
 }
 
-/** Kill the dsh this Host spawned (its working directory is the data root). */
+/**
+ * Kill the dsh this Host spawned (its working directory is the data root).
+ * The dsh can outlive its Host for a moment, and `ps` may lag behind, so this
+ * looks a few times before giving up: a survivor holds the session writer lock
+ * and the replacement dsh could not resume the turn.
+ * @returns whether anything was killed.
+ */
 function killScratchDsh() {
+  let killed = false;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    if (killScratchDshOnce()) killed = true;
+    else if (killed) return killed;
+    execFileSync("/bin/sleep", ["0.2"]);
+  }
+  if (!killed) process.stdout.write("no scratch dsh found to kill\n");
+  return killed;
+}
+
+/** One pass over the process table for the dsh whose cwd is the data root. */
+function killScratchDshOnce() {
+  let found = false;
   const listing = execFileSync("/bin/ps", ["-Ao", "pid=,comm="], { encoding: "utf8" });
   for (const line of listing.split("\n")) {
     if (!line.includes("DeepSeek Harness") || line.includes("Helper")) continue;
@@ -82,10 +101,12 @@ function killScratchDsh() {
     process.stdout.write(`killing dsh ${pid} (${cwd})\n`);
     try {
       process.kill(Number(pid), "SIGKILL");
+      found = true;
     } catch {
       // Already gone.
     }
   }
+  return found;
 }
 
 function restart() {

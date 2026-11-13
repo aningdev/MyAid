@@ -11,22 +11,24 @@
  * The Host-restart path lives in `session-restart.smoke.test.tsx`, which needs
  * an outside watcher and is started on its own.
  *
- * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch data root, never
- * the user's `~/.myaid` (see screens/README.md). The restart step needs an
- * outside hand — the app cannot signal a process — so it writes
- * step has no inside trigger at all: the app cannot signal a process and this
- * dev host mounts neither a filesystem nor arbitrary HTTP for a test app. An
- * outside watcher kills the Host once the turn is in the session log and the
- * log is still growing, then starts a fresh Host on the same data root:
+ * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch root, never the
+ * user's `~/.myaid` (see screens/README.md). Keep the scratch root **outside
+ * `/tmp`**: `workspace-write` grants `/tmp` and the platform temp dir outright,
+ * so the approval step's marker would never ask. Everything this run creates —
+ * data root, app home, Host socket, the marker — stays under that scratch root,
+ * and the approved command removes the marker itself:
  *
- *   node apps/client/screens/restart-watcher.mjs \
- *     --data-root "$SC/data" --socket /tmp/myaid-rc2-host.sock
- *
- * Start it just before this test (it acts once, on the first live turn).
+ *   SC=$PWD/.myaid-smoke                        # gitignored, outside /tmp
+ *   mkdir -p "$SC/data" "$SC/home"
+ *   MYAID_HOST_SOCKET="$SC/host.sock" myaid-host serve \
+ *     --data-root "$SC/data" --official-dsh &
+ *   MYAID_SMOKE_HOST_SOCKET="$SC/host.sock" HOME="$SC/home" \
+ *     nsh test screens/session-model.smoke.test.tsx --target macos
  *
  * A headless run stops at the picture probe.
  */
 import { homedir } from "os";
+import { dirname, join } from "path";
 
 import { expect, test } from "nsh/test";
 
@@ -59,11 +61,19 @@ const LONG = (tag: string, words = 2400) =>
   `${tag}-START and end it with ${tag}-END, on their own lines.`;
 /** A fresh tag per run, so the model cannot answer from this machine's caches. */
 
-// `workspace-write` lets bash write inside the workspace; a write outside it
-// (here: the scratch home) is what asks for approval.
+/**
+ * Where the approval step writes: the scratch root itself, one level above the
+ * app's home. It must be outside the Session's sandbox workspace (that
+ * escalation is what asks), and it must stay inside this run's scratch — never
+ * a real home. It must also be outside `/tmp` and the platform temp dir:
+ * `workspace-write` grants those outright (dsh-sandbox `writableRoots`), so a
+ * marker there never asks. The command removes the file again.
+ */
+const APPROVAL_MARKER = join(dirname(homedir()), "d2-approval-marker");
 const APPROVAL =
-  "APPROVAL-D2 run it. Use the Bash tool to run " +
-  '`sh -c "echo D2-APPROVAL-OK > ~/d2-approval-marker && cat ~/d2-approval-marker"` ' +
+  "APPROVAL-D2 run it. Use the Bash tool to run exactly " +
+  `\`sh -c "echo D2-APPROVAL-OK > ${APPROVAL_MARKER} && cat ${APPROVAL_MARKER} && ` +
+  `rm -f ${APPROVAL_MARKER}"\` ` +
   "and then report its output in one short line.";
 
 type App = Awaited<ReturnType<typeof open>>;
@@ -148,20 +158,33 @@ test("two Panels stream at once, a queued prompt is withdrawn, an approval round
   await shoot(app, "03-both-settled.png", SHOTS_SESSION);
 
   // A prompt sent while a turn still runs is queued in dsh, and withdrawn by
-  // its request id — the second Panel's turn is running (just asserted).
-  // Queued against the longer turn, so the agent cannot claim it first.
+  // its request id. A model that finishes the turn first admits the prompt as
+  // its own turn instead: both are correct, and the transcript must never show
+  // it twice.
   await send(app, "QUEUE-DROP say one word.", 0);
-  await app.waitFor("text:QUEUED", { timeout: 60000 });
-  await shoot(app, "04-queued.png", SHOTS_SESSION);
-  await app.press("label:Withdraw the queued message");
-  await app.waitUntil(() => !app.shows("text:QUEUED"), { timeout: 60000 });
-  expect(app.shows("text:QUEUE-DROP say one word.")).toBe(false);
-  await settled(app, 420000);
-  // Withdrawn means withdrawn: the prompt never became a turn of its own.
-  expect(app.texts().some((text) => text.trim().startsWith("QUEUE-DROP"))).toBe(false);
+  const queued = await app
+    .waitFor("text:QUEUED", { timeout: 20000 })
+    .then(() => true)
+    .catch(() => false);
+  if (queued) {
+    await shoot(app, "04-queued.png", SHOTS_SESSION);
+    await app.press("label:Withdraw the queued message");
+    await app.waitUntil(() => !app.shows("text:QUEUED"), { timeout: 60000 });
+    expect(app.shows("text:QUEUE-DROP say one word.")).toBe(false);
+    await settled(app, 420000);
+    // Withdrawn means withdrawn: it never became a turn of its own.
+    expect(app.texts().some((text) => text.trim().startsWith("QUEUE-DROP"))).toBe(false);
+  } else {
+    await settled(app, 420000);
+    await app.waitUntil(
+      () => app.texts().filter((text) => text.includes("QUEUE-DROP say one word")).length === 1,
+      { timeout: 90000 },
+    );
+  }
 
-  // An approval: dsh asks, the Panel answers, the tool's output comes back.
-  await send(app, APPROVAL, 1);
+  // The Beta Panel's workspace is the scratch home, so the marker above is
+  // outside its sandbox: the Host asks, this Panel answers.
+  await send(app, APPROVAL, 0);
   await app.waitFor("label:Allow once", { timeout: 300000 });
   await shoot(app, "05-approval.png", SHOTS_SESSION);
   await app.press("label:Allow once");

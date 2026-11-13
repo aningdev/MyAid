@@ -360,17 +360,19 @@ async function ensureClient(): Promise<ClaimedSessionClient> {
   const api = await loadDsh();
   claimed = new ClaimedSessionClient({
     connect: async () => {
+      api.prepareConnections((shared) => {
+        shared.approvals(
+          (request) => sessionControllers.controllerFor(request.sessionId).requestApproval(request),
+          // An approval belongs to the turn that asked; when the Host's request
+          // carries no Session this Client can name, the one running turn is it.
+          () => {
+            const running = sessionControllers.runningSessionIds();
+            return running.length === 1 ? running[0] : undefined;
+          },
+        );
+        shared.onGenerationChange = (up) => onGenerationChange(up);
+      });
       const connection = await api.ensureConnected();
-      connection.approvals(
-        (request) => sessionControllers.controllerFor(request.sessionId).requestApproval(request),
-        // An approval belongs to the turn that asked; when the Host's request
-        // carries no Session this Client can name, the one running turn is it.
-        () => {
-          const running = sessionControllers.runningSessionIds();
-          return running.length === 1 ? running[0] : undefined;
-        },
-      );
-      connection.onGenerationChange = (up) => onGenerationChange(up);
       return wrapConnection(connection);
     },
     claim: async (dialogueId, sessionId) => {

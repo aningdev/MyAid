@@ -12,9 +12,10 @@
  * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch data root, never
  * the user's `~/.myaid` (see screens/README.md):
  *
+ *   SC=$PWD/.myaid-smoke
  *   node apps/client/screens/restart-watcher.mjs \
- *     --data-root "$SC/data" --socket /tmp/myaid-rc2-host.sock &
- *   MYAID_SMOKE_HOST_SOCKET=$SOCK MYAID_HOST_SOCKET=$SOCK \
+ *     --data-root "$SC/data" --socket "$SC/host.sock" &
+ *   MYAID_SMOKE_HOST_SOCKET="$SC/host.sock" HOME="$SC/home" \
  *     nsh test screens/session-restart.smoke.test.tsx --target macos
  *
  * A headless run stops at the picture probe.
