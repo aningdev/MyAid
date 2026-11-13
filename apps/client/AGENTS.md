@@ -25,6 +25,7 @@
 
 ## UI 边界
 
+- **UI 文案只有 `lib/i18n/messages.ts`**：组件不持有字面界面文案，一律经 `lib/i18n` 的 `t(key, values)`；新增文案先加 zh + en 两栏（键为类型，缺键 `nsh check` 失败）。语言偏好（跟随系统 / 简体中文 / English）与 `locale()` 的读取同在 `lib/i18n`，`跟随系统` 把 `zh*` 读作简体中文、其余读作 English。用户内容、产品与专名、dsh 自己返回的正文与文件路径不进目录、不翻译（细则见 [ARCHITECTURE §5](../../docs/ARCHITECTURE.md)）。
 - 选型顺序：NSH 原语 / `nsh/base` → gallery / `nsh-gallery-ui` 模式 → 产品组合进 [`components/ui`](components/ui/) → 已核实缺口的最小自定义。
 - `components/ui` 是本仓样式化基础层（对齐 gallery 外观 / motion），主题为官方 shadcn `neutral`。共享视觉规则先在此层演进。
 - 功能模块默认经 `components/ui` 组合；直连 `nsh/base` 仅限模块自管导航与尚未封装的 gallery 控件。
