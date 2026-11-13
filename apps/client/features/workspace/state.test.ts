@@ -6,7 +6,12 @@ import type {
 import { expect, test } from "nsh/test";
 
 import type { Connection, WorkspaceResult } from "../../lib/dsh/connection";
-import { archiveWith, archiveBlocked, dismissArchiveBlocked } from "./dialogues";
+import {
+  archiveBlocked,
+  archiveSessionsWith,
+  dismissArchiveBlocked,
+  noteArchive,
+} from "./dialogues";
 import {
   acceptFrame,
   activitySummary,
@@ -191,7 +196,7 @@ test("a refusal keeps dsh's code and details", async () => {
   expect(activitySummary((error as WorkspaceActionError).details)).toBe("turn");
 });
 
-test("an active refusal becomes the Stop-and-archive notice; a stopped archive clears it", async () => {
+test("an active refusal is collected, and stopping archives with stopActivity", async () => {
   reset();
   const failure: WorkspaceResult<unknown> = {
     ok: false,
@@ -203,17 +208,38 @@ test("an active refusal becomes the Stop-and-archive notice; a stopped archive c
     },
   };
   const refused = fakeConnection(failure);
-  await expect(archiveWith(refused, "s1")).rejects.toThrow(/running work/);
-  expect(archiveBlocked()).toEqual({
-    sessionId: "s1",
-    activity: "turn · subagent（Reviewer）",
-  });
+  const result = await archiveSessionsWith(refused, ["s1", "s2"]);
+  expect(result.archived).toEqual([]);
+  expect(result.refusals).toEqual([
+    { sessionId: "s1", activity: "turn · subagent（Reviewer）" },
+    { sessionId: "s2", activity: "turn · subagent（Reviewer）" },
+  ]);
+  expect(noteArchive(null, result.refusals)).toBe(false);
+  expect(archiveBlocked()).toMatchObject({ dialogueId: null, refusals: result.refusals });
+  dismissArchiveBlocked();
 
+  // The retry asks dsh to stop the work; every Session is archived in turn.
   const accepted = fakeConnection();
-  await archiveWith(accepted, "s1", { stopActivity: true });
-  expect(accepted.calls).toEqual([["archive", "s1", true]]);
+  const retried = await archiveSessionsWith(accepted, ["s1", "s2"], { stopActivity: true });
+  expect(retried.archived).toEqual(["s1", "s2"]);
+  expect(accepted.calls).toEqual([
+    ["archive", "s1", true],
+    ["archive", "s2", true],
+  ]);
+  expect(noteArchive(null, retried.refusals)).toBe(true);
   expect(archiveBlocked()).toBe(null);
   dismissArchiveBlocked();
+});
+
+test("a whole-Dialogue refusal names the Dialogue so its retry covers all", () => {
+  reset();
+  expect(noteArchive("dlg", [{ sessionId: "s1", activity: "turn" }])).toBe(false);
+  expect(archiveBlocked()).toEqual({
+    dialogueId: "dlg",
+    refusals: [{ sessionId: "s1", activity: "turn" }],
+  });
+  expect(noteArchive("dlg", [])).toBe(true);
+  expect(archiveBlocked()).toBe(null);
 });
 
 test("the follow loop takes every generation's baseline and stops cleanly", async () => {

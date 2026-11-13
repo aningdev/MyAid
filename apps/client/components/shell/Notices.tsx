@@ -21,7 +21,7 @@ import {
   archiveBlocked,
   dismissArchiveBlocked,
   messageOf,
-  stopAndArchiveSession,
+  stopAndArchiveBlocked,
 } from "../../features/workspace/dialogues";
 import { workspaceError } from "../../features/workspace/state";
 import { Button, colors } from "../ui";
@@ -114,17 +114,22 @@ function Notice(props: {
 function archiveBlockedText(): string {
   const blocked = archiveBlocked();
   if (!blocked) return "";
-  const owner = claimOwner(registry(), blocked.sessionId);
-  const label = owner ? sessionLabel(owner.claim, null) : "这条会话";
-  const activity = blocked.activity ? `（${blocked.activity}）` : "";
-  return `${label}还在执行${activity}，dsh 拒绝了归档。先停掉它，再归档。`;
+  const names = blocked.refusals.map((refusal) => {
+    const owner = claimOwner(registry(), refusal.sessionId);
+    return owner ? sessionLabel(owner.claim, null) : "这条会话";
+  });
+  const work = [...new Set(blocked.refusals.map((refusal) => refusal.activity))]
+    .filter(Boolean)
+    .join(" · ");
+  const who = names.length > 1 ? `${names.length} 条会话（${names.join("、")}）` : names[0];
+  const activity = work ? `（${work}）` : "";
+  const whole = blocked.dialogueId ? "这段 Dialogue 的会话" : who;
+  return `${whole}还在执行${activity}，dsh 拒绝了归档。先停掉，再归档。`;
 }
 
 async function stopAndArchive(): Promise<void> {
-  const blocked = archiveBlocked();
-  if (!blocked) return;
   try {
-    await stopAndArchiveSession(blocked.sessionId);
+    await stopAndArchiveBlocked();
   } catch (error) {
     // A refusal keeps its own notice; anything else is a transport failure.
     setActionError(messageOf(error));

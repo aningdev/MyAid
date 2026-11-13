@@ -8,12 +8,13 @@ import {
   emptyRegistry,
   initializeBot,
   type BotRegistry,
+  type LegacyRegistry,
 } from "../../features/bots/model";
 import type { SessionRow } from "../../features/dialogue/session/runtime";
 import type { WorkspaceProjection } from "../../features/workspace/state";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { sessionAddress } from "./navAddresses";
-import { NEW_BOT_ITEM_ID, projectNav } from "./navData";
+import { ARCHIVED_DIALOGUES_ITEM_ID, NEW_BOT_ITEM_ID, projectNav } from "./navData";
 
 /** The Workspace the fixture's Dialogue reads: title "myaid", one Session. */
 const WS = "ws-myaid";
@@ -283,10 +284,83 @@ test("a Session dsh archived leaves the tree while the claim stays", () => {
     workspaces: projection({ archived: ["s1"] }),
     rows: [row()],
   });
-  expect(section(nav.items, "root:bots").children?.[0]?.children?.[0]?.children).toEqual([]);
-  expect(section(nav.items, "root:dialogues").children?.[0]?.children).toEqual([]);
+  // The Bot's tree keeps the Bot but no active Dialogue under it.
+  expect(section(nav.items, "root:bots").children?.[0]?.children).toEqual([]);
+  // The Dialogue has no active Session left, so it moves to the archived group.
+  const dialogues = section(nav.items, "root:dialogues");
+  expect(labels(dialogues.children)).toEqual(["已归档"]);
+  expect(labels(dialogues.children?.[0]?.children)).toEqual(["Ada · myaid"]);
   // The registry still holds the claim, so an unarchive brings it back.
   expect(registry.dialogues[0]?.claims[0]?.sessionId).toBe("s1");
+});
+
+test("a Dialogue whose Sessions are all archived leaves Bots for the archived group", () => {
+  const nav = projectNav({
+    registry: registered(),
+    workspaces: projection({ archived: ["s1"] }),
+    rows: [row()],
+  });
+  expect(section(nav.items, "root:bots").children?.[0]?.children).toEqual([]);
+  const dialogues = section(nav.items, "root:dialogues");
+  expect(labels(dialogues.children)).toEqual(["已归档"]);
+  const archived = dialogues.children?.find((item) => item.id === ARCHIVED_DIALOGUES_ITEM_ID);
+  expect(labels(archived?.children)).toEqual(["Ada · myaid"]);
+  // The Dialogue keeps its address: its Panel lists the archived Sessions.
+  expect(nav.actions.get(`dialogues:dlg`)).toMatchObject({
+    type: "address",
+    address: { kind: "dialogue", dialogueId: "dlg" },
+  });
+});
+
+test("a v4 file reads as rows in both sections, without an address", () => {
+  const legacy: LegacyRegistry = {
+    templates: [],
+    bots: [
+      {
+        id: "bot",
+        name: "Ada",
+        description: null,
+        templateId: "tmpl",
+        defaultModel: null,
+        defaultThinking: null,
+        defaultWorkspacePath: null,
+        hadDialogue: true,
+        status: "ready",
+        boundPresetId: "standard",
+        derivedPresetId: null,
+        identity: { color: "rose", glyph: "orbit" },
+      },
+    ],
+    dialogues: [
+      {
+        id: "dlg",
+        botId: "bot",
+        workspacePath: "/work/myaid",
+        name: "Release notes",
+        archived: false,
+        claims: [{ sessionId: "s1", title: "First run", archived: false }],
+      },
+    ],
+  };
+  const nav = projectNav({
+    registry: emptyRegistry(),
+    workspaces: projection(),
+    legacy,
+    rows: [],
+  });
+  const bots = section(nav.items, "root:bots");
+  expect(labels(bots.children)).toEqual(["Ada"]);
+  expect(labels(bots.children?.[0]?.children)).toEqual(["myaid"]);
+  expect(labels(bots.children?.[0]?.children?.[0]?.children)).toEqual(["First run"]);
+  expect(labels(section(nav.items, "root:dialogues").children)).toEqual(["Ada · myaid"]);
+  // Read-only: no legacy row carries an action, and no address names one.
+  for (const id of ["legacy:bot:bot", "legacy:dlg/dlg"]) {
+    expect(nav.actions.get(id)).toBe(undefined);
+  }
+  for (const action of nav.actions.values()) {
+    if (action.type !== "address") continue;
+    expect(["bot", "dialogue", "session"]).not.toContain(action.address.kind);
+  }
 });
 
 test("two Dialogues on one title read apart, in both sections", () => {

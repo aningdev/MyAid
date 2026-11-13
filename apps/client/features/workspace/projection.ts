@@ -61,6 +61,45 @@ export function isSessionPinned(projection: WorkspaceProjection, sessionId: stri
   return projection.pinned.includes(sessionId);
 }
 
+/** A Dialogue none of whose claimed Sessions is active (an empty one is not). */
+export function isDialogueArchived(
+  projection: WorkspaceProjection,
+  dialogue: WorkspaceRef & { claims: readonly { sessionId: string }[] },
+): boolean {
+  return (
+    dialogue.claims.length > 0 &&
+    dialogue.claims.every((claim) => isSessionArchived(projection, claim.sessionId))
+  );
+}
+
+/** The claims a group of ids names, in that order (dsh's own order). */
+function rankOf(ids: readonly string[]): Map<string, number> {
+  return new Map(ids.map((id, index) => [id, index]));
+}
+
+/**
+ * Sort by `rank`, then put the unranked after them keeping their own order.
+ * dsh's Workspace order and its Session order both read through this.
+ */
+function sortByRank<T>(
+  items: readonly T[],
+  rank: ReadonlyMap<string, number>,
+  key: (item: T) => string,
+): T[] {
+  const placed = items
+    .filter((item) => rank.has(key(item)))
+    .sort((left, right) => (rank.get(key(left)) ?? 0) - (rank.get(key(right)) ?? 0));
+  return [...placed, ...items.filter((item) => !rank.has(key(item)))];
+}
+
+/** Rows in dsh's Workspace order; a row the frame does not name keeps its place after them. */
+export function sortRowsByIds(
+  rows: readonly WorkspaceRow[],
+  workspaceIds: readonly string[],
+): WorkspaceRow[] {
+  return sortByRank(rows, rankOf(workspaceIds), (row) => row.id);
+}
+
 /**
  * Dialogues in the Host's Workspace order; a Dialogue whose Workspace the
  * projection does not hold keeps the registry's order after them.
@@ -69,13 +108,11 @@ export function orderedDialogues<T extends WorkspaceRef>(
   projection: WorkspaceProjection,
   dialogues: readonly T[],
 ): T[] {
-  const rank = new Map(projection.rows.map((row, index) => [row.id, index]));
-  const known = dialogues.filter((dialogue) => rank.has(dialogue.workspaceId));
-  const unknown = dialogues.filter((dialogue) => !rank.has(dialogue.workspaceId));
-  known.sort(
-    (left, right) => (rank.get(left.workspaceId) ?? 0) - (rank.get(right.workspaceId) ?? 0),
+  return sortByRank(
+    dialogues,
+    rankOf(projection.rows.map((row) => row.id)),
+    (dialogue) => dialogue.workspaceId,
   );
-  return [...known, ...unknown];
 }
 
 /**
@@ -89,15 +126,11 @@ export function orderedClaims<T extends { sessionId: string }>(
   claims: readonly T[],
 ): T[] {
   const row = workspaceOf(projection, dialogue);
-  const rank = new Map((row?.sessionIds ?? []).map((id, index) => [id, index]));
-  const known = claims.filter(
-    (claim) => rank.has(claim.sessionId) && !projection.archived.has(claim.sessionId),
+  return sortByRank(
+    claims.filter((claim) => !isSessionArchived(projection, claim.sessionId)),
+    rankOf(row?.sessionIds ?? []),
+    (claim) => claim.sessionId,
   );
-  const unknown = claims.filter(
-    (claim) => !rank.has(claim.sessionId) && !projection.archived.has(claim.sessionId),
-  );
-  known.sort((left, right) => (rank.get(left.sessionId) ?? 0) - (rank.get(right.sessionId) ?? 0));
-  return [...known, ...unknown];
 }
 
 /** The pinned Sessions of one Dialogue, in pin order (most recent first). */
@@ -108,7 +141,7 @@ export function pinnedClaims<T extends { sessionId: string }>(
   const byId = new Map(claims.map((claim) => [claim.sessionId, claim]));
   const rows: T[] = [];
   for (const sessionId of projection.pinned) {
-    if (projection.archived.has(sessionId)) continue;
+    if (isSessionArchived(projection, sessionId)) continue;
     const claim = byId.get(sessionId);
     if (claim) rows.push(claim);
   }

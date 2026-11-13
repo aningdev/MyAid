@@ -53,8 +53,14 @@ test("a v4 registry without a Host stays untouched and says why", async () => {
 
   await app.waitFor("id:migration-notice");
   expect(app.texts().some((text) => text.includes("旧版本"))).toBe(true);
-  // No Bot row: a v4 Dialogue has no Workspace id, so nothing is shown as v5.
-  expect(app.shows("role:treeitem[Ada]")).toBe(false);
+  // The v4 objects are read, not hidden: Bot and Dialogue by its own path.
+  await app.waitFor("role:treeitem[Ada]");
+  await app.press("role:treeitem[Ada]");
+  await app.waitFor("role:treeitem[myaid]");
+  // Read-only: a row carries no address, so pressing it opens no Panel.
+  await app.press("role:treeitem[myaid]");
+  expect(app.shows("text:New Session")).toBe(false);
+  expect(app.shows("id:tab-panel-1 >> text:Empty")).toBe(true);
   // The file keeps its version and its paths; the notice is not a migration.
   expect(app.storage()[REGISTRY_STORAGE_KEY]).toBe(V4);
 });

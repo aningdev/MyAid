@@ -312,6 +312,21 @@ export function dialogueOfWorkspace(
   );
 }
 
+/**
+ * Drop a Dialogue that never claimed a Session. The dsh Workspace stays: its
+ * directory, its other Dialogues and its Sessions are dsh's, not this file's.
+ */
+export function removeDialogue(registry: BotRegistry, dialogueId: string): BotRegistry {
+  const dialogue = mustDialogue(registry, dialogueId);
+  if (dialogue.claims.length > 0) {
+    throw new RegistryRejection({ code: "dialogue-has-sessions", dialogueId });
+  }
+  return {
+    ...registry,
+    dialogues: registry.dialogues.filter((item) => item.id !== dialogue.id),
+  };
+}
+
 /** Claim a new Harness Session for a Dialogue. */
 export function claimSession(
   registry: BotRegistry,

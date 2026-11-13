@@ -8,12 +8,20 @@
 import { signal } from "nsh";
 
 import type { Connection } from "../../lib/dsh/connection";
-import { createDialogue, dialogueOfWorkspace, type Dialogue } from "../bots/model";
+import {
+  createDialogue,
+  dialogueOfWorkspace,
+  removeDialogue as removeDialogueEntry,
+  type Dialogue,
+} from "../bots/model";
 import { changeRegistry, registry, setActionError } from "../bots/state";
+import { trimPath } from "./paths";
 import {
   WorkspaceActionError,
   activitySummary,
   archiveSession,
+  isSessionArchived,
+  isSessionPinned,
   moveSession as moveWorkspaceSession,
   openWorkspace,
   pinSession as pinWorkspaceSession,
@@ -50,15 +58,16 @@ export async function createDialogueOnPath(botId: string, path: string): Promise
   }
   try {
     // This Bot already looks at that Workspace: the existing Dialogue is it.
-    const before = registry().dialogues.find(
-      (item) => item.botId === botId && item.workspaceId === existingWorkspaceId(botId, target),
-    );
-    if (before) return before;
+    const known = knownWorkspaceId(botId, target);
+    const existing = known
+      ? registry().dialogues.find((item) => item.botId === botId && item.workspaceId === known)
+      : undefined;
+    if (existing) return existing;
     const connection = await workspaceConnection();
     const workspace = await openWorkspace(connection, target);
     const next = await changeRegistry((reg) => {
-      const existing = dialogueOfWorkspace(reg, botId, workspace.id);
-      return existing ? reg : createDialogue(reg, { botId, workspaceId: workspace.id });
+      const already = dialogueOfWorkspace(reg, botId, workspace.id);
+      return already ? reg : createDialogue(reg, { botId, workspaceId: workspace.id });
     });
     if (!next) return null;
     return dialogueOfWorkspace(next, botId, workspace.id);
@@ -78,52 +87,120 @@ export async function renameDialogue(dialogueId: string, title: string): Promise
 }
 
 /**
- * A Session dsh refused to archive because it still works, with the work dsh
- * named; the Navigator offers "Stop and archive" for it.
+ * One Session dsh refused to archive because it still works, with the work it
+ * named. `dialogueId` is set when the refusal came from archiving a whole
+ * Dialogue, so its retry covers every Session that was refused.
  */
-export const archiveBlocked = signal<{ sessionId: string; activity: string } | null>(null);
+export type ArchiveRefusal = { sessionId: string; activity: string };
+
+/** A Session dsh refused to archive because it still works. */
+export const archiveBlocked = signal<{
+  dialogueId: string | null;
+  refusals: readonly ArchiveRefusal[];
+} | null>(null);
 
 /**
- * Archive one Session. A Session that is still working is refused by dsh with
- * `workspace/session-active`; that refusal becomes `archiveBlocked`, and
- * {@link stopAndArchiveSession} retries with dsh's own `stopActivity`.
+ * Archive Sessions over one Connection. A `workspace/session-active` refusal
+ * is collected (dsh named the work); any other failure is the caller's to
+ * report. dsh drops an archived Session's pin in the same write.
+ */
+export async function archiveSessionsWith(
+  connection: Connection,
+  sessionIds: readonly string[],
+  options: { stopActivity?: boolean } = {},
+): Promise<{ archived: string[]; refusals: ArchiveRefusal[] }> {
+  const archived: string[] = [];
+  const refusals: ArchiveRefusal[] = [];
+  for (const sessionId of sessionIds) {
+    try {
+      await archiveSession(connection, sessionId, options);
+      archived.push(sessionId);
+    } catch (error) {
+      if (!isActiveRefusal(error)) throw error;
+      refusals.push({ sessionId, activity: activitySummary(error.details) });
+    }
+  }
+  return { archived, refusals };
+}
+
+/**
+ * Record what an archive call met: nothing refused clears the notice, a
+ * refusal (or several) becomes the Stop-and-archive notice. Returns whether
+ * the archive stands.
+ */
+export function noteArchive(
+  dialogueId: string | null,
+  refusals: readonly ArchiveRefusal[],
+): boolean {
+  if (refusals.length > 0) {
+    archiveBlocked.set({ dialogueId, refusals });
+    return false;
+  }
+  archiveBlocked.set(null);
+  return true;
+}
+
+/**
+ * Archive one Session. A running Session is refused by dsh with
+ * `workspace/session-active`; that refusal becomes `archiveBlocked`, and the
+ * notice's "Stop and archive" retries with dsh's own `stopActivity`.
  */
 export async function archiveDialogueSession(
   sessionId: string,
   options: { stopActivity?: boolean } = {},
+): Promise<boolean> {
+  const result = await archiveSessionsWith(await workspaceConnection(), [sessionId], options);
+  if (!noteArchive(null, result.refusals)) return false;
+  await refreshSessionRows();
+  return true;
+}
+
+/**
+ * Archive every claimed Session of a Dialogue through dsh. Sessions that
+ * still work are refused; the refusal lists all of them so one confirmation
+ * stops and archives the lot.
+ */
+export async function archiveWholeDialogue(
+  dialogueId: string,
+  options: { stopActivity?: boolean } = {},
 ): Promise<void> {
-  await archiveWith(await workspaceConnection(), sessionId, options);
+  const dialogue = registry().dialogues.find((item) => item.id === dialogueId);
+  if (!dialogue) return;
+  const projection = workspaces();
+  const sessionIds = dialogue.claims
+    .map((claim) => claim.sessionId)
+    .filter((sessionId) => !isSessionArchived(projection, sessionId));
+  if (sessionIds.length === 0) {
+    archiveBlocked.set(null);
+    return;
+  }
+  const result = await archiveSessionsWith(await workspaceConnection(), sessionIds, options);
+  if (!noteArchive(dialogueId, result.refusals)) return;
+  await refreshSessionRows();
 }
 
 /** The refusal's own retry: dsh stops the work, then archives. */
-export async function stopAndArchiveSession(sessionId: string): Promise<void> {
-  await archiveDialogueSession(sessionId, { stopActivity: true });
+export async function stopAndArchiveBlocked(): Promise<void> {
+  const blocked = archiveBlocked();
+  if (!blocked) return;
+  archiveBlocked.set(null);
+  const sessionIds = blocked.refusals.map((refusal) => refusal.sessionId);
+  if (blocked.dialogueId) {
+    await archiveWholeDialogue(blocked.dialogueId, { stopActivity: true });
+    return;
+  }
+  const [sessionId] = sessionIds;
+  if (sessionId) await archiveDialogueSession(sessionId, { stopActivity: true });
 }
 
 export function dismissArchiveBlocked(): void {
   archiveBlocked.set(null);
 }
 
-/**
- * Archive over one Connection. A `workspace/session-active` refusal becomes
- * the blocked notice dsh's own details describe; any other failure is the
- * caller's to report.
- */
-export async function archiveWith(
-  connection: Connection,
-  sessionId: string,
-  options: { stopActivity?: boolean } = {},
-): Promise<void> {
-  try {
-    await archiveSession(connection, sessionId, options);
-  } catch (error) {
-    if (error instanceof WorkspaceActionError && error.code === "workspace/session-active") {
-      archiveBlocked.set({ sessionId, activity: activitySummary(error.details) });
-    }
-    throw error;
-  }
-  archiveBlocked.set(null);
-  await refreshSessionRows();
+/** Remove an empty Dialogue from the registry; the dsh Workspace stays. */
+export async function removeEmptyDialogue(dialogueId: string): Promise<boolean> {
+  const next = await changeRegistry((reg) => removeDialogueEntry(reg, dialogueId));
+  return next !== null;
 }
 
 export async function unarchiveDialogueSession(sessionId: string): Promise<void> {
@@ -160,21 +237,25 @@ export function messageOf(error: unknown): string {
 
 /** The Session's archive flag, as dsh last reported it. */
 export function sessionArchived(sessionId: string): boolean {
-  return workspaces().archived.has(sessionId);
+  return isSessionArchived(workspaces(), sessionId);
 }
 
 /** The Session's pin flag, as dsh last reported it. */
 export function sessionPinned(sessionId: string): boolean {
-  return workspaces().pinned.includes(sessionId);
+  return isSessionPinned(workspaces(), sessionId);
+}
+
+function isActiveRefusal(error: unknown): error is WorkspaceActionError {
+  return error instanceof WorkspaceActionError && error.code === "workspace/session-active";
 }
 
 /** The Workspace id this Bot already uses for `path`, when the projection has it. */
-function existingWorkspaceId(botId: string, path: string): string {
-  const normalized = path.replace(/\/+$/, "");
+function knownWorkspaceId(botId: string, path: string): string {
+  const key = trimPath(path);
   for (const dialogue of registry().dialogues) {
     if (dialogue.botId !== botId) continue;
     const row = workspaces().rows.find((item) => item.id === dialogue.workspaceId);
-    if (row && row.path.replace(/\/+$/, "") === normalized) return row.id;
+    if (row && trimPath(row.path) === key) return row.id;
   }
   return "";
 }

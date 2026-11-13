@@ -115,13 +115,24 @@ test("two Dialogues on one Workspace move one name and create one Workspace", as
     name: "Another name",
   });
   const dsh = bridge();
-  const { registry } = await migrateRegistry(source, dsh);
+  const { registry, report } = await migrateRegistry(source, dsh);
   expect(dsh.calls.filter((call) => call.startsWith("create:"))).toHaveLength(2);
   expect(dsh.calls.filter((call) => call.startsWith("rename:"))).toHaveLength(1);
   expect(registry.dialogues.map((item) => item.workspaceId)).toEqual([
     "ws:/work/myaid",
     "ws:/work/myaid",
   ]);
+  // The second Dialogue's name cannot be the shared title: it is reported.
+  expect(report.renamed).toBe(1);
+  expect(report.skipped).toBe(1);
+});
+
+test("a Workspace already retitled in dsh keeps it, and the old name is reported", async () => {
+  const dsh = bridge({ title: "release" });
+  const { report } = await migrateRegistry(legacy(), dsh);
+  expect(dsh.titles).toEqual([]);
+  expect(report.renamed).toBe(0);
+  expect(report.skipped).toBe(1);
 });
 
 test("archived claims become dsh archive entries; an already archived id is skipped", async () => {

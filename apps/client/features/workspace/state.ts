@@ -1,36 +1,45 @@
-import type {
-  WorkspaceBaseline,
-  WorkspaceFollowFrame,
-  WorkspaceView,
-} from "@myaid/dsh-web-protocol/workspace";
+import type { WorkspaceFollowFrame, WorkspaceView } from "@myaid/dsh-web-protocol/workspace";
 /**
  * The product's one view of dsh's Workspaces. dsh owns paths, titles, Session
  * order, pins and the archive set; `workspace.follow` is the only writer of
- * this signal, so a mutation is visible when dsh echoes it — never from a
- * local copy. Mutations themselves go back through the `workspace` Remote.
+ * this signal, so a mutation becomes visible when dsh echoes it — never from
+ * a unary response. Commands only call the Remote.
  *
- * `ClientWorkspaceModel` from `@deepseek-ai/dsh-api-workspace-controller/client`
- * is not used: its only published ESM entry is a `window.__ModuleLoader__`
- * bundle without a `node` export condition (and it imports `dsh-client-store`,
- * which the package does not ship), so QuickJS/NSH cannot load it. The follow
- * frames and Remote results are the same values the model would have consumed.
+ * The official `ClientWorkspaceModel` is deferred, not rejected: the package
+ * ships a plain-ESM model under `lib/types/**`, while its `./client` entry is
+ * a browser ModuleLoader wrapper NSH cannot import as is. Official client
+ * models are to be loaded together in the next batch; this projection stays a
+ * thin decode of the same frames until then.
  */
 import { signal, Storage } from "nsh";
 
 import { usesTestStorage } from "../../lib/data-root";
 import type { Connection, WorkspaceResult } from "../../lib/dsh/connection";
-import type { Dialogue } from "../bots/model";
+import { decodeWorkspaceBaseline, decodeWorkspaceFrame } from "../../lib/dsh/workspace-frames";
 import {
   EMPTY_WORKSPACES,
-  orderedClaims,
-  orderedDialogues,
-  pinnedClaims,
+  sortRowsByIds,
   workspaceRowOf,
   type WorkspaceProjection,
   type WorkspaceRow,
 } from "./projection";
 
-export * from "./projection";
+export {
+  EMPTY_WORKSPACES,
+  isDialogueArchived,
+  isSessionArchived,
+  isSessionPinned,
+  orderedClaims,
+  orderedDialogues,
+  pinnedClaims,
+  workspaceOf,
+  workspacePath,
+  workspaceRowOf,
+  workspaceTitle,
+  type WorkspaceProjection,
+  type WorkspaceRef,
+  type WorkspaceRow,
+} from "./projection";
 
 /**
  * Where an app opened by `test/open` gets a Workspace baseline without a Host
@@ -90,10 +99,11 @@ export function startWorkspaces(connection: Connection): void {
       const stream = connection.workspaceFrames(abort.signal);
       let received = false;
       try {
-        for await (const frame of stream.frames) {
+        for await (const value of stream.frames) {
           if (abort.signal.aborted) return;
+          // The Remote's frames come from another process: decode them once.
+          acceptFrame(decodeWorkspaceFrame(value));
           received = true;
-          acceptFrame(frame);
         }
         if (abort.signal.aborted) return;
         workspaceError.set("Workspace 状态流已结束，正在重新连接。");
@@ -132,7 +142,7 @@ export async function loadStoredWorkspaces(): Promise<void> {
   const text = await Storage.getItem(WORKSPACES_STORAGE_KEY);
   if (!text) return;
   try {
-    applyBaseline(JSON.parse(text) as WorkspaceBaseline);
+    applyBaseline(decodeWorkspaceBaseline(JSON.parse(text)));
   } catch {
     // An unreadable fixture is no baseline: the app shows what dsh tells it.
   }
@@ -171,7 +181,7 @@ export function acceptFrame(frame: WorkspaceFollowFrame): void {
   }
 }
 
-function applyBaseline(baseline: WorkspaceBaseline): void {
+function applyBaseline(baseline: ReturnType<typeof decodeWorkspaceBaseline>): void {
   workspaces.set({
     rows: baseline.items.map(workspaceRowOf),
     archived: new Set(baseline.archivedSessionIds),
@@ -193,7 +203,8 @@ function upsertView(view: WorkspaceView): void {
       return { ...current, rows: [row, ...current.rows] };
     }
     const installed = current.rows[index]!;
-    // A unary echo and a follow frame race: the newer projection wins.
+    // Frames arrive in order, but a reconnect's baseline may overlap one:
+    // the newer projection wins.
     if (Date.parse(row.updatedAt) < Date.parse(installed.updatedAt)) return current;
     return {
       ...current,
@@ -203,28 +214,19 @@ function upsertView(view: WorkspaceView): void {
 }
 
 function setOrder(workspaceIds: readonly string[]): void {
-  workspaces.update((current) => {
-    const rank = new Map(workspaceIds.map((id, index) => [id, index]));
-    const rows = [...current.rows].sort(
-      (left, right) =>
-        (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-        (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
-    );
-    return { ...current, rows };
-  });
+  workspaces.update((current) => ({ ...current, rows: sortRowsByIds(current.rows, workspaceIds) }));
 }
 
 // --- commands --------------------------------------------------------------
 
 /**
  * Create or reuse the Workspace over a directory (the Dialogue's path). The
- * unary response is the Host's own row, merged ahead of its follow frame so a
- * caller can use the id and title right away.
+ * returned row is the Host's response; the follow frame that follows it is
+ * what updates the tree.
  */
 export async function openWorkspace(connection: Connection, path: string): Promise<WorkspaceRow> {
   const result = await connection.createWorkspace(path);
   if (!result.ok) throw failure("create", result);
-  upsertView(result.value.workspace);
   return workspaceRowOf(result.value.workspace);
 }
 
@@ -236,7 +238,6 @@ export async function renameWorkspace(
 ): Promise<WorkspaceRow> {
   const result = await connection.renameWorkspace(workspaceId, title);
   if (!result.ok) throw failure("rename", result);
-  upsertView(result.value.workspace);
   return workspaceRowOf(result.value.workspace);
 }
 
@@ -292,26 +293,34 @@ function failure(
   );
 }
 
-/** The work a `workspace/session-active` refusal names, as one line. */
+/**
+ * The work a `workspace/session-active` refusal names, as one line. The
+ * details crossed the process boundary with the error, so they are read with
+ * guards like any other wire value.
+ */
 export function activitySummary(details: unknown): string {
-  const activity = (details as { activity?: unknown } | undefined)?.activity;
+  if (!isRecord(details)) return "";
+  const activity = details.activity;
   if (!Array.isArray(activity)) return "";
   const parts: string[] = [];
   for (const item of activity) {
-    const family = (item as { kind?: unknown; items?: unknown }).kind;
-    if (typeof family !== "string") continue;
-    const entries = (item as { items?: unknown }).items;
-    const labels = Array.isArray(entries)
-      ? entries.flatMap((entry) => {
-          const label = (entry as { label?: unknown }).label;
-          const id = (entry as { id?: unknown }).id;
-          return [typeof label === "string" ? label : typeof id === "string" ? id : ""];
-        })
-      : [];
-    const named = labels.filter(Boolean).join("、");
-    parts.push(named ? `${family}（${named}）` : family);
+    if (!isRecord(item) || typeof item.kind !== "string") continue;
+    const labels: string[] = [];
+    if (Array.isArray(item.items)) {
+      for (const entry of item.items) {
+        if (!isRecord(entry)) continue;
+        const label = typeof entry.label === "string" ? entry.label : entry.id;
+        if (typeof label === "string" && label) labels.push(label);
+      }
+    }
+    const named = labels.join("、");
+    parts.push(named ? `${item.kind}（${named}）` : item.kind);
   }
   return parts.join(" · ");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {

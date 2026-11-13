@@ -18,6 +18,7 @@ export type RegistryIssue =
   | { code: "not-ready"; botId: string }
   | { code: "session-claimed"; sessionId: string }
   | { code: "bot-has-dialogues"; botId: string }
+  | { code: "dialogue-has-sessions"; dialogueId: string }
   | { code: "claim-not-found"; sessionId: string };
 
 export class RegistryRejection extends Error {
@@ -64,6 +65,8 @@ export function rejectionMessage(issue: RegistryIssue): string {
       return "这条会话已经认领到一段 Dialogue。";
     case "bot-has-dialogues":
       return "这个 Bot 已经有过 Dialogue。";
+    case "dialogue-has-sessions":
+      return "这段 Dialogue 还有 Session，不能移除。";
     case "claim-not-found":
       return "找不到这条会话认领。";
   }

@@ -22,20 +22,20 @@ _Avoid_：live Agent、Profile 别名、每助手一套 dsh 进程、唯一一�
 
 **Bot template（模板）** _[C]_：稳定的产品模板 ID，映射到一个 DSH Agent preset id。不是 preset 正文快照；未初始化的 Bot 跟随模板当前的 preset id。
 
-**Dialogue（对话）** _[C]_：与某个 Bot 的一段长线交往 = **该 Bot 对某个 dsh Workspace 的视角**（`workspaceId` 固定）。其下 **1 : N Session**（多上下文场景）。换项目工作区 → 新 Dialogue；两个 Bot 看同一目录 → 两个 Dialogue、一个 Workspace。名字就是 Workspace 的 title（跨 Bot 共享）。  
-_Avoid_：DSH Session、把「会话」当 Dialogue 的中文、一个 Bot 强制只有一条 Dialogue、在注册表里另存一份 path / 名字
+**Dialogue（对话）** _[C]_：与某个 Bot 的一段长线交往 = **该 Bot 对某个 dsh Workspace 的视角**。其下 **1 : N Session**（多上下文场景）。换项目工作区 → 新 Dialogue；两个 Bot 看同一目录 → 两个 Dialogue、一个 Workspace。名字就是该 Workspace 的名字（跨 Bot 共享）。  
+_Avoid_：DSH Session、把「会话」当 Dialogue 的中文、一个 Bot 强制只有一条 Dialogue、在注册表里另存一份路径 / 名字
 
 **Session（会话）** _[A]_：一个**上下文场景**；产品与 DSH 同名，一对一等于一条 Harness Session（事件日志真源）。连续聊默认同一 Session；显式「新上下文」才新建。须经注册表认领到某 Dialogue 才进入产品。  
 _Avoid_：Dialogue、广义 Task、未认领的 Harness Session
 
-**认领（Claim）** _[C]_：注册表中「一条 Session 属于哪个 Dialogue」的记录（Dialogue 已属 Bot）；只存 sessionId 与人对它的称呼，归属之外的事（顺序、置顶、归档）归 dsh Workspace。  
-_Avoid_：Session 直接认领到 Bot 而跳过 Dialogue、dsh 事件日志、把归档/置顶写进 Claim
+**认领（Claim）** _[C]_：注册表中「一条 Session 属于哪个 Dialogue」的记录（Dialogue 已属 Bot）；除了这层归属，只保留人对它的称呼。顺序、置顶与归档属于该 Dialogue 所指的 dsh Workspace。  
+_Avoid_：Session 直接认领到 Bot 而跳过 Dialogue、dsh 事件日志、把归档 / 置顶写进 Claim
 
-**归档（Archive）** _[A]_：dsh Workspace 上的一次 Session 归档（集合）；Session 退出产品的列表，dsh 历史与日志保留。运行中的 Session 被 `workspace/session-active` 拒绝，可 `stopActivity`（Stop and archive）。Dialogue 没有单独的归档位，不删除 Bot。  
-_Avoid_：删除 Session 日志、把归档当成停用 Bot、在注册表另存 archived 位
+**归档（Archive）** _[A]_：把 Session 收进 dsh 的归档集合；它退出产品的列表，历史与日志保留。仍在执行的 Session 不能直接归档：界面给出 **Stop and archive**，先停掉那轮工作再归档。**Archive Dialogue** 归档该 Dialogue 认领的全部 Session；Dialogue 自身没有独立的归档标记——会话都归档了，它就是归档的。不删除 Bot。  
+_Avoid_：删除 Session 日志、把归档当成停用 Bot、在注册表另存归档字段、用归档代替删除
 
-**Workspace（工作区）** _[A]_：dsh 拥有的目录对象：规范 path、title、有序 `sessionIds`、pinned `sessionIds` 与归档集合。产品经 `workspace.*` Remote 写、经 `workspace.follow` 读。Bot 的**默认工作区偏好**仍在注册表（下次开 Dialogue 的建议路径）。  
-_Avoid_：把 Workspace 当产品对象另存一份、用 workspace 泛指 Space / Workbench、在 Dialogue 上来回改 cwd
+**Workspace（工作区）** _[A]_：dsh 拥有的目录对象：规范路径、名字、Session 的先后顺序、置顶集合与归档集合。产品只引用它、经官方接口读写，不另存一份。Bot 的**默认工作区偏好**属于注册表（下次开 Dialogue 的建议路径）。  
+_Avoid_：把 Workspace 当产品对象另存一份、用 workspace 泛指 Space / Workbench、在 Dialogue 上来回改工作目录
 
 **Deliverable（交付产物）** _[A/B]_：某一 **Session** 场景内的交付物（对齐 DSH 当轮/场景 Deliverable：如 present、工作区变更摘要）。一条长 Dialogue 可累积多个。产品可加元数据（标题、置顶、挂 Task）；正文真源不另建第二套去抢 Session 日志。  
 _Avoid_：Outcome（已弃用）、把 Deliverable 当成跨域长期「事情结果」档案
@@ -70,7 +70,7 @@ _Avoid_：手写树行、DockArea left dock、把树当成第二套域模型、�
 **Navigator Section（导航分区）** _[C]_：Navigator 的一个顶层分组；以分区标题呈现，可整体折叠，其下是该域的可展开树。集合与顺序固定。  
 _Avoid_：区块 / Block（Rex 中 block 指 pane，易与 Panel 混淆）、Module、Space
 
-**Favorites（收藏）** _[C]_：Navigator 顶层分区；**Session 行来自 dsh 的 pinned Session 集合**（最近置顶在前），其余 Nav address（Bot / Dialogue / Settings）的快捷入口存客户端偏好。  
+**Favorites（收藏）** _[C]_：Navigator 顶层分区；**Session 行就是 dsh 的置顶会话**（最近置顶在前），其余 Nav address（Bot / Dialogue / Settings）的快捷入口存客户端偏好。  
 _Avoid_：Pin（留给各树内置顶）、Space、把 Session 置顶写进客户端偏好
 
 **Space（空间）** _[C]_：已保存的 Workbench 布局快照（DockArea center 切分树 + 各 Panel 的 Nav address）；打开替换 Workbench。  

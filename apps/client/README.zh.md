@@ -50,7 +50,7 @@ vp run @myaid/client#package:web
 - **Workbench**：`nsh/base` DockArea（center），Panel 可拆、缩放、放大、移动、关闭。layout、每个 Panel 的 Nav address、活动 Panel、Navigator 宽度与折叠分区从客户端偏好恢复；对象不在时地址解析为空 Panel。
 - **Panel 内容**：`session` → `SessionPanel` → `ChatPane`（标题、transcript、审批、composer）+ 可选 **Inspector**；`dialogue` → `DialoguePanel`；`bot` → `BotPanel`；`setting` → Background Services。空 Panel 在还没有 Bot 时显示欢迎页。
 - **运行态归属**：`SessionController` 持有一条 Session 的 follow 流、草稿、附件与审批队列。同一 Session 的两个 Panel 共用；两条 Session 可并行流式。Navigator 行显示执行中 / 未读 / 待审批状态点。
-- **New Bot**：一张 sheet（`features/bots/NewBotSheet.tsx`），Bots 分区 `+`、`⇧⌘N`、欢迎页与命令面板都开它。Host 在时创建 Bot + Dialogue + 首个 Session。
+- **New Bot**：一张 sheet（`features/bots/NewBotSheet.tsx`），Bots 分区 `+`、`⇧⌘N`、欢迎页与命令面板都开它。没有 Host 时先存 Bot；首个 Dialogue 需要 Host——Dialogue 建在 dsh Workspace 上（`workspace.create`），首条 Session 是 `session.create({ workspaceId })`。
 - **Inspector**：Session Panel 右侧窄栏（268–320），按 Panel 用 `⌥⌘I` 开关。Bot / Dialogue / Sessions / Deliverables / Usage；Compact 执行 `/compact`；Host 允许时工作区路径在 Finder 中显示。
 - **Bot Settings**：一张 sheet，四段 Profile / Runs with / Skills / Plugins。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成。能力变更在 preset writer 可用时派生 Bot 自己的 preset，否则如实说明写不了。
 
@@ -74,7 +74,7 @@ vp run @myaid/client#package:web
 ## 数据
 
 - 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 5 存 templates、Bots 与 Dialogues（`botId` + `workspaceId`）。v3 / v4 文件在连上 Host 前只读：迁移把每个 Dialogue 的 path、名字与 archived claim 交给 dsh Workspace（旧文件备份为 `bots.json.v4.bak`）。Identity 仍在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Dialogue 名、Session 顺序、置顶与归档归 dsh Workspace（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)）。
-- Workspace：`features/workspace` 把 `workspace.follow` 投影成 signal。官方 `ClientWorkspaceModel` 只发布浏览器 `window.__ModuleLoader__` 形态（无 `node` 条件，且依赖未发布的 `dsh-client-store`），NSH 改为直接消费 Remote 的帧与返回。
+- Workspace：`features/workspace` 在 `lib/dsh/workspace-frames` 校验 `workspace.follow` 的帧后投影成 signal；Remote 的返回不写这份状态。官方 `ClientWorkspaceModel` 的纯 ESM 在 `lib/types/client/model.js`，而 `./client` 入口是浏览器 ModuleLoader 包装；采用它要等下一批把官方 client model 一起装载。
 - 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。覆盖 Navigator、Workbench 与 Favorites。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
 - `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md)。
 

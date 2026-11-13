@@ -3,15 +3,27 @@
  * (`Bot → Dialogue → claimed Session`), the session roster's titles and the
  * person's pinned addresses. One pure function, so the tree and its address
  * map are testable; `Navigator` only draws what this gives it.
+ *
+ * A v3 / v4 registry that is waiting for its migration is drawn from its own
+ * fields, read-only: rows show the Bot and the Dialogue's path, carry no
+ * address and open nothing. That is the only place the old fields are read.
  */
 import { computed } from "nsh";
 import type { TreeItem } from "nsh/base";
 
-import type { Bot, BotRegistry, Dialogue, SessionClaim } from "../../features/bots/model";
+import type {
+  Bot,
+  BotRegistry,
+  Dialogue,
+  LegacyRegistry,
+  SessionClaim,
+} from "../../features/bots/model";
 import { sessionLabel } from "../../features/bots/sessions";
-import { registry } from "../../features/bots/state";
+import { legacyRegistry, registry } from "../../features/bots/state";
 import { sessionList, type SessionRow } from "../../features/dialogue/session/runtime";
+import { pathSegment } from "../../features/workspace/paths";
 import {
+  isDialogueArchived,
   orderedClaims,
   orderedDialogues,
   pinnedClaims,
@@ -65,6 +77,8 @@ export type NavInput = {
   registry: BotRegistry;
   /** dsh's Workspace rows: Dialogue names, paths, Session order and pins. */
   workspaces: WorkspaceProjection;
+  /** A v3 / v4 file waiting for its Host migration: read-only rows. */
+  legacy?: LegacyRegistry | null;
   /** Live roster rows: their labels are the newest session titles. */
   rows: readonly SessionRow[];
   /** Pinned addresses (Favorites), already in the person's order. */
@@ -75,6 +89,9 @@ export type NavInput = {
 
 /** The tree item id of the new-Bot draft (a leaf under an empty Bots section). */
 export const NEW_BOT_ITEM_ID = "bots:new";
+
+/** The collapsed group that holds Dialogues whose Sessions are all archived. */
+export const ARCHIVED_DIALOGUES_ITEM_ID = "dialogues:archived";
 
 /** One section's header (children only; the section itself is not an address). */
 function section(id: string, label: string, children: TreeItem[]): TreeItem {
@@ -89,7 +106,12 @@ function contains(haystack: string | null | undefined, needle: string): boolean 
   return !!haystack && haystack.toLocaleLowerCase().includes(needle);
 }
 
+/** The tree for the registry as it is now. */
 export function projectNav(input: NavInput): NavProjection {
+  return input.legacy ? projectLegacy(input, input.legacy) : projectRegistry(input);
+}
+
+function projectRegistry(input: NavInput): NavProjection {
   const actions = new Map<string, NavAction>();
   const addresses = new Map<string, NavAddress>();
   const statuses = new Map<string, NavStatus>();
@@ -162,15 +184,27 @@ export function projectNav(input: NavInput): NavProjection {
 
   // Dialogues follow dsh's Workspace order; their Sessions that Workspace's
   // manual order. Two Dialogues on one title read apart ("myaid", "myaid · 2").
-  const active = orderedDialogues(input.workspaces, input.registry.dialogues);
+  const ordered = orderedDialogues(input.workspaces, input.registry.dialogues);
+  const active = ordered.filter((dialogue) => !isDialogueArchived(input.workspaces, dialogue));
+  const archived = ordered.filter((dialogue) => isDialogueArchived(input.workspaces, dialogue));
   const dialogueNames = dialogueLabels({
-    dialogues: active.map((dialogue) => ({
+    dialogues: ordered.map((dialogue) => ({
       id: dialogue.id,
       botId: dialogue.botId,
       title: titleOf(dialogue),
     })),
     botName,
   });
+  const dialogueAddressOf = (dialogue: Dialogue): NavAddress => {
+    const names = dialogueNames.get(dialogue.id);
+    return dialogueAddress({
+      id: dialogue.id,
+      title: titleOf(dialogue),
+      botId: dialogue.botId,
+      botName: botName(dialogue.botId),
+      ...(names ? { label: names.full } : {}),
+    });
+  };
 
   /** An empty Bots section still offers the way in: the new-Bot sheet. */
   const newBotLeaf = (): TreeItem => {
@@ -187,14 +221,7 @@ export function projectNav(input: NavInput): NavProjection {
           .filter((dialogue) => !query || botHit || dialogueMatches(dialogue))
           .map((dialogue) => {
             const names = dialogueNames.get(dialogue.id);
-            const dialogueAddr = dialogueAddress({
-              id: dialogue.id,
-              title: titleOf(dialogue),
-              botId: bot.id,
-              botName: bot.name,
-              ...(names ? { label: names.full } : {}),
-            });
-            addressAction(`bots:${bot.id}/${dialogue.id}`, dialogueAddr);
+            addressAction(`bots:${bot.id}/${dialogue.id}`, dialogueAddressOf(dialogue));
             // A Bot that matched shows all its Sessions; a Dialogue that
             // matched on one Session still shows the others beside it.
             const include = (claim: SessionClaim) =>
@@ -235,35 +262,40 @@ export function projectNav(input: NavInput): NavProjection {
     );
   };
 
-  const dialogueSection = (): TreeItem =>
-    section(
-      "root:dialogues",
-      "Dialogues",
-      active
-        .filter((dialogue) => !query || dialogueMatches(dialogue))
-        .map((dialogue) => {
-          const name = botName(dialogue.botId);
-          const names = dialogueNames.get(dialogue.id);
-          const address = dialogueAddress({
-            id: dialogue.id,
-            title: titleOf(dialogue),
-            botId: dialogue.botId,
-            botName: name,
-            ...(names ? { label: names.full } : {}),
-          });
-          addressAction(`dialogues:${dialogue.id}`, address);
-          return {
-            id: `dialogues:${dialogue.id}`,
-            label: address.title,
-            children: sessionLeaves(
-              `dialogues:${dialogue.id}`,
-              dialogue,
-              [`dialogues:${dialogue.id}`],
-              (claim) => !query || dialogueMatches(dialogue) || claimMatches(claim, dialogue),
-            ),
-          };
-        }),
-    );
+  const dialogueRow = (dialogue: Dialogue, itemId: string): TreeItem => {
+    const address = dialogueAddressOf(dialogue);
+    addressAction(itemId, address);
+    return {
+      id: itemId,
+      label: address.title,
+      children: sessionLeaves(
+        itemId,
+        dialogue,
+        [itemId],
+        (claim) => !query || dialogueMatches(dialogue) || claimMatches(claim, dialogue),
+      ),
+    };
+  };
+
+  const dialogueSection = (): TreeItem => {
+    const shown = active.filter((dialogue) => !query || dialogueMatches(dialogue));
+    const rows = shown.map((dialogue) => dialogueRow(dialogue, `dialogues:${dialogue.id}`));
+    const archivedShown = query
+      ? archived.filter((dialogue) => dialogueMatches(dialogue))
+      : archived;
+    if (archivedShown.length > 0) {
+      // A Dialogue whose Sessions are all archived leaves the active list but
+      // stays reachable here; dsh has no Dialogue-level archive flag.
+      rows.push({
+        id: ARCHIVED_DIALOGUES_ITEM_ID,
+        label: "已归档",
+        children: archivedShown.map((dialogue) =>
+          dialogueRow(dialogue, `dialogues:${dialogue.id}`),
+        ),
+      });
+    }
+    return section("root:dialogues", "Dialogues", rows);
+  };
 
   const botTree = botSection();
   const dialogueTree = dialogueSection();
@@ -273,7 +305,7 @@ export function projectNav(input: NavInput): NavProjection {
   // renamed Bot or title shows current.
   const favoriteRows: TreeItem[] = [];
   const seenFavorite = new Set<string>();
-  for (const dialogue of active) {
+  for (const dialogue of ordered) {
     for (const claim of pinnedClaims(input.workspaces, dialogue.claims)) {
       const address = addresses.get(`session:${claim.sessionId}`);
       if (!address || seenFavorite.has(address.id)) continue;
@@ -292,6 +324,117 @@ export function projectNav(input: NavInput): NavProjection {
     favoriteRows.push({ id: `fav:${live.id}`, label: live.title });
   }
 
+  return assemble({ actions, addresses, statuses, query, favoriteRows, botTree, dialogueTree });
+}
+
+/**
+ * A v3 / v4 file, read-only: the same Bots and Dialogues with their own path
+ * as the label. Rows carry no address, so a press only folds them open; the
+ * migration notice explains why nothing can be opened or written.
+ */
+function projectLegacy(input: NavInput, legacy: LegacyRegistry): NavProjection {
+  const actions = new Map<string, NavAction>();
+  const addresses = new Map<string, NavAddress>();
+  const statuses = new Map<string, NavStatus>();
+  const query = normalizeQuery(input.query);
+  const botName = (id: string) => legacy.bots.find((bot) => bot.id === id)?.name ?? "";
+  const visible = legacy.dialogues.filter((dialogue) => !dialogue.archived);
+
+  const sessionLeaves = (itemPrefix: string, dialogueId: string): TreeItem[] => {
+    const dialogue = legacy.dialogues.find((item) => item.id === dialogueId);
+    if (!dialogue) return [];
+    return dialogue.claims
+      .filter((claim) => !claim.archived)
+      .map((claim) => ({
+        id: `${itemPrefix}/s/${claim.sessionId}`,
+        label: sessionLabel({ title: claim.title }, null),
+      }));
+  };
+
+  const botTree = section(
+    "root:bots",
+    "Bots",
+    legacy.bots
+      .filter((bot) => !query || matchesBot(bot, visible, query))
+      .map((bot) => ({
+        id: `legacy:bot:${bot.id}`,
+        label: bot.name,
+        children: visible
+          .filter((dialogue) => dialogue.botId === bot.id)
+          .filter((dialogue) => !query || matchesLegacy(dialogue, bot.name, query))
+          .map((dialogue) => {
+            const itemId = `legacy:bot:${bot.id}/dlg/${dialogue.id}`;
+            return {
+              id: itemId,
+              label: pathSegment(dialogue.workspacePath),
+              children: sessionLeaves(itemId, dialogue.id),
+            };
+          }),
+      })),
+  );
+
+  const dialogueTree = section(
+    "root:dialogues",
+    "Dialogues",
+    visible
+      .filter((dialogue) => !query || matchesLegacy(dialogue, botName(dialogue.botId), query))
+      .map((dialogue) => {
+        const itemId = `legacy:dlg/${dialogue.id}`;
+        return {
+          id: itemId,
+          label: `${botName(dialogue.botId)} · ${pathSegment(dialogue.workspacePath)}`,
+          children: sessionLeaves(itemId, dialogue.id),
+        };
+      }),
+  );
+
+  return assemble({
+    actions,
+    addresses,
+    statuses,
+    query,
+    favoriteRows: [],
+    botTree,
+    dialogueTree,
+  });
+}
+
+function matchesLegacy(
+  dialogue: LegacyRegistry["dialogues"][number],
+  botName: string,
+  query: string,
+): boolean {
+  return (
+    contains(pathSegment(dialogue.workspacePath), query) ||
+    contains(dialogue.workspacePath, query) ||
+    contains(dialogue.name, query) ||
+    contains(botName, query) ||
+    dialogue.claims.some((claim) => contains(claim.title, query))
+  );
+}
+
+function matchesBot(
+  bot: { name: string; id: string },
+  dialogues: LegacyRegistry["dialogues"],
+  query: string,
+): boolean {
+  if (contains(bot.name, query)) return true;
+  return dialogues.some(
+    (dialogue) => dialogue.botId === bot.id && matchesLegacy(dialogue, bot.name, query),
+  );
+}
+
+/** Sections in their fixed order: Favorites, parked, Bots, Dialogues, Spaces, Settings. */
+function assemble(input: {
+  actions: Map<string, NavAction>;
+  addresses: Map<string, NavAddress>;
+  statuses: Map<string, NavStatus>;
+  query: string;
+  favoriteRows: TreeItem[];
+  botTree: TreeItem;
+  dialogueTree: TreeItem;
+}): NavProjection {
+  const { actions, addresses, query } = input;
   /** Settings' leaf is real: it opens the Background Services Panel. */
   const settingsSection = (): TreeItem | null => {
     const address = backgroundSettingsAddress();
@@ -320,42 +463,35 @@ export function projectNav(input: NavInput): NavProjection {
   const settingsTree = settingsSection();
   const items: TreeItem[] = query
     ? [
-        section("root:favorites", "Favorites", favoriteRows),
-        botTree,
-        dialogueTree,
+        section("root:favorites", "Favorites", input.favoriteRows),
+        input.botTree,
+        input.dialogueTree,
         ...(settingsTree ? [settingsTree] : []),
       ]
     : [
-        section("root:favorites", "Favorites", favoriteRows),
+        section("root:favorites", "Favorites", input.favoriteRows),
         parked("mail"),
         parked("task"),
         parked("knowledge"),
-        botTree,
-        dialogueTree,
+        input.botTree,
+        input.dialogueTree,
         parked("spaces"),
         ...(settingsTree ? [settingsTree] : []),
       ];
 
-  return { items, actions, addresses, statuses };
-}
-
-/** A Bot's mark lookup for a row, by the address it opens. */
-export function navBotForId(id: string): Bot | null {
-  const action = projection().actions.get(id);
-  if (action?.type !== "address") return null;
-  const botId =
-    action.address.botId ??
-    (action.address.dialogueId
-      ? registry().dialogues.find((item) => item.id === action.address.dialogueId)?.botId
-      : null);
-  if (!botId) return null;
-  return registry().bots.find((bot) => bot.id === botId) ?? null;
+  return {
+    items,
+    actions,
+    addresses,
+    statuses: input.statuses,
+  };
 }
 
 const projection = computed(() =>
   projectNav({
     registry: registry(),
     workspaces: workspaces(),
+    legacy: legacyRegistry(),
     rows: sessionList(),
     favorites: favorites(),
     query: navQuery(),
@@ -386,9 +522,27 @@ export function navItemIdForAddress(addressId: string): string | null {
   return null;
 }
 
+/** A Bot's mark lookup for a row, by the address it opens. */
+export function navBotForId(id: string): Bot | null {
+  const action = projection().actions.get(id);
+  if (action?.type !== "address") return null;
+  const botId =
+    action.address.botId ??
+    (action.address.dialogueId
+      ? registry().dialogues.find((item) => item.id === action.address.dialogueId)?.botId
+      : null);
+  if (!botId) return null;
+  return registry().bots.find((bot) => bot.id === botId) ?? null;
+}
+
 /** Kind hint for Tree row icons (by item id prefix / known actions). */
 export function navKindForId(id: string): NavAddress["kind"] | "section" | "folder" {
   if (id.startsWith("root:")) return "section";
+  // A v3 / v4 row carries no address but still shows what it is.
+  if (id.startsWith("legacy:bot:")) {
+    return id.includes("/dlg/") ? (id.includes("/s/") ? "session" : "dialogue") : "bot";
+  }
+  if (id.startsWith("legacy:dlg/")) return id.includes("/s/") ? "session" : "dialogue";
   const action = navActionForId(id);
   if (action?.type === "space") return "space";
   if (action?.type === "newBot") return "bot";

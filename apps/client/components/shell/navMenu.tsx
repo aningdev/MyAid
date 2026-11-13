@@ -15,11 +15,13 @@ import { requestComposerFocus } from "../../features/dialogue/chat/focus";
 import { createSession } from "../../features/dialogue/session/runtime";
 import {
   archiveDialogueSession,
+  archiveWholeDialogue,
   messageOf,
+  removeEmptyDialogue,
   sessionPinned,
   setSessionPinned,
 } from "../../features/workspace/dialogues";
-import { WorkspaceActionError, workspaceTitle, workspaces } from "../../features/workspace/state";
+import { isDialogueArchived, workspaceTitle, workspaces } from "../../features/workspace/state";
 import { colors, Icon, type IconName } from "../ui";
 import { dialogueAddress, sessionAddress } from "./navAddresses";
 import { navAddressForId } from "./navData";
@@ -103,6 +105,25 @@ export function contextEntries(address: NavAddress | undefined): Entry[] {
               value: workspaceTitle(workspaces(), dialogue),
             }),
         },
+        { kind: "separator", id: "dialogue-separator" },
+        {
+          kind: "item",
+          id: "dialogue-archive",
+          label: "Archive Dialogue",
+          icon: "storage",
+          // Every claimed Session goes to dsh's archive set, not a local flag.
+          disabled: isDialogueArchived(workspaces(), dialogue),
+          onSelect: () => void archiveDialogue(dialogue),
+        },
+        {
+          kind: "item",
+          id: "dialogue-remove",
+          label: "Remove Dialogue",
+          icon: "close",
+          // Only an empty Dialogue can leave the registry; dsh keeps the Workspace.
+          disabled: dialogue.claims.length > 0,
+          onSelect: () => void removeDialogueEntry(dialogue.id),
+        },
       ];
     }
     case "session": {
@@ -143,6 +164,41 @@ export function contextEntries(address: NavAddress | undefined): Entry[] {
     }
     default:
       return [];
+  }
+}
+
+/**
+ * Archive every Session the Dialogue claims. dsh refuses the ones still
+ * working; the notice then stops and archives all of them at once.
+ */
+async function archiveDialogue(dialogue: Dialogue): Promise<void> {
+  try {
+    await archiveWholeDialogue(dialogue.id);
+  } catch (error) {
+    setActionError(messageOf(error));
+    return;
+  }
+  // Panels showing a Session of it fall back to the Dialogue.
+  const bot = registry().bots.find((item) => item.id === dialogue.botId) ?? null;
+  for (const [panelId, address] of Object.entries(panelContents())) {
+    if (!address?.sessionId) continue;
+    if (claimOwner(registry(), address.sessionId)?.dialogue.id !== dialogue.id) continue;
+    setPanelAddress(
+      panelId,
+      dialogueAddress({
+        id: dialogue.id,
+        title: workspaceTitle(workspaces(), dialogue),
+        botId: dialogue.botId,
+        botName: bot?.name ?? "",
+      }),
+    );
+  }
+}
+
+async function removeDialogueEntry(dialogueId: string): Promise<void> {
+  const removed = await removeEmptyDialogue(dialogueId);
+  if (!removed) {
+    setActionError("这段 Dialogue 还有 Session，不能移除。");
   }
 }
 
@@ -223,15 +279,15 @@ async function setPinned(sessionId: string, pinned: boolean): Promise<void> {
  * Dialogue once dsh's own follow frame says so.
  */
 async function archiveSession(sessionId: string): Promise<void> {
+  let archived = false;
   try {
-    await archiveDialogueSession(sessionId);
+    archived = await archiveDialogueSession(sessionId);
   } catch (error) {
-    // The active refusal already has its own Stop-and-archive notice.
-    if (!(error instanceof WorkspaceActionError && error.code === "workspace/session-active")) {
-      setActionError(messageOf(error));
-    }
+    setActionError(messageOf(error));
     return;
   }
+  // A running Session left a Stop-and-archive notice; its Panel stays put.
+  if (!archived) return;
   const owner = claimOwner(registry(), sessionId);
   if (!owner) return;
   for (const [panelId, address] of Object.entries(panelContents())) {

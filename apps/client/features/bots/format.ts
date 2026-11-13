@@ -92,13 +92,14 @@ export function parseRegistry(text: string): ParseResult {
     botIds.add(parsed.id);
     bots.push(parsed);
   }
-  const legacy = sourceVersion !== REGISTRY_VERSION;
+  const legacy = sourceVersion === 3 || sourceVersion === 4;
+  const legacyVersion = sourceVersion === 3 ? 3 : 4;
   const dialogues: Dialogue[] = [];
   const legacyDialogues: LegacyDialogue[] = [];
   const dialogueIds = new Set<string>();
   const sessionIds = new Set<string>();
   for (const item of value.dialogues) {
-    const parsed = legacy ? parseLegacyDialogue(item, sourceVersion as 3 | 4) : parseDialogue(item);
+    const parsed = legacy ? parseLegacyDialogue(item, legacyVersion) : parseDialogue(item);
     if (typeof parsed === "string") return { ok: false, message: parsed };
     if (dialogueIds.has(parsed.id)) return { ok: false, message: "Dialogue id 重复。" };
     if (!botIds.has(parsed.botId)) {

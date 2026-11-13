@@ -100,6 +100,8 @@ stateDiagram-v2
   Ready --> Ready: 新 Workspace → 新 Dialogue
   Ready --> Ready: Dialogue 内新建 Session → Claim
   Ready --> Ready: 归档 / 取消归档 Session（dsh）
+  Ready --> Ready: Archive Dialogue（逐条 Session 归档）
+  Ready --> Ready: Remove Dialogue（仅当其没有 Session）
   Ready --> Ready: 置顶 / 取消置顶 Session（dsh）
 ```
 
@@ -139,7 +141,7 @@ flowchart TB
 ```
 
 - 新建 Dialogue / Session 只挂在某个就绪 Bot 上。
-- 未认领 Session 不展示；被 dsh 归档的 Session 也不展示（Dialogue 面板留「已归档」入口可 Unarchive）。
+- 未认领 Session 不展示；被 dsh 归档的 Session 也不展示（Dialogue 面板留「已归档」入口可 Unarchive）。会话全部归档的 Dialogue 从 Bots 与 Dialogues 的活跃列表落进 Dialogues 分区的「已归档」组。
 
 ## 真源分工
 

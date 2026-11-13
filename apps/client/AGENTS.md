@@ -35,7 +35,7 @@
 - wire 类型从 [`@myaid/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
 - Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
 - **Dialogue 建在 dsh Workspace 上**（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)）：`workspace.create` / `rename` / `archiveSession` / `unarchiveSession` / `pinSession` / `unpinSession` / `insertSessionBefore` 是名字、置顶、归档与顺序的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。不要在注册表里重建这些字段。
-- `workspace.follow` 是 Workspace 状态的**唯一读入口**：`features/workspace/state.ts` 把帧投影成 NSH signal（`updatedAt` 新者胜），视图只读它。官方 `ClientWorkspaceModel` 只发布浏览器 ModuleLoader 形态、无 `node` 条件（且依赖未发布包），NSH 加载不了——不要改回直接 import 它。
+- `workspace.follow` 是 Workspace 状态的**唯一读入口**：`features/workspace/state.ts` 在 `lib/dsh/workspace-frames.ts` 把帧校验后投影成 NSH signal（`updatedAt` 新者胜），视图只读它；Remote 返回值不写状态。官方 `ClientWorkspaceModel`（`lib/types/client/model.js`，纯 ESM）留到下一批与其余官方 client model 一起装载，本批不自造第二份模型。
 - 产品层级是 **Bot → Dialogue → Session**：Session 认领到 Dialogue（一对一官方 Session），未认领不进产品列表。一个 Dialogue = 一个 Bot 对一个 Workspace 的视角；同一个目录上的两个 Bot 共享 Workspace 的顺序、置顶与归档。
 - `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下无 ESM `installConnection`；用 `bun run prepare:sdk` 打出的 `lib/dsh/sdk.js`（`nsh.json` 的 `resolve.conditions: ["node"]` 兜底）。勿手改该产物。
 - 认证与心跳细节的唯一下沉文档：[docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。

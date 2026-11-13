@@ -77,11 +77,24 @@ export async function startShell(): Promise<void> {
   markPrefsLoaded();
 }
 
+/** The one migration in flight; the shell's start and the footer's retry share it. */
+let migrating: Promise<void> | undefined;
+
 /**
  * Move a v4 registry's paths, names and archives into dsh, then store v5.
- * Every step is idempotent, so a retry after a failure starts over safely.
+ * Every step is idempotent, so a retry after a failure starts over safely;
+ * two callers never run it at once.
  */
-async function migrateLegacy(): Promise<void> {
+function migrateLegacy(): Promise<void> {
+  if (!legacyRegistry()) return Promise.resolve();
+  if (migrating) return migrating;
+  migrating = runMigration().finally(() => {
+    migrating = undefined;
+  });
+  return migrating;
+}
+
+async function runMigration(): Promise<void> {
   const legacy = legacyRegistry();
   if (!legacy) return;
   try {

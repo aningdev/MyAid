@@ -12,6 +12,7 @@ import {
   type BotRegistry,
   type LegacyRegistry,
 } from "./model";
+import { isRecord } from "./registry";
 
 /**
  * Missing file reads as `null`. Any other failure rejects. Corrupt text is left
@@ -162,6 +163,10 @@ export class BotRegistryRepository {
     }
     const parsed = parseRegistry(text);
     if (!parsed.ok) {
+      // The file may have been readable before (a bad edit, a partial write):
+      // drop the previous snapshot so nothing reads a registry that is gone.
+      this.registry = emptyRegistry();
+      this.legacy = null;
       this.corrupt = parsed.message;
       return;
     }
@@ -191,9 +196,6 @@ export class BotRegistryRepository {
 }
 
 function errorCode(error: unknown): string | undefined {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as { code?: unknown }).code;
-    return typeof code === "string" ? code : undefined;
-  }
-  return undefined;
+  if (!isRecord(error)) return undefined;
+  return typeof error.code === "string" ? error.code : undefined;
 }

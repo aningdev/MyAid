@@ -64,7 +64,7 @@ test("Bot, Dialogue and Session rows get the actions of their object", () => {
           }),
         ),
       ),
-    ).toEqual(["New Session", "Rename…"]);
+    ).toEqual(["New Session", "Rename…", "Archive Dialogue", "Remove Dialogue"]);
     expect(
       labels(
         contextEntries(
@@ -78,10 +78,62 @@ test("Bot, Dialogue and Session rows get the actions of their object", () => {
       (entry) => entry.kind === "item" && entry.id === "bot-delete",
     );
     expect(botDelete?.kind === "item" ? botDelete.disabled : null).toBe(true);
+
+    // A Dialogue with claims cannot be removed; an empty one can.
+    const dialogue = dialogueAddress({ id: "dlg", title: "myaid", botId: "bot", botName: "Ada" });
+    const remove = contextEntries(dialogue).find(
+      (entry) => entry.kind === "item" && entry.id === "dialogue-remove",
+    );
+    expect(remove?.kind === "item" ? remove.disabled : null).toBe(true);
   } finally {
     registry.set(emptyRegistry());
     workspaces.set(workspaceProjection());
     setFavorites([]);
+  }
+});
+
+test("an empty Dialogue can be removed, and an all-archived one says so", () => {
+  registry.set(sample());
+  workspaces.set(
+    workspaceProjection({
+      rows: [workspaceRow({ id: "ws-myaid", path: "/work/myaid", title: "myaid" })],
+      archived: ["s1"],
+    }),
+  );
+  const dialogue = dialogueAddress({ id: "dlg", title: "myaid", botId: "bot", botName: "Ada" });
+  try {
+    // Every Session archived: the archive action is done, remove is still refused.
+    const entries = contextEntries(dialogue);
+    const archive = entries.find(
+      (entry) => entry.kind === "item" && entry.id === "dialogue-archive",
+    );
+    const remove = entries.find((entry) => entry.kind === "item" && entry.id === "dialogue-remove");
+    expect(archive?.kind === "item" ? archive.disabled : null).toBe(true);
+    expect(remove?.kind === "item" ? remove.disabled : null).toBe(true);
+  } finally {
+    registry.set(emptyRegistry());
+    workspaces.set(workspaceProjection());
+  }
+
+  const empty = createDialogue(sample(), { botId: "bot", workspaceId: "ws-two" }, "dlg2");
+  registry.set(empty);
+  workspaces.set(
+    workspaceProjection({
+      rows: [
+        workspaceRow({ id: "ws-myaid", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+        workspaceRow({ id: "ws-two", path: "/work/two", title: "two" }),
+      ],
+    }),
+  );
+  try {
+    const entries = contextEntries(
+      dialogueAddress({ id: "dlg2", title: "two", botId: "bot", botName: "Ada" }),
+    );
+    const remove = entries.find((entry) => entry.kind === "item" && entry.id === "dialogue-remove");
+    expect(remove?.kind === "item" ? remove.disabled : null).toBe(false);
+  } finally {
+    registry.set(emptyRegistry());
+    workspaces.set(workspaceProjection());
   }
 });
 

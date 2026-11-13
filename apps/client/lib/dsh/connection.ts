@@ -30,7 +30,6 @@ import type {
   WorkspaceArchiveSessionRequest,
   WorkspaceArchiveValue,
   WorkspaceCreateValue,
-  WorkspaceFollowFrame,
   WorkspacePinValue,
   WorkspaceValue,
 } from "@myaid/dsh-web-protocol/workspace";
@@ -69,6 +68,35 @@ export type AgentPresetSummary = {
   isDefault: boolean;
   broken?: string;
 };
+
+/** What the product asks `session.create` for. */
+export type SessionCreateInput = {
+  /** The Workspace the Session joins; the Host attaches it after create. */
+  workspaceId?: string;
+  /** Only when no Workspace is named: `session.create` takes one or the other. */
+  cwd?: string;
+  sessionId?: string;
+  agentPreset?: string;
+};
+
+/**
+ * The `session.create` body. The Host rejects `workspaceId` with `cwd`, so the
+ * Workspace wins when both are known: its path is the canonical one and the
+ * attach needs it.
+ */
+export function sessionCreateBody(request: SessionCreateInput = {}): SessionCreateRequest {
+  const cwd = request.workspaceId ? undefined : request.cwd;
+  return {
+    ...(request.workspaceId
+      ? { workspaceId: request.workspaceId as SessionCreateRequest["workspaceId"] }
+      : {}),
+    ...(cwd ? { cwd } : {}),
+    ...(request.sessionId
+      ? { sessionId: request.sessionId as SessionCreateRequest["sessionId"] }
+      : {}),
+    ...(request.agentPreset ? { agentPreset: request.agentPreset } : {}),
+  };
+}
 
 /** One Workspace command's outcome; a Host refusal keeps its code for the UI. */
 export type WorkspaceResult<T> =
@@ -482,39 +510,26 @@ export class Connection {
     return flattenModelCatalog(value);
   }
 
-  async createSession(request?: {
-    /** The Workspace the Session joins; the Host attaches it after create. */
-    workspaceId?: string;
-    cwd?: string;
-    sessionId?: string;
-    agentPreset?: string;
-  }): Promise<{ sessionId: string }> {
-    const body: SessionCreateRequest = {
-      ...(request?.workspaceId
-        ? { workspaceId: request.workspaceId as SessionCreateRequest["workspaceId"] }
-        : {}),
-      ...(request?.cwd ? { cwd: request.cwd } : {}),
-      ...(request?.sessionId
-        ? { sessionId: request.sessionId as SessionCreateRequest["sessionId"] }
-        : {}),
-      ...(request?.agentPreset ? { agentPreset: request.agentPreset } : {}),
+  async createSession(request?: SessionCreateInput): Promise<{ sessionId: string }> {
+    const value = unwrap(await this.remote.session.create(sessionCreateBody(request))) as {
+      sessionId: string;
     };
-    const value = unwrap(await this.remote.session.create(body)) as { sessionId: string };
     return { sessionId: String(value.sessionId) };
   }
 
   /**
    * One `workspace.follow` generation: a baseline, then ordered increments.
+   * Frames stay `unknown` here — the caller decodes them at the boundary.
    * The caller owns reconnect policy; `dispose` ends the stream.
    */
   workspaceFrames(signal: AbortSignal): {
-    frames: AsyncIterable<WorkspaceFollowFrame>;
+    frames: AsyncIterable<unknown>;
     dispose(): void;
   } {
     if (!this.ctx) throw new Error("尚未连接后台");
     const stream = this.remote.workspace.follow(signal);
     return {
-      frames: stream as AsyncIterable<WorkspaceFollowFrame>,
+      frames: stream as AsyncIterable<unknown>,
       dispose: () => {
         try {
           stream.dispose();

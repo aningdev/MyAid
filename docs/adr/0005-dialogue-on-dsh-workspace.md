@@ -20,14 +20,15 @@ MyAid 注册表  : Bot（identity / template / preset / 偏好）
 - **名字就是 Workspace 的 title**：重命名走 `workspace.rename`。title 跨 Bot 共享——同一目录上的两个 Bot 只有一个名字（改一次，两个 Dialogue 都变）。
 - **新建 Session** 走官方 create-then-attach：`session.create({ workspaceId, agentPreset })`，Host 在建好后把 Session attach 进 Workspace；随后再写 Claim。Client 不再传 `cwd`。
 - **归档 / 取消归档 / 置顶 / 取消置顶 / Session 顺序** 全部走 `workspace.*` Remote。运行中的 Session 归档会被 dsh 以 `workspace/session-active` 拒绝，details 列出是谁在跑；界面据此给出 **Stop and archive**（`stopActivity: true`，由 dsh 先停该 Session 的 turn / subagent / job / schedule，再写入归档）。
-- **Dialogue 没有自己的 archived 位**。归档是 Session 级的：一"段"不再活跃，是它每条 Session 都不在列表里；产品不另造 Dialogue 归档。
+- **Dialogue 没有自己的 archived 位**。归档是 Session 级的：**Archive Dialogue** 把该 Dialogue 认领的每条 Session 都归档（运行中的先经 Stop and archive 停下），全部归档后它在 Navigator 里落进 Dialogues 分区的「已归档」组，而不是拿到一个注册表标记。
+- **Remove Dialogue** 只删注册表里的 Dialogue 与它的认领，且只对没有任何 Session 的 Dialogue 开放；**从不删除 dsh 的 Workspace**（目录、其它 Dialogue 与 Session 都归 dsh）。
 - **Favorites** = dsh 的 pinned Sessions（最近置顶在前）+ 客户端偏好里已有的非 Session 地址（Bot / Dialogue / Settings）。Session 的置顶不再写偏好。
 - 注册表 **v5** 只存 `workspaceId`。v3 / v4 文件在**连上 Host 后**迁移一次：逐 Dialogue `workspace.create(path)`（同规范路径返回既有 Workspace），名字在 Workspace 还是默认 title 时搬到 title，`archived` claim → `archiveSession`，v4 Favorites 中的 Session 地址 → `pinSession`；全部步骤幂等，可重跑；写 v5 前把 v4 文件备份为 `bots.json.v4.bak`。没有 Host 时 v4 文件**只读**，界面给出迁移提示，不写任何东西。
 
 ## 考虑过的做法
 
 - **注册表继续存 path，Workspace 只是影子**：两处真源，dsh 的 title / 顺序 / 置顶 / 归档要么丢弃、要么再实现一遍。
-- **官方 `ClientWorkspaceModel`**：正确形态，但 `@deepseek-ai/dsh-api-workspace-controller/client` 只发布 `window.__ModuleLoader__` 形态、没有 `node` export 条件，且依赖未随包发布的 `dsh-client-store`，NSH / QuickJS 加载不了。改为直接消费 `workspace.follow` 帧与 `workspace.*` 返回，语义与官方一致（每代 baseline 开场、`updatedAt` 较新者胜、无本地第二份状态）。
+- **官方 `ClientWorkspaceModel`**：正确形态。它的纯 ESM 在 `lib/types/client/model.js`，但包的 `./client` 入口是浏览器 `__ModuleLoader__` 包装（`dsh-client-store` 本身已发布，为纯 ESM + zustand/immer）；官方 client model 计划在下一批一起装载，因此本批不直接 import，而是自己解码同样的 `workspace.follow` 帧（每代 baseline 开场、`updatedAt` 较新者胜），Remote 返回只作为调用结果、不写状态。下一批切换时删掉这份投影。
 - **给 Dialogue 加 archived 位**：dsh 没有 Workspace 归档；为了产品手感造一个本地归档会与 Session 归档集合冲突（同一 Session 在两处被打标）。
 - **保留 cwd 传参**：`session.create` 接受 `workspaceId` 或 `cwd`，两者互斥；继续传 cwd 会让 Workspace 账本漏掉新 Session。
 

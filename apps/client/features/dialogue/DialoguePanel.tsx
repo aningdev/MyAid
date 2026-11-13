@@ -11,7 +11,7 @@ import { Badge, Button, colors, hovered, mono, radius } from "../../components/u
 import { sessionLabel } from "../bots/sessions";
 import { ready, registry } from "../bots/state";
 import { unarchiveDialogueSession } from "../workspace/dialogues";
-import { workspacePath, workspaceTitle, workspaces } from "../workspace/state";
+import { isSessionArchived, workspacePath, workspaceTitle, workspaces } from "../workspace/state";
 import { rosterForDialogue } from "./session/roster";
 import {
   createSession,
@@ -36,12 +36,19 @@ export function DialoguePanel(props: { panelId: string; dialogueId: string }) {
     });
   const canCreate = () => !!dialogue() && bot()?.status === "ready" && !creatingSession();
 
-  /** Sessions dsh archived for this Dialogue: kept, but out of the lists. */
+  /**
+   * Sessions dsh archived for this Dialogue: the roster leaves them out, so
+   * they are read from the claims and dsh's archive set directly.
+   */
   const archivedRows = () => {
     const current = dialogue();
     if (!current) return [];
-    const claims = new Set(current.claims.map((claim) => claim.sessionId));
-    return sessionList().filter((row) => claims.has(row.id) && workspaces().archived.has(row.id));
+    return current.claims
+      .filter((claim) => isSessionArchived(workspaces(), claim.sessionId))
+      .map((claim) => ({
+        id: claim.sessionId,
+        label: sessionLabel(claim, null),
+      }));
   };
 
   /** The name this Dialogue reads by among its siblings (two can share a title). */

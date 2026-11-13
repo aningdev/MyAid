@@ -18,6 +18,7 @@ import {
   presetForBot,
   RegistryRejection,
   releaseClaim,
+  removeDialogue,
   renameClaim,
   serializeRegistry,
   updateBot,
@@ -307,6 +308,26 @@ test("a v5 registry round-trips with its Workspace ids and claims", () => {
   });
 });
 
+test("a file that becomes unreadable drops the previous snapshot", async () => {
+  let text = serializeRegistry(
+    createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+  );
+  const repo = new BotRegistryRepository({
+    read: async () => text,
+    write: async (next) => {
+      text = next;
+    },
+  });
+  const first = await repo.load();
+  expect(first.registry.templates).toHaveLength(1);
+  // The file is edited into nonsense between two reads: nothing stale survives.
+  text = "{";
+  const second = await repo.load();
+  expect(second.corrupt).toBe("注册表不是 JSON。");
+  expect(second.registry.templates).toHaveLength(0);
+  expect(second.legacy).toBe(null);
+});
+
 test("a v4 file is never written over by a commit; only a migration replaces it", async () => {
   const v4 = {
     version: 4,
@@ -354,6 +375,18 @@ test("a Bot's identity round-trips; an unknown one falls back to the default", (
   ).toEqual(defaultIdentity("bot"));
   registry = parsed.ok && parsed.state === "current" ? parsed.registry : registry;
   expect(registry.bots[0]?.identity.color).toBe("rose");
+});
+
+test("only an empty Dialogue can leave the registry; its Workspace stays dsh's", () => {
+  const withClaim = claimSession(readyWithDialogue(), "dlg", "s1");
+  expect(() => removeDialogue(withClaim, "dlg")).toThrow(RegistryRejection);
+  expect(withClaim.dialogues).toHaveLength(1);
+
+  const removed = removeDialogue(readyWithDialogue(), "dlg");
+  expect(removed.dialogues).toHaveLength(0);
+  // The Bot keeps its history flag: removing a Dialogue never re-drafts a Bot.
+  expect(removed.bots[0]?.hadDialogue).toBe(true);
+  expect(() => removeDialogue(removed, "dlg")).toThrow(RegistryRejection);
 });
 
 test("a claim carries the person's own title and can leave a Dialogue", () => {

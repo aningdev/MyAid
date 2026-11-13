@@ -17,6 +17,7 @@ import {
 import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
 import { changeRegistry, ready, registry } from "../../bots/state";
 import {
+  isSessionArchived,
   startWorkspaces,
   stopWorkspaces,
   whenWorkspacesReady,
@@ -81,7 +82,7 @@ const sessionControllers = new SessionRegistry({
   ensureTransport: () => connectTransport(),
   transport: () => claimed?.getTransport(),
   registry: () => untracked(registry),
-  sessionArchived: (sessionId) => untracked(workspaces).archived.has(sessionId),
+  sessionArchived: (sessionId) => isSessionArchived(untracked(workspaces), sessionId),
   summaries: () => summaries,
   onChange: () => {
     changeTick.update((value) => value + 1);

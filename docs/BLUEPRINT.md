@@ -52,7 +52,7 @@ MyAid 要做 **all-in-one 个人助手**：把个人生活与工作里「人与 
 - **Dialogue**：与该 Bot 的一段长线对话 = 该 Bot 对一个 **dsh Workspace** 的视角。Coding bot 多项目 = 同一 Bot 下多个 Dialogue；两个 Bot 看同一目录 → 两个 Dialogue、一个 Workspace。草稿 Bot 无 Dialogue。
 - **Session**：Dialogue 内的一个上下文场景 = 一条 DSH Session。连续聊默认同一 Session；显式「新上下文」才新建。
 - **认领**：Session → Dialogue（Dialogue 已属 Bot）。未认领 Session 不进产品列表。
-- **归档**：归档 **Session**（dsh Workspace 的归档集合）；退出活跃入口；不删除 dsh 日志；不退役 Bot。名字、置顶与顺序也归 dsh Workspace（[ADR 0005](adr/0005-dialogue-on-dsh-workspace.md)）。
+- **归档**：归档 **Session**（dsh Workspace 的归档集合）；退出活跃入口；不删除 dsh 日志；不退役 Bot。**Archive Dialogue** 归档它的全部 Session。名字、置顶与顺序也归 dsh Workspace（[ADR 0005](adr/0005-dialogue-on-dsh-workspace.md)）。空的 Dialogue 可以移出注册表（**Remove Dialogue**），dsh 的 Workspace 不动。
 - 进入 Bot 先看到其 Dialogue 列表；进入 Dialogue 再看/切换其下 Session。不自动打开某一条。
 - 能力与默认模型属于 **Bot**（preset）；工作区属于 dsh 的 **Workspace**，Dialogue 只引用它。同一 Workspace 同时只有一条 Session 可执行；Workspace 不同可并行。
 - 可先保存未就绪 Bot，条件满足后再初始化；失败保留草稿与修复入口。

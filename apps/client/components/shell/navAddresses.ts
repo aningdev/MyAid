@@ -3,14 +3,12 @@
  * Ids are domain ids (not tree paths), so the same Dialogue opens its Panel
  * from the Bots section and from the Dialogues section alike.
  */
+import { pathSegment } from "../../features/workspace/paths";
 import type { NavAddress } from "./types";
 
 /** The last segment of a workspace path (the name a person knows it by). */
 export function workspaceSegment(path: string): string {
-  const trimmed = path.trim().replace(/\/+$/, "");
-  if (!trimmed) return path.trim();
-  const at = trimmed.lastIndexOf("/");
-  return at >= 0 ? trimmed.slice(at + 1) || trimmed : trimmed;
+  return pathSegment(path);
 }
 
 /** "Bot · title" — how a Dialogue reads outside its Bot's tree. */

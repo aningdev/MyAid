@@ -7,10 +7,13 @@
  * The migration is idempotent and resumable: `workspace.create` returns the
  * existing Workspace for the same canonical path, archiving an archived id and
  * pinning a pinned id are no-ops, and the file is written once at the end, so
- * an interrupted run starts over from the untouched v4 file.
+ * an interrupted run starts over from the untouched v4 file. It runs in four
+ * phases — Workspaces, names, archives, pins — each of which uses only what
+ * the one before it resolved.
  */
-import type { BotRegistry, LegacyRegistry } from "../bots/model";
+import type { BotRegistry, LegacyDialogue, LegacyRegistry } from "../bots/model";
 import { REGISTRY_VERSION } from "../bots/model";
+import { pathSegment } from "./paths";
 
 /** What the migration needs from dsh; tests drive these steps directly. */
 export type WorkspaceBridge = {
@@ -40,23 +43,27 @@ export type MigrationReport = {
   archived: number;
   pinned: number;
   /**
-   * Best-effort steps dsh refused (a title already taken, a Session its
-   * registry no longer knows). The Dialogue still migrates; the refused part
-   * stays as dsh has it.
+   * Names or Sessions dsh would not take: a title another Workspace already
+   * holds, a name a second Dialogue on the same Workspace cannot own, a
+   * Session whose log dsh no longer knows. The Dialogue still migrates.
    */
   skipped: number;
 };
 
+/** A Dialogue bound to the Workspace its path resolved to. */
+type Placement = {
+  dialogue: LegacyDialogue;
+  workspaceId: string;
+  title: string;
+};
+
 /** The Workspace title dsh derives for a fresh record: the last path segment. */
 export function defaultWorkspaceTitle(path: string): string {
-  const trimmed = path.trim().replace(/\/+$/, "");
-  if (!trimmed) return path.trim();
-  const at = trimmed.lastIndexOf("/");
-  return at >= 0 ? trimmed.slice(at + 1) || trimmed : trimmed;
+  return pathSegment(path);
 }
 
 /**
- * Migrate one v4 registry, in place of its Dialogues' paths. Nothing is
+ * Migrate one v4 registry in place of its Dialogues' paths. Nothing is
  * written here: the caller stores the returned v5 registry.
  */
 export async function migrateRegistry(
@@ -73,73 +80,120 @@ export async function migrateRegistry(
     pinned: 0,
     skipped: 0,
   };
-  const drawnTitles = new Set<string>();
-  const dialogues: BotRegistry["dialogues"] = [];
+  const placements = await placeWorkspaces(legacy, bridge, report);
+  await applyNames(placements, bridge, report);
+  await applyArchives(placements, bridge, report);
+  await applyPins(pins, bridge, report);
+  return {
+    registry: {
+      version: REGISTRY_VERSION,
+      templates: legacy.templates,
+      bots: legacy.bots,
+      dialogues: placements.map((placement) => ({
+        id: placement.dialogue.id,
+        botId: placement.dialogue.botId,
+        workspaceId: placement.workspaceId,
+        claims: placement.dialogue.claims.map((claim) => ({
+          sessionId: claim.sessionId,
+          title: claim.title,
+        })),
+      })),
+    },
+    report,
+  };
+}
+
+/** Phase 1: every Dialogue's path resolves to a Workspace (created or reused). */
+async function placeWorkspaces(
+  legacy: LegacyRegistry,
+  bridge: WorkspaceBridge,
+  report: MigrationReport,
+): Promise<Placement[]> {
+  const placements: Placement[] = [];
   for (const dialogue of legacy.dialogues) {
     const workspace = await bridge.create(dialogue.workspacePath);
     report.workspaces++;
-    const name = dialogue.name?.trim();
-    const drawn = drawnTitles.has(workspace.workspaceId);
-    drawnTitles.add(workspace.workspaceId);
-    // Move a name only over a Workspace that still carries dsh's own title,
-    // and only for the first Dialogue on that Workspace: two Bots on one
-    // directory share one title.
-    if (
-      name &&
-      !drawn &&
-      name !== workspace.title &&
-      workspace.title === defaultWorkspaceTitle(dialogue.workspacePath)
-    ) {
-      try {
-        await bridge.rename(workspace.workspaceId, name);
-        report.renamed++;
-      } catch {
-        // dsh refuses a title another Workspace already holds: the Dialogue
-        // keeps the default title rather than failing the whole migration.
-        report.skipped++;
-      }
+    placements.push({ dialogue, workspaceId: workspace.workspaceId, title: workspace.title });
+  }
+  return placements;
+}
+
+/**
+ * Phase 2: a v4 name becomes the Workspace title, but only while the
+ * Workspace still carries dsh's default title and only for the first Dialogue
+ * that asks for it — two Bots on one directory share one title. Every name
+ * that cannot be applied is counted, so a partial outcome is reportable.
+ */
+async function applyNames(
+  placements: readonly Placement[],
+  bridge: WorkspaceBridge,
+  report: MigrationReport,
+): Promise<void> {
+  const titled = new Set<string>();
+  for (const placement of placements) {
+    const name = placement.dialogue.name?.trim();
+    if (!name) continue;
+    const drawn = titled.has(placement.workspaceId);
+    titled.add(placement.workspaceId);
+    if (drawn) {
+      // A second Dialogue on the same Workspace cannot own the shared title.
+      report.skipped++;
+      continue;
     }
-    const archivedNow = bridge.archived();
-    for (const claim of dialogue.claims) {
-      if (!claim.archived || archivedNow.has(claim.sessionId)) continue;
+    if (name === placement.title) continue;
+    if (placement.title !== defaultWorkspaceTitle(placement.dialogue.workspacePath)) {
+      // Someone already retitled the Workspace in dsh: the old name loses.
+      report.skipped++;
+      continue;
+    }
+    try {
+      await bridge.rename(placement.workspaceId, name);
+      report.renamed++;
+    } catch {
+      // dsh refuses a title another Workspace already holds.
+      report.skipped++;
+    }
+  }
+}
+
+/** Phase 3: archived claims join dsh's archive set. */
+async function applyArchives(
+  placements: readonly Placement[],
+  bridge: WorkspaceBridge,
+  report: MigrationReport,
+): Promise<void> {
+  const archived = new Set(bridge.archived());
+  for (const placement of placements) {
+    for (const claim of placement.dialogue.claims) {
+      if (!claim.archived || archived.has(claim.sessionId)) continue;
       try {
         await bridge.archiveSession(claim.sessionId);
+        archived.add(claim.sessionId);
         report.archived++;
       } catch {
         // A Session dsh no longer knows cannot be archived; the claim stays.
         report.skipped++;
       }
     }
-    dialogues.push({
-      id: dialogue.id,
-      botId: dialogue.botId,
-      workspaceId: workspace.workspaceId,
-      claims: dialogue.claims.map((claim) => ({
-        sessionId: claim.sessionId,
-        title: claim.title,
-      })),
-    });
   }
-  // Session pins lived in the shell's Favorites: they move into dsh's pin set.
-  const pinnedNow = new Set(bridge.pinned());
+}
+
+/** Phase 4: Session pins that lived in Favorites join dsh's pin set. */
+async function applyPins(
+  pins: LegacyPins,
+  bridge: WorkspaceBridge,
+  report: MigrationReport,
+): Promise<void> {
+  const pinned = new Set(bridge.pinned());
   for (const sessionId of pins) {
-    if (pinnedNow.has(sessionId)) continue;
+    if (pinned.has(sessionId)) continue;
     try {
       await bridge.pinSession(sessionId);
-      pinnedNow.add(sessionId);
+      pinned.add(sessionId);
       report.pinned++;
     } catch {
       // A pin for a Session dsh does not know is dropped, not fatal.
       report.skipped++;
     }
   }
-  return {
-    registry: {
-      version: REGISTRY_VERSION,
-      templates: legacy.templates,
-      bots: legacy.bots,
-      dialogues,
-    },
-    report,
-  };
 }

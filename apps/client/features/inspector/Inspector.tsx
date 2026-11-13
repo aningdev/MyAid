@@ -48,7 +48,7 @@ import {
 } from "../dialogue/session/runtime";
 import { modelCatalog } from "../dialogue/session/runtime";
 import type { Deliverable } from "../dialogue/session/turn";
-import { workspacePath, workspaces } from "../workspace/state";
+import { isSessionArchived, workspacePath, workspaces } from "../workspace/state";
 import {
   canReveal,
   compactOf,
@@ -155,7 +155,7 @@ export function Inspector(props: { panelId: string; sessionId: string }) {
       .filter(
         (row) =>
           claimOwner(registry(), row.id)?.dialogue.id === dialogueId &&
-          !workspaces().archived.has(row.id),
+          !isSessionArchived(workspaces(), row.id),
       )
       .map((row) => ({ id: row.id, label: row.label, detail: row.detail }));
 
