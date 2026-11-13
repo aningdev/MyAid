@@ -409,6 +409,7 @@ function Body(props: { botId: string; onClose: () => void }) {
       </View>
       <Segmented options={TABS} value={tab()} onChange={tab.set} size="small" />
       <Scroll
+        testID="bot-details-scroll"
         style={{ flexShrink: 1, minHeight: 0 }}
         contentStyle={{ gap: 14, paddingVertical: 4 }}
       >
@@ -579,25 +580,29 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
           <View style={{ gap: 8 }}>
             <View style={{ gap: 3 }}>
               <Text style={{ fontSize: 11, color: colors.muted }}>Working directory</Text>
+              {/* dsh may not have reported the Workspace yet: the line stays
+                  rather than collapsing, so the section never reads as cut off. */}
               <Text
                 testID="bot-details-path"
                 style={{
                   fontSize: 12,
-                  color: colors.text,
+                  color: path() ? colors.text : colors.faint,
                   fontFamily: mono,
                   userSelect: "text",
                   numberOfLines: 2,
                 }}
               >
-                {path()}
+                {path() || "—"}
               </Text>
             </View>
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <Tiny label={copied() ? "Copied" : "Copy path"} onPress={() => copy(path())} />
-              <If when={canReveal()}>
-                <Tiny label="Reveal in Finder" onPress={() => void reveal(path())} />
-              </If>
-            </View>
+            <If when={!!path()}>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Tiny label={copied() ? "Copied" : "Copy path"} onPress={() => copy(path())} />
+                <If when={canReveal()}>
+                  <Tiny label="Reveal in Finder" onPress={() => void reveal(path())} />
+                </If>
+              </View>
+            </If>
             <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
               <Text style={{ width: 72, fontSize: 11, color: colors.muted }}>Model</Text>
               <Text

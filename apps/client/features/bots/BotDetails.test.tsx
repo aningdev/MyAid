@@ -7,6 +7,7 @@
 import { expect, test } from "nsh/test";
 
 import { open } from "../../test/open";
+import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import {
   archiveBot,
   assignDerivedPreset,
@@ -44,11 +45,27 @@ function sampleRegistry(): BotRegistry {
   );
 }
 
-/** Opens the harness app, the Bot's Pane and its details modal. */
+/**
+ * Opens the harness app, the Bot's Pane and its details modal. The Workspace
+ * baseline is dsh's, so the segment's directory is a real path (the product
+ * reads it from the official model, never from the registry).
+ */
 async function details(registry: BotRegistry = sampleRegistry()) {
   const app = await open("./bot-details-harness.tsx", {
     ...desktop,
-    storage: { [REGISTRY_STORAGE_KEY]: serializeRegistry(registry) },
+    storage: {
+      [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+      ...workspaceStorage({
+        rows: [
+          workspaceRow({
+            id: "ws-work",
+            path: "/work/myaid",
+            title: "myaid",
+            sessionIds: ["s1"],
+          }),
+        ],
+      }),
+    },
   });
   await app.waitFor("label:Ada");
   await app.press("label:Ada");
@@ -128,13 +145,19 @@ test("Cancel dismisses without writing", async () => {
 
 test("the modal shows the current segment's working directory and model", async () => {
   const app = await details();
+  // The segment section sits under the tab's own content: a person scrolls the
+  // modal body to it when it does not fit, and the test does the same (a
+  // headless run lays the whole body out, where there is nothing to scroll).
+  await app.waitFor("id:bot-details-scroll");
+  await app.scroll("id:bot-details-scroll", 900).catch(() => undefined);
   await app.waitFor("id:bot-details-segment");
-  // The claim's Dialogue points at ws-work: its path arrives with dsh's
-  // Workspace baseline, empty without one, so the model line is the check.
-  expect(app.shows("id:bot-details-path")).toBe(true);
-  expect(app.shows("id:bot-details-model")).toBe(true);
+  // The path is dsh's Workspace path, the one the baseline reported.
+  await app.waitFor("id:bot-details-path");
+  expect(app.texts().some((text) => text.includes("/work/myaid"))).toBe(true);
+  await app.waitFor("id:bot-details-model");
   expect(app.texts()).toContain("Current segment");
-  expect(app.shows("id:bot-details-usage")).toBe(true);
+  await app.waitFor("id:bot-details-usage");
+  expect(app.texts()).toContain("Compact");
 });
 
 test("Archive closes the modal and takes the Bot out of the list", async () => {
