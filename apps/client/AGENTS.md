@@ -35,9 +35,10 @@
 - wire 类型从 [`@myaid/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
 - Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
 - **Dialogue 建在 dsh Workspace 上**（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)）：`workspace.create` / `rename` / `archiveSession` / `unarchiveSession` / `pinSession` / `unpinSession` / `insertSessionBefore` 是名字、置顶、归档与顺序的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。不要在注册表里重建这些字段。
-- `workspace.follow` 是 Workspace 状态的**唯一读入口**：`features/workspace/state.ts` 在 `lib/dsh/workspace-frames.ts` 把帧校验后投影成 NSH signal（`updatedAt` 新者胜），视图只读它；Remote 返回值不写状态。官方 `ClientWorkspaceModel`（`lib/types/client/model.js`，纯 ESM）留到下一批与其余官方 client model 一起装载，本批不自造第二份模型。
+- **官方 client model 是 Session / Workspace 状态的唯一所有者**：`lib/dsh/connection.ts` 在装好 Remote 的同一条 Cordis Context 上 `plugin` 官方 `ClientSessions`（`ctx.sessions`：列表、事件窗口、follow、分页、prompt/queue/control、投影）与 `ClientWorkspaceModel`（`ctx.workspaces`：行、顺序、归档、置顶）。产品只投影它们发布的 snapshot（[`features/dialogue/session`](features/dialogue/session/controller.ts)、[`features/workspace/state.ts`](features/workspace/state.ts)），不另建 follow / 重连 / 分页 / 回执映射，也不在视图里重算一遍。官方未提供的命令（模型目录与选择、skills、`/command`、插件清单、bot preset、上传、目录选择）留在 `Connection`。
 - 产品层级是 **Bot → Dialogue → Session**：Session 认领到 Dialogue（一对一官方 Session），未认领不进产品列表。一个 Dialogue = 一个 Bot 对一个 Workspace 的视角；同一个目录上的两个 Bot 共享 Workspace 的顺序、置顶与归档。
 - `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下无 ESM `installConnection`；用 `bun run prepare:sdk` 打出的 `lib/dsh/sdk.js`（`nsh.json` 的 `resolve.conditions: ["node"]` 兜底）。勿手改该产物。
+- 官方 client model（session / workspace / file-upload 的 `lib/client.js`）是浏览器 `window.__ModuleLoader__.load({id, factory})` 产物，NSH 发行版禁用 `Function` 构造器（不跑字符串代码），因此 `prepare:sdk` 把 factory 主体原样包成静态 ESM，落在 `lib/dsh/generated/`（gitignore）。升 `@deepseek-ai/dsh-*` 后重跑 `prepare:sdk`；它按包版本重写文件，找不到 loader 外壳会直接报错。
 - 认证与心跳细节的唯一下沉文档：[docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
 
 ## 原生接口与权限

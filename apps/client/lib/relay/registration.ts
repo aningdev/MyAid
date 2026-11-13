@@ -10,10 +10,7 @@ import {
   type UnitRegistration,
 } from "../background/protocol";
 
-export type RelayRegistrationOp =
-  | "registrationQuery"
-  | "registrationEnable"
-  | "registrationStop";
+export type RelayRegistrationOp = "registrationQuery" | "registrationEnable" | "registrationStop";
 
 export type RelayRegistrationTransport = {
   reachable(): Promise<boolean>;

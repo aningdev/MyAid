@@ -12,6 +12,12 @@ import { mount, View } from "nsh";
 import { sessionAddress } from "../../components/shell/navAddresses";
 import { setPanelAddress } from "../../components/shell/state";
 import { colors } from "../../components/ui";
+import {
+  assistantMessage as assistantEntry,
+  scriptedHost,
+  scriptedSessions,
+  userMessage as userEntry,
+} from "../../test/sessions";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { BotSettings } from "../bots/BotSettings";
 import { setBotFactsSource } from "../bots/facts";
@@ -26,7 +32,6 @@ import {
 } from "../bots/model";
 import { ready, registry } from "../bots/state";
 import { ChatPane } from "../dialogue/ChatPane";
-import type { SessionTransport } from "../dialogue/session/claimed";
 import { SessionRegistry } from "../dialogue/session/controller";
 import { modelCatalog, refreshSessionList, sessionReady } from "../dialogue/session/runtime";
 import { workspaces } from "../workspace/state";
@@ -139,47 +144,22 @@ const assistantMessage = {
   },
 };
 
-const transport: SessionTransport = {
-  ready: true,
-  createSession: async () => ({ sessionId: SESSION }),
-  listSessions: async () => [],
-  follow: (_sessionId, onFrame) => {
-    // A durable window only: what a recovered follow looks like, with no live
-    // frames and no local turn.
-    queueMicrotask(() =>
-      onFrame({
-        type: "snapshot",
-        hasMore: false,
-        records: [
-          { type: "event", event: userMessage },
-          { type: "event", event: assistantMessage },
-        ],
-      } as never),
-    );
-    return () => undefined;
-  },
-  sessionPage: async () => ({ records: [], hasMore: false }),
-  sessionQueue: async () => [],
-  prompt: async () => undefined,
-  cancel: async () => undefined,
-  withdrawQueuedPrompt: async () => undefined,
-  renameSession: async () => undefined,
-  uploadFile: async () => ({ receiptId: "receipt" }),
-  modelCatalog: async () =>
-    modelCatalog() ?? {
-      default: { provider: "deepseek", model: "deepseek-chat" },
-      models: [],
-      failures: [],
-    },
-  selectModel: async () => undefined,
-  selectAgentPreset: async () => "standard",
-  approvals: () => undefined,
-  dispose: async () => undefined,
-};
+// One Session's durable window: what a recovered follow looks like, with no
+// live chunks and no local turn.
+const sessions = scriptedSessions([SESSION]);
+const host = scriptedHost(sessions);
+sessions.update(SESSION, {
+  kind: "replace",
+  entries: [
+    userEntry(userMessage.seq, "Draft the 0.4 release notes."),
+    assistantEntry(2, "Here are the 0.4 release notes, grouped by theme."),
+  ],
+  hasMore: false,
+});
 
 const controllers = new SessionRegistry({
-  ensureTransport: async () => transport,
-  transport: () => transport,
+  ensureHost: async () => host,
+  host: () => host,
   registry: () => registry(),
   sessionArchived: () => false,
   summaries: () => new Map(),

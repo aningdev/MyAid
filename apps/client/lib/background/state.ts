@@ -1,12 +1,12 @@
 import { platform, signal } from "nsh";
 
-import { backgroundServicesRunnable } from "./protocol";
 import {
   enableProductBackground,
   queryProductBackground,
   stopProductBackground,
   type ProductBackgroundView,
 } from "./orchestration";
+import { backgroundServicesRunnable } from "./protocol";
 
 export type ProductBackgroundState = {
   runnable: boolean;

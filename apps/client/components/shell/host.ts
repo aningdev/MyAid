@@ -100,20 +100,21 @@ async function runMigration(): Promise<void> {
   try {
     const { ensureConnected } = await import("../../lib/dsh/session");
     const connection = await ensureConnected();
+    const model = connection.workspaces;
     await whenWorkspacesReady();
     const prefs = await loadShellPrefs();
     const { registry: next, report } = await migrateRegistry(
       legacy,
       {
         async create(path) {
-          const workspace = await openWorkspace(connection, path);
+          const workspace = await openWorkspace(model, path);
           return { workspaceId: workspace.id, title: workspace.title };
         },
         rename: async (workspaceId, title) => {
-          await renameWorkspace(connection, workspaceId, title);
+          await renameWorkspace(model, workspaceId, title);
         },
-        archiveSession: (sessionId) => archiveSession(connection, sessionId),
-        pinSession: (sessionId) => pinSession(connection, sessionId),
+        archiveSession: (sessionId) => archiveSession(model, sessionId),
+        pinSession: (sessionId) => pinSession(model, sessionId),
         archived: () => workspaces().archived,
         pinned: () => workspaces().pinned,
         ready: () => whenWorkspacesReady(),

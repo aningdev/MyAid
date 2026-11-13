@@ -1,3 +1,4 @@
+import type { IWorkspaces } from "@myaid/dsh-web-protocol/client";
 /**
  * Product commands that join the registry to dsh's Workspaces: a Dialogue is
  * created over a Workspace, renamed by retitling that Workspace, and its
@@ -7,7 +8,6 @@
  */
 import { signal } from "nsh";
 
-import type { Connection } from "../../lib/dsh/connection";
 import {
   createDialogue,
   dialogueOfWorkspace,
@@ -31,10 +31,11 @@ import {
   workspaces,
 } from "./state";
 
-/** The shared Connection, connected on demand (the Workspace Remotes live on it). */
-export async function workspaceConnection(): Promise<Connection> {
+/** The official Workspace model, from the shared Connection. */
+export async function workspaceModel(): Promise<IWorkspaces> {
   const api = await import("../../lib/dsh/session");
-  return api.ensureConnected();
+  const connection = await api.ensureConnected();
+  return connection.workspaces;
 }
 
 /** `~` and `~/…` in a path a person typed, before dsh canonicalizes it. */
@@ -63,8 +64,8 @@ export async function createDialogueOnPath(botId: string, path: string): Promise
       ? registry().dialogues.find((item) => item.botId === botId && item.workspaceId === known)
       : undefined;
     if (existing) return existing;
-    const connection = await workspaceConnection();
-    const workspace = await openWorkspace(connection, target);
+    const model = await workspaceModel();
+    const workspace = await openWorkspace(model, target);
     const next = await changeRegistry((reg) => {
       const already = dialogueOfWorkspace(reg, botId, workspace.id);
       return already ? reg : createDialogue(reg, { botId, workspaceId: workspace.id });
@@ -82,8 +83,8 @@ export async function renameDialogue(dialogueId: string, title: string): Promise
   const dialogue = registry().dialogues.find((item) => item.id === dialogueId);
   const next = title.trim();
   if (!dialogue || !next) return;
-  const connection = await workspaceConnection();
-  await renameWorkspace(connection, dialogue.workspaceId, next);
+  const model = await workspaceModel();
+  await renameWorkspace(model, dialogue.workspaceId, next);
 }
 
 /**
@@ -100,12 +101,12 @@ export const archiveBlocked = signal<{
 } | null>(null);
 
 /**
- * Archive Sessions over one Connection. A `workspace/session-active` refusal
+ * Archive Sessions through the official Workspace model. A `workspace/session-active` refusal
  * is collected (dsh named the work); any other failure is the caller's to
  * report. dsh drops an archived Session's pin in the same write.
  */
 export async function archiveSessionsWith(
-  connection: Connection,
+  model: IWorkspaces,
   sessionIds: readonly string[],
   options: { stopActivity?: boolean } = {},
 ): Promise<{ archived: string[]; refusals: ArchiveRefusal[] }> {
@@ -113,7 +114,7 @@ export async function archiveSessionsWith(
   const refusals: ArchiveRefusal[] = [];
   for (const sessionId of sessionIds) {
     try {
-      await archiveSession(connection, sessionId, options);
+      await archiveSession(model, sessionId, options);
       archived.push(sessionId);
     } catch (error) {
       if (!isActiveRefusal(error)) throw error;
@@ -149,7 +150,7 @@ export async function archiveDialogueSession(
   sessionId: string,
   options: { stopActivity?: boolean } = {},
 ): Promise<boolean> {
-  const result = await archiveSessionsWith(await workspaceConnection(), [sessionId], options);
+  const result = await archiveSessionsWith(await workspaceModel(), [sessionId], options);
   if (!noteArchive(null, result.refusals)) return false;
   await refreshSessionRows();
   return true;
@@ -174,7 +175,7 @@ export async function archiveWholeDialogue(
     archiveBlocked.set(null);
     return;
   }
-  const result = await archiveSessionsWith(await workspaceConnection(), sessionIds, options);
+  const result = await archiveSessionsWith(await workspaceModel(), sessionIds, options);
   if (!noteArchive(dialogueId, result.refusals)) return;
   await refreshSessionRows();
 }
@@ -204,16 +205,16 @@ export async function removeEmptyDialogue(dialogueId: string): Promise<boolean> 
 }
 
 export async function unarchiveDialogueSession(sessionId: string): Promise<void> {
-  const connection = await workspaceConnection();
-  await unarchiveWorkspaceSession(connection, sessionId);
+  const model = await workspaceModel();
+  await unarchiveWorkspaceSession(model, sessionId);
   await refreshSessionRows();
 }
 
 /** Pin / unpin a Session in dsh; the Favorites section reads that pin set. */
 export async function setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
-  const connection = await workspaceConnection();
-  if (pinned) await pinWorkspaceSession(connection, sessionId);
-  else await unpinWorkspaceSession(connection, sessionId);
+  const model = await workspaceModel();
+  if (pinned) await pinWorkspaceSession(model, sessionId);
+  else await unpinWorkspaceSession(model, sessionId);
 }
 
 /** Move one Session within its Workspace's manual order. */
@@ -224,8 +225,8 @@ export async function moveDialogueSession(
 ): Promise<void> {
   const dialogue = registry().dialogues.find((item) => item.id === dialogueId);
   if (!dialogue) return;
-  const connection = await workspaceConnection();
-  await moveWorkspaceSession(connection, dialogue.workspaceId, sessionId, beforeSessionId);
+  const model = await workspaceModel();
+  await moveWorkspaceSession(model, dialogue.workspaceId, sessionId, beforeSessionId);
 }
 
 /** A dsh refusal is the useful message; a transport failure keeps its own. */

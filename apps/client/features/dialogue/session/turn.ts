@@ -1,8 +1,9 @@
 /**
- * Deep module: follow frames + local turn lifecycle → Dialogue messages / live / freeze.
- * SessionProjector stays as internal frame parser; freeze / turned races live here.
+ * Deep module: the official Session event window + local turn lifecycle →
+ * Dialogue messages / live reply / freeze. `SessionProjector` stays the
+ * window fold; freeze and "turned" races live here.
  */
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+import type { SessionEventWindow } from "@myaid/dsh-web-protocol/client";
 
 import type { Msg, Status, Tool } from "../chat/scripts";
 import { SessionProjector, type Deliverable, type ProjectedChat } from "./projector";
@@ -23,7 +24,7 @@ export type TurnView = {
   liveReason: string;
   liveTools: Tool[];
   liveId: string | null;
-  /** The follow window does not reach the first event: older pages can be read. */
+  /** The window does not reach the first event: older pages can be read. */
   olderHasMore: boolean;
   /** Files this Session declared as deliverables inside the loaded window. */
   deliverables: Deliverable[];
@@ -33,6 +34,10 @@ export type TurnView = {
 
 type LocalTurn = {
   id: string;
+  /** The prompt's request id: its durable admission proves the turn started. */
+  requestId: string | null;
+  /** Window top when the prompt was sent, so a later `turn/start` also proves it. */
+  baseSeq: number | null;
   turned: boolean;
   cancelled: boolean;
 };
@@ -57,33 +62,32 @@ export function freezeMessages(durable: readonly Msg[], live: Msg | null): Msg[]
   return durable[durable.length - 1]?.kind === "assistant" ? [...durable] : [...durable, live];
 }
 
-/** Owns projection + when a local prompt may freeze into history. */
+/** Owns the window fold + when a local prompt may freeze into history. */
 export class TurnProjection {
   private projector = new SessionProjector();
   private local: LocalTurn | null = null;
   private liveAssistantId: string | null = null;
   private pendingFreeze: FreezeOutcome | null = null;
+  private lastRunning = false;
 
   /** User sent a prompt; `assistantId` is the placeholder bubble id. */
-  beginTurn(assistantId: string): void {
-    this.local = { id: assistantId, turned: false, cancelled: false };
+  beginTurn(assistantId: string, requestId?: string): void {
+    this.local = {
+      id: assistantId,
+      requestId: requestId ?? null,
+      baseSeq: this.projector.lastSeq(),
+      turned: false,
+      cancelled: false,
+    };
     this.liveAssistantId = assistantId;
     this.pendingFreeze = null;
   }
 
-  /** The oldest durable seq held: what a page before asks for. */
-  firstSeq(): number | null {
-    return this.projector.firstSeq();
-  }
-
-  /** Older history from `session.events` lands above what the list shows. */
-  prepend(records: readonly unknown[], hasMore: boolean): TurnView {
-    return this.afterSnap(this.projector.prepend(records, hasMore));
-  }
-
-  receive(frame: SessionFollowFrame): TurnView {
-    const snap = this.projector.receive(frame);
-    return this.afterSnap(snap);
+  /** Fold the official window; `running` is the Host-asserted turn state. */
+  apply(window: SessionEventWindow, running: boolean): TurnView {
+    this.projector.apply(window);
+    this.lastRunning = running;
+    return this.afterSnap(this.projector.snapshot(), running);
   }
 
   applyError(message: string): TurnView {
@@ -122,14 +126,14 @@ export class TurnProjection {
   }
 
   snapshot(): TurnView {
-    return this.viewFrom(this.projector.snapshot());
+    return this.viewFrom(this.projector.snapshot(), this.lastRunning);
   }
 
-  private afterSnap(snap: ProjectedChat): TurnView {
+  private afterSnap(snap: ProjectedChat, running: boolean): TurnView {
     const busy = liveBusy(snap);
     if (this.local) {
-      if (snap.running || busy) this.local.turned = true;
-      if (!snap.running && this.local.turned && !this.local.cancelled) {
+      if (running || busy || this.admitted(snap, this.local)) this.local.turned = true;
+      if (!running && this.local.turned && !this.local.cancelled) {
         this.pendingFreeze = {
           status: mapFreezeStatus(snap.status),
           error: snap.status || undefined,
@@ -137,23 +141,34 @@ export class TurnProjection {
         };
         this.local = null;
       }
-    } else if (snap.running && busy && !this.liveAssistantId) {
+    } else if (running && busy && !this.liveAssistantId) {
       this.liveAssistantId = `live-${Date.now()}`;
     }
-    if (!snap.running && !this.pendingFreeze) this.liveAssistantId = null;
-    return this.viewFrom(snap);
+    if (!running && !this.pendingFreeze) this.liveAssistantId = null;
+    return this.viewFrom(snap, running);
   }
 
-  private viewFrom(snap: ProjectedChat): TurnView {
+  /**
+   * The turn started, whatever the pane saw: the log admitted this prompt
+   * (`rpcId`), or a newer `turn/start` landed. A turn reported only by a
+   * reconnected snapshot therefore settles too.
+   */
+  private admitted(snap: ProjectedChat, local: LocalTurn): boolean {
+    if (local.requestId && this.projector.admitted(local.requestId)) return true;
+    if (liveBusy(snap)) return true;
+    return this.projector.turnStartedAfter(local.baseSeq);
+  }
+
+  private viewFrom(snap: ProjectedChat, running: boolean): TurnView {
     const busy = liveBusy(snap);
     return {
       messages: snap.messages,
-      running: snap.running,
+      running,
       status: snap.status,
       liveMd: snap.liveMd,
       liveReason: snap.liveReason,
       liveTools: snap.liveTools,
-      liveId: this.local?.id ?? (snap.running && busy ? this.liveAssistantId : null),
+      liveId: this.local?.id ?? (running && busy ? this.liveAssistantId : null),
       olderHasMore: snap.olderHasMore,
       deliverables: snap.deliverables,
       pendingFreeze: this.pendingFreeze,

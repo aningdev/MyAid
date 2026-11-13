@@ -10,10 +10,7 @@ import {
   type UnitRegistration,
 } from "../background/protocol";
 
-export type HostRegistrationOp =
-  | "registrationQuery"
-  | "registrationEnable"
-  | "registrationStop";
+export type HostRegistrationOp = "registrationQuery" | "registrationEnable" | "registrationStop";
 
 export type HostRegistrationTransport = {
   reachable(): Promise<boolean>;

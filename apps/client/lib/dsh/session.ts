@@ -1,35 +1,15 @@
-import type { ImageAttachmentRef } from "@myaid/dsh-web-protocol/session";
-
 /**
- * Thin Connection adapter for Dialogue. Product lifecycle lives in ClaimedSession.
+ * Thin Connection adapter for Dialogue: the one shared Connection, its error
+ * wording, and the two reads the product makes outside a Session (agent
+ * presets, directory picking). Product lifecycle lives in ClaimedSession; the
+ * Session model itself belongs to the official Client (`ctx.sessions`).
  */
 import { resolveDshLoginUrl } from "../host/control";
-import {
-  Connection,
-  type ApprovalDecision,
-  type ApprovalRequest,
-  type FlatModelCatalog,
-  type ModelCatalog,
-  readableError,
-} from "./connection";
+import { Connection, readableError } from "./connection";
 
-export type { ApprovalDecision, ApprovalRequest, FlatModelCatalog, ModelCatalog };
 export { readableError };
 
 let shared: Connection | undefined;
-let sessionId: string | undefined;
-
-export function getConnection(): Connection | undefined {
-  return shared;
-}
-
-export function currentSessionId(): string | undefined {
-  return sessionId;
-}
-
-export function setActiveSessionId(id: string | undefined): void {
-  sessionId = id;
-}
 
 export async function ensureConnected(loginUrl?: string): Promise<Connection> {
   if (shared?.ready) return shared;
@@ -38,31 +18,6 @@ export async function ensureConnected(loginUrl?: string): Promise<Connection> {
   await connection.connect(loginUrl ?? (await resolveDshLoginUrl()));
   shared = connection;
   return connection;
-}
-
-/** Create a Session in a Bot workspace and make it the followed id. */
-export async function createBoundSession(
-  connection: Connection | undefined,
-  request: { cwd?: string; agentPreset?: string },
-): Promise<string> {
-  const conn = connection ?? (await ensureConnected());
-  const created = await conn.createSession(request);
-  sessionId = created.sessionId;
-  return sessionId;
-}
-
-export async function listSessions(connection?: Connection): Promise<
-  {
-    sessionId: string;
-    cwd?: string;
-    blank: boolean;
-    updatedAt: number;
-    running?: boolean;
-    agentAvailable?: boolean;
-  }[]
-> {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.listSessions();
 }
 
 export async function listAgentPresets(
@@ -74,91 +29,12 @@ export async function listAgentPresets(
   return conn.listAgentPresets();
 }
 
-export async function readAgentPreset(
-  agentPreset: string,
-  connection?: Connection,
-): Promise<{ agentPreset: string; content: string; name?: string; description?: string }> {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.readAgentPreset(agentPreset);
-}
-
-export async function selectModel(
-  request: { sessionId: string; provider: string; model: string; reasoningEffort?: string },
-  connection?: Connection,
-): Promise<void> {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.selectModel(request);
-}
-
-export async function sessionUsage(sessionId: string, connection?: Connection) {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.sessionUsage(sessionId);
-}
-
-export async function listSkills(sessionId: string, connection?: Connection) {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.listSkills(sessionId);
-}
-
-export async function executeCommand(sessionId: string, line: string, connection?: Connection) {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.executeCommand(sessionId, line);
-}
-
-export async function pluginInventory(connection?: Connection) {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.pluginInventory();
-}
-
-export async function canRevealPath(connection?: Connection): Promise<boolean> {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.canRevealPath();
-}
-
-export async function revealPath(path: string, connection?: Connection): Promise<void> {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.revealPath(path);
-}
-
 export async function pickDirectory(connection?: Connection): Promise<string | null> {
   const conn = connection ?? shared ?? (await ensureConnected());
   return conn.pickDirectory();
 }
 
-export async function describeSettings(connection?: Connection) {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.describeSettings();
-}
-
-export async function listPlugins(connection?: Connection) {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.listPlugins();
-}
-
-export async function uploadFile(
-  request: { sessionId: string; data: string; name?: string },
-  connection?: Connection,
-): Promise<{ receiptId: string }> {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.uploadFile(request);
-}
-
-export async function readAttachment(
-  request: { sessionId: string; attachment: ImageAttachmentRef },
-  connection?: Connection,
-) {
-  const conn = connection ?? shared ?? (await ensureConnected());
-  return conn.readAttachment(request);
-}
-
-export function setApprovalHandler(
-  handler: (request: ApprovalRequest) => Promise<ApprovalDecision>,
-): void {
-  shared?.approvals(handler);
-}
-
 export async function disposeSession(): Promise<void> {
-  sessionId = undefined;
   const conn = shared;
   shared = undefined;
   if (conn) await conn.dispose().catch(() => undefined);

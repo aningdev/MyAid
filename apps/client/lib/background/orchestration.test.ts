@@ -1,6 +1,5 @@
 import { expect, test } from "nsh/test";
 
-import type { RegistrationSnapshot } from "./protocol";
 import {
   enableProductBackground,
   queryProductBackground,
@@ -8,6 +7,7 @@ import {
   stopProductBackground,
   type BackgroundRegistrationClient,
 } from "./orchestration";
+import type { RegistrationSnapshot } from "./protocol";
 
 function snap(
   hostPhase: RegistrationSnapshot["host"]["phase"],

@@ -1,9 +1,22 @@
 /**
- * Deep module: one live Session per controller — its follow stream, its own
- * TurnProjection, its draft, approvals and error — plus the lazy registry that
- * keeps controllers for the Sessions Panels show and for replies still running
- * off-screen. The shared Connection belongs to ClaimedSession, not here.
+ * Deep module: one live Session per controller. The official Client model owns
+ * the Session (list row, history window with atomic per-generation
+ * replacement, paging, follow, prompt/queue/cancel state); this controller
+ * owns what the product adds — the composer draft and its files, the local
+ * turn bubble and its freeze, approvals, and the Panel-facing view.
+ *
+ * The lazy registry keeps controllers for the Sessions Panels show and for
+ * replies still running off-screen. The shared Connection belongs to
+ * ClaimedSession, not here.
  */
+import type {
+  SessionEventSource,
+  SessionEventWindow,
+  SessionFace,
+  SessionId,
+  SessionReference,
+  SessionSnapshot,
+} from "@myaid/dsh-web-protocol/client";
 import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
 import { signal, untracked } from "nsh";
 
@@ -20,12 +33,19 @@ import {
   resolveBotModel,
   type ApprovalDecision,
   type ApprovalRequest,
-  type SessionTransport,
+  type SessionHost,
 } from "./claimed";
 import type { SessionStatus } from "./roster";
 import { TurnProjection, type TurnView } from "./turn";
 
 export type { ApprovalDecision, ApprovalRequest, Attachment };
+
+declare module "@deepseek-ai/dsh-api-session-controller/client" {
+  interface SessionReferenceSourceMap {
+    /** One Dialogue Panel (or a running reply it left behind) showing a Session. */
+    panel: unknown;
+  }
+}
 
 /** One prompt waiting in the live Agent's inbox, shown above the composer. */
 export type QueuedPrompt = {
@@ -55,23 +75,47 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/**
- * A `session.follow` stream can end under a Client that did nothing wrong: the
- * dsh gateway pings every 2 s and terminates a peer that misses two pongs, and
- * NSH's standard `websocket` stops reading the network while eight messages
- * wait unread — a long render between reads (a large reply, a slow frame) makes
- * the socket look dead. The Host's connection reconnects by itself; the follow
- * stream does not, so it is re-opened here: three tries, 300 ms doubling.
- */
-const FOLLOW_RETRIES = 3;
-const FOLLOW_RETRY_BASE_MS = 300;
-const FOLLOW_RETRY_MAX_MS = 4_000;
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function textBlocks(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((item) => {
+      const block = object(item);
+      return block.type === "text" && typeof block.text === "string" ? block.text : "";
+    })
+    .join("");
+}
+
+/** The `inbox` projection rows as the composer's pending list. */
+function queueRows(value: unknown): QueuedPrompt[] {
+  const inbox = object(value);
+  const rows = [inbox["next-turn"], inbox["next-step"]].flatMap((list) =>
+    Array.isArray(list) ? list : [],
+  );
+  const items: QueuedPrompt[] = [];
+  for (const row of rows) {
+    const message = object(row);
+    const itemId = typeof message.id === "string" ? message.id : "";
+    if (!itemId) continue;
+    const source = object(message.source);
+    items.push({
+      requestId: typeof source.rpcId === "string" ? source.rpcId : itemId,
+      itemId,
+      text: textBlocks(message.content),
+    });
+  }
+  return items;
+}
 
 /** What a SessionController needs from the product runtime. */
 export type SessionControllerHost = {
   /** Shared Connection, connected on demand. */
-  ensureTransport(): Promise<SessionTransport>;
-  transport(): SessionTransport | undefined;
+  ensureHost(): Promise<SessionHost>;
+  host(): SessionHost | undefined;
   registry(): BotRegistry;
   /** dsh archived this Session: it stays readable, but no new turn starts. */
   sessionArchived(sessionId: string): boolean;
@@ -97,8 +141,9 @@ type PendingApproval = {
 };
 
 /**
- * One followed Session. Created lazily by SessionRegistry and disposed once
- * no Panel shows it and it is neither running nor waiting on approval.
+ * One Session, read from the official Client model. Created lazily by
+ * SessionRegistry and disposed once no Panel shows it and it is neither
+ * running nor waiting on approval.
  */
 export class SessionController {
   readonly view = signal<TurnView>(emptyView());
@@ -115,15 +160,18 @@ export class SessionController {
   readonly olderLoading = signal(false);
 
   private turns = new TurnProjection();
-  private followStop: (() => void) | undefined;
-  private followTransport: SessionTransport | undefined;
+  private reference: SessionReference | undefined;
+  private binding: { session: SessionFace; eventSource: SessionEventSource } | undefined;
+  private detach: (() => void)[] = [];
   private starting: Promise<void> | undefined;
   private mounts = 0;
+  /** A release is pending: the Panel may only be re-rendering. */
+  private disposeSoon: ReturnType<typeof setTimeout> | undefined;
   private prompting = false;
   private approvals: PendingApproval[] = [];
   private disposed = false;
-  private followRetry: ReturnType<typeof setTimeout> | undefined;
-  private followRetries = 0;
+  /** Prompt request ids the projection has not echoed yet. */
+  private echo = new Map<string, string>();
 
   constructor(
     readonly sessionId: string,
@@ -139,31 +187,44 @@ export class SessionController {
     return this.prompting || untracked(this.running);
   }
 
-  /** A Panel now shows this Session. Clears unread; starts following when needed. */
+  /** A Panel now shows this Session. Clears unread; binds the model when needed. */
   mount(): void {
     if (this.disposed) return;
+    if (this.disposeSoon !== undefined) {
+      clearTimeout(this.disposeSoon);
+      this.disposeSoon = undefined;
+    }
     this.mounts += 1;
     this.host.onShown(this.sessionId);
     void this.start();
   }
 
-  /** The Panel stopped showing it; idle controllers leave at once, running ones stay. */
+  /** The Panel stopped showing it; an idle controller is released next tick. */
   unmount(): void {
     if (this.mounts > 0) this.mounts -= 1;
     this.maybeDispose();
   }
 
-  /** Connect if needed and follow this Session (snapshot + live frames). */
+  /** Bind the official Session and read its current state. */
   async start(): Promise<void> {
-    if (this.disposed) return;
+    if (this.disposed || this.binding) return;
     if (this.starting) return this.starting;
     const work = (async () => {
       try {
         this.error.set(null);
-        const transport = await this.host.ensureTransport();
+        const host = await this.host.ensureHost();
         if (this.disposed) return;
-        if (!transport.ready) throw new Error("尚未连接后台");
-        this.ensureFollow(transport);
+        if (!host.ready) throw new Error("尚未连接后台");
+        // `retain` starts the shared history opening: the window arrives through
+        // the official model, replaced atomically per Host generation.
+        const reference = host.sessions.retain(this.sessionId as SessionId, { source: "panel" });
+        this.reference = reference;
+        await reference.ready;
+        if (this.disposed) {
+          reference.release();
+          return;
+        }
+        this.bind(reference.binding.session, reference.binding.eventSource);
       } catch (error) {
         this.fail(messageOf(error));
       }
@@ -199,17 +260,13 @@ export class SessionController {
     this.draftAttachments.set([]);
   }
 
-  /** Read one page of history above the follow window (`session.events`). */
+  /** Read one page of history above the window (official `loadOlder`). */
   async loadOlder(): Promise<void> {
     if (this.disposed || untracked(this.olderLoading)) return;
     if (!untracked(this.view).olderHasMore) return;
-    const first = this.turns.firstSeq();
-    if (first === null) return;
     this.olderLoading.set(true);
     try {
-      const transport = await this.ensureTransport();
-      const page = await transport.sessionPage({ sessionId: this.sessionId, beforeSeq: first });
-      this.publish(this.turns.prepend(page.records, page.hasMore));
+      await (await this.session()).loadOlder();
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {
@@ -220,37 +277,20 @@ export class SessionController {
   /** A prompt sent while a turn runs: dsh queues it; it never begins a local turn. */
   async queuePrompt(text: string, content?: readonly PromptContentPart[]): Promise<void> {
     if (this.disposed) throw new Error("这条会话的运行时已释放。");
-    const transport = await this.ensureTransport();
+    const session = await this.session();
     const requestId = crypto.randomUUID().replace(/-/g, "");
-    await transport.prompt({
-      sessionId: this.sessionId,
-      requestId,
-      ...(content ? { content } : { text }),
-    });
-    this.queued.set([...this.queued(), { requestId, itemId: null, text }]);
-    void this.refreshQueue();
-  }
-
-  /** The live Agent's inbox, as `session.state` reports it. */
-  async refreshQueue(): Promise<void> {
-    const transport = this.host.transport();
-    if (this.disposed || !transport?.ready) return;
-    try {
-      const items = await transport.sessionQueue(this.sessionId);
-      const pending: QueuedPrompt[] = items.map((item) => ({
-        requestId: item.requestId ?? item.id,
-        itemId: item.id,
-        text: item.text,
-      }));
-      // Entries dsh has not listed yet stay (a prompt can outrun the next read).
-      const unresolved = this.queued().filter(
-        (mine) =>
-          mine.itemId === null &&
-          !pending.some((item) => item.requestId === mine.requestId || item.text === mine.text),
-      );
-      this.queued.set([...pending, ...unresolved]);
-    } catch {
-      // A cold Session has no readable queue; the local entries stay.
+    this.echo.set(requestId, text);
+    this.publishQueue();
+    const result = await session.prompt(
+      [...(content ?? [{ type: "text" as const, text }])],
+      "queue",
+      undefined,
+      requestId as never,
+    );
+    if (!result.ok) {
+      this.echo.delete(requestId);
+      this.publishQueue();
+      throw new Error(`${result.error.code}: ${result.error.message}`);
     }
   }
 
@@ -258,29 +298,25 @@ export class SessionController {
   async withdrawQueued(requestId: string): Promise<void> {
     const entry = this.queued().find((item) => item.requestId === requestId);
     if (!entry) return;
-    this.queued.set(this.queued().filter((item) => item.requestId !== requestId));
-    const transport = this.host.transport();
-    if (!transport?.ready) return;
+    if (!entry.itemId) {
+      // Not admitted yet: drop the local echo and forget the prompt entirely.
+      this.echo.delete(requestId);
+      this.publishQueue();
+      return;
+    }
     try {
-      let itemId = entry.itemId;
-      if (!itemId) {
-        const items = await transport.sessionQueue(this.sessionId);
-        itemId =
-          items.find((item) => item.requestId === requestId || item.text === entry.text)?.id ??
-          null;
-      }
-      if (!itemId) {
-        this.error.set("这条消息已经被后台接收，不能再撤回。");
-        return;
-      }
-      await transport.withdrawQueuedPrompt(this.sessionId, itemId);
+      const result = await (
+        await this.session()
+      ).updateQueue(entry.itemId as never, {
+        kind: "remove",
+      });
+      if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`);
     } catch (error) {
       this.error.set(messageOf(error));
     }
-    void this.refreshQueue();
   }
 
-  /** Send a prompt through the shared Connection; the local bubble is begun by the Pane. */
+  /** Send a prompt through the official Session; the local bubble is begun by the Pane. */
   async prompt(text: string, content?: readonly PromptContentPart[]): Promise<string> {
     if (this.disposed) throw new Error("这条会话的运行时已释放。");
     const owner = claimOwner(this.host.registry(), this.sessionId);
@@ -298,12 +334,13 @@ export class SessionController {
     this.error.set(null);
     this.prompting = true;
     try {
-      const transport = await this.ensureTransport();
+      const host = await this.host.ensureHost();
+      const session = await this.session();
       try {
-        const catalog = await transport.modelCatalog();
+        const catalog = await host.modelCatalog();
         const selected = await resolveBotModel(catalog, owner.bot.defaultModel);
         if (selected) {
-          await transport.selectModel({
+          await host.selectModel({
             sessionId: this.sessionId,
             provider: selected.provider,
             model: selected.model,
@@ -315,11 +352,13 @@ export class SessionController {
         // Model apply is best-effort; prompt still proceeds.
       }
       const requestId = crypto.randomUUID().replace(/-/g, "");
-      await transport.prompt({
-        sessionId: this.sessionId,
-        requestId,
-        ...(content ? { content } : { text }),
-      });
+      const result = await session.prompt(
+        [...(content ?? [{ type: "text" as const, text }])],
+        "queue",
+        undefined,
+        requestId as never,
+      );
+      if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`);
       return requestId;
     } catch (error) {
       this.applyError(messageOf(error));
@@ -329,15 +368,16 @@ export class SessionController {
 
   /** Stages a file's bytes; the prompt then names the receipt. */
   async uploadFile(name: string, data: string): Promise<string> {
-    const transport = await this.ensureTransport();
-    const receipt = await transport.uploadFile({ sessionId: this.sessionId, data, name });
+    const host = await this.host.ensureHost();
+    const receipt = await host.uploadFile({ sessionId: this.sessionId, data, name });
     return receipt.receiptId;
   }
 
   async cancel(): Promise<void> {
-    const transport = this.host.transport();
-    if (!transport?.ready) return;
-    await transport.cancel(this.sessionId);
+    const session = this.binding?.session;
+    if (!session) return;
+    const result = await session.cancel();
+    if (!result.ok) this.error.set(`${result.error.code}: ${result.error.message}`);
   }
 
   /** The Pane added its local assistant bubble. */
@@ -392,72 +432,58 @@ export class SessionController {
     next.resolve(decision);
   }
 
-  /** Generation went down: keep the error, stop folding frames into a dead view. */
-  connectionLost(): void {
-    this.stopFollow();
-    this.clearApprovals();
-    this.prompting = false;
-    if (untracked(this.running)) {
-      this.running.set(false);
-      this.view.set({ ...untracked(this.view), running: false });
-      this.host.onStatusChange(this.sessionId);
-    }
-    if (!this.disposed) this.error.set("后台连接已断开。");
-    this.maybeDispose();
-  }
-
-  /** A new Host generation is ready: Panels that still show this Session re-follow. */
-  connectionRestored(): void {
-    if (this.disposed) return;
-    if (this.mounts > 0 || this.busy) void this.start();
-  }
-
   dispose(): void {
+    if (this.disposeSoon !== undefined) {
+      clearTimeout(this.disposeSoon);
+      this.disposeSoon = undefined;
+    }
     if (this.disposed) return;
     this.disposed = true;
-    this.cancelFollowRetry();
-    this.stopFollow();
+    for (const stop of this.detach.splice(0)) stop();
+    this.binding = undefined;
     this.clearApprovals();
+    // Releasing the last reference tears the local generation down (history
+    // stream and Agent scope); a running Host turn keeps running.
+    this.reference?.release();
+    this.reference = undefined;
     this.host.onDispose(this.sessionId);
   }
 
-  private clearApprovals(): void {
-    for (const entry of this.approvals) {
-      entry.detach?.();
-      entry.resolve("cancelled");
-    }
-    if (this.approvals.length === 0 && untracked(this.pendingApproval) === null) return;
-    this.approvals = [];
-    this.pendingApproval.set(null);
-    this.host.onStatusChange(this.sessionId);
+  /** The Connection went away: release the old generation and read the new one. */
+  rebind(): void {
+    if (this.disposed) return;
+    for (const stop of this.detach.splice(0)) stop();
+    this.binding = undefined;
+    this.reference?.release();
+    this.reference = undefined;
+    if (this.mounts > 0 || this.busy) void this.start();
   }
 
-  private async ensureTransport(): Promise<SessionTransport> {
-    const transport = await this.host.ensureTransport();
-    if (!transport.ready) throw new Error("尚未连接后台");
-    if (!this.disposed) this.ensureFollow(transport);
-    return transport;
+  /** Bind the official Session: subscribe once, then read what it holds now. */
+  private bind(session: SessionFace, eventSource: SessionEventSource): void {
+    this.binding = { session, eventSource };
+    this.detach.push(session.subscribe(() => this.refresh()));
+    this.detach.push(eventSource.subscribe(() => this.refresh()));
+    this.detach.push(session.projections.faceOf("inbox").subscribe(() => this.publishQueue()));
+    this.refresh();
+    this.publishQueue();
   }
 
-  /** One follow per transport; a reconnect replaces the stale stream. */
-  private ensureFollow(transport: SessionTransport): void {
-    if (this.followStop && this.followTransport === transport) return;
-    this.stopFollow();
-    this.followTransport = transport;
-    this.followStop = transport.follow(
-      this.sessionId,
-      (frame) => this.receive(frame),
-      (error) => this.followFailed(error),
-    );
-  }
-
-  private receive(frame: Parameters<TurnProjection["receive"]>[0]): void {
+  /** Window + snapshot → one view. Both sources publish on the same tick. */
+  private refresh(): void {
+    const binding = this.binding;
+    if (!binding || this.disposed) return;
+    const state: SessionSnapshot = binding.session.getSnapshot();
+    const window: SessionEventWindow = binding.eventSource.getSnapshot();
     const wasRunning = untracked(this.running);
-    // A frame proves the stream serves this Session again: the retries start over.
-    this.followRetries = 0;
-    const view = this.turns.receive(frame);
+    this.olderLoading.set(state.loadingOlder);
+    if (state.promptError) {
+      this.error.set(`${state.promptError.error.code}: ${state.promptError.error.message}`);
+    } else if (state.openError) {
+      this.error.set(`${state.openError.code}: ${state.openError.message}`);
+    }
+    const view = this.turns.apply(window, state.running);
     this.publish(view);
-    this.host.onView(this.sessionId, view);
     if (wasRunning && !view.running) this.finished();
   }
 
@@ -466,57 +492,61 @@ export class SessionController {
     if (view.running !== untracked(this.running)) {
       this.running.set(view.running);
       this.host.onStatusChange(this.sessionId);
-      // The inbox drains as the turn takes its next prompt.
-      void this.refreshQueue();
     }
+    this.host.onView(this.sessionId, view);
+    // The local turn is over once its bubble freezes — whether the pane saw it
+    // stream or only read it back from a replaced window.
+    if (view.pendingFreeze) this.prompting = false;
+  }
+
+  /** The inbox projection plus prompts dsh has not echoed yet. */
+  private publishQueue(): void {
+    const inbox = this.binding?.session.projections.faceOf("inbox").getSnapshot();
+    const pending = queueRows(inbox);
+    for (const [requestId, text] of [...this.echo]) {
+      if (pending.some((item) => item.requestId === requestId || item.text === text)) {
+        this.echo.delete(requestId);
+      }
+    }
+    const echoing: QueuedPrompt[] = [...this.echo].map(([requestId, text]) => ({
+      requestId,
+      itemId: null,
+      text,
+    }));
+    const next = [...pending, ...echoing];
+    const current = this.queued();
+    if (
+      current.length === next.length &&
+      current.every(
+        (item, index) =>
+          item.requestId === next[index]?.requestId && item.itemId === next[index]?.itemId,
+      )
+    ) {
+      return;
+    }
+    this.queued.set(next);
+    this.host.onStatusChange(this.sessionId);
+  }
+
+  /** The bound Session, waiting for the first bind if a Panel raced it. */
+  private async session(): Promise<SessionFace> {
+    const current = this.bound();
+    if (current) return current.session;
+    await this.start();
+    const bound = this.bound();
+    if (!bound) throw new Error("这条会话还没准备好。");
+    return bound.session;
+  }
+
+  /** The current binding (a method, so a fresh read survives an await). */
+  private bound(): { session: SessionFace; eventSource: SessionEventSource } | undefined {
+    return this.binding;
   }
 
   private finished(): void {
     this.prompting = false;
     if (this.mounts === 0) this.host.onFinishedHidden(this.sessionId);
     this.maybeDispose();
-  }
-
-  private followFailed(error: Error): void {
-    this.stopFollow();
-    if (this.disposed) return;
-    this.prompting = false;
-    const wasRunning = untracked(this.running);
-    if (wasRunning) {
-      this.running.set(false);
-      this.view.set({ ...untracked(this.view), running: false });
-      this.host.onStatusChange(this.sessionId);
-    }
-    this.error.set(error.message);
-    this.scheduleFollowRetry();
-    if (wasRunning) this.finished();
-    else this.maybeDispose();
-  }
-
-  /**
-   * Re-open a failed follow stream for a Session still worth following (a Panel
-   * shows it, or its turn runs). The error stays visible until a frame lands.
-   */
-  private scheduleFollowRetry(): void {
-    if (this.disposed || this.followRetry !== undefined) return;
-    if (this.mounts === 0 && !untracked(this.running) && !this.prompting) return;
-    this.followRetries += 1;
-    if (this.followRetries > FOLLOW_RETRIES) return;
-    const delay = Math.min(
-      FOLLOW_RETRY_MAX_MS,
-      FOLLOW_RETRY_BASE_MS * 2 ** (this.followRetries - 1),
-    );
-    this.followRetry = setTimeout(() => {
-      this.followRetry = undefined;
-      if (this.disposed) return;
-      void this.start();
-    }, delay);
-  }
-
-  private cancelFollowRetry(): void {
-    if (this.followRetry === undefined) return;
-    clearTimeout(this.followRetry);
-    this.followRetry = undefined;
   }
 
   private fail(message: string): void {
@@ -526,11 +556,16 @@ export class SessionController {
     this.maybeDispose();
   }
 
-  private stopFollow(): void {
-    const stop = this.followStop;
-    this.followStop = undefined;
-    this.followTransport = undefined;
-    stop?.();
+  private clearApprovals(): void {
+    const had = this.approvals.length > 0;
+    for (const entry of this.approvals) {
+      entry.detach?.();
+      entry.resolve("cancelled");
+    }
+    this.approvals = [];
+    if (!had && untracked(this.pendingApproval) === null) return;
+    this.pendingApproval.set(null);
+    this.host.onStatusChange(this.sessionId);
   }
 
   private publishApproval(): void {
@@ -538,19 +573,29 @@ export class SessionController {
     if (!this.disposed) this.host.onStatusChange(this.sessionId);
   }
 
+  /**
+   * Release once this Session is worth nothing to the product: no Panel, no
+   * running turn, no approval, no draft. The release waits a tick because a
+   * Panel re-render unmounts and mounts on the same tick, and every release
+   * also drops the official local generation (history stream and Agent scope),
+   * which would otherwise reopen on every frame.
+   */
   private maybeDispose(): void {
-    if (this.disposed || this.mounts > 0) return;
+    if (this.disposed || this.mounts > 0 || this.disposeSoon !== undefined) return;
     if (untracked(this.running) || this.prompting || this.approvals.length > 0) return;
     // A draft belongs to the Session: its controller stays until it is sent or
     // emptied, so switching Panels never loses what was written.
     if (untracked(this.draft).length > 0 || untracked(this.draftAttachments).length > 0) return;
-    this.dispose();
+    this.disposeSoon = setTimeout(() => {
+      this.disposeSoon = undefined;
+      this.dispose();
+    }, 0);
   }
 }
 
 export type SessionRegistryHost = {
-  ensureTransport(): Promise<SessionTransport>;
-  transport(): SessionTransport | undefined;
+  ensureHost(): Promise<SessionHost>;
+  host(): SessionHost | undefined;
   registry(): BotRegistry;
   /** dsh archived this Session: it stays readable, but no new turn starts. */
   sessionArchived(sessionId: string): boolean;
@@ -575,8 +620,8 @@ export class SessionRegistry {
     const existing = this.controllers.get(sessionId);
     if (existing) return existing;
     const controller = new SessionController(sessionId, {
-      ensureTransport: () => this.host.ensureTransport(),
-      transport: () => this.host.transport(),
+      ensureHost: () => this.host.ensureHost(),
+      host: () => this.host.host(),
       registry: () => this.host.registry(),
       sessionArchived: (id) => this.host.sessionArchived(id),
       summaries: () => this.host.summaries(),
@@ -631,12 +676,14 @@ export class SessionRegistry {
       .map((controller) => controller.sessionId);
   }
 
-  connectionLost(): void {
-    for (const controller of [...this.controllers.values()]) controller.connectionLost();
+  /** A new Host generation is ready: Panels that show a Session read it again. */
+  reattach(): void {
+    for (const controller of this.controllers.values()) void controller.start();
   }
 
-  connectionRestored(): void {
-    for (const controller of [...this.controllers.values()]) controller.connectionRestored();
+  /** The Connection was replaced: drop the old bindings and read the new model. */
+  rebind(): void {
+    for (const controller of [...this.controllers.values()]) controller.rebind();
   }
 
   disposeAll(): void {

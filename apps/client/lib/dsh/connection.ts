@@ -1,6 +1,13 @@
 /**
- * Official `dsh web` protocol client: cookie bootstrap, Gateway, Session Remote.
- * No product workbench UI.
+ * Official `dsh web` protocol client: cookie bootstrap, Gateway, and the
+ * official React-free Client models (Sessions, Workspaces). No product
+ * workbench UI.
+ *
+ * What lives here is the *transport edge*: one Cordis Context per Client
+ * generation, the Remote namespaces MyAid calls, and the official
+ * `ctx.sessions` / `ctx.workspaces` models that own session list, history
+ * window, follow, paging and reconnect. The product projects their snapshots;
+ * it never re-implements them.
  */
 import type {
   BotPresetDeriveRequest,
@@ -9,30 +16,19 @@ import type {
   BotPresetRemoveResult,
   BotPresetUpdateRequest,
 } from "@myaid/dsh-web-protocol/bot-presets";
+import type { ISessions, IWorkspaces } from "@myaid/dsh-web-protocol/client";
 import type { ApprovalOutcome, ApprovalRequestEvent } from "@myaid/dsh-web-protocol/interaction";
 import type { PluginInfo } from "@myaid/dsh-web-protocol/plugins";
 import type {
   ImageAttachmentRef,
   ModelCatalog as OfficialModelCatalog,
-  PromptContentPart,
   SessionAttachmentValue,
   SessionCreateRequest,
-  SessionFollowFrame,
-  SessionPageRequest,
   SessionProjectionsValue,
   SessionProjectionsRequest,
   SessionRenameRequest,
-  SessionStateRequest,
-  SessionUpdateQueueRequest,
 } from "@myaid/dsh-web-protocol/session";
 import type { SettingsDescribeValue } from "@myaid/dsh-web-protocol/settings";
-import type {
-  WorkspaceArchiveSessionRequest,
-  WorkspaceArchiveValue,
-  WorkspaceCreateValue,
-  WorkspacePinValue,
-  WorkspaceValue,
-} from "@myaid/dsh-web-protocol/workspace";
 
 export type {
   BotPresetDeriveRequest,
@@ -51,12 +47,16 @@ import {
   agentPresetsRemote,
   botPresetsRemote,
   commandsRemote,
+  fileUploadClient,
   fileUploadsRemote,
   installConnection,
+  officialSessionClient,
+  officialWorkspaceClient,
   pluginInventoryRemote,
   pluginManagerRemote,
   sessionRemote,
   settingsRemote,
+  subagentsRemote,
   workspaceRemote,
 } from "./sdk.js";
 import { AuthenticatedSocket } from "./socket";
@@ -97,11 +97,6 @@ export function sessionCreateBody(request: SessionCreateInput = {}): SessionCrea
     ...(request.agentPreset ? { agentPreset: request.agentPreset } : {}),
   };
 }
-
-/** One Workspace command's outcome; a Host refusal keeps its code for the UI. */
-export type WorkspaceResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; code: string; message: string; details?: unknown };
 
 export type AgentPresetDetail = {
   agentPreset: string;
@@ -271,21 +266,6 @@ function unwrap<T = unknown>(result: {
   return result.value as T;
 }
 
-/** The text parts of one queue item's content, as dsh stores it. */
-function queueText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((item) => {
-      const block = item as { type?: unknown; text?: unknown };
-      return block?.type === "text" && typeof block.text === "string" ? block.text : "";
-    })
-    .join("");
-}
-
-const agentTag = Symbol("myaid.agent");
-function agentScope() {}
-
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -304,23 +284,44 @@ function localizedName(value: Record<string, unknown>): string | undefined {
   return typeof meta.name === "string" && meta.name ? meta.name : undefined;
 }
 
-type Scope = {
-  ctx: unknown;
-  dispose(): Promise<void> | void;
+/**
+ * Install one official Client model and wait for it to activate. A model whose
+ * injected services are missing stays parked in Cordis, so name it instead of
+ * hanging the connection.
+ */
+async function activate(ctx: any, plugin: unknown, label: string): Promise<void> {
+  const fiber = ctx.plugin(plugin);
+  const missing = await Promise.race([
+    fiber.then(() => undefined),
+    new Promise<string>((resolve) => setTimeout(() => resolve("超时"), 10_000)),
+  ]);
+  if (missing === undefined) return;
+  const required = (plugin as { inject?: readonly string[] }).inject ?? [];
+  const absent = required.filter((name) => ctx.get(name) === undefined);
+  throw new Error(
+    `官方 Client model 未能装载（${label}）：${missing}${
+      absent.length ? `，缺少服务 ${absent.join("、")}` : ""
+    }`,
+  );
+}
+
+type Installed = {
+  remote: any;
+  connection: any;
+  sessions: ISessions;
+  workspaces: IWorkspaces;
+  fiber: { dispose(): Promise<void> };
 };
 
+/**
+ * One Client generation: the Connection, the mounted Remote namespaces, and
+ * the official Client models installed on the same Context.
+ */
 export class Connection {
   private epoch = 0;
   private connecting?: AbortController;
   private generationSubscription?: () => void;
-  private ctx?: {
-    remote: any;
-    connection: any;
-    fiber: { dispose(): Promise<void> };
-    plugin: Function;
-    typert: any;
-  };
-  private scopes = new Map<string, Scope>();
+  private ctx?: Installed;
   private approval?: (request: ApprovalRequest) => Promise<ApprovalDecision>;
   ready = false;
   origin = "";
@@ -355,7 +356,6 @@ export class Connection {
     const { origin, cookie } = login;
 
     const ctx: any = new Context();
-    this.ctx = ctx;
     this.origin = origin;
     try {
       installConnection(ctx, {
@@ -378,38 +378,36 @@ export class Connection {
         },
       });
       await ctx.plugin(TypertRegistry);
-      ctx.typert.contexts.registerClient("agent", {
-        identity: (candidate: any) => candidate?.[agentTag],
-        resolve: (id: unknown) => {
-          if (typeof id !== "string" || epoch !== this.epoch || this.ctx !== ctx) return undefined;
-          this.scope(id);
-          return this.scopes.get(id)?.ctx;
-        },
-      });
       await ctx.plugin(Gateway);
+      // Every Remote namespace the product or an official model names.
       await ctx.remote.$mount(sessionRemote);
       await ctx.remote.$mount(agentPresetsRemote);
       await ctx.remote.$mount(botPresetsRemote);
-      // Product paths B–D: directory picker, settings, uploads, plugins.
       await ctx.remote.$mount(workspaceRemote);
       await ctx.remote.$mount(settingsRemote);
       await ctx.remote.$mount(fileUploadsRemote);
       await ctx.remote.$mount(pluginManagerRemote);
-      // Inspector usage / compact and Bot Settings › Skills, Plugins.
       await ctx.remote.$mount(pluginInventoryRemote);
       await ctx.remote.$mount(commandsRemote);
+      await ctx.remote.$mount(subagentsRemote);
+      // Official Client models: session list/window/follow/paging, Workspace
+      // projection. They own the Agent typert scope, so nothing here registers it.
+      await activate(ctx, fileUploadClient, "dsh-client-file-upload[client]");
+      await activate(ctx, officialSessionClient, "dsh-api-session-controller[client]");
+      await activate(ctx, officialWorkspaceClient, "dsh-api-workspace-controller[client]");
       const owner = this;
       ctx.remote.$on("approval/request", function (this: any, request: ApprovalRequestEvent) {
-        const tagged = request.agent as { [agentTag]?: string } | undefined;
-        return owner.answerApproval(tagged?.[agentTag] ?? this?.[agentTag], request);
+        if (epoch !== owner.epoch || owner.ctx === undefined) return "unavailable";
+        return owner.answerApproval(ctx, request);
       });
-      if (epoch !== this.epoch || this.ctx !== ctx) throw new Error("连接已被新的宿主状态替代");
+      this.ctx = ctx;
+      if (epoch !== this.epoch) throw new Error("连接已被新的宿主状态替代");
       await this.waitForGeneration(ctx, controller.signal);
-      if (epoch !== this.epoch || this.ctx !== ctx) throw new Error("连接已被新的宿主状态替代");
+      if (epoch !== this.epoch) throw new Error("连接已被新的宿主状态替代");
       this.ready = true;
       this.onGenerationChange?.(true);
       this.generationSubscription = ctx.connection.generation.subscribe(() => {
-        if (epoch !== this.epoch || this.ctx !== ctx) return;
+        if (epoch !== this.epoch) return;
         const next = !!ctx.connection.generation.getSnapshot();
         if (next === this.ready) return;
         this.ready = next;
@@ -444,9 +442,23 @@ export class Connection {
     });
   }
 
-  private get remote(): any {
+  private get installed(): Installed {
     if (!this.ctx) throw new Error("尚未连接后台");
-    return this.ctx.remote;
+    return this.ctx;
+  }
+
+  private get remote(): any {
+    return this.installed.remote;
+  }
+
+  /** The official Session model: list, retain, create, projections. */
+  get sessions(): ISessions {
+    return this.installed.sessions;
+  }
+
+  /** The official Workspace model: rows, order, archive set, pins. */
+  get workspaces(): IWorkspaces {
+    return this.installed.workspaces;
   }
 
   async listAgentPresets(): Promise<AgentPresetSummary[]> {
@@ -510,152 +522,12 @@ export class Connection {
     return flattenModelCatalog(value);
   }
 
+  /** Create a Session in a Workspace (the official model catalogues it). */
   async createSession(request?: SessionCreateInput): Promise<{ sessionId: string }> {
-    const value = unwrap(await this.remote.session.create(sessionCreateBody(request))) as {
-      sessionId: string;
-    };
-    return { sessionId: String(value.sessionId) };
-  }
-
-  /**
-   * One `workspace.follow` generation: a baseline, then ordered increments.
-   * Frames stay `unknown` here — the caller decodes them at the boundary.
-   * The caller owns reconnect policy; `dispose` ends the stream.
-   */
-  workspaceFrames(signal: AbortSignal): {
-    frames: AsyncIterable<unknown>;
-    dispose(): void;
-  } {
-    if (!this.ctx) throw new Error("尚未连接后台");
-    const stream = this.remote.workspace.follow(signal);
-    return {
-      frames: stream as AsyncIterable<unknown>,
-      dispose: () => {
-        try {
-          stream.dispose();
-        } catch {
-          /* already closed */
-        }
-      },
-    };
-  }
-
-  /** Create or reuse the Workspace over an existing directory. */
-  createWorkspace(path: string): Promise<WorkspaceResult<WorkspaceCreateValue>> {
-    return this.workspaceCall(() => this.remote.workspace.create({ path }));
-  }
-
-  /** Rename a Workspace (the Dialogue's name). */
-  renameWorkspace(workspaceId: string, title: string): Promise<WorkspaceResult<WorkspaceValue>> {
-    return this.workspaceCall(() => this.remote.workspace.rename({ workspaceId, title }));
-  }
-
-  /** Archive one Session; `stopActivity` stops its running work instead of refusing. */
-  archiveWorkspaceSession(
-    sessionId: string,
-    stopActivity?: boolean,
-  ): Promise<WorkspaceResult<WorkspaceArchiveValue>> {
-    const request: WorkspaceArchiveSessionRequest = {
-      sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
-      ...(stopActivity === true ? { stopActivity: true } : {}),
-    };
-    return this.workspaceCall(() => this.remote.workspace.archiveSession(request));
-  }
-
-  unarchiveWorkspaceSession(sessionId: string): Promise<WorkspaceResult<WorkspaceArchiveValue>> {
-    return this.workspaceCall(() =>
-      this.remote.workspace.unarchiveSession({
-        sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
-      }),
+    const sessionId = await this.sessions.create(
+      sessionCreateBody(request) as Parameters<ISessions["create"]>[0],
     );
-  }
-
-  pinWorkspaceSession(sessionId: string): Promise<WorkspaceResult<WorkspacePinValue>> {
-    return this.workspaceCall(() =>
-      this.remote.workspace.pinSession({
-        sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
-      }),
-    );
-  }
-
-  unpinWorkspaceSession(sessionId: string): Promise<WorkspaceResult<WorkspacePinValue>> {
-    return this.workspaceCall(() =>
-      this.remote.workspace.unpinSession({
-        sessionId: sessionId as WorkspaceArchiveSessionRequest["sessionId"],
-      }),
-    );
-  }
-
-  /** Move one accounted Session within its Workspace, DOM-insertBefore-like. */
-  moveWorkspaceSession(
-    workspaceId: string,
-    sessionId: string,
-    beforeSessionId?: string,
-  ): Promise<WorkspaceResult<WorkspaceValue>> {
-    return this.workspaceCall(() =>
-      this.remote.workspace.insertSessionBefore({
-        workspaceId,
-        sessionId,
-        ...(beforeSessionId === undefined ? {} : { beforeSessionId }),
-      }),
-    );
-  }
-
-  /** One Workspace command; a Host refusal keeps its code so the UI can branch. */
-  private async workspaceCall<T>(
-    run: () => Promise<
-      | { ok: true; value: T }
-      | { ok: false; error?: { code?: string; message?: string; details?: unknown } }
-    >,
-  ): Promise<WorkspaceResult<T>> {
-    const result = await run();
-    if (result.ok === true) return { ok: true, value: result.value };
-    const error = result.error ?? { code: "unknown/error", message: "Workspace 调用失败。" };
-    return {
-      ok: false,
-      code: error.code ?? "unknown/error",
-      message: error.message ?? "Workspace 调用失败。",
-      ...(error.details === undefined ? {} : { details: error.details }),
-    };
-  }
-
-  async listSessions(): Promise<
-    {
-      sessionId: string;
-      cwd?: string;
-      blank: boolean;
-      updatedAt: number;
-      /** Host-reported Agent state, also for Sessions this Client does not follow. */
-      running?: boolean;
-      agentAvailable?: boolean;
-    }[]
-  > {
-    const items: {
-      sessionId: string;
-      cwd?: string;
-      blank?: boolean;
-      updatedAt?: number;
-      running?: boolean;
-      agentAvailable?: boolean;
-    }[] = [];
-    let cursor: string | undefined;
-    for (let page = 0; page < 20; page++) {
-      const value = unwrap(await this.remote.session.list(cursor ? { cursor } : {})) as {
-        items?: typeof items;
-        cursor?: string;
-      };
-      items.push(...(value.items ?? []));
-      cursor = typeof value.cursor === "string" ? value.cursor : undefined;
-      if (!cursor) break;
-    }
-    return items.map((item) => ({
-      sessionId: String(item.sessionId),
-      ...(typeof item.cwd === "string" ? { cwd: item.cwd } : {}),
-      blank: item.blank === true,
-      updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : 0,
-      running: item.running === true,
-      ...(typeof item.agentAvailable === "boolean" ? { agentAvailable: item.agentAvailable } : {}),
-    }));
+    return { sessionId: String(sessionId) };
   }
 
   async selectModel(request: {
@@ -681,7 +553,6 @@ export class Connection {
    * this deployment does not compose — the Inspector hides those rows.
    */
   async sessionUsage(sessionId: string): Promise<SessionUsage> {
-    this.scope(sessionId);
     const value = unwrap(
       await this.remote.session.projections({
         sessionId: sessionId as SessionProjectionsRequest["sessionId"],
@@ -707,7 +578,6 @@ export class Connection {
 
   /** The user-invocable skills of one Session's composition (`skills.list`). */
   async listSkills(sessionId: string): Promise<SkillSummary[]> {
-    this.scope(sessionId);
     const value = unwrap(await this.remote.skills.list({ sessionId })) as {
       skills?: readonly Record<string, unknown>[];
     };
@@ -728,7 +598,6 @@ export class Connection {
 
   /** Run one slash command (the Inspector's Compact runs `/compact`). */
   async executeCommand(sessionId: string, line: string): Promise<CommandOutcome> {
-    this.scope(sessionId);
     const value = unwrap(await this.remote.commands.execute(sessionId, line, [])) as
       | { result?: { kind?: string; text?: string } }
       | undefined;
@@ -801,71 +670,6 @@ export class Connection {
     };
   }
 
-  async prompt(request: {
-    sessionId: string;
-    requestId: string;
-    text?: string;
-    content?: readonly PromptContentPart[];
-  }): Promise<void> {
-    const content: readonly PromptContentPart[] =
-      request.content ??
-      ([{ type: "text", text: request.text ?? "" }] satisfies PromptContentPart[]);
-    unwrap(
-      await this.remote.session.prompt({
-        sessionId: request.sessionId,
-        requestId: request.requestId,
-        mode: "queue",
-        content,
-      }),
-    );
-  }
-
-  async cancel(sessionId: string): Promise<void> {
-    unwrap(await this.remote.session.cancel({ sessionId }));
-  }
-
-  /** Mutate a still-pending queue item (e.g. withdraw with `{ kind: "remove" }`). */
-  async updateQueue(request: SessionUpdateQueueRequest): Promise<void> {
-    unwrap(await this.remote.session.updateQueue(request));
-  }
-
-  /** One backwards page of durable history (`session.events`, before `beforeSeq`). */
-  async sessionPage(request: {
-    sessionId: string;
-    beforeSeq: number;
-  }): Promise<{ records: unknown[]; hasMore: boolean }> {
-    this.scope(request.sessionId);
-    const value = unwrap(
-      await this.remote.session.events({
-        address: { kind: "session", sessionId: request.sessionId } as SessionPageRequest["address"],
-        beforeSeq: request.beforeSeq as SessionPageRequest["beforeSeq"],
-      }),
-    ) as { records?: readonly unknown[]; hasMore?: boolean };
-    return { records: [...(value.records ?? [])], hasMore: value.hasMore === true };
-  }
-
-  /** The prompts a live Agent still holds, as `session.state` reports them. */
-  async sessionQueue(
-    sessionId: string,
-  ): Promise<{ id: string; requestId?: string; text: string }[]> {
-    this.scope(sessionId);
-    const value = unwrap(
-      await this.remote.session.state({ sessionId: sessionId as SessionStateRequest["sessionId"] }),
-    ) as { queue?: readonly Record<string, unknown>[] | null };
-    const queue = value.queue ?? [];
-    const items: { id: string; requestId?: string; text: string }[] = [];
-    for (const item of queue) {
-      const id = typeof item.id === "string" ? item.id : "";
-      if (!id) continue;
-      items.push({
-        id,
-        ...(typeof item.rpcId === "string" ? { requestId: item.rpcId } : {}),
-        text: queueText(item.content),
-      });
-    }
-    return items;
-  }
-
   /** The Session's own title, so dsh and the Client agree on it. */
   async renameSession(sessionId: string, title: string): Promise<void> {
     unwrap(
@@ -874,14 +678,6 @@ export class Connection {
         title,
       }),
     );
-  }
-
-  async withdrawQueuedPrompt(sessionId: string, itemId: string): Promise<void> {
-    await this.updateQueue({
-      sessionId: sessionId as SessionUpdateQueueRequest["sessionId"],
-      itemId: itemId as SessionUpdateQueueRequest["itemId"],
-      action: { kind: "remove" },
-    });
   }
 
   /** Native directory picker; returns absolute path or null if cancelled. */
@@ -913,7 +709,6 @@ export class Connection {
     data: string;
     name?: string;
   }): Promise<{ receiptId: string }> {
-    this.scope(request.sessionId);
     const value = unwrap(
       await this.remote.fileUploads.upload(request.sessionId, {
         data: request.data,
@@ -928,7 +723,6 @@ export class Connection {
     sessionId: string;
     attachment: ImageAttachmentRef;
   }): Promise<SessionAttachmentValue> {
-    this.scope(request.sessionId);
     return unwrap(
       await this.remote.session.attachment({
         sessionId: request.sessionId,
@@ -937,73 +731,15 @@ export class Connection {
     ) as SessionAttachmentValue;
   }
 
-  /**
-   * Follow one Session; returns a disposer that stops only this stream.
-   * Concurrent follows each keep their own stream — a newer follow never
-   * drops an older one's frames.
-   */
-  follow(
-    sessionId: string,
-    onFrame: (frame: SessionFollowFrame) => void,
-    onError?: (error: Error) => void,
-  ): () => void {
-    if (!this.ctx) throw new Error("尚未连接后台");
-    this.scope(sessionId);
-    // `activate` requests background Agent activation for this Session (the
-    // official Web client always sends it); it is not view focus, so every
-    // followed Session may ask for it concurrently.
-    const stream = this.remote.session.follow({
-      address: { kind: "session", sessionId },
-      activate: true,
-      assistantStream: true,
-    });
-    let closed = false;
-    void (async () => {
+  private async answerApproval(ctx: any, request: ApprovalRequestEvent): Promise<ApprovalDecision> {
+    const sessionId = (() => {
       try {
-        for await (const frame of stream as AsyncIterable<SessionFollowFrame>) {
-          if (closed) return;
-          onFrame(frame);
-        }
-        if (!closed) {
-          onError?.(new Error("后台历史流已结束，正在重新连接。"));
-        }
-      } catch (error) {
-        if (!closed) {
-          onError?.(new Error(`后台历史流中断：${readableError(error)}`));
-        }
+        return ctx.sessions?.sessionOf?.(request.agent)?.sessionId as string | undefined;
+      } catch {
+        return undefined;
       }
     })();
-    return () => {
-      closed = true;
-      try {
-        stream.dispose();
-      } catch {
-        /* already closed */
-      }
-    };
-  }
-
-  private scope(sessionId: string): void {
-    if (this.scopes.has(sessionId) || !this.ctx) return;
-    const fiber = this.ctx.plugin(agentScope);
-    const identity = { sessionId };
-    const agent = (fiber as any).ctx.extend({
-      [agentTag]: sessionId,
-      [Context.filter](listener: any) {
-        return listener[agentTag] === undefined || listener[agentTag] === identity.sessionId;
-      },
-    });
-    this.scopes.set(sessionId, {
-      ctx: agent,
-      dispose: () => (fiber as any).dispose(),
-    });
-  }
-
-  private async answerApproval(
-    sessionId: string | undefined,
-    request: ApprovalRequestEvent,
-  ): Promise<ApprovalDecision> {
-    if (!sessionId || !this.scopes.has(sessionId)) return "unavailable";
+    if (!sessionId) return "unavailable";
     if (request.signal?.aborted) return "cancelled";
     if (!this.approval) return "unavailable";
     try {
@@ -1042,15 +778,6 @@ export class Connection {
     const ctx = this.ctx;
     this.ctx = undefined;
     this.ready = false;
-    const scopes = [...this.scopes.values()];
-    this.scopes.clear();
-    for (const scope of scopes) {
-      try {
-        await scope.dispose();
-      } catch {
-        /* already gone */
-      }
-    }
     if (ctx) await ctx.fiber.dispose().catch(() => undefined);
   }
 }

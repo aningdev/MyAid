@@ -28,7 +28,7 @@ MyAid 注册表  : Bot（identity / template / preset / 偏好）
 ## 考虑过的做法
 
 - **注册表继续存 path，Workspace 只是影子**：两处真源，dsh 的 title / 顺序 / 置顶 / 归档要么丢弃、要么再实现一遍。
-- **官方 `ClientWorkspaceModel`**：正确形态。它的纯 ESM 在 `lib/types/client/model.js`，但包的 `./client` 入口是浏览器 `__ModuleLoader__` 包装（`dsh-client-store` 本身已发布，为纯 ESM + zustand/immer）；官方 client model 计划在下一批一起装载，因此本批不直接 import，而是自己解码同样的 `workspace.follow` 帧（每代 baseline 开场、`updatedAt` 较新者胜），Remote 返回只作为调用结果、不写状态。下一批切换时删掉这份投影。
+- **官方 `ClientWorkspaceModel`**：正确形态，已采用（D2）。它的 `./client` 入口是浏览器 `__ModuleLoader__` 包装，`prepare:sdk` 现在把工厂主体展开成静态 ESM 装进同一条 Cordis Context（`ctx.workspaces`），产品只投影它的 snapshot；此前自解码 `workspace.follow` 帧的投影已删除。
 - **给 Dialogue 加 archived 位**：dsh 没有 Workspace 归档；为了产品手感造一个本地归档会与 Session 归档集合冲突（同一 Session 在两处被打标）。
 - **保留 cwd 传参**：`session.create` 接受 `workspaceId` 或 `cwd`，两者互斥；继续传 cwd 会让 Workspace 账本漏掉新 Session。
 

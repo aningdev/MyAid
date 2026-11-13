@@ -49,7 +49,7 @@ vp run @myaid/client#package:web
 - **Navigator**：左侧可收缩 `ResizablePanel`（默认 232，最小 160，最大 480）。顶行承接隐藏标题栏的拖拽；下面是过滤字段（`⌘F`）与 `nsh/base` Tree。depth 0 是分区（Favorites、Mail、Task、Knowledge、Bots、Dialogues、Spaces、Settings）；按叶子把 Nav address 开到活动 Panel，右键给该对象的动词。Bots / Dialogues 来自注册表，Favorites 是置顶地址，Settings 的叶子打开 Background Services；Mail / Task / Knowledge / Spaces 仍是停放 fixtures。
 - **Workbench**：`nsh/base` DockArea（center），Panel 可拆、缩放、放大、移动、关闭。layout、每个 Panel 的 Nav address、活动 Panel、Navigator 宽度与折叠分区从客户端偏好恢复；对象不在时地址解析为空 Panel。
 - **Panel 内容**：`session` → `SessionPanel` → `ChatPane`（标题、transcript、审批、composer）+ 可选 **Inspector**；`dialogue` → `DialoguePanel`；`bot` → `BotPanel`；`setting` → Background Services。空 Panel 在还没有 Bot 时显示欢迎页。
-- **运行态归属**：`SessionController` 持有一条 Session 的 follow 流、草稿、附件与审批队列。同一 Session 的两个 Panel 共用；两条 Session 可并行流式。Navigator 行显示执行中 / 未读 / 待审批状态点。
+- **运行态归属**：dsh 状态归官方 React-free client model（`ctx.sessions`：列表、事件窗口、follow、分页、prompt / queue / cancel、投影；`ctx.workspaces`：行、顺序、归档、置顶）。`SessionController` 只保留产品新增的部分——草稿、附件、审批展示、本地这一轮（`TurnProjection`）与 Panel 视图。同一 Session 的两个 Panel 共用；两条 Session（跨 Workspace）可并行流式。Navigator 行按这些 snapshot 显示执行中 / 未读 / 待审批状态点。
 - **New Bot**：一张 sheet（`features/bots/NewBotSheet.tsx`），Bots 分区 `+`、`⇧⌘N`、欢迎页与命令面板都开它。没有 Host 时先存 Bot；首个 Dialogue 需要 Host——Dialogue 建在 dsh Workspace 上（`workspace.create`），首条 Session 是 `session.create({ workspaceId })`。
 - **Inspector**：Session Panel 右侧窄栏（268–320），按 Panel 用 `⌥⌘I` 开关。Bot / Dialogue / Sessions / Deliverables / Usage；Compact 执行 `/compact`；Host 允许时工作区路径在 Finder 中显示。
 - **Bot Settings**：一张 sheet，四段 Profile / Runs with / Skills / Plugins。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成。能力变更在 preset writer 可用时派生 Bot 自己的 preset，否则如实说明写不了。
@@ -74,7 +74,7 @@ vp run @myaid/client#package:web
 ## 数据
 
 - 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 5 存 templates、Bots 与 Dialogues（`botId` + `workspaceId`）。v3 / v4 文件在连上 Host 前只读：迁移把每个 Dialogue 的 path、名字与 archived claim 交给 dsh Workspace（旧文件备份为 `bots.json.v4.bak`）。Identity 仍在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Dialogue 名、Session 顺序、置顶与归档归 dsh Workspace（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)）。
-- Workspace：`features/workspace` 在 `lib/dsh/workspace-frames` 校验 `workspace.follow` 的帧后投影成 signal；Remote 的返回不写这份状态。官方 `ClientWorkspaceModel` 的纯 ESM 在 `lib/types/client/model.js`，而 `./client` 入口是浏览器 ModuleLoader 包装；采用它要等下一批把官方 client model 一起装载。
+- Workspace 与 Session：官方 `ClientWorkspaceModel` / `ClientSessions` 装在 Connection 的 Cordis Context 上（`lib/dsh/connection.ts`），每个 Host generation 原子替换它们的 snapshot。`features/workspace` 与 `features/dialogue/session` 只把 snapshot 投影成 NSH signal；Remote 的返回不写这份状态。它们的浏览器 `__ModuleLoader__` 产物由 `prepare:sdk` 展开成静态 ESM（`lib/dsh/generated/`），因为 NSH 不运行字符串代码。
 - 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。覆盖 Navigator、Workbench 与 Favorites。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
 - `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md)。
 

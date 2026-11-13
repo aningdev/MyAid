@@ -1,21 +1,29 @@
 /**
- * Test-only entry: two Sessions' chats over a scripted transport, so the
- * transcript and the composer can be driven without a Host. `nsh test` opens
- * it; nothing in the product imports it.
+ * Test-only entry: two Sessions' chats over a scripted official Session model,
+ * so the transcript and the composer can be driven without a Host. `nsh test`
+ * opens it; nothing in the product imports it.
  *
  * A prompt's first word picks the script:
- * - "slow …": a reply that streams a word every 40 ms (Stop, queued prompts);
+ * - "slow …": a reply that streams a word every 300 ms (Stop, queued prompts);
  * - "tools …": a reply with three tool calls and their results;
  * - "long …": eighteen finished exchanges, to scroll a transcript;
  * - "numbered …": a reply that is one 22-item ordered list (marker width);
- * - "replay …": a turn the client missed: a snapshot with its finished
- *   exchange and no live frames;
+ * - "replay …": a turn the client missed: a window with its finished
+ *   exchange and no live chunks;
  * - anything else: a short reply, in three chunks.
  */
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 import { mount, signal, Text, View } from "nsh";
 
 import { Press } from "../../../components/ui";
+import {
+  assistantMessage,
+  durable,
+  liveChunk,
+  scriptedHost,
+  scriptedSessions,
+  userMessage,
+  type ScriptedSessions,
+} from "../../../test/sessions";
 import { workspaceProjection, workspaceRow } from "../../../test/workspaces";
 import {
   claimSession,
@@ -29,16 +37,8 @@ import {
 import { ready, registry } from "../../bots/state";
 import { workspaces } from "../../workspace/state";
 import { ChatPane } from "../ChatPane";
-import {
-  type ApprovalDecision,
-  type ApprovalRequest,
-  type FlatModelCatalog,
-  type SessionTransport,
-} from "../session/claimed";
+import type { SessionHost } from "../session/claimed";
 import { SessionRegistry } from "../session/controller";
-
-type Sink = (frame: SessionFollowFrame) => void;
-type Queued = { id: string; requestId: string; text: string };
 
 const BOT = "bot";
 const DIALOGUE = "dlg";
@@ -95,21 +95,15 @@ function harnessRegistry(): BotRegistry {
   );
 }
 
-/** A transport that answers a prompt with a script, and queues the rest. */
-function scriptedTransport(): SessionTransport {
-  const sinks = new Map<string, Sink[]>();
-  const queues = new Map<string, Queued[]>();
+/** A scripted Session model that answers a prompt with a script, and queues the rest. */
+function scriptedChat(): { sessions: ScriptedSessions; host: SessionHost } {
+  const sessions = scriptedSessions([FIRST, SECOND]);
+  const host = scriptedHost(sessions);
+  const running = new Set<string>();
   const timers = new Map<string, ReturnType<typeof setInterval>>();
   const seqs = new Map<string, number>();
-  let items = 0;
-
-  // Frames arrive on their own tick, as a real follow stream does: delivering
-  // one inside `prompt` or `cancel` would run the Pane's effects mid-call.
-  const emit = (sessionId: string, value: unknown) => {
-    queueMicrotask(() => {
-      for (const sink of sinks.get(sessionId) ?? []) sink(value as SessionFollowFrame);
-    });
-  };
+  const queues = new Map<string, { id: string; rpcId: string; text: string }[]>();
+  let queuedItems = 0;
 
   const seqOf = (sessionId: string) => {
     const next = (seqs.get(sessionId) ?? 0) + 1;
@@ -118,32 +112,32 @@ function scriptedTransport(): SessionTransport {
   };
 
   const event = (sessionId: string, type: string, data: unknown = {}) =>
-    emit(sessionId, {
-      type: "event",
-      event: { seq: seqOf(sessionId), type, time: Date.now(), data },
+    sessions.update(sessionId, {
+      kind: "append",
+      entry: durable(seqOf(sessionId), type, data as Record<string, unknown>),
     });
 
   const chunk = (sessionId: string, text: string) =>
-    emit(sessionId, {
-      type: "assistant-stream",
-      frame: {
-        type: "chunk",
-        attemptId: "a1",
-        revision: 1,
-        index: seqOf(sessionId),
-        time: Date.now(),
-        chunk: { type: "text-delta", text },
-      },
+    sessions.update(sessionId, {
+      kind: "append",
+      entry: liveChunk(seqOf(sessionId), "a1", text),
     });
 
   const finish = (sessionId: string, text: string) => {
     timers.delete(sessionId);
-    event(sessionId, "assistant/message", { message: { content: [{ type: "text", text }] } });
+    running.delete(sessionId);
+    sessions.update(sessionId, {
+      kind: "append",
+      entry: assistantMessage(seqOf(sessionId), text),
+    });
     event(sessionId, "turn/end", { reason: { kind: "completed" } });
+    sessions.running(sessionId, false);
   };
 
   const run = (sessionId: string, text: string) => {
     const first = text.split(/\s+/)[0] ?? "";
+    running.add(sessionId);
+    sessions.running(sessionId, true);
     if (first === "tools") {
       for (const [index, name] of ["read_file", "grep", "run"].entries()) {
         event(sessionId, "tool/call", {
@@ -158,55 +152,48 @@ function scriptedTransport(): SessionTransport {
           },
         });
       }
-      event(sessionId, "assistant/message", {
-        message: {
-          content: [
-            { type: "reasoning", text: "I should look at three files." },
-            { type: "tool-call", id: "t0", name: "read_file", arguments: '{"path":"file-0.ts"}' },
-            { type: "tool-call", id: "t1", name: "grep", arguments: '{"pattern":"answer"}' },
-            { type: "tool-call", id: "t2", name: "run", arguments: '{"script":"bun test"}' },
-            { type: "text", text: "Read three files. **Done.**" },
-          ],
-        },
+      sessions.update(sessionId, {
+        kind: "append",
+        entry: durable(seqOf(sessionId), "assistant/message", {
+          message: {
+            content: [
+              { type: "reasoning", text: "I should look at three files." },
+              { type: "tool-call", id: "t0", name: "read_file", arguments: '{"path":"file-0.ts"}' },
+              { type: "tool-call", id: "t1", name: "grep", arguments: '{"pattern":"answer"}' },
+              { type: "tool-call", id: "t2", name: "run", arguments: '{"script":"bun test"}' },
+              { type: "text", text: "Read three files. **Done.**" },
+            ],
+          },
+        }),
       });
       event(sessionId, "turn/end", { reason: { kind: "completed" } });
+      running.delete(sessionId);
+      sessions.running(sessionId, false);
       return;
     }
     if (first === "numbered") {
-      event(sessionId, "assistant/message", {
-        message: { content: [{ type: "text", text: NUMBERED }] },
+      sessions.update(sessionId, {
+        kind: "append",
+        entry: assistantMessage(seqOf(sessionId), NUMBERED),
       });
       event(sessionId, "turn/end", { reason: { kind: "completed" } });
+      running.delete(sessionId);
+      sessions.running(sessionId, false);
       return;
     }
     if (first === "replay") {
-      // The follow stream recovered after the turn: one snapshot holds the
-      // finished exchange, with no active attempt and no live frames.
-      emit(sessionId, {
-        type: "snapshot",
-        hasMore: false,
-        records: [
-          {
-            type: "event",
-            event: {
-              seq: seqOf(sessionId),
-              type: "user/message",
-              time: Date.now(),
-              data: { content: text, source: { kind: "user" } },
-            },
-          },
-          {
-            type: "event",
-            event: {
-              seq: seqOf(sessionId),
-              type: "assistant/message",
-              time: Date.now(),
-              data: { message: { content: [{ type: "text", text: "Replayed answer." }] } },
-            },
-          },
+      // The window recovered after the turn: one replacement holds the
+      // finished exchange, with no active attempt and no live chunks.
+      sessions.update(sessionId, {
+        kind: "replace",
+        entries: [
+          userMessage(seqOf(sessionId), text),
+          assistantMessage(seqOf(sessionId), "Replayed answer."),
         ],
-        assistantStream: {},
+        hasMore: false,
       });
+      running.delete(sessionId);
+      sessions.running(sessionId, false);
       return;
     }
     if (first === "huge") {
@@ -217,10 +204,13 @@ function scriptedTransport(): SessionTransport {
         );
       }
       const few = paragraphs.slice(0, 4).join("\n\n");
-      event(sessionId, "assistant/message", {
-        message: { content: [{ type: "text", text: `${few}\n\n${paragraphs.join("\n\n")}` }] },
+      sessions.update(sessionId, {
+        kind: "append",
+        entry: assistantMessage(seqOf(sessionId), `${few}\n\n${paragraphs.join("\n\n")}`),
       });
       event(sessionId, "turn/end", { reason: { kind: "completed" } });
+      running.delete(sessionId);
+      sessions.running(sessionId, false);
       return;
     }
     if (first === "long") {
@@ -229,15 +219,12 @@ function scriptedTransport(): SessionTransport {
           content: `question ${index}`,
           source: { kind: "user" },
         });
-        event(sessionId, "assistant/message", {
-          message: {
-            content: [
-              {
-                type: "text",
-                text: `Answer ${index}.\n\n\`\`\`ts\nconst answer${index} = ${index};\n\`\`\``,
-              },
-            ],
-          },
+        sessions.update(sessionId, {
+          kind: "append",
+          entry: assistantMessage(
+            seqOf(sessionId),
+            `Answer ${index}.\n\n\`\`\`ts\nconst answer${index} = ${index};\n\`\`\``,
+          ),
         });
       }
       finish(sessionId, "That is the whole thread.");
@@ -245,116 +232,56 @@ function scriptedTransport(): SessionTransport {
     }
     const slow = first === "slow";
     const words = slow ? SLOW_WORDS : ["Done", "with", "that", "."];
-    emit(sessionId, {
-      type: "assistant-stream",
-      frame: {
-        type: "start",
-        attemptId: "a1",
-        revision: 1,
-        startedAfterSeq: 0,
-        turn: 1,
-        step: 1,
-        nextIndex: 0,
-      },
-    });
     // The first word lands with the send, so a reply is on screen while the
     // rest streams (and while Stop is pressed).
-    chunk(sessionId, words[0]);
+    chunk(sessionId, words[0] as string);
     let index = 1;
-    if (slow) {
-      const timer = setInterval(() => {
-        if (index >= words.length) return;
+    const timer = setInterval(
+      () => {
+        if (index >= words.length) {
+          if (!slow) finish(sessionId, words.join(" "));
+          return;
+        }
         chunk(sessionId, ` ${words[index]}`);
         index += 1;
-      }, 300);
-      timers.set(sessionId, timer);
-      return;
-    }
-    const timer = setInterval(() => {
-      if (index >= words.length) {
-        clearInterval(timer);
-        finish(sessionId, words.join(" "));
-        return;
-      }
-      chunk(sessionId, ` ${words[index]}`);
-      index += 1;
-    }, 120);
+      },
+      slow ? 300 : 120,
+    );
     timers.set(sessionId, timer);
   };
 
-  return {
-    ready: true,
-    createSession: async () => ({ sessionId: "new-session" }),
-    listSessions: async () => [
-      { sessionId: FIRST, blank: false, updatedAt: 1 },
-      { sessionId: SECOND, blank: false, updatedAt: 2 },
-    ],
-    follow: (sessionId, onFrame) => {
-      sinks.set(sessionId, [...(sinks.get(sessionId) ?? []), onFrame]);
-      return () => {
-        sinks.set(
-          sessionId,
-          (sinks.get(sessionId) ?? []).filter((sink) => sink !== onFrame),
-        );
-      };
-    },
-    sessionPage: async () => ({ records: [], hasMore: false }),
-    sessionQueue: async (sessionId) => queues.get(sessionId) ?? [],
-    prompt: async (request) => {
-      const text = request.text ?? contentText(request.content);
-      if (timers.has(request.sessionId)) {
-        queues.set(request.sessionId, [
-          ...(queues.get(request.sessionId) ?? []),
-          { id: `item-${++items}`, requestId: request.requestId, text },
-        ]);
-        return;
-      }
-      // A replayed turn is one the client did not see run: its snapshot alone
-      // reports it, as a follow stream that reconnected after the turn does.
-      if (text.trim().split(/\s+/)[0] === "replay") {
-        run(request.sessionId, text);
-        return;
-      }
-      event(request.sessionId, "user/message", { content: text, source: { kind: "user" } });
-      event(request.sessionId, "turn/start");
-      run(request.sessionId, text);
-    },
-    cancel: async (sessionId) => {
-      const timer = timers.get(sessionId);
-      if (timer !== undefined) clearInterval(timer);
-      timers.delete(sessionId);
-      event(sessionId, "turn/end", { reason: { kind: "interrupted" } });
-    },
-    withdrawQueuedPrompt: async (sessionId, itemId) => {
-      queues.set(
-        sessionId,
-        (queues.get(sessionId) ?? []).filter((item) => item.id !== itemId),
-      );
-    },
-    renameSession: async () => undefined,
-    uploadFile: async () => ({ receiptId: "receipt" }),
-    modelCatalog: async () =>
-      ({
-        default: { provider: "p", model: "m" },
-        models: [{ provider: "p", providerName: "P", model: "m", name: "Model M" }],
-        failures: [],
-      }) satisfies FlatModelCatalog,
-    selectModel: async () => undefined,
-    selectAgentPreset: async () => "standard",
-    approvals: (_handler: (request: ApprovalRequest) => Promise<ApprovalDecision>) => undefined,
-    dispose: async () => undefined,
+  sessions.onCancel = (sessionId) => {
+    const timer = timers.get(sessionId);
+    if (timer !== undefined) clearInterval(timer);
+    timers.delete(sessionId);
+    if (!running.has(sessionId)) return;
+    running.delete(sessionId);
+    event(sessionId, "turn/end", { reason: { kind: "interrupted" } });
+    sessions.running(sessionId, false);
   };
-}
 
-/** The text parts of a prompt's content, as the Pane sends them. */
-function contentText(content: readonly unknown[] | undefined): string {
-  if (!content) return "";
-  return content
-    .map((part) => {
-      const block = part as { type?: string; text?: string };
-      return block.type === "text" ? (block.text ?? "") : "";
-    })
-    .join(" ");
+  sessions.onPrompt = (prompt) => {
+    if (running.has(prompt.sessionId)) {
+      const pending = [
+        ...(queues.get(prompt.sessionId) ?? []),
+        { id: `item-${++queuedItems}`, rpcId: prompt.requestId, text: prompt.text },
+      ];
+      queues.set(prompt.sessionId, pending);
+      sessions.inbox(prompt.sessionId, pending);
+      return;
+    }
+    if (prompt.text.trim().split(/\s+/)[0] === "replay") {
+      run(prompt.sessionId, prompt.text);
+      return;
+    }
+    event(prompt.sessionId, "user/message", {
+      content: prompt.text,
+      source: { kind: "user", rpcId: prompt.requestId },
+    });
+    run(prompt.sessionId, prompt.text);
+  };
+
+  return { sessions, host };
 }
 
 function Harness() {
@@ -366,14 +293,18 @@ function Harness() {
     }),
   );
 
-  const transport = scriptedTransport();
+  const { sessions, host } = scriptedChat();
   const controllers = new SessionRegistry({
-    ensureTransport: async () => transport,
-    transport: () => transport,
+    ensureHost: async () => host,
+    host: () => host,
     registry: () => registry(),
     sessionArchived: () => false,
     summaries: () => new Map(),
     onChange: () => undefined,
+    onView: (sessionId, view) => {
+      const user = view.messages.find((message) => message.kind === "user" && message.text);
+      if (user) sessions.row(sessionId, { blank: false });
+    },
   });
   const first = controllers.controllerFor(FIRST);
   const second = controllers.controllerFor(SECOND);

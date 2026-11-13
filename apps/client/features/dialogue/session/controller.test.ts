@@ -1,6 +1,19 @@
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+/**
+ * One SessionController over a scripted official Session model: concurrent
+ * windows, approvals, lazy removal, unread, the same-workspace guard, prompt
+ * routing, per-Session drafts, the queued prompt, older history, and a
+ * reconnect that replaces the window instead of duplicating it.
+ */
 import { expect, test } from "nsh/test";
 
+import {
+  scriptedHost,
+  scriptedSessions,
+  assistantMessage,
+  durable,
+  liveChunk,
+  userMessage,
+} from "../../../test/sessions";
 import {
   claimSession,
   createBot,
@@ -10,12 +23,6 @@ import {
   initializeBot,
   type BotRegistry,
 } from "../../bots/model";
-import {
-  type ApprovalDecision,
-  type ApprovalRequest,
-  type FlatModelCatalog,
-  type SessionTransport,
-} from "./claimed";
 import { SessionRegistry } from "./controller";
 
 function readyRegistry(): BotRegistry {
@@ -25,7 +32,7 @@ function readyRegistry(): BotRegistry {
         initializeBot(
           createBot(
             createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-            { name: "Ada", templateId: "tmpl" },
+            { name: "Ada", templateId: "tmpl", defaultModel: "p/m" },
             "bot",
           ),
           "bot",
@@ -41,82 +48,13 @@ function readyRegistry(): BotRegistry {
   );
 }
 
-type Stream = {
-  closed: boolean;
-  onFrame: (frame: SessionFollowFrame) => void;
-  onError?: (error: Error) => void;
-};
-
-function fakeTransport(): SessionTransport & {
-  streams: Map<string, Stream[]>;
-  prompts: string[];
-  push(sessionId: string, frame: unknown): void;
-  closed(sessionId: string): number;
-  fail(sessionId: string, error: Error): void;
-} {
-  const streams = new Map<string, Stream[]>();
-  const prompts: string[] = [];
-  const transport: SessionTransport & {
-    streams: Map<string, Stream[]>;
-    prompts: string[];
-    push(sessionId: string, frame: unknown): void;
-    closed(sessionId: string): number;
-    fail(sessionId: string, error: Error): void;
-  } = {
-    ready: true,
-    streams,
-    prompts,
-    createSession: async () => ({ sessionId: "new-session" }),
-    listSessions: async () => [],
-    sessionPage: async () => ({ records: [], hasMore: false }),
-    sessionQueue: async () => [],
-    renameSession: async () => undefined,
-    uploadFile: async () => ({ receiptId: "receipt" }),
-    follow: (sessionId, onFrame, onError) => {
-      const stream: Stream = { closed: false, onFrame, onError };
-      streams.set(sessionId, [...(streams.get(sessionId) ?? []), stream]);
-      return () => {
-        stream.closed = true;
-      };
-    },
-    prompt: async (request) => {
-      prompts.push(request.text ?? "");
-    },
-    cancel: async () => undefined,
-    withdrawQueuedPrompt: async () => undefined,
-    modelCatalog: async () =>
-      ({
-        default: { provider: "p", model: "m" },
-        models: [{ provider: "p", providerName: "P", model: "m", name: "M" }],
-        failures: [],
-      }) satisfies FlatModelCatalog,
-    selectModel: async () => undefined,
-    selectAgentPreset: async () => "standard",
-    approvals: (_handler: (request: ApprovalRequest) => Promise<ApprovalDecision>) => undefined,
-    dispose: async () => undefined,
-    push(sessionId, frame) {
-      for (const stream of streams.get(sessionId) ?? []) {
-        if (!stream.closed) stream.onFrame(frame as SessionFollowFrame);
-      }
-    },
-    closed(sessionId) {
-      return (streams.get(sessionId) ?? []).filter((stream) => stream.closed).length;
-    },
-    fail(sessionId, error) {
-      for (const stream of streams.get(sessionId) ?? []) {
-        if (!stream.closed) stream.onError?.(error);
-      }
-    },
-  };
-  return transport;
-}
-
 function setup(registry: BotRegistry = readyRegistry()) {
-  const transport = fakeTransport();
+  const sessions = scriptedSessions(["s1", "s2"]);
+  const host = scriptedHost(sessions);
   let changes = 0;
   const controllers = new SessionRegistry({
-    ensureTransport: async () => transport,
-    transport: () => transport,
+    ensureHost: async () => host,
+    host: () => host,
     registry: () => registry,
     sessionArchived: () => false,
     summaries: () => new Map(),
@@ -124,68 +62,38 @@ function setup(registry: BotRegistry = readyRegistry()) {
       changes += 1;
     },
   });
-  return { transport, controllers, changes: () => changes };
+  return { sessions, host, controllers, changes: () => changes };
 }
 
 async function settled(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function frame(value: unknown): SessionFollowFrame {
-  return value as SessionFollowFrame;
-}
-
-function snapshot(records: unknown[] = []): SessionFollowFrame {
-  return frame({ type: "snapshot", records });
-}
-
-function turnStart(seq: number): SessionFollowFrame {
-  return frame({ type: "event", event: { seq, type: "turn/start", data: {} } });
-}
-
-function turnEnd(seq: number): SessionFollowFrame {
-  return frame({
-    type: "event",
-    event: { seq, type: "turn/end", data: { reason: { kind: "completed" } } },
-  });
-}
-
-function userMessage(seq: number, text: string): SessionFollowFrame {
-  return frame({
-    type: "event",
-    event: {
-      seq,
-      type: "user/message",
-      data: { content: text, source: { kind: "user" } },
-    },
-  });
-}
-
-function chunk(text: string): SessionFollowFrame {
-  return frame({
-    type: "assistant-stream",
-    frame: { type: "chunk", chunk: { type: "text-delta", text } },
-  });
+/** Mount a controller and let its reference settle. */
+async function mounted(controllers: SessionRegistry, sessionId: string) {
+  const controller = controllers.controllerFor(sessionId);
+  controller.mount();
+  await settled();
+  return controller;
 }
 
 test("two Sessions stream concurrently into separate views", async () => {
-  const { transport, controllers } = setup();
-  const a = controllers.controllerFor("s1");
-  const b = controllers.controllerFor("s2");
-  a.mount();
-  b.mount();
-  await settled();
+  const { sessions, controllers } = setup();
+  const a = await mounted(controllers, "s1");
+  const b = await mounted(controllers, "s2");
 
-  transport.push("s1", snapshot());
-  transport.push("s2", snapshot());
-  transport.push("s1", userMessage(1, "alpha"));
-  transport.push("s2", userMessage(1, "beta"));
-  transport.push("s1", turnStart(2));
-  transport.push("s2", turnStart(2));
-  transport.push("s1", chunk("one "));
-  transport.push("s2", chunk("two "));
-  transport.push("s1", chunk("stream"));
-  transport.push("s2", chunk("stream"));
+  sessions.update("s1", { kind: "replace", entries: [userMessage(1, "alpha")], hasMore: false });
+  sessions.update("s2", { kind: "replace", entries: [userMessage(1, "beta")], hasMore: false });
+  sessions.running("s1", true);
+  sessions.running("s2", true);
+  for (const [sessionId, text] of [
+    ["s1", "one "],
+    ["s2", "two "],
+    ["s1", "stream"],
+    ["s2", "stream"],
+  ] as const) {
+    sessions.update(sessionId, { kind: "append", entry: liveChunk(10, sessionId, text) });
+  }
 
   expect(a.view().liveMd).toBe("one stream");
   expect(b.view().liveMd).toBe("two stream");
@@ -197,10 +105,8 @@ test("two Sessions stream concurrently into separate views", async () => {
 
 test("an approval reaches only its own Session", async () => {
   const { controllers } = setup();
-  const a = controllers.controllerFor("s1");
-  const b = controllers.controllerFor("s2");
-  a.mount();
-  b.mount();
+  const a = await mounted(controllers, "s1");
+  const b = await mounted(controllers, "s2");
 
   const decided = a.requestApproval({
     sessionId: "s1",
@@ -220,39 +126,33 @@ test("an approval reaches only its own Session", async () => {
 });
 
 test("an idle controller leaves when its Panel closes; a running one stays to finish", async () => {
-  const { transport, controllers } = setup();
-  const idle = controllers.controllerFor("s1");
-  idle.mount();
-  await settled();
+  const { sessions, controllers } = setup();
+  const idle = await mounted(controllers, "s1");
   idle.unmount();
+  // The release waits a tick: a Panel re-render unmounts and mounts again.
+  await settled();
   expect(idle.isDisposed).toBe(true);
   expect(controllers.peek("s1")).toBeUndefined();
 
-  const running = controllers.controllerFor("s1");
-  running.mount();
-  await settled();
-  transport.push("s1", snapshot());
-  transport.push("s1", turnStart(1));
+  const running = await mounted(controllers, "s1");
+  sessions.running("s1", true);
   running.unmount();
   expect(running.isDisposed).toBe(false);
   expect(controllers.peek("s1")).toBe(running);
 
-  transport.push("s1", turnEnd(2));
+  sessions.running("s1", false);
+  await settled();
   expect(running.isDisposed).toBe(true);
-  expect(transport.closed("s1")).toBeGreaterThan(0);
 });
 
 test("a reply that finishes off-screen is unread until a Panel shows it", async () => {
-  const { transport, controllers } = setup();
-  const controller = controllers.controllerFor("s1");
-  controller.mount();
-  await settled();
-  transport.push("s1", snapshot());
-  transport.push("s1", turnStart(1));
+  const { sessions, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
+  sessions.running("s1", true);
   controller.unmount();
   expect(controllers.statusOf("s1").running).toBe(true);
 
-  transport.push("s1", turnEnd(2));
+  sessions.running("s1", false);
   expect(controllers.statusOf("s1")).toEqual({
     running: false,
     unread: true,
@@ -265,29 +165,27 @@ test("a reply that finishes off-screen is unread until a Panel shows it", async 
 });
 
 test("a prompt is refused while another Session runs in the same workspace", async () => {
-  const { transport, controllers } = setup();
-  const running = controllers.controllerFor("s1");
-  running.mount();
-  await settled();
-  transport.push("s1", snapshot());
-  transport.push("s1", turnStart(1));
+  const { sessions, host, controllers } = setup();
+  const running = await mounted(controllers, "s1");
+  sessions.running("s1", true);
   expect(running.running()).toBe(true);
 
   const waiting = controllers.controllerFor("s2");
   await expect(waiting.prompt("hi")).rejects.toThrow(/占用/);
-  expect(transport.prompts).toEqual([]);
+  expect(host.selected.length).toBe(0);
 });
 
-test("prompt sends through the transport and starts following", async () => {
-  const { transport, controllers } = setup();
-  const controller = controllers.controllerFor("s1");
+test("prompt sends through the official Session and applies the Bot's model", async () => {
+  const { sessions, host, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
   const requestId = await controller.prompt("hello");
   expect(requestId.length).toBeGreaterThan(0);
-  expect(transport.prompts).toEqual(["hello"]);
-  expect(transport.closed("s1")).toBe(0);
+  expect(sessions.prompts.map((prompt) => prompt.text)).toEqual(["hello"]);
+  expect(sessions.prompts[0]?.requestId).toBe(requestId);
+  expect(host.selected).toEqual([{ sessionId: "s1", provider: "p", model: "m" }]);
 });
 
-test("two Panels on one Session share its controller and draft", () => {
+test("two Panels on one Session share its controller and draft", async () => {
   const { controllers } = setup();
   const first = controllers.controllerFor("s1");
   const second = controllers.controllerFor("s1");
@@ -296,31 +194,33 @@ test("two Panels on one Session share its controller and draft", () => {
   expect(second.draft()).toBe("half written");
 });
 
-test("connection loss marks the error, and reconnect re-follows a shown Session", async () => {
-  const { transport, controllers } = setup();
-  const controller = controllers.controllerFor("s1");
-  controller.mount();
-  await settled();
-  transport.push("s1", snapshot());
-  transport.push("s1", turnStart(1));
-  expect(transport.closed("s1")).toBe(0);
+test("a new Host generation re-reads the window without duplicating it", async () => {
+  const { sessions, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
+  sessions.update("s1", { kind: "replace", entries: [userMessage(1, "hi")], hasMore: false });
+  sessions.running("s1", true);
+  expect(controller.view().messages.length).toBe(1);
 
-  controllers.connectionLost();
-  expect(controller.error()).toContain("断开");
+  // The stream dropped: the official model keeps the last window published.
+  expect(controller.running()).toBe(true);
+
+  // A new generation replaces the window atomically, with the finished turn.
+  sessions.update("s1", {
+    kind: "replace",
+    entries: [userMessage(1, "hi"), assistantMessage(2, "hello there")],
+    hasMore: false,
+  });
+  sessions.running("s1", false);
+  controllers.reattach();
+  await settled();
+  expect(controller.view().messages.map((message) => message.kind)).toEqual(["user", "assistant"]);
   expect(controller.running()).toBe(false);
-  expect(transport.closed("s1")).toBe(1);
-
-  controllers.connectionRestored();
-  await settled();
   expect(controller.error()).toBe(null);
-  expect(transport.closed("s1")).toBe(1);
-  expect((transport.streams.get("s1") ?? []).length).toBe(2);
 });
 
-test("the draft and its files stay with the Session while Panels come and go", () => {
+test("the draft and its files stay with the Session while Panels come and go", async () => {
   const { controllers } = setup();
-  const controller = controllers.controllerFor("s1");
-  controller.mount();
+  const controller = await mounted(controllers, "s1");
   controller.setDraft("half a thought");
   controller.attachFile(new Blob([new Uint8Array(2048)], { type: "image/png" }));
   const [attachment] = controller.draftAttachments();
@@ -339,65 +239,42 @@ test("the draft and its files stay with the Session while Panels come and go", (
 });
 
 test("a prompt sent while the turn runs queues in dsh, and can be withdrawn", async () => {
-  const { transport, controllers } = setup();
-  const controller = controllers.controllerFor("s1");
-  controller.mount();
-  await settled();
-  transport.push("s1", snapshot());
-  transport.push("s1", turnStart(1));
+  const { sessions, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
+  sessions.running("s1", true);
   expect(controller.running()).toBe(true);
 
-  const items: { id: string; requestId?: string; text: string }[] = [];
-  transport.sessionQueue = async () => items;
-  transport.prompt = async (request) => {
-    items.push({ id: "item-1", requestId: request.requestId, text: request.text ?? "" });
-  };
   await controller.queuePrompt("and one more");
   expect(controller.queued().map((item) => item.text)).toEqual(["and one more"]);
 
-  await controller.refreshQueue();
+  // dsh admits it: the inbox projection names the item to withdraw.
+  sessions.inbox("s1", [
+    { id: "item-1", rpcId: sessions.prompts[0]?.requestId, text: "and one more" },
+  ]);
   expect(controller.queued()[0]).toMatchObject({ itemId: "item-1", text: "and one more" });
+  expect(controller.queued().length).toBe(1);
 
-  const withdrawn: string[] = [];
-  transport.withdrawQueuedPrompt = async (_sessionId, itemId) => {
-    withdrawn.push(itemId);
-  };
-  const requestId = controller.queued()[0].requestId;
-  items.length = 0;
+  const requestId = controller.queued()[0]!.requestId;
   await controller.withdrawQueued(requestId);
-  expect(withdrawn).toEqual(["item-1"]);
+  expect(sessions.queueEdits).toEqual([
+    { sessionId: "s1", itemId: "item-1", action: { kind: "remove" } },
+  ]);
   expect(controller.queued().length).toBe(0);
 });
 
-test("older history is read from the page before the follow window", async () => {
-  const { transport, controllers } = setup();
-  const controller = controllers.controllerFor("s1");
-  controller.mount();
-  await settled();
-  transport.push(
-    "s1",
-    frame({
-      type: "snapshot",
-      hasMore: true,
-      records: [
-        { type: "event", event: { seq: 10, type: "user/message", data: { content: "newer" } } },
-      ],
-    }),
-  );
+test("older history is read with the official loadOlder and lands above the window", async () => {
+  const { sessions, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
+  sessions.update("s1", {
+    kind: "replace",
+    entries: [userMessage(10, "newer")],
+    hasMore: true,
+  });
   expect(controller.view().olderHasMore).toBe(true);
 
-  const asked: number[] = [];
-  transport.sessionPage = async (request) => {
-    asked.push(request.beforeSeq);
-    return {
-      records: [
-        { type: "event", event: { seq: 3, type: "user/message", data: { content: "older" } } },
-      ],
-      hasMore: false,
-    };
-  };
+  sessions.older("s1", { entries: [userMessage(3, "older")], hasMore: false });
   await controller.loadOlder();
-  expect(asked).toEqual([10]);
+  expect(sessions.olderLoads).toEqual(["s1"]);
   expect(
     controller.view().messages.map((message) => message.kind === "user" && message.text),
   ).toEqual(["older", "newer"]);
@@ -405,37 +282,37 @@ test("older history is read from the page before the follow window", async () =>
   expect(controller.olderLoading()).toBe(false);
 });
 
-test("a follow stream that drops mid-turn is re-followed and the turn settles", async () => {
-  const { transport, controllers } = setup();
-  const controller = controllers.controllerFor("s1");
-  controller.mount();
-  await settled();
-  transport.push("s1", snapshot());
-  transport.push("s1", turnStart(1));
-  expect(controller.running()).toBe(true);
+test("a turn only a replaced window reports settles the local bubble", async () => {
+  const { sessions, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
+  controller.beginLocalTurn("live-1");
+  const requestId = await controller.prompt("replay please");
 
-  // The Host dropped the stream mid-turn (the mux heartbeat, a stalled read):
-  // the controller says so, then re-opens the follow by itself.
-  transport.fail("s1", new Error("后台历史流中断"));
-  expect(controller.error()).toBe("后台历史流中断");
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  expect(transport.streams.get("s1")?.length).toBe(2);
-  // Re-following is not itself an error: the notice went with the retry.
-  expect(controller.error()).toBe(null);
-
-  // The recovered stream's snapshot holds the finished exchange.
-  transport.push(
-    "s1",
-    snapshot([
-      { seq: 1, type: "user/message", data: { content: "hi", source: { kind: "user" } } },
-      {
-        seq: 2,
-        type: "assistant/message",
-        data: { message: { content: [{ type: "text", text: "hello there" }] } },
-      },
-    ]),
-  );
+  // The reply arrives with a replaced window, never as a live chunk.
+  sessions.update("s1", {
+    kind: "replace",
+    entries: [userMessage(1, "replay please", requestId), assistantMessage(2, "Replayed answer.")],
+    hasMore: false,
+  });
+  expect(controller.view().liveId).toBe(null);
+  expect(controller.view().pendingFreeze).toMatchObject({ status: "done" });
   expect(controller.view().messages.map((message) => message.kind)).toEqual(["user", "assistant"]);
+});
+
+test("a queued prompt is withdrawn by request id before dsh admits it", async () => {
+  const { sessions, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
+  await controller.queuePrompt("drop me");
+  const requestId = controller.queued()[0]!.requestId;
+  await controller.withdrawQueued(requestId);
+  expect(controller.queued().length).toBe(0);
+  expect(sessions.queueEdits).toEqual([]);
+});
+
+test("the same Session read twice keeps one reference and one window", async () => {
+  const { sessions, controllers } = setup();
+  const controller = await mounted(controllers, "s1");
+  sessions.update("s1", { kind: "replace", entries: [durable(1, "turn/start")], hasMore: false });
+  expect(controller.view().messages.length).toBe(0);
   expect(controller.running()).toBe(false);
-  expect(transport.streams.get("s1")?.length).toBe(2);
 });

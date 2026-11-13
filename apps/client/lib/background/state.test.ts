@@ -1,9 +1,9 @@
 import { platform } from "nsh";
 import { expect, test } from "nsh/test";
 
+import { setBackgroundOrchestration, type BackgroundRegistrationClient } from "./orchestration";
 import { backgroundServicesRunnable } from "./protocol";
 import type { RegistrationSnapshot } from "./protocol";
-import { setBackgroundOrchestration, type BackgroundRegistrationClient } from "./orchestration";
 import {
   enableBackgroundFromState,
   productBackgroundState,

@@ -1,10 +1,12 @@
 /**
- * Dialogue Session runtime: the shared Host connection, the SessionRoster and
- * the per-Session controllers. A Panel reads its own SessionController; a
- * reply keeps streaming when that Panel is gone (controllers for running
- * Sessions stay alive, and mark the Session unread when the reply lands).
+ * Dialogue Session runtime: the shared Connection, the official Client models
+ * it installs, and the per-Session controllers. A Panel reads its own
+ * SessionController; a reply keeps streaming when that Panel is gone
+ * (controllers for running Sessions stay alive, and mark the Session unread
+ * when the reply lands).
  * Host control + official dsh SDK load lazily so AppShell / Today stay free.
  */
+import type { ISessions, SessionListState, SessionSummary } from "@myaid/dsh-web-protocol/client";
 import { computed, signal, untracked } from "nsh";
 
 import {
@@ -29,7 +31,7 @@ import {
   type ApprovalRequest,
   type FlatModelCatalog,
   type ModelCatalog,
-  type SessionTransport,
+  type SessionHost,
 } from "./claimed";
 import { SessionRegistry, type SessionController } from "./controller";
 import {
@@ -76,11 +78,12 @@ const summaries = new Map<string, string>();
 const rosterBase = signal<SessionRow[]>([]);
 /** Controller membership / unread / running / approval changed. */
 const changeTick = signal(0);
+/** The official list's rows; the roster joins them with the claims. */
 let listedSessions: ListedSession[] | null = null;
 
 const sessionControllers = new SessionRegistry({
-  ensureTransport: () => connectTransport(),
-  transport: () => claimed?.getTransport(),
+  ensureHost: () => connectHost(),
+  host: () => claimed?.getHost(),
   registry: () => untracked(registry),
   sessionArchived: (sessionId) => isSessionArchived(untracked(workspaces), sessionId),
   summaries: () => summaries,
@@ -112,6 +115,8 @@ let claimed: ClaimedSessionClient | undefined;
 let connectWork: Promise<void> | undefined;
 let dsh: DshSession | undefined;
 let host: HostControlApi | undefined;
+/** Stop the official list subscription when the Connection goes away. */
+let stopList: (() => void) | undefined;
 
 async function loadDsh(): Promise<DshSession> {
   if (!dsh) dsh = await import("../../../lib/dsh/session");
@@ -175,7 +180,7 @@ async function nameFromPrompt(sessionId: string, text: string): Promise<void> {
   if (!saved) return;
   await refreshSessionList().catch(() => undefined);
   void claimed
-    ?.getTransport()
+    ?.getHost()
     ?.renameSession(sessionId, title)
     .catch(() => undefined);
 }
@@ -201,6 +206,23 @@ export async function refreshHostStatus(): Promise<HostStatus | null> {
   }
 }
 
+/** The official list rows as the roster reads them. */
+function listed(state: SessionListState | null): ListedSession[] | null {
+  if (!state || state.phase !== "ready") return null;
+  const rows: ListedSession[] = [];
+  for (const id of state.ids) {
+    const row: SessionSummary | undefined = state.byId[id];
+    if (!row) continue;
+    rows.push({
+      sessionId: row.id,
+      blank: row.blank,
+      updatedAt: row.updatedAt,
+      running: row.running,
+    });
+  }
+  return rows;
+}
+
 function rebuildRoster(): void {
   rosterBase.set(
     buildSessionRoster({
@@ -212,39 +234,52 @@ function rebuildRoster(): void {
   );
 }
 
+/** Re-read the official Session list, then rebuild the Navigator's rows. */
 export async function refreshSessionList(): Promise<SessionRow[]> {
-  try {
-    const transport = claimed?.getTransport();
-    if (transport?.ready) listedSessions = await transport.listSessions();
-    else listedSessions = null;
-  } catch {
+  const model = claimed?.getHost()?.sessions;
+  if (model) {
+    await model.refresh().catch(() => undefined);
+    listedSessions = listed(model.list.getSnapshot());
+  } else {
     listedSessions = null;
   }
   rebuildRoster();
   return untracked(sessionList);
 }
 
-function wrapConnection(
-  connection: import("../../../lib/dsh/connection").Connection,
-): SessionTransport {
+/** Follow the official list: creates, removes and Host status land here. */
+function watchSessionList(model: ISessions): void {
+  stopList?.();
+  const source = model.list;
+  const read = () => {
+    const next = listed(source.getSnapshot());
+    listedSessions = next;
+    rebuildRoster();
+    changeTick.update((value) => value + 1);
+  };
+  const unsubscribe = source.subscribe(read);
+  stopList = unsubscribe;
+  read();
+}
+
+function wrapConnection(connection: import("../../../lib/dsh/connection").Connection): SessionHost {
   return {
     get ready() {
       return connection.ready;
     },
+    get sessions() {
+      return connection.sessions;
+    },
+    get workspaces() {
+      return connection.workspaces;
+    },
     createSession: (request) => connection.createSession(request),
-    listSessions: () => connection.listSessions(),
-    follow: (sessionId, onFrame, onError) => connection.follow(sessionId, onFrame, onError),
-    sessionPage: (request) => connection.sessionPage(request),
-    sessionQueue: (sessionId) => connection.sessionQueue(sessionId),
-    prompt: (request) => connection.prompt(request),
-    cancel: (sessionId) => connection.cancel(sessionId),
-    renameSession: (sessionId, title) => connection.renameSession(sessionId, title),
-    uploadFile: (request) => connection.uploadFile(request),
-    withdrawQueuedPrompt: (sessionId, itemId) => connection.withdrawQueuedPrompt(sessionId, itemId),
-    selectAgentPreset: (sessionId, agentPreset) =>
-      connection.selectAgentPreset(sessionId, agentPreset),
     modelCatalog: () => connection.modelCatalog(),
     selectModel: (request) => connection.selectModel(request),
+    selectAgentPreset: (sessionId, agentPreset) =>
+      connection.selectAgentPreset(sessionId, agentPreset),
+    renameSession: (sessionId, title) => connection.renameSession(sessionId, title),
+    uploadFile: (request) => connection.uploadFile(request),
     sessionUsage: (sessionId) => connection.sessionUsage(sessionId),
     executeCommand: (sessionId, line) => connection.executeCommand(sessionId, line),
     listSkills: (sessionId) => connection.listSkills(sessionId),
@@ -263,15 +298,15 @@ function wrapConnection(
 }
 
 function onGenerationChange(up: boolean): void {
+  sessionReady.set(up);
   if (!up) {
-    sessionReady.set(false);
+    // The official models keep the last published window while their streams
+    // reconnect; the product only names the gap until the next frame.
     sessionError.set("后台连接已断开。");
-    sessionControllers.connectionLost();
     return;
   }
-  sessionReady.set(true);
   sessionError.set(null);
-  sessionControllers.connectionRestored();
+  sessionControllers.reattach();
   void refreshSessionList().catch(() => undefined);
 }
 
@@ -298,38 +333,37 @@ async function ensureClient(): Promise<ClaimedSessionClient> {
 
 /**
  * Connect the one shared Connection (idempotent, concurrent callers share it).
- * The optional id is accepted for legacy callers; following is per controller.
+ * The official models open their own streams; this only wires the product's
+ * Workspace projection, catalog and roster.
  */
 export function connectSession(_sessionId?: string): Promise<void> {
-  if (sessionReady() && claimed?.getTransport()?.ready) return Promise.resolve();
+  if (sessionReady() && claimed?.getHost()?.ready) return Promise.resolve();
   if (connectWork) return connectWork;
   const work = (async () => {
     sessionError.set(null);
     const client = await ensureClient();
-    // A dead transport is being replaced: tell controllers before their
-    // stale follow streams are dropped, so a shown Session re-follows.
-    const previous = client.getTransport();
+    const previous = client.getHost();
     if (previous && !previous.ready) {
-      sessionControllers.connectionLost();
-      // The old Connection is going away with its follow stream.
+      // The old Connection is going away with its streams and Client
+      // generation: every controller has to read the new model.
       await stopWorkspaces();
+      stopList?.();
+      stopList = undefined;
+      sessionControllers.rebind();
     }
-    const transport = await client.ensureConnected();
+    const hostApi = await client.ensureConnected();
     // The Workspace projection holds the tree's paths, titles and order.
-    const connection = dsh?.getConnection();
-    if (connection) {
-      startWorkspaces(connection);
-      // Restored Panel addresses need a Workspace title and path.
-      await whenWorkspacesReady();
-    }
+    startWorkspaces(hostApi.workspaces.list);
+    // Restored Panel addresses need a Workspace title and path.
+    await whenWorkspacesReady();
     await refreshHostStatus();
     try {
-      modelCatalog.set(await transport.modelCatalog());
+      modelCatalog.set(await hostApi.modelCatalog());
     } catch {
       modelCatalog.set(null);
     }
+    watchSessionList(hostApi.sessions);
     sessionReady.set(true);
-    sessionControllers.connectionRestored();
     await refreshSessionList();
   })();
   connectWork = work
@@ -343,14 +377,14 @@ export function connectSession(_sessionId?: string): Promise<void> {
   return connectWork;
 }
 
-async function connectTransport(): Promise<SessionTransport> {
+async function connectHost(): Promise<SessionHost> {
   await connectSession();
-  const transport = claimed?.getTransport();
-  if (!transport?.ready) throw new Error("尚未连接后台");
-  return transport;
+  const api = claimed?.getHost();
+  if (!api?.ready) throw new Error("尚未连接后台");
+  return api;
 }
 
-/** Create a session for an active Dialogue, claim it. The Panel that opens it follows. */
+/** Create a session for an active Dialogue, claim it. The Panel that opens it reads it. */
 export async function createSession(dialogueId: string): Promise<string> {
   if (untracked(creatingSession)) throw new Error("正在新建上下文。");
   sessionError.set(null);
@@ -387,8 +421,8 @@ export async function selectSessionModel(sessionId: string, key: string): Promis
   const provider = key.slice(0, at);
   const model = key.slice(at + 1);
   try {
-    const transport = await connectTransport();
-    await transport.selectModel({ sessionId, provider, model });
+    const hostApi = await connectHost();
+    await hostApi.selectModel({ sessionId, provider, model });
     catalogModelKey.set(key);
   } catch (error) {
     sessionError.set(error instanceof Error ? error.message : String(error));
@@ -415,16 +449,16 @@ export async function renameSession(sessionId: string, title: string): Promise<v
     renameClaim(reg, owner.dialogue.id, sessionId, trimmed || null),
   );
   if (!saved) return;
-  const transport = claimed?.getTransport();
-  if (trimmed && transport?.ready) {
-    void transport.renameSession(sessionId, trimmed).catch(() => undefined);
+  const hostApi = claimed?.getHost();
+  if (trimmed && hostApi?.ready) {
+    void hostApi.renameSession(sessionId, trimmed).catch(() => undefined);
   }
   await refreshSessionList();
 }
 
-/** The shared transport, for surfaces that read Session facts but own no controller. */
-export function sessionTransport(): SessionTransport | undefined {
-  return claimed?.getTransport();
+/** The shared host, for surfaces that read Session facts but own no controller. */
+export function sessionTransport(): SessionHost | undefined {
+  return claimed?.getHost();
 }
 
 export async function disposeRuntime(): Promise<void> {
@@ -434,6 +468,8 @@ export async function disposeRuntime(): Promise<void> {
   rosterBase.set([]);
   listedSessions = null;
   summaries.clear();
+  stopList?.();
+  stopList = undefined;
   await stopWorkspaces();
   if (claimed) await claimed.dispose().catch(() => undefined);
   claimed = undefined;

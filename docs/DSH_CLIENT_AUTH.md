@@ -30,19 +30,19 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 
 ## 已知限制：mux 心跳与阻塞的读取
 
-`session.follow` 在长回复中途可能自己重连。实测（本机 `dsh` 0.2.2-rc.1 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
+长回复期间 mux 仍可能被 dsh 判死并重连一次。实测（本机 `dsh` 0.2.2-rc.1 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
 
 | 一侧            | 行为                                                                                                            | 出处                                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | dsh gateway     | 每 2s 给每个 mux socket 发 ping，连续 2 次未收到 pong（也接受「收到的任何帧」与「未立即完成的写」）就 terminate | `packages/api/gateway/src/index.ts` `DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 2_000`、`MAX_MISSED_HEARTBEATS = 2` |
 | NSH `websocket` | 「8 条消息或 8 MiB 未被 read 时，连接停止从网络读取」；协议层不再看到 ping                                      | 安装版 `.nsh/types/websocket.d.ts`                                                                                 |
 
-于是：JS 侧一次 ≳4s 的阻塞（大回复的整段重排、一次长渲染），且其间积压 ≥8 帧未读，mux 就会被判死 → 官方 connection 退避重连 → 新 generation → 各 Panel 的 follow 以 **snapshot** 重开（不是 live 帧）。只有 2 帧积压时同样阻塞 10s，socket 存活（实测），所以触发条件是「队列满 + 阻塞」，不是单纯空闲。
+于是：JS 侧一次 ≳4s 的阻塞（大回复的整段重排、一次长渲染），且其间积压 ≥8 帧未读，mux 就会被判死 → 官方 connection 退避重连 → 新 generation → 官方 client model 以 **snapshot** 原子替换每个 Session 的事件窗口（不是 live 帧）。只有 2 帧积压时同样阻塞 10s，socket 存活（实测），所以触发条件是「队列满 + 阻塞」，不是单纯空闲。
 
-两侧都在按设计工作，根治要么 dsh 心跳容忍慢读，要么 NSH 在队列满时仍答 ping：记为上游缺口，Client 侧只能减小暴露面并自愈 ——
+两侧都在按设计工作，根治要么 dsh 心跳容忍慢读，要么 NSH 在队列满时仍答 ping：记为上游缺口，Client 侧只能减小暴露面并依赖官方自愈 ——
 
-- ChatPane 把 live 文本按帧合批（`requestAnimationFrame`）；
-- `SessionController` 在 follow 流异常结束时自动重开（3 次、300ms 起翻倍，`.controller.test.ts` 覆盖），错误提示随成功重连消失。官方 connection 的 socket 重连不属 Client。
+- ChatPane 把 live 文本按帧合批（`requestAnimationFrame`）。
+- 重连不再由产品实现：`ctx.sessions` / `ctx.workspaces` 的 `RemoteStream` / `RemoteSnapshotStream` 按 Host generation 重开各自的逻辑流，每个 generation 的首帧替换整个窗口（`.controller.test.ts` 的「新 generation 替换窗口且不重复」覆盖产品侧投影）。产品只把 generation 丢失显示成一条提示，并在 Connection 被整条替换时重绑 controller（`SessionRegistry.rebind`）。
 
 ## 本地跑通
 
@@ -56,13 +56,13 @@ vp run @myaid/client#dev
 # 无 Host 时仍可用：export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=…'
 ```
 
-## 验证
-
-- `nsh test`：`apps/client/lib/dsh/socket.test.ts`（握手头、EventTarget 语义、`nsh.json` 未授权 URL 的 `ERR_ACCESS_DENIED`）。
-- 真 Host：登录 → mux 连接 → 发一条 prompt 拿到回复。
-
 ## 已落地
 
-- `@deepseek-ai/dsh-*` Connection + Gateway + Session Remote（见 `lib/dsh/connection.ts`）。
+- `@deepseek-ai/dsh-*` Connection + Gateway + Session Remote，以及官方 client model `ctx.sessions` / `ctx.workspaces`（见 `lib/dsh/connection.ts`）。
 - HostControl 原生 Unix 适配（`myaid/native` `HostControl`）与 `lib/host/control.ts`。
-- `bun run prepare:sdk`（`scripts/prepare-sdk.mjs`）用 Node 条件打出 `lib/dsh/sdk.js`；`nsh.json` `resolve.conditions: ["node"]` 兜底。勿直接依赖 `client.browser.js`（ModuleLoader 产物，无 ESM `installConnection`）。
+- `bun run prepare:sdk`（`scripts/prepare-sdk.mjs`）用 Node 条件打出 `lib/dsh/sdk.js`，并把官方 client model 的 ModuleLoader 工厂展开成静态 ESM（`lib/dsh/generated/`）；`nsh.json` `resolve.conditions: ["node"]` 兜底。勿直接依赖 `client.browser.js`（ModuleLoader 产物，无 ESM `installConnection`），也勿在运行期 eval 这些产物：NSH 发行版禁用 `Function` 构造器。
+
+## 验证
+
+- `nsh test`：`apps/client/lib/dsh/socket.test.ts`（握手头、EventTarget 语义、`nsh.json` 未授权 URL 的 `ERR_ACCESS_DENIED`）、`apps/client/lib/dsh/official-client.test.ts`（官方 client model 在 NSH 运行时里装载并驱动窗口 / Workspace 投影）。
+- 真 Host：`screens/real-turn.smoke.test.tsx`（一条真实回复落地并收尾）、`screens/session-model.smoke.test.tsx`（两个 Panel 并发、排队撤回、审批往返、Host 中途重启后的窗口恢复、向上翻页）。

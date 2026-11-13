@@ -7,6 +7,7 @@
  * Plugins must not import this package — use `@deepseek-ai/dsh-*` directly.
  */
 export type * from "./remotes.ts";
+export type * as Client from "./client.ts";
 export type * as Connection from "./connection.ts";
 export type * as Session from "./session.ts";
 export type * as Llm from "./llm.ts";

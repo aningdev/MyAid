@@ -12,3 +12,10 @@ export { default as fileUploadsRemote } from "@deepseek-ai/dsh-client-file-uploa
 export { default as pluginManagerRemote } from "@deepseek-ai/dsh-plugin-manager/remote";
 export { default as pluginInventoryRemote } from "@deepseek-ai/dsh-host-plugin-inventory/remote";
 export { default as commandsRemote } from "@deepseek-ai/dsh-commands/remote";
+export { default as subagentsRemote } from "@deepseek-ai/dsh-subagent/remote";
+// Client-side services the official Session model injects.
+export { default as fileUploadClient } from "./generated/file-upload-client.js";
+// Official React-free Client models (`bun run prepare:sdk` unwraps their
+// `window.__ModuleLoader__` bundles; NSH cannot evaluate code from strings).
+export { default as officialSessionClient } from "./generated/session-client.js";
+export { default as officialWorkspaceClient } from "./generated/workspace-client.js";

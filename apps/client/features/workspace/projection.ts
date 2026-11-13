@@ -1,8 +1,8 @@
 /**
  * The dsh Workspace projection the product reads: Workspace rows in Host
  * order, the pinned Session ids (most recent first) and the archived Session
- * ids. Pure shapes only — the live signal lives in `state.ts`, and dsh's
- * `workspace.follow` stream is its only writer.
+ * ids. Pure shapes only — the live signal lives in `state.ts`, and the
+ * official `ClientWorkspaceModel` snapshot is its only writer.
  */
 import type { WorkspaceView } from "@myaid/dsh-web-protocol/workspace";
 

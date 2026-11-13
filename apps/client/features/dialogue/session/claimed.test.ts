@@ -1,5 +1,6 @@
 import { expect, test } from "nsh/test";
 
+import { scriptedHost, scriptedSessions } from "../../../test/sessions";
 import {
   claimSession,
   createBot,
@@ -13,11 +14,9 @@ import {
   ClaimedSessionClient,
   occupancyBlock,
   resolveBotModel,
-  type ApprovalDecision,
-  type ApprovalRequest,
   type ClaimHooks,
+  type SessionHost,
   type FlatModelCatalog,
-  type SessionTransport,
 } from "./claimed";
 
 function readyRegistry(): BotRegistry {
@@ -39,50 +38,17 @@ function readyRegistry(): BotRegistry {
   );
 }
 
-function fakeTransport(overrides: Partial<SessionTransport> = {}): SessionTransport & {
-  disposed: boolean;
-} {
-  const state = {
-    disposed: false,
-    ready: true,
-  };
-  const transport: SessionTransport & typeof state = {
-    ...state,
-    createSession: async () => ({ sessionId: "new-session" }),
-    listSessions: async () => [{ sessionId: "s1", blank: false, updatedAt: 1, running: false }],
-    follow: () => () => undefined,
-    sessionPage: async () => ({ records: [], hasMore: false }),
-    sessionQueue: async () => [],
-    prompt: async () => undefined,
-    cancel: async () => undefined,
-    withdrawQueuedPrompt: async () => undefined,
-    renameSession: async () => undefined,
-    uploadFile: async () => ({ receiptId: "receipt" }),
-    modelCatalog: async () =>
-      ({
-        default: { provider: "p", model: "m" },
-        models: [{ provider: "p", providerName: "P", model: "m", name: "M" }],
-        failures: [],
-      }) satisfies FlatModelCatalog,
-    selectModel: async () => undefined,
-    selectAgentPreset: async () => "standard",
-    approvals: (_handler: (request: ApprovalRequest) => Promise<ApprovalDecision>) => undefined,
-    dispose: async () => {
-      state.disposed = true;
-      state.ready = false;
-    },
-    ...overrides,
-  };
-  return transport;
+function fakeHost(): SessionHost {
+  return scriptedHost(scriptedSessions(["s1"]));
 }
 
 function hooks(
   registry: BotRegistry,
-  transport: SessionTransport,
+  host: SessionHost,
   extras: Partial<ClaimHooks> = {},
 ): ClaimHooks {
   return {
-    connect: async () => transport,
+    connect: async () => host,
     claim: async (dialogueId, sessionId) => {
       registry = claimSession(registry, dialogueId, sessionId);
       return true;
@@ -92,21 +58,16 @@ function hooks(
   };
 }
 
-test("createClaimed creates then claims, and leaves following to the Session controller", async () => {
+test("createClaimed creates then claims, and leaves the window to the official model", async () => {
   let registry = readyRegistry();
   const order: string[] = [];
-  const transport = fakeTransport({
-    createSession: async () => {
-      order.push("create");
-      return { sessionId: "created" };
-    },
-    follow: (sessionId) => {
-      order.push(`follow:${sessionId}`);
-      return () => undefined;
-    },
-  });
+  const host = fakeHost();
+  host.createSession = async () => {
+    order.push("create");
+    return { sessionId: "created" };
+  };
   const client = new ClaimedSessionClient(
-    hooks(registry, transport, {
+    hooks(registry, host, {
       claim: async (dialogueId, sessionId) => {
         order.push(`claim:${dialogueId}:${sessionId}`);
         registry = claimSession(registry, dialogueId, sessionId);
@@ -124,19 +85,18 @@ test("createClaimed creates then claims, and leaves following to the Session con
   });
   expect(id).toBe("created");
   expect(order).toEqual(["create", "claim:dlg:created"]);
-  expect(client.getTransport()?.ready).toBe(true);
+  expect(client.getHost()?.ready).toBe(true);
 });
 
 test("createClaimed asks the session controller for the Dialogue's Workspace", async () => {
   const registry = readyRegistry();
   const requests: { workspaceId?: string; agentPreset?: string; cwd?: string }[] = [];
-  const transport = fakeTransport({
-    createSession: async (request) => {
-      requests.push(request);
-      return { sessionId: "created" };
-    },
-  });
-  const client = new ClaimedSessionClient(hooks(registry, transport));
+  const host = fakeHost();
+  host.createSession = async (request) => {
+    requests.push(request);
+    return { sessionId: "created" };
+  };
+  const client = new ClaimedSessionClient(hooks(registry, host));
   const bot = registry.bots[0]!;
   const dialogue = registry.dialogues[0]!;
   await client.createClaimed({
@@ -169,14 +129,14 @@ test("occupancy blocks another running Session in the same workspace", () => {
   ).toBe(null);
 });
 
-test("dispose drops transport and rejects later use", async () => {
+test("dispose drops the host and rejects later use", async () => {
   const registry = readyRegistry();
-  const transport = fakeTransport();
-  const client = new ClaimedSessionClient(hooks(registry, transport));
+  const host = fakeHost();
+  const client = new ClaimedSessionClient(hooks(registry, host));
   await client.ensureConnected();
   await client.dispose();
   expect(client.disposed).toBe(true);
-  expect(client.getTransport()).toBe(undefined);
+  expect(client.getHost()).toBe(undefined);
   await expect(client.ensureConnected()).rejects.toThrow(/已释放/);
 });
 

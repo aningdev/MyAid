@@ -1,9 +1,12 @@
 /**
  * Deep module: claimed Session lifecycle — one shared Connection, and the
  * create + claim path that binds a Harness Session to a Dialogue.
- * Following a Session and running its turns belong to its SessionController.
+ *
+ * Following a Session, its history window, its paging and its prompt/queue
+ * state belong to the official Client model (`ctx.sessions`); a
+ * SessionController reads that model and keeps only product state.
  */
-import type { PromptContentPart, SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+import type { ISessions, IWorkspaces } from "@myaid/dsh-web-protocol/client";
 
 import type {
   ApprovalDecision,
@@ -28,9 +31,16 @@ export type { CommandOutcome, InventoryEntry, InventoryPreset, SessionUsage, Ski
 /** @deprecated Prefer {@link FlatModelCatalog}. */
 export type ModelCatalog = FlatModelCatalog;
 
-/** Minimal transport the claim / follow modules need from a Connection adapter. */
-export type SessionTransport = {
+/**
+ * What a Controller needs from the shared Connection: the official Client
+ * models, plus the Remote commands the official model does not own.
+ */
+export type SessionHost = {
   ready: boolean;
+  /** Official Session model: list, retain, create, projections. */
+  sessions: ISessions;
+  /** Official Workspace model: rows, order, archive set, pins. */
+  workspaces: IWorkspaces;
   createSession(request: {
     /** The dsh Workspace the Session joins; the Host attaches it after create. */
     workspaceId?: string;
@@ -38,45 +48,6 @@ export type SessionTransport = {
     agentPreset?: string;
     sessionId?: string;
   }): Promise<{ sessionId: string }>;
-  /** `running` is Host-reported Agent state, present for Sessions not followed here too. */
-  listSessions(): Promise<
-    {
-      sessionId: string;
-      blank: boolean;
-      updatedAt: number;
-      running?: boolean;
-      cwd?: string;
-    }[]
-  >;
-  follow(
-    sessionId: string,
-    onFrame: (frame: SessionFollowFrame) => void,
-    onError?: (error: Error) => void,
-  ): () => void;
-  /** One page of durable history before `beforeSeq` (`session.events`). */
-  sessionPage(request: {
-    sessionId: string;
-    beforeSeq: number;
-  }): Promise<{ records: unknown[]; hasMore: boolean }>;
-  /** Prompts still waiting in the live Agent's inbox (`session.state`). */
-  sessionQueue(sessionId: string): Promise<QueuedItem[]>;
-  prompt(request: {
-    sessionId: string;
-    requestId: string;
-    text?: string;
-    content?: readonly PromptContentPart[];
-  }): Promise<void>;
-  cancel(sessionId: string): Promise<void>;
-  /** Withdraw a still-pending queued prompt (`session.updateQueue` remove). */
-  withdrawQueuedPrompt(sessionId: string, itemId: string): Promise<void>;
-  /** The Session's own title, in dsh (`session.rename`). */
-  renameSession(sessionId: string, title: string): Promise<void>;
-  /** Stage a file's bytes; a prompt then names its receipt. */
-  uploadFile(request: {
-    sessionId: string;
-    data: string;
-    name?: string;
-  }): Promise<{ receiptId: string }>;
   modelCatalog(): Promise<FlatModelCatalog>;
   selectModel(request: {
     sessionId: string;
@@ -85,6 +56,14 @@ export type SessionTransport = {
     reasoningEffort?: string;
   }): Promise<void>;
   selectAgentPreset(sessionId: string, agentPreset: string): Promise<string>;
+  /** The Session's own title, in dsh (`session.rename`). */
+  renameSession(sessionId: string, title: string): Promise<void>;
+  /** Stage a file's bytes; a prompt then names its receipt. */
+  uploadFile(request: {
+    sessionId: string;
+    data: string;
+    name?: string;
+  }): Promise<{ receiptId: string }>;
   /** Context occupancy and token totals of one Session (`session.projections`). */
   sessionUsage?(sessionId: string): Promise<SessionUsage>;
   /** One slash command (the Inspector's Compact runs `/compact`). */
@@ -112,17 +91,8 @@ export type SessionTransport = {
   dispose(): Promise<void>;
 };
 
-/** One prompt waiting in a live Agent's inbox. */
-export type QueuedItem = {
-  /** The item's message id, what `session.updateQueue` takes. */
-  id: string;
-  /** The `requestId` the Client minted when it sent the prompt, when dsh kept it. */
-  requestId?: string;
-  text: string;
-};
-
 export type ClaimHooks = {
-  connect(): Promise<SessionTransport>;
+  connect(): Promise<SessionHost>;
   claim(dialogueId: string, sessionId: string): Promise<boolean>;
   registry(): BotRegistry;
 };
@@ -166,26 +136,26 @@ export async function resolveBotModel(
 
 /** Owns the one shared Connection and claims created Sessions to a Dialogue. */
 export class ClaimedSessionClient {
-  private transport: SessionTransport | undefined;
+  private host: SessionHost | undefined;
   private connectLock: Promise<void> | undefined;
   disposed = false;
 
   constructor(private readonly hooks: ClaimHooks) {}
 
-  getTransport(): SessionTransport | undefined {
-    return this.transport;
+  getHost(): SessionHost | undefined {
+    return this.host;
   }
 
-  async ensureConnected(): Promise<SessionTransport> {
+  async ensureConnected(): Promise<SessionHost> {
     this.assertAlive();
-    if (this.transport?.ready) return this.transport;
+    if (this.host?.ready) return this.host;
     if (this.connectLock) {
       await this.connectLock;
-      if (this.transport?.ready) return this.transport as SessionTransport;
+      if (this.host?.ready) return this.host as SessionHost;
     }
     const work = (async () => {
-      if (this.transport) await this.transport.dispose().catch(() => undefined);
-      this.transport = await this.hooks.connect();
+      if (this.host) await this.host.dispose().catch(() => undefined);
+      this.host = await this.hooks.connect();
     })();
     // Callers of a second, concurrent connect await this; its failure reaches
     // them through `work` (`await work` below), so it must not go unhandled.
@@ -195,8 +165,8 @@ export class ClaimedSessionClient {
       })
       .catch(() => undefined);
     await work;
-    if (!this.transport?.ready) throw new Error("尚未连接后台");
-    return this.transport;
+    if (!this.host?.ready) throw new Error("尚未连接后台");
+    return this.host;
   }
 
   /**
@@ -211,8 +181,8 @@ export class ClaimedSessionClient {
     agentPreset: string;
   }): Promise<string> {
     this.assertAlive();
-    const transport = await this.ensureConnected();
-    const created = await transport.createSession({
+    const host = await this.ensureConnected();
+    const created = await host.createSession({
       workspaceId: input.dialogue.workspaceId,
       agentPreset: input.agentPreset,
     });
@@ -223,9 +193,9 @@ export class ClaimedSessionClient {
 
   async dispose(): Promise<void> {
     this.disposed = true;
-    const transport = this.transport;
-    this.transport = undefined;
-    if (transport) await transport.dispose().catch(() => undefined);
+    const host = this.host;
+    this.host = undefined;
+    if (host) await host.dispose().catch(() => undefined);
   }
 
   private assertAlive(): void {

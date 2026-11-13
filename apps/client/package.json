@@ -26,12 +26,15 @@
     "@deepseek-ai/dsh-api-workspace-controller": "0.2.2-rc.1",
     "@deepseek-ai/dsh-client-connection": "0.2.2-rc.1",
     "@deepseek-ai/dsh-client-file-upload": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-store": "0.2.2-rc.1",
     "@deepseek-ai/dsh-commands": "0.2.2-rc.1",
     "@deepseek-ai/dsh-host-plugin-inventory": "0.2.2-rc.1",
     "@deepseek-ai/dsh-plugin-manager": "0.2.2-rc.1",
     "@deepseek-ai/dsh-typert-registry": "0.2.2-rc.1",
     "@myaid/dsh-web-protocol": "workspace:*",
     "@myaid/myaid-plugin-bot-presets": "workspace:*",
-    "@myaid/myaid-plugin-core": "workspace:*"
+    "@myaid/myaid-plugin-core": "workspace:*",
+    "immer": "^10.1.1",
+    "zustand": "~4.5.7"
   }
 }

@@ -1,8 +1,15 @@
 /**
- * Project official Session follow frames onto Dialogue `Msg` values.
+ * Project the official Session event window onto Dialogue `Msg` values.
+ * The window is the official model's contiguous logical history
+ * (`SessionEventLikeEntry[]`); this module keeps no history of its own, it
+ * folds each published delta and reads the events MyAid draws.
  * Only human-sourced `user/message` events become user bubbles.
  */
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+import type {
+  SessionEventChange,
+  SessionEventLikeEntry,
+  SessionEventWindow,
+} from "@myaid/dsh-web-protocol/client";
 
 import type { Msg, Status, Tool } from "../chat/scripts";
 
@@ -16,6 +23,11 @@ type Event = {
 };
 
 type GenericTool = Extract<Tool, { kind: "generic" }>;
+
+type LiveChunk = {
+  attemptId: string;
+  chunk: unknown;
+};
 
 type ParsedContent = {
   text: string;
@@ -67,40 +79,7 @@ function parseContent(value: unknown): ParsedContent {
   return { text, reasoning, tools };
 }
 
-function applyStreamRecords(records: unknown, into: LiveAcc): void {
-  if (!Array.isArray(records)) return;
-  for (const item of records) {
-    const record = object(item);
-    if (record.type === "text-chunks" && Array.isArray(record.texts)) {
-      into.text += record.texts.filter((part) => typeof part === "string").join("");
-      continue;
-    }
-    if (record.type === "reasoning-chunks" && Array.isArray(record.texts)) {
-      into.reason += record.texts.filter((part) => typeof part === "string").join("");
-      continue;
-    }
-    if (record.type === "tool-call-chunks") {
-      const id = typeof record.id === "string" ? record.id : "";
-      if (!id) continue;
-      const prev = into.tools.get(id);
-      const args = Array.isArray(record.args)
-        ? record.args.filter((part) => typeof part === "string").join("")
-        : "";
-      into.tools.set(id, {
-        id,
-        kind: "generic",
-        state: prev?.state ?? "pending",
-        name: typeof record.name === "string" ? record.name : (prev?.name ?? "tool"),
-        arguments: (prev?.arguments ?? "") + args,
-        result: prev?.result,
-        isError: prev?.isError,
-      });
-      continue;
-    }
-    applyStreamChunk(object(record.chunk), into);
-  }
-}
-
+/** Fold one stream chunk (the official compact Assistant stream) into the live reply. */
 function applyStreamChunk(chunk: Record<string, unknown>, into: LiveAcc): void {
   if (chunk.type === "text-delta" && typeof chunk.text === "string") {
     into.text += chunk.text;
@@ -162,12 +141,11 @@ function withResult(tool: GenericTool, result: GenericTool | undefined): Generic
 
 export type ProjectedChat = {
   messages: Msg[];
-  running: boolean;
   status: string;
   liveMd: string;
   liveReason: string;
   liveTools: Tool[];
-  /** The opening window was not the whole log: older pages can be read. */
+  /** The window does not reach the first event: older pages can be read. */
   olderHasMore: boolean;
   /** Files the turn declared with dsh's `present` tool, newest last. */
   deliverables: Deliverable[];
@@ -179,7 +157,11 @@ export type Deliverable = {
   description?: string;
 };
 
-/** Disposable view of Harness history projected to Dialogue messages. */
+/**
+ * Fold of the official Session event window. Deltas are applied when they
+ * arrive in order; anything else (a replaced window after reconnect) is
+ * rebuilt from the window the official model published.
+ */
 export class SessionProjector {
   private events: Event[] = [];
   private live = "";
@@ -187,99 +169,40 @@ export class SessionProjector {
   private liveToolMap = new Map<string, GenericTool>();
   /** Results keyed by toolCallId, applied when building history + live. */
   private toolResults = new Map<string, GenericTool>();
+  /** Prompt request ids the log has admitted (`user/message` source `rpcId`). */
+  private rpcIds = new Set<string>();
   private attempt: string | undefined;
-  running = false;
+  private revision = -1;
   status = "";
-  /** The snapshot cut off older events (`hasMore` on its opening frame). */
+  /** The snapshot cut off older events (`hasMore` on the window). */
   hasMore = false;
 
-  /** The oldest durable seq held, for a page that reads what came before it. */
-  firstSeq(): number | null {
-    let first: number | null = null;
+  /** Apply the official window; a non-contiguous revision rebuilds from scratch. */
+  apply(window: SessionEventWindow): void {
+    if (window.revision === this.revision) return;
+    if (window.revision === this.revision + 1) this.delta(window.change);
+    else this.rebuild(window.entries);
+    this.revision = window.revision;
+    this.hasMore = window.hasMore;
+  }
+
+  /** The newest durable event seq held, or `null` for an empty window. */
+  lastSeq(): number | null {
+    let last: number | null = null;
     for (const event of this.events) {
-      if (first === null || event.seq < first) first = event.seq;
+      if (last === null || event.seq > last) last = event.seq;
     }
-    return first;
+    return last;
   }
 
-  /**
-   * Older history, read with `session.events` before `firstSeq()`. Adding
-   * events above the window never moves the ones the list already shows.
-   */
-  prepend(records: readonly unknown[], hasMore: boolean): ProjectedChat {
-    for (const record of records) {
-      const entry = object(record);
-      this.event(entry.event ?? entry);
-    }
-    this.events.sort((left, right) => left.seq - right.seq);
-    this.hasMore = hasMore;
-    return this.snapshot();
+  /** Whether the log admitted a prompt this Client sent (durable `rpcId`). */
+  admitted(requestId: string): boolean {
+    return this.rpcIds.has(requestId);
   }
 
-  receive(value: SessionFollowFrame): ProjectedChat {
-    const frame = object(value);
-    // Official follow union is snapshot | event | assistant-stream; keep defensive branches.
-    if (frame.type === "error") throw new Error(String(frame.error));
-    if (frame.type === "snapshot") {
-      this.events = [];
-      this.running = false;
-      this.status = "";
-      this.hasMore = frame.hasMore === true;
-      this.toolResults.clear();
-      this.resetLive();
-      for (const record of Array.isArray(frame.records) ? frame.records : []) {
-        const entry = object(record);
-        // SessionHistoryRecord is `{ type: "event", event }`; accept a bare wire event too.
-        this.event(entry.event ?? entry);
-      }
-      const attempt = object(object(frame.assistantStream).activeAttempt);
-      this.attempt = typeof attempt.attemptId === "string" ? attempt.attemptId : undefined;
-      this.resetLive();
-      const live: LiveAcc = { text: "", reason: "", tools: this.liveToolMap };
-      applyStreamRecords(attempt.stream, live);
-      this.live = live.text;
-      this.liveReasonText = live.reason;
-      this.running = this.running || !!this.attempt;
-    } else if (frame.type === "event") {
-      this.event(frame.event);
-    } else if (typeof frame.seq === "number" && typeof frame.type === "string") {
-      // Bare SessionWireEvent (defensive — follow normally wraps as SessionEventEntry).
-      this.event(frame);
-    } else if (frame.type === "assistant-stream") {
-      const next = object(frame.frame);
-      if (next.type === "start") {
-        this.attempt = String(next.attemptId);
-        this.resetLive();
-        this.running = true;
-      }
-      if (next.attemptId === this.attempt || next.attemptId === undefined) {
-        const live: LiveAcc = {
-          text: this.live,
-          reason: this.liveReasonText,
-          tools: this.liveToolMap,
-        };
-        if (next.type === "chunk") {
-          applyStreamChunk(object(next.chunk), live);
-        } else if (next.type === "text-chunks" && Array.isArray(next.texts)) {
-          live.text += next.texts.filter((part) => typeof part === "string").join("");
-        } else if (next.type === "reasoning-chunks" && Array.isArray(next.texts)) {
-          live.reason += next.texts.filter((part) => typeof part === "string").join("");
-        } else if (next.type === "tool-call-chunks") {
-          applyStreamRecords([next], live);
-        } else if (typeof next.text === "string" && next.type === "text-delta") {
-          live.text += next.text;
-        } else if (typeof next.text === "string" && next.type === "reasoning-delta") {
-          live.reason += next.text;
-        }
-        this.live = live.text;
-        this.liveReasonText = live.reason;
-      }
-      if (next.type === "end" && next.attemptId === this.attempt) {
-        // Keep live text until assistant/message lands; clearing here races freeze.
-        this.attempt = undefined;
-      }
-    }
-    return this.snapshot();
+  /** Whether a `turn/start` newer than `seq` is in the window. */
+  turnStartedAfter(seq: number | null): boolean {
+    return this.events.some((event) => event.type === "turn/start" && event.seq > (seq ?? 0));
   }
 
   snapshot(): ProjectedChat {
@@ -325,7 +248,6 @@ export class SessionProjector {
           (m.kind === "user" && m.text.length > 0) ||
           (m.kind === "assistant" && (m.md.length > 0 || m.tools.length > 0 || !!m.reasoning)),
       ),
-      running: this.running,
       status: this.status,
       liveMd: this.live,
       liveReason: this.liveReasonText,
@@ -359,22 +281,98 @@ export class SessionProjector {
     return [...byPath.values()];
   }
 
+  private delta(change: SessionEventChange): void {
+    switch (change.kind) {
+      case "replace":
+        this.rebuild(change.entries);
+        return;
+      case "prepend":
+        this.prepend(change.entries);
+        return;
+      case "append":
+        for (const entry of change.entries) this.entry(entry);
+        return;
+      case "settle-assistant":
+        if (this.attempt === change.attemptId) this.resetLive();
+        // The settlement's durable event replaces the transient rows.
+        if (change.entry) this.entry(change.entry);
+        return;
+    }
+  }
+
+  private rebuild(entries: readonly SessionEventLikeEntry[]): void {
+    this.events = [];
+    this.status = "";
+    this.toolResults.clear();
+    this.rpcIds.clear();
+    this.resetLive();
+    for (const entry of entries) this.entry(entry);
+  }
+
+  /** One older page lands above the window, never moving what the list shows. */
+  private prepend(entries: readonly SessionEventLikeEntry[]): void {
+    const held = new Set(this.events.map((event) => event.seq));
+    const older: Event[] = [];
+    for (const entry of entries) {
+      if (entry.type !== "event") continue;
+      const event = this.wireEvent(entry.event);
+      if (!event || held.has(event.seq)) continue;
+      older.push(event);
+    }
+    this.events = [...older, ...this.events].sort((left, right) => left.seq - right.seq);
+  }
+
+  private entry(entry: SessionEventLikeEntry): void {
+    if (entry.type === "transient") {
+      this.liveChunk(entry.event as unknown as LiveChunk & { attemptId?: string });
+      return;
+    }
+    this.event(entry.event);
+  }
+
+  /** One client-only Assistant chunk, ordered between durable events. */
+  private liveChunk(entry: { data?: unknown } & Partial<LiveChunk>): void {
+    const data = object(entry.data ?? entry);
+    const attemptId = typeof data.attemptId === "string" ? data.attemptId : "";
+    if (!attemptId) return;
+    if (attemptId !== this.attempt) {
+      // A new attempt supersedes the previous live reply; keep its id after
+      // the reset so the rest of this attempt's chunks keep accumulating.
+      this.resetLive();
+      this.attempt = attemptId;
+    }
+    const live: LiveAcc = {
+      text: this.live,
+      reason: this.liveReasonText,
+      tools: this.liveToolMap,
+    };
+    applyStreamChunk(object(data.chunk), live);
+    this.live = live.text;
+    this.liveReasonText = live.reason;
+  }
+
   private resetLive(): void {
     this.live = "";
     this.liveReasonText = "";
     this.liveToolMap = new Map();
+    this.attempt = undefined;
   }
 
-  private event(value: unknown): void {
+  private wireEvent(value: unknown): Event | null {
     const e = object(value);
-    if (typeof e.seq !== "number" || typeof e.type !== "string") return;
-    const event: Event = {
+    if (typeof e.seq !== "number" || typeof e.type !== "string") return null;
+    return {
       seq: e.seq,
       type: e.type,
       time: typeof e.time === "number" ? e.time : undefined,
       data: object(e.data),
       surfaceOp: e.surfaceOp,
     };
+  }
+
+  private event(value: unknown): void {
+    const event = this.wireEvent(value);
+    if (!event) return;
     const op = object(event.surfaceOp);
     if (op.op === "replace" && typeof op.startSeq === "number" && typeof op.endSeq === "number") {
       const start = op.startSeq;
@@ -383,13 +381,15 @@ export class SessionProjector {
     }
     if (!this.events.some((item) => item.seq === event.seq)) this.events.push(event);
 
+    if (event.type === "user/message") {
+      const source = object(event.data.source);
+      if (typeof source.rpcId === "string") this.rpcIds.add(source.rpcId);
+    }
     if (event.type === "turn/start") {
-      this.running = true;
       this.status = "";
       this.toolResults.clear();
     }
     if (event.type === "turn/end") {
-      this.running = false;
       const reason = object(event.data.reason);
       this.status =
         reason.kind === "interrupted"
@@ -454,7 +454,6 @@ export class SessionProjector {
     if (event.data.interrupted === true) this.status = "执行已停止";
     if (event.type.includes("error") || event.type === "llm/failure") {
       this.status = "执行失败，请检查模型配置与凭据";
-      this.running = false;
     }
   }
 }
