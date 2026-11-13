@@ -32,8 +32,23 @@ test("the latest segment shows under its date · directory divider", async () =>
   expect(app.shows("id:history-rail")).toBe(true);
   expect(app.shows("id:history-mark-s1")).toBe(true);
   expect(app.shows("id:history-mark-s2")).toBe(true);
+  // The current segment is the highlighted mark; an older one is not.
+  expect(app.shows("id:history-current-s2")).toBe(true);
+  expect(app.shows("id:history-current-s1")).toBe(false);
   // Only the latest segment is open until the person reaches the top.
   expect(app.shows("text:the earlier answer")).toBe(false);
+});
+
+test("hovering a mark shows the segment's title, time and directory on a card", async () => {
+  const app = await conversation();
+  await app.hover("id:history-mark-s1");
+  await app.waitFor("id:rail-card", { timeout: 10000 });
+  expect(app.shows("text:Earlier topic")).toBe(true);
+  expect(app.shows("id:rail-card-time")).toBe(true);
+  // The full path is on the mark's VoiceOver label; the card shows ~/… or the
+  // path itself, shortened in the middle when it is long.
+  expect(app.shows("id:history-mark-s1")).toBe(true);
+  expect(app.texts().some((text) => text.includes("proj-a"))).toBe(true);
 });
 
 test("scrolling to the top loads the older segment above the current one", async () => {
@@ -75,9 +90,11 @@ test("`/new` starts a new segment and keeps the previous content above it", asyn
   await app.press("label:Send");
   await app.waitUntil(() => app.count("id:segment-divider") > before, { timeout: 10000 });
   // The previous segment's content is still in the transcript, above the new
-  // segment's divider.
+  // segment's divider, and the current mark moved to the new segment.
   expect(app.texts().some((text) => text.includes("follow-up answer"))).toBe(true);
   expect(app.texts().filter((text) => text.includes("/proj-b")).length).toBeGreaterThan(0);
+  expect(app.shows("id:history-current-s3")).toBe(true);
+  expect(app.shows("id:history-current-s2")).toBe(false);
 });
 
 test("changing the working directory in the header starts a segment there", async () => {
@@ -94,8 +111,8 @@ test("changing the working directory in the header starts a segment there", asyn
       app.texts().some((text) => text.includes("/proj-c")),
     { timeout: 10000 },
   );
-  // The new divider names the new directory.
-  expect(app.texts().some((text) => text.includes("/proj-c"))).toBe(true);
+  // The new divider names the new directory (the header's path is not enough).
+  expect(app.shows("text:· /proj-c")).toBe(true);
   // The old segment keeps its own: the rail still holds it, and jumping there
   // shows the old directory rather than the new one.
   expect(app.shows("id:history-mark-s2")).toBe(true);
