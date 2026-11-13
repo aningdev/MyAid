@@ -1,18 +1,18 @@
 /**
- * W2: an ordered list whose markers run past one digit. The harness answers
+ * An ordered list whose markers run past one digit. The harness answers
  * "numbered" with a 22-item list, so the marker column can be measured
  * without a Host; only the picture needs a graphical target.
  *
- *   nsh test screens/w2-list.test.tsx --target macos
+ *   nsh test screens/ordered-list-markers.test.tsx --target macos
  */
 import { expect, open, test } from "nsh/test";
 
-import { graphical, shoot, SHOTS_W2 } from "./shots";
+import { graphical, shoot, SHOTS_CHAT } from "./shots";
 
 /** `chat-harness.tsx`'s numbered reply: as many items (a test imports no app code). */
 const COUNT = 22;
 
-test("W2: a 22-item list keeps every marker", async () => {
+test("a 22-item list keeps every marker", async () => {
   const app = await open("../features/dialogue/chat/chat-harness.tsx", {
     platform: "web" as const,
     width: 1200,
@@ -31,5 +31,5 @@ test("W2: a 22-item list keeps every marker", async () => {
 
   if (!(await graphical(app))) return;
   await app.wait(400);
-  await shoot(app, "04-numbered-list.png", SHOTS_W2);
+  await shoot(app, "04-numbered-list.png", SHOTS_CHAT);
 });

@@ -1,15 +1,15 @@
 /**
- * B5 screenshots over a seeded registry: the Bot marks in the sidebar, the
+ * Screenshots over a seeded registry: the Bot marks in the sidebar, the
  * New Bot sheet, the ⌘K palette and a row's context menu. Run with a HOME
  * whose ~/.myaid holds the fixture registry and prefs, on a graphical target:
  *
- *   HOME=/tmp/myaid-b5-fixture nsh test screens/b5-shot.test.tsx --target macos
+ *   HOME=/tmp/myaid-marks-fixture nsh test screens/navigator-marks.test.tsx --target macos
  */
 import { expect, open, test } from "nsh/test";
 
 import { graphical, shoot } from "./shots";
 
-test("B5: marks, New Bot, palette and context menu", async () => {
+test("marks, New Bot, palette and context menu", async () => {
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
 

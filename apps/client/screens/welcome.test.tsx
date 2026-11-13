@@ -1,9 +1,9 @@
 /**
- * B5 screenshot: the first launch, with no registry and so no Bots. Move
+ * The first launch, with no registry and so no Bots. Move
  * ~/.myaid/registry/bots.json aside (and put it back), then run on a
  * graphical target:
  *
- *   nsh test screens/b5-welcome.test.tsx --target macos
+ *   nsh test screens/welcome.test.tsx --target macos
  */
 import { expect, open, test } from "nsh/test";
 

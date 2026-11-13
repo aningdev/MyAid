@@ -1,32 +1,35 @@
 /**
- * W2 real smoke: a Bot created through the New Bot sheet on a running Host,
+ * Real-Host smoke: a Bot created through the New Bot sheet on a running Host,
  * one prompt answered with a 22-item numbered list (markers past one digit),
  * and the turn settling — Send back, no working dot — when dsh is done.
  *
- * Run against a scratch data root, never the user's `~/.myaid`:
+ * Opt in with MYAID_SMOKE_HOST_SOCKET; run against a scratch data root,
+ * never the user's `~/.myaid`:
  *
- *   MYAID_HOST_SOCKET=/tmp/myaid-w2-host.sock HOME=<scratch>/home \
- *     nsh test screens/w2-smoke.test.tsx --target macos
+ *   MYAID_SMOKE_HOST_SOCKET=/tmp/myaid-smoke-host.sock \
+ *     MYAID_HOST_SOCKET=/tmp/myaid-smoke-host.sock HOME=<scratch>/home \
+ *     nsh test screens/real-turn.smoke.test.tsx --target macos
  *
  * A headless run stops at the picture probe.
  */
 import { expect, open, test } from "nsh/test";
 
-import { graphical, shoot, SHOTS_W2 } from "./shots";
+import { graphical, hostSmokeRequested, shoot, SHOTS_CHAT } from "./shots";
 
-const ECHO = "W2SMOKE-5219";
+const ECHO = "TURN-SMOKE-5219";
 const PROMPT = `${ECHO}: answer with a numbered list of exactly 22 items, one short sentence each, plain Markdown. Begin the reply with ${ECHO}.`;
 const WORKSPACE = "/tmp";
 const COUNT = 22;
 
-test("W2: a real turn ends with Send back and the working dot gone", async () => {
+test("a real turn ends with Send back and the working dot gone", async () => {
+  if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
 
   await app.waitFor("text:Host connected", { timeout: 30000 });
   await app.keyboard.press("mod+shift+n");
   await app.waitFor("id:new-bot-sheet");
-  await app.type("id:new-bot-name", "W2 Smoke");
+  await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press("label:Create Bot");
   await app.waitFor("id:chat", { timeout: 120000 });
@@ -38,7 +41,7 @@ test("W2: a real turn ends with Send back and the working dot gone", async () =>
   await app.waitFor("text:Working…", { timeout: 60000 });
   await app.waitFor("id:nav-status-working", { timeout: 30000 });
   expect(app.shows("label:Stop generating")).toBe(true);
-  await shoot(app, "01-working.png", SHOTS_W2);
+  await shoot(app, "01-working.png", SHOTS_CHAT);
 
   // The turn ends: the reply holds 22 numbered items, and every running
   // state is gone — the composer offers Send and the Navigator dot with it.
@@ -53,9 +56,9 @@ test("W2: a real turn ends with Send back and the working dot gone", async () =>
   expect(app.count("id:nav-status-attention")).toBe(0);
   // The reply is the Bot's, not the prompt echoed back.
   expect(app.texts().filter((text) => text.includes(ECHO)).length).toBeGreaterThanOrEqual(2);
-  await shoot(app, "02-reply-settled.png", SHOTS_W2);
+  await shoot(app, "02-reply-settled.png", SHOTS_CHAT);
   // Frames for the dot's and the button's fades: at the instant the turn
   // ends they are mid-fade, and only a redraw makes them look stuck.
   await app.wait(1500);
-  await shoot(app, "03-settled.png", SHOTS_W2);
+  await shoot(app, "03-settled.png", SHOTS_CHAT);
 }, 420000);

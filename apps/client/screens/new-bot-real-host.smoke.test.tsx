@@ -1,30 +1,32 @@
 /**
- * B5 real smoke: create a Bot through the New Bot sheet on a running Host,
+ * Real-Host smoke: create a Bot through the New Bot sheet on a running Host,
  * send a prompt, and get the reply back. Screenshots the working mark and
- * the reply. A headless run stops at the picture probe; run on macOS with
- * the development Host up:
+ * the reply. Opt in with MYAID_SMOKE_HOST_SOCKET; a headless run stops at
+ * the picture probe. Run on macOS with the development Host up:
  *
  *   bun scripts/dev.mjs            # from the repository root, in another shell
- *   nsh test screens/b5-smoke.test.tsx --target macos
+ *   MYAID_SMOKE_HOST_SOCKET=$MYAID_HOST_SOCKET \
+ *     nsh test screens/new-bot-real-host.smoke.test.tsx --target macos
  */
 import { expect, open, test } from "nsh/test";
 
-import { graphical, shoot } from "./shots";
+import { graphical, hostSmokeRequested, shoot } from "./shots";
 
-const ECHO = "B5SMOKE-8173";
+const ECHO = "SMOKE-8173";
 // The marker opens the prompt, so the Session's title carries it too, and a
 // reply long enough to catch the working state ends with it as well.
 const PROMPT = `${ECHO}: write 20 numbered lines about release notes, one short sentence each. Begin your reply with ${ECHO}.`;
 const WORKSPACE = "/tmp";
 
-test("B5: a new Bot created through the sheet replies", async () => {
+test("a new Bot created through the sheet replies", async () => {
+  if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
 
   await app.waitFor("text:Host connected", { timeout: 30000 });
   await app.keyboard.press("mod+shift+n");
   await app.waitFor("id:new-bot-sheet");
-  await app.type("id:new-bot-name", "B5 Smoke");
+  await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press("label:Create Bot");
 

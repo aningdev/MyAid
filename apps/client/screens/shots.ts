@@ -1,19 +1,22 @@
 /**
- * Screenshot helpers for the capture tests. `nsh test` runs headless by
- * default, where nothing is drawn: those runs take the probe, see no
- * picture and stop before the UI steps. `nsh test --target macos` (or any
- * graphical target) saves the pictures.
+ * Screenshot and smoke helpers. `nsh test` runs headless by default, where
+ * nothing is drawn: those runs take the probe, see no picture and stop
+ * before the UI steps. `nsh test --target macos` (or any graphical target)
+ * saves the pictures.
  */
 import type { App } from "nsh/test";
 
 const SCRATCHPAD =
   "/private/tmp/claude-501/-Users-zhuxining-Code-MyAid/fcf60928-6235-47f5-bea3-690051a88ab8/scratchpad";
 
-/** The B5 batch's pictures. */
-export const SHOTS = `${SCRATCHPAD}/pi-shots-b5`;
+/** The shell's pictures: welcome, marks, New Bot, palette, context menu. */
+export const SHOTS_SHELL = `${SCRATCHPAD}/pi-shots-shell`;
 
-/** This batch's pictures: the marker column, the settled turn, attachments. */
-export const SHOTS_W2 = `${SCRATCHPAD}/pi-shots-w2`;
+/** The chat's pictures: the marker column, the settled turn, attachments. */
+export const SHOTS_CHAT = `${SCRATCHPAD}/pi-shots-chat`;
+
+/** The Settings Panel's pictures. */
+export const SHOTS_A1 = `${SCRATCHPAD}/pi-shots-a1`;
 
 /** True on a graphical target: a headless run throws here. */
 export async function graphical(app: App): Promise<boolean> {
@@ -25,6 +28,11 @@ export async function graphical(app: App): Promise<boolean> {
   }
 }
 
-export async function shoot(app: App, name: string, dir: string = SHOTS): Promise<void> {
+/** Real-Host smokes are opt-in: no default suite may need a live Host. */
+export function hostSmokeRequested(): boolean {
+  return !!process.env.MYAID_SMOKE_HOST_SOCKET;
+}
+
+export async function shoot(app: App, name: string, dir: string = SHOTS_SHELL): Promise<void> {
   await app.screenshot(`${dir}/${name}`);
 }

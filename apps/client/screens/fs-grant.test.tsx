@@ -1,17 +1,17 @@
 /**
- * W2 capability check: `capabilities.fs` in nsh.json grants the app's data
+ * Capability check: `capabilities.fs` in nsh.json grants the app's data
  * (`~/.myaid`) and nothing else, so `file:` bytes a drop or a paste hands
  * over are read inside it, and outside it the app offers the open dialog
  * instead of reading. The probe reports the real grants of this app; a
  * headless run has no filesystem and stops at the picture probe.
  *
- *   nsh test screens/w2-fs.test.tsx --target macos
+ *   nsh test screens/fs-grant.test.tsx --target macos
  */
 import { expect, open, test } from "nsh/test";
 
 import { graphical } from "./shots";
 
-test("W2: fs reads reach the app's data root and nothing outside it", async () => {
+test("fs reads reach the app's data root and nothing outside it", async () => {
   const app = await open("./fs-probe.tsx", { platform: "macos" as const, width: 800, height: 600 });
   if (!(await graphical(app))) return;
 
