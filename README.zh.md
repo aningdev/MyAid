@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-MyAid 是 **all-in-one 个人助手**：把生活与工作里「人与 AI 一起操作」的内容收进同一产品——邮件、广义 **Task**、知识、笔记等——用 **Bot** 与 **Dialogue（对话）** 串起来。
+MyAid 是**类 lorca 的桌面 Bot 应用**：管理一组 Bot、在同一窗口里同时和多个 Bot 长线对话，并把它们配到你选的模型上。
 
 - **能力底座：** 官方 DeepSeek Harness（`dsh`）负责执行、工具、插件与审批。
 - **多端壳：** Native Shell（NSH）承载桌面与未来移动端 UI。
@@ -10,9 +10,11 @@ MyAid 是 **all-in-one 个人助手**：把生活与工作里「人与 AI 一起
 
 ## 它解决什么
 
-- **串起日常域** — 邮件、Task、知识、笔记是一等公民；Dialogue 驱动它们，也可从它们回到对话。
-- **和 Bot 对话** — **Bot** 像联系人，能力来自（常派生的）**Agent preset**；**Dialogue** 是与该 Bot 的一段长线（例如每个项目工作区一段）；**Session（会话）** 是 Dialogue 内的一个上下文场景（= 一条 harness Session）。
-- **身份由你掌控** — Bot 管 preset/能力；Dialogue 是某个 Bot 对 dsh Workspace 的视角；Session 认领到 Dialogue。
+- **一眼看见 Bot** — 左侧是一条扁平列表：搜索、**Pin**、其余按最近活动排序（工作中的点、未读数）、**新建 Bot**。没有域、没有树。
+- **同时和多个 Bot 对话** — 中间是可平铺 **Pane** 的分屏区（横 / 纵再拆、拖动分隔线、关闭、拖 Bot 进来、⌘ 切焦点）；一个 Bot 只在一个 Pane 里，再点它只切焦点。
+- **每个 Bot 只有一条长对话** — 历史是按时间相连的**段**（dsh Session），段可以落在不同的 dsh Workspace。本轮先把一个 Bot 打开到它最近的那条 Session，连续视图在下一批。
+- **Bot 详情不离开 Pane** — Pane 顶部的弹窗里是 Profile、Runs with、Skills、Plugins、默认工作目录、删除 / 归档，以及当前段的路径、模型、用量与 Compact。
+- **身份由你掌控** — Bot 管 preset / 能力；注册表管名字、Pin 与归档位；dsh 管 Workspace 与 Session。
 - **桌面常驻可连** — Host（以及后续 Relay）可作为 OS Background Service，让关窗后本机仍可被多端链接；须你明确启用。
 - **用插件伸手** — 能力经 Cordis / 声明式 bundle 挂在共用 `web` profile 或派生 preset 上。
 
@@ -20,7 +22,7 @@ MyAid 是 **all-in-one 个人助手**：把生活与工作里「人与 AI 一起
 
 | 部件                              | 对你意味着                                                               |
 | --------------------------------- | ------------------------------------------------------------------------ |
-| **Client（NSH）**                 | 多端控制面：生活域、Bot、Dialogue、审批、后台                            |
+| **Client（NSH）**                 | 多端控制面：Bot 列表、Pane、Bot 详情、设置、审批、后台                   |
 | **Host**                          | 本机 Background Service：`dsh web` 生命周期、发现、Bridge                |
 | **`dsh web`**（产品口语：Runner） | web profile 上的官方执行面：Session、工具、事件 — _Runner 不是 DSH 专名_ |
 | **Plugins**                       | 扩展助手能力的能力包                                                     |
@@ -32,7 +34,7 @@ MyAid 是 **all-in-one 个人助手**：把生活与工作里「人与 AI 一起
 
 - **本机：** 一台 macOS 桌面（NSH；可选 `SMAppService` 让本机入口常驻）。
 - **另有：** Windows 上 Host 控制通道联调；不承诺完整 Windows 桌面成品与后台登记。
-- **可链接端：** NSH 移动端经 Relay 连回；Bot 与凭据仍只在桌面本机管理。
+- **可链接端：** NSH 移动端经 Relay 连回——单栏：Bot 列表 → 长对话，Bot 详情为全屏页；Bot 与凭据仍只在桌面本机管理。
 
 ## 文档
 

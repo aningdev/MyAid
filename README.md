@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-MyAid is an **all-in-one personal assistant**: one place for the parts of life and work where people and AI operate together—mail, broad **Tasks**, knowledge, notes, and more—connected through **Bots** and **Dialogues**.
+MyAid is a **lorca-style desktop Bot app**: manage a set of Bots, talk with several of them at once in tiled panes, and point them at the model you want.
 
 - **Capability base:** official DeepSeek Harness (`dsh`) for execution, tools, plugins, and approvals.
 - **Multi-end shell:** Native Shell (NSH) for desktop and future mobile UI.
@@ -10,9 +10,11 @@ MyAid is an **all-in-one personal assistant**: one place for the parts of life a
 
 ## What it is for
 
-- **Connect everyday domains** — mail, Tasks, knowledge, and notes are first-class; Dialogues drive them and jump back from them.
-- **Talk with a Bot** — a **Bot** is a contact-like assistant whose abilities are a (often derived) **Agent preset**; a **Dialogue** is a long thread with that Bot (e.g. one per project workspace); a **Session** is one context scene inside that Dialogue (= one harness Session).
-- **Stay in control of identity** — Bots own preset/capabilities; a Dialogue is one Bot's view of a dsh Workspace; Sessions are claimed to a Dialogue.
+- **See your Bots at a glance** — a flat left list: search, **Pins**, the rest by recent activity (a working dot, unread counts), and **New Bot**. No domains, no trees.
+- **Talk with several Bots at once** — the center tiles **Panes** (split, resize, close, drag a Bot in, ⌘ to move focus); a Bot lives in one Pane, and clicking it again only moves the focus.
+- **One long conversation per Bot** — a Bot's history is its **segments** (dsh Sessions) in time order; segments may sit in different dsh Workspaces. This round opens a Bot on its most recent Session; the continuous view lands next.
+- **Bot details without leaving the Pane** — a modal over the Pane holds Profile, Runs with, Skills, Plugins, the default working directory, delete / archive, and the current segment's path, model, usage and Compact.
+- **Stay in control of identity** — Bots own preset/capabilities; the registry owns names, Pins and the archive flag; dsh owns Workspaces and Sessions.
 - **Keep the desktop reachable** — Host (and later Relay) can stay as OS Background Services so other ends can link when the window is closed; you explicitly enable that.
 - **Extend hands with plugins** — skills attach on the shared `web` profile / derived presets via Cordis bundles.
 
@@ -20,7 +22,7 @@ MyAid is an **all-in-one personal assistant**: one place for the parts of life a
 
 | Piece                                    | Role for you                                                                                             |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Client (NSH)**                         | Multi-end control surface: domains, Bots, Dialogues, approvals, background                               |
+| **Client (NSH)**                         | Multi-end control surface: Bot list, Panes, Bot details, settings, approvals, background                  |
 | **Host**                                 | Local Background Service: `dsh web` lifecycle, discovery, Bridge                                         |
 | **`dsh web`** (product nickname: Runner) | Official execution plane on the web profile: Sessions, tools, events — _Runner is not a DSH proper noun_ |
 | **Plugins**                              | Capability packs that extend what assistants can do                                                      |
@@ -32,7 +34,7 @@ Product rules: [docs/BLUEPRINT.md](docs/BLUEPRINT.md). Terms: [GLOSSARY.md](GLOS
 
 - **Home:** one macOS desktop (NSH + optional `SMAppService` so the local home stays up).
 - **Also:** Windows Host control-channel bring-up for development; full Windows desktop product and finished background registration are not promised yet.
-- **Linkable ends:** mobile NSH clients via Relay; Bot and credentials stay on the desktop home.
+- **Linkable ends:** mobile NSH clients via Relay — one column: Bot list → long conversation, Bot details full-screen; Bot and credentials stay on the desktop home.
 
 ## Documentation
 

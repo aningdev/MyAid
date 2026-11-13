@@ -1,6 +1,8 @@
 # Bot · Dialogue · Session · DSH 映射
 
-对象边界与所有权对照。原则见 [BLUEPRINT](BLUEPRINT.md)，决定见 [ADR 0001](adr/0001-bot-has-many-sessions.md) 与 [ADR 0005](adr/0005-dialogue-on-dsh-workspace.md)，用词见根 [GLOSSARY](../GLOSSARY.md)。
+对象边界与所有权对照。原则见 [BLUEPRINT](BLUEPRINT.md)，决定见 [ADR 0001](adr/0001-bot-has-many-sessions.md)、[ADR 0005](adr/0005-dialogue-on-dsh-workspace.md) 与 [ADR 0006](adr/0006-lorca-style-bot-app.md)，用词见根 [GLOSSARY](../GLOSSARY.md)。
+
+> **修订（ADR 0006）**：目标形态是**一个 Bot 一条长对话**，段（Session）可以落在不同的 dsh Workspace；本文的 **Dialogue 层是 L1 的过渡数据模型**（注册表 v5），L2 把认领从 Dialogue 改成 Bot 并迁移 v5 数据。界面在 L1 对一个 Bot 只显示它最近的一条 Session。
 
 ## 一图总览
 
@@ -36,12 +38,12 @@ flowchart TB
 | ---------------- | -------------------------------- | ------------------------------------------------------------------ |
 | Bot template     | Agent preset id                  | 模板映射 preset；非正文快照                                        |
 | Bot              | 共用 `web` profile 上启动 preset | 能力 = preset（`plugins`：指令、工具、skills、可选 MCP…）          |
-| Dialogue         | **一个 Workspace 的一个视角**    | `workspaceId`；两个 Bot 看同一目录 → 两个 Dialogue、一个 Workspace |
+| Dialogue         | **一个 Workspace 的一个视角**    | L1 过渡：`workspaceId`；L2 改成段直接引用 Workspace                 |
 | Session / 会话   | 一条 Harness Session             | 严格一对一；一个上下文场景                                         |
 | Claim            | Session 认领到 Dialogue          | 写在注册表；日志仍在 dsh                                           |
 | Dialogue 名      | Workspace `title`                | 重命名 = `workspace.rename`；同一 Workspace 上共享                 |
 | Session 归档     | Workspace `archived set`         | 运行中被 `workspace/session-active` 拒绝，可 `stopActivity`        |
-| 置顶 / Favorites | Workspace `pinned sessionIds`    | 最近置顶在前；Favorites 里 Session 行就是这份集合                  |
+| 置顶             | Workspace `pinned sessionIds`    | 最近置顶在前；L1 的界面不再显示段级置顶                            |
 | Session 顺序     | Workspace `sessionIds`           | 新建前插、手动重排；顺序归 dsh                                     |
 | Deliverable      | DSH Deliverable                  | 投影某 Session 场景内交付物；Dialogue 可累积多个                   |
 | （无）           | 未认领 Session                   | 不进入产品列表                                                     |
