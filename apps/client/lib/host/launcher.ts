@@ -12,6 +12,7 @@ import { join } from "path";
 import { signal } from "nsh";
 
 import { dataRootPath, hostControlAllowed } from "../data-root";
+import { t } from "../i18n";
 import { hostPort, probeHost } from "./client";
 
 /** The command the empty state tells the user to run by hand. */
@@ -173,7 +174,10 @@ export function createHostLauncher(overrides: Partial<LauncherSeams> = {}): Host
           port,
           failure: {
             kind: "startup",
-            reason: `宿主在 ${Math.round(seams.startTimeoutMs / 1000)} 秒内未响应 127.0.0.1:${port}`,
+            reason: t("launcher.timeout", {
+              seconds: Math.round(seams.startTimeoutMs / 1000),
+              port,
+            }),
           },
         });
         return;
@@ -268,14 +272,14 @@ export async function retryHostLauncher(): Promise<LauncherStatus> {
 export function launcherFailureText(failure: LauncherFailure | undefined): string {
   switch (failure?.kind) {
     case "missing_binary":
-      return `找不到 ${HOST_BINARY}：请先构建 Host（cargo build -p myaid-host）并让它出现在 PATH 上`;
+      return t("launcher.missingBinary", { binary: HOST_BINARY });
     case "launch":
-      return `无法启动 Host：${failure.reason}`;
+      return t("launcher.launchFailed", { reason: failure.reason });
     case "exited":
-      return `Host 已退出（${failure.code ?? "信号"}）`;
+      return t("launcher.exited", { code: failure.code ?? t("launcher.signal") });
     case "startup":
       return failure.reason;
     default:
-      return "Host 未运行";
+      return t("launcher.notRunning");
   }
 }

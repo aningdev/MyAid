@@ -20,6 +20,7 @@ import type {
 import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
 import { signal, untracked } from "nsh";
 
+import { t } from "../../../lib/i18n";
 import type { BotRegistry } from "../../bots/model";
 import { segmentOwner } from "../../bots/model";
 import {
@@ -216,7 +217,7 @@ export class SessionController {
         this.error.set(null);
         const host = await this.host.ensureHost();
         if (this.disposed) return;
-        if (!host.ready) throw new Error("尚未连接后台");
+        if (!host.ready) throw new Error(t("session.hostDown"));
         // `retain` starts the shared history opening: the window arrives through
         // the official model, replaced atomically per Host generation.
         const reference = host.sessions.retain(this.sessionId as SessionId, { source: "panel" });
@@ -278,7 +279,7 @@ export class SessionController {
 
   /** A prompt sent while a turn runs: dsh queues it; it never begins a local turn. */
   async queuePrompt(text: string, content?: readonly PromptContentPart[]): Promise<void> {
-    if (this.disposed) throw new Error("这条会话的运行时已释放。");
+    if (this.disposed) throw new Error(t("session.disposed"));
     const session = await this.session();
     const requestId = crypto.randomUUID().replace(/-/g, "");
     this.echo.set(requestId, text);
@@ -320,11 +321,11 @@ export class SessionController {
 
   /** Send a prompt through the official Session; the local bubble is begun by the Pane. */
   async prompt(text: string, content?: readonly PromptContentPart[]): Promise<string> {
-    if (this.disposed) throw new Error("这条会话的运行时已释放。");
+    if (this.disposed) throw new Error(t("session.disposed"));
     const owner = segmentOwner(this.host.registry(), this.sessionId);
-    if (!owner) throw new Error("这条会话还没有属于一个 Bot。");
+    if (!owner) throw new Error(t("session.ownerless"));
     if (this.host.sessionArchived(this.sessionId)) {
-      throw new Error("这条会话已归档，不能继续输入。先恢复它。");
+      throw new Error(t("session.archived"));
     }
     const blocked = occupancyBlock({
       occupyingSessionIds: this.host.occupyingSessionIds(),
@@ -544,7 +545,7 @@ export class SessionController {
     if (current) return current.session;
     await this.start();
     const bound = this.bound();
-    if (!bound) throw new Error("这条会话还没准备好。");
+    if (!bound) throw new Error(t("session.notReady"));
     return bound.session;
   }
 

@@ -15,6 +15,7 @@ import { signal } from "nsh";
 
 import type { FlatCatalogModel, FlatModelCatalog } from "../../lib/dsh/connection";
 import type { ModelProviderEntry } from "../../lib/dsh/providers";
+import { t } from "../../lib/i18n";
 import {
   credentialLabel,
   defaultModelNamespace,
@@ -92,7 +93,9 @@ export function setProvidersSource(next: ProvidersSource | null): void {
 }
 
 /** The message a page shows when dsh is not reachable at all. */
-export const PROVIDERS_NEED_HOST = "需要连接 Host 才能配置供应商。";
+export function providersNeedHost(): string {
+  return t("providers.needsHost");
+}
 
 async function liveSource(): Promise<ProvidersSource> {
   const { ensureConnected } = await import("../../lib/dsh/session");
@@ -190,7 +193,7 @@ export async function loadProviders(): Promise<ProvidersState> {
     const message = errorMessage(error);
     const next: ProvidersState = {
       ...initial,
-      phase: /宿主|Host|连接/.test(message) ? "unavailable" : "error",
+      phase: /宿主|Host|连接|connect|reache/i.test(message) ? "unavailable" : "error",
       error: message,
     };
     providersState.set(next);
@@ -201,9 +204,9 @@ export async function loadProviders(): Promise<ProvidersState> {
 /** Judge a typed key with dsh's own rule: printable ASCII, no pasted env line. */
 export function keyProblem(raw: string): string | null {
   const value = raw.trim();
-  if (!value) return "请输入 API Key。";
+  if (!value) return t("providers.keyNeeded");
   if (!/^[!-~]+$/.test(value) || /^[A-Z][A-Z0-9_]*=[^=]/.test(value)) {
-    return "API Key 只能包含可见 ASCII 字符，且不能是整行环境变量。";
+    return t("providers.keyAscii");
   }
   return null;
 }
@@ -226,7 +229,7 @@ export async function saveProviderKey(provider: string, raw: string): Promise<bo
     const named = providerProfile(settings, row.entry)?.apiKeyEnv;
     if (typeof named !== "string" || !named.trim()) {
       const view = providerNamespace(settings, row.entry);
-      if (!view) throw new Error("dsh 没有为这个供应商提供设置表单。");
+      if (!view) throw new Error(t("providers.noForm"));
       const updated = await source.updateSettings(
         view.ns,
         nestedPatch(row.entry.settingsPath, { apiKeyEnv: row.keyRef }),
@@ -242,7 +245,7 @@ export async function saveProviderKey(provider: string, raw: string): Promise<bo
       {
         ...providersState(),
         busy: null,
-        message: `已保存 ${row.entry.displayName} 的 API Key。`,
+        message: t("providers.keySaved", { name: row.entry.displayName }),
         actionError: null,
       },
       settings,
@@ -280,7 +283,7 @@ export async function clearProviderKey(provider: string): Promise<boolean> {
     const next = {
       ...providersState(),
       busy: null,
-      message: `已清除 ${row.entry.displayName} 的 API Key。`,
+      message: t("providers.keyCleared", { name: row.entry.displayName }),
       actionError: null,
     };
     next.rows = next.rows.map((item) =>
@@ -324,7 +327,7 @@ export async function saveProviderFields(
         {
           ...providersState(),
           busy: null,
-          message: `已保存 ${row.entry.displayName} 的设置。`,
+          message: t("providers.settingsSaved", { name: row.entry.displayName }),
           actionError: null,
         },
         replaceNamespace(state.settings, updated),
@@ -347,7 +350,7 @@ export async function saveDefaultModel(provider: string, model: string): Promise
   const state = providersState();
   const view = state.defaultNs;
   if (!view) {
-    providersState.set({ ...state, actionError: "dsh 没有报告默认模型设置。" });
+    providersState.set({ ...state, actionError: t("providers.noDefaultSetting") });
     return false;
   }
   providersState.set({ ...state, busy: "default", actionError: null, message: null });
@@ -359,7 +362,7 @@ export async function saveDefaultModel(provider: string, model: string): Promise
         {
           ...providersState(),
           busy: null,
-          message: `默认模型已设为 ${provider} / ${model}。`,
+          message: t("providers.defaultModelSet", { provider, model }),
           actionError: null,
         },
         replaceNamespace(
@@ -387,7 +390,7 @@ export function currentDefault(): { provider: string; model: string } | null {
 
 /** The label a row shows for its key. */
 export function rowKeyLabel(row: ProviderRow): string {
-  return row.account ? "账号" : credentialLabel(row.credential);
+  return row.account ? t("providers.account") : credentialLabel(row.credential);
 }
 
 /** The fields a provider's card edits, from the schema dsh sent. */

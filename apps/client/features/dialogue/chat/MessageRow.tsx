@@ -8,6 +8,7 @@
 import { signal, Text, View } from "nsh";
 
 import { Badge, colors, finish, Press } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import type { Bot } from "../../bots/model";
 import { ImageViewer } from "../ImageViewer";
 import { Glyph } from "./glyphs";
@@ -80,7 +81,7 @@ function Person(props: { message: () => UserRow }) {
       }}
     >
       <If when={!!m().image}>
-        <Press onPress={() => viewing.set(true)} accessibilityLabel="Open the attached image">
+        <Press onPress={() => viewing.set(true)} accessibilityLabel={t("chat.openImage")}>
           <Photo src={m().image!} width={200} height={150} />
         </Press>
       </If>
@@ -156,7 +157,7 @@ function Reply(props: {
           {props.botName()}
         </Text>
         <If when={message().status === "stopped" && !streaming()}>
-          <Badge label="Stopped" tone="warn" />
+          <Badge label={t("chat.stopped")} tone="warn" />
         </If>
         <View style={{ flex: 1 }} />
         <Text
@@ -205,34 +206,32 @@ function Reply(props: {
       </If>
       <If when={!streaming() && message().status === "error"}>
         <ErrorRow
-          message={message().error ?? "Something went wrong."}
+          message={message().error ?? t("chat.somethingWrong")}
           onRetry={() => props.handlers.onRetry(message())}
         />
       </If>
       <If when={!streaming() && message().status === "stopped"}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Glyph name="stop" size={11} tint={colors.faint} />
-          <Text style={{ fontSize: 12, color: colors.faint }}>
-            Stopped — the reply keeps what it wrote
-          </Text>
+          <Text style={{ fontSize: 12, color: colors.faint }}>{t("chat.stoppedNote")}</Text>
         </View>
       </If>
       <If when={!streaming() && message().status !== "error"}>
         <View style={{ flexDirection: "row", alignItems: "center", marginLeft: -8 }}>
           <ActionButton
             glyph={props.handlers.copied() === message().id ? "check" : "copy"}
-            label="Copy"
+            label={t("common.copy")}
             active={props.handlers.copied() === message().id}
             onPress={() => props.handlers.onCopy(message().id, message().md)}
           />
           <ActionButton
             glyph="regenerate"
-            label="Regenerate"
+            label={t("chat.regenerate")}
             onPress={() => props.handlers.onRegenerate(message())}
           />
           <ActionButton
             glyph="thumb-up"
-            label="Good reply"
+            label={t("chat.goodReply")}
             active={message().rating === "up"}
             onPress={() =>
               props.handlers.onRate(message(), message().rating === "up" ? undefined : "up")
@@ -240,7 +239,7 @@ function Reply(props: {
           />
           <ActionButton
             glyph="thumb-down"
-            label="Bad reply"
+            label={t("chat.badReply")}
             active={message().rating === "down"}
             tone="danger"
             onPress={() =>
@@ -263,7 +262,7 @@ function Working(props: { message: () => WorkingRow; now: () => number }) {
   return (
     <View style={{ paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Spinner size={13} tint={colors.accent} />
-      <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>Working…</Text>
+      <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>{t("chat.working")}</Text>
       <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
         {elapsedLabel(elapsedSeconds(props.message().since, props.now()))}
       </Text>

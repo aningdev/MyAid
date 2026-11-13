@@ -7,6 +7,7 @@ import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
 import { BotDetails } from "../features/bots/BotDetails";
 import { NewBotSheet } from "../features/bots/NewBotSheet";
+import { t } from "../lib/i18n";
 import { isDesktopLayout, Shell, TITLE_CHROME, titleTopInset } from "./shell";
 import { CommandPalette } from "./shell/CommandPalette";
 import { NavigatorSheets } from "./shell/NavigatorSheets";
@@ -62,10 +63,10 @@ function MobileShell() {
       </If>
       <View class="flex-1 items-center justify-center gap-2 p-8">
         <Text class="text-base font-semibold" style={{ color: colors.text }}>
-          Workspace Shell
+          {t("app.mobileTitle")}
         </Text>
         <Text class="text-sm" style={{ color: colors.muted, textAlign: "center" }}>
-          Desktop empty shell only. Widen the window for the side Navigator and Workbench.
+          {t("app.mobileNote")}
         </Text>
       </View>
     </View>

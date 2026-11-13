@@ -16,8 +16,10 @@ import {
   stopBackgroundFromState,
   type RegistrationPhase,
 } from "../../lib/background";
+import { t } from "../../lib/i18n";
 import {
   hostFacts,
+  lifecycleLabel,
   loadHostFacts,
   restartBackground,
   startBackground,
@@ -27,15 +29,15 @@ import {
 function phaseLabel(phase: RegistrationPhase | undefined): string {
   switch (phase) {
     case "notRegistered":
-      return "Not registered";
+      return t("background.phase.notRegistered");
     case "pendingApproval":
-      return "Waiting for approval";
+      return t("background.phase.pendingApproval");
     case "registered":
-      return "Registered";
+      return t("background.phase.registered");
     case "denied":
-      return "Denied";
+      return t("background.phase.denied");
     case "failed":
-      return "Failed";
+      return t("background.phase.failed");
     default:
       return "—";
   }
@@ -58,11 +60,11 @@ function phaseTone(phase: RegistrationPhase | undefined): Tone {
 function availabilityLabel(value: string | undefined): string {
   switch (value) {
     case "full":
-      return "Full";
+      return t("background.phase.full");
     case "degraded":
-      return "Degraded";
+      return t("background.phase.degraded");
     case "off":
-      return "Off";
+      return t("background.phase.off");
     default:
       return "—";
   }
@@ -102,44 +104,58 @@ export function BackgroundSection() {
       contentStyle={{ padding: 20, gap: 16, maxWidth: 720 }}
     >
       <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>后台</Text>
+        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+          {t("settings.background.title")}
+        </Text>
         <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
-          Host 启动并监督 dsh web；Background Services 是两个单元在系统里的登记。
+          {t("settings.background.note")}
         </Text>
       </View>
 
-      <Card title="Host 与 dsh web">
+      <Card title={t("settings.background.hostCard")}>
         <View style={{ flexDirection: "row", gap: 12 }}>
           <View style={{ flex: 1, gap: 4, alignItems: "flex-start" }}>
             <Text style={{ fontSize: 12, color: colors.muted }}>Host</Text>
             <Badge
-              label={facts().reachable ? "connected" : "disconnected"}
+              label={facts().reachable ? t("background.connected") : t("background.disconnected")}
               tone={facts().reachable ? "up" : "neutral"}
             />
           </View>
           <View style={{ flex: 1, gap: 4, alignItems: "flex-start" }}>
             <Text style={{ fontSize: 12, color: colors.muted }}>dsh web</Text>
             <Badge
-              label={facts().status?.phase ?? (facts().reachable ? "unknown" : "not running")}
+              label={
+                facts().status?.phase
+                  ? lifecycleLabel(facts().status?.phase)
+                  : facts().reachable
+                    ? t("background.unknown")
+                    : t("background.notRunning")
+              }
               tone={lifecycleTone(facts().status?.phase)}
             />
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: 12 }}>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 11, color: colors.muted }}>Host 版本</Text>
+            <Text style={{ fontSize: 11, color: colors.muted }}>
+              {t("settings.background.hostVersion")}
+            </Text>
             <Text testID="settings-host-version" style={{ fontSize: 13, color: colors.text }}>
               {facts().hostVersion ?? "—"}
             </Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 11, color: colors.muted }}>dsh 实际版本</Text>
+            <Text style={{ fontSize: 11, color: colors.muted }}>
+              {t("settings.background.dshVersion")}
+            </Text>
             <Text testID="settings-dsh-version" style={{ fontSize: 13, color: colors.text }}>
               {facts().actualDsh ?? "—"}
             </Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 11, color: colors.muted }}>dsh 支持版本</Text>
+            <Text style={{ fontSize: 11, color: colors.muted }}>
+              {t("settings.background.dshSupported")}
+            </Text>
             <Text testID="settings-dsh-supported" style={{ fontSize: 13, color: colors.text }}>
               {facts().supportedDsh ?? "—"}
             </Text>
@@ -155,7 +171,9 @@ export function BackgroundSection() {
         </If>
         <If when={facts().errors.length > 0}>
           <View style={{ gap: 4 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>最近错误</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+              {t("settings.background.recentErrors")}
+            </Text>
             <Each of={facts().errors}>
               {(error) => (
                 <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>
@@ -167,41 +185,43 @@ export function BackgroundSection() {
         </If>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <Button
-            label="启动 dsh"
+            label={t("settings.background.startDsh")}
             size="small"
             variant="accent"
             disabled={!facts().reachable}
             onPress={() => void startBackground()}
           />
           <Button
-            label="停止 dsh"
+            label={t("settings.background.stopDsh")}
             size="small"
             disabled={!facts().reachable}
             onPress={() => void stopBackground()}
           />
           <Button
-            label="重启 dsh"
+            label={t("settings.background.restartDsh")}
             size="small"
             disabled={!facts().reachable}
             onPress={() => void restartBackground()}
           />
-          <Button label="刷新" size="small" variant="ghost" onPress={() => void loadHostFacts()} />
+          <Button
+            label={t("common.refresh")}
+            size="small"
+            variant="ghost"
+            onPress={() => void loadHostFacts()}
+          />
         </View>
       </Card>
 
-      <Card title="Background Services">
+      <Card title={t("settings.background.services")}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>
-            Host and Relay register with the OS as two independent services. Enabling asks for both;
-            stopping withdraws both. Either may stay denied without rolling back the other.
-          </Text>
+          <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>{t("background.note")}</Text>
           <Badge label={availabilityLabel(state().view?.availability)} />
         </View>
         <If
           when={state().runnable}
           else={
             <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
-              Background Services run on desktop only. Mobile clients reach the Host through Relay.
+              {t("background.desktopOnly")}
             </Text>
           }
         >
@@ -209,14 +229,14 @@ export function BackgroundSection() {
             <View style={{ flexDirection: "row", gap: 12 }}>
               <UnitPhase
                 testID="settings-host-phase"
-                unit="Host"
+                unit={t("background.host")}
                 phase={state().view?.host.phase}
                 reason={state().view?.host.reason}
                 error={state().view?.enableErrors?.host}
               />
               <UnitPhase
                 testID="settings-relay-phase"
-                unit="Relay"
+                unit={t("background.relay")}
                 phase={state().view?.relay.phase}
                 reason={state().view?.relay.reason}
                 error={state().view?.enableErrors?.relay}
@@ -227,13 +247,13 @@ export function BackgroundSection() {
             </If>
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
               <Button
-                label="Enable"
+                label={t("background.enable")}
                 variant="accent"
                 onPress={() => void enableBackgroundFromState()}
               />
-              <Button label="Stop" onPress={() => void stopBackgroundFromState()} />
+              <Button label={t("background.stop")} onPress={() => void stopBackgroundFromState()} />
               <Button
-                label="Refresh"
+                label={t("common.refresh")}
                 variant="ghost"
                 onPress={() => void refreshProductBackgroundState()}
               />

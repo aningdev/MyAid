@@ -13,6 +13,7 @@ import {
   migrationNotice,
 } from "../../features/bots/state";
 import { workspaceError } from "../../features/workspace/state";
+import { t } from "../../lib/i18n";
 import { Button, colors } from "../ui";
 import { retryHost } from "./host";
 
@@ -25,7 +26,7 @@ export function ShellNotices() {
           <Notice
             testID="workspace-stream-notice"
             tone="warn"
-            text={`Workspace 状态断开了，正在重连：${workspaceError() ?? ""}`}
+            text={t("notices.workspace", { error: workspaceError() ?? "" })}
           />
         </If>
         <If when={!!migrationNotice()}>
@@ -33,7 +34,7 @@ export function ShellNotices() {
             testID="migration-notice"
             tone="warn"
             text={migrationNotice() ?? ""}
-            action={legacyRegistry() ? "Connect Host" : undefined}
+            action={legacyRegistry() ? t("notices.connectHost") : undefined}
             onAction={() => void retryHost()}
             onDismiss={legacyRegistry() ? undefined : () => migrationNotice.set(null)}
           />
@@ -82,7 +83,12 @@ function Notice(props: {
           />
         </If>
         <If when={!!props.onDismiss}>
-          <Button label="Cancel" size="small" variant="ghost" onPress={() => props.onDismiss?.()} />
+          <Button
+            label={t("common.cancel")}
+            size="small"
+            variant="ghost"
+            onPress={() => props.onDismiss?.()}
+          />
         </If>
       </View>
     </View>

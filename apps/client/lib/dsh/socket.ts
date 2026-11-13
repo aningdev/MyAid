@@ -1,6 +1,8 @@
 import type { ConnectionWebSocket } from "@deepseek-ai/dsh-client-connection/client";
 import { connect, type WebSocketConnection } from "websocket";
 
+import { t } from "../i18n";
+
 /** What opens a connection: `websocket.connect`, or a test's stand-in. */
 export type SocketConnector = (
   url: string,
@@ -75,7 +77,7 @@ export class AuthenticatedSocket extends EventTarget {
   }
 
   send(data: string) {
-    if (this.readyState !== 1 || !this.socket) throw new Error("Socket is not open");
+    if (this.readyState !== 1 || !this.socket) throw new Error(t("dsh.error.socketClosed"));
     this.socket.write(data).catch(() => {
       if (this.readyState === 1) this.dispatchEvent(new Event("error"));
     });

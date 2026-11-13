@@ -1,8 +1,7 @@
 /**
  * Settings › General: the interface language, the appearance and the accent.
- * Appearance applies at once (`components/ui/appearance`) and is saved with
- * the other client preferences; the language row saves a preference that the
- * language-pack pass (L4) will apply.
+ * Appearance and language apply at once (`components/ui/appearance`,
+ * `lib/i18n`) and are saved with the other client preferences.
  */
 import { Scroll, Text, View, type JSX } from "nsh";
 
@@ -21,7 +20,7 @@ import {
   toneTint,
   type AccentChoice,
 } from "../../components/ui";
-import { LANGUAGES, languagePref, setLanguagePref } from "./language";
+import { LANGUAGES, languagePref, setLanguagePref, t } from "../../lib/i18n";
 
 export function GeneralSection() {
   return (
@@ -31,30 +30,32 @@ export function GeneralSection() {
       contentStyle={{ padding: 20, gap: 16, maxWidth: 720 }}
     >
       <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>通用</Text>
+        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+          {t("settings.general.title")}
+        </Text>
         <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
-          语言、外观与强调色保存在本机偏好里，重启后保留。
+          {t("settings.general.note")}
         </Text>
       </View>
 
-      <Card title="语言" note="语言包就绪后生效">
+      <Card title={t("settings.general.language")}>
         <Segmented
           size="small"
-          options={LANGUAGES.map((language) => ({ value: language.id, label: language.label }))}
+          options={LANGUAGES.map((language) => ({ value: language.id, label: t(language.label) }))}
           value={languagePref()}
           onChange={(value) => setLanguagePref(value as (typeof LANGUAGES)[number]["id"])}
         />
         <Text style={{ fontSize: 12, lineHeight: 18, color: colors.faint }}>
-          切换界面语言要等语言包；现在只保存选择。
+          {t("settings.general.languageNote")}
         </Text>
       </Card>
 
-      <Card title="外观">
+      <Card title={t("settings.general.appearance")}>
         <Segmented
           size="small"
           options={APPEARANCE_SCHEMES.map((scheme) => ({
             value: scheme.id,
-            label: scheme.label,
+            label: t(scheme.label),
           }))}
           value={appearanceScheme()}
           onChange={(value) =>
@@ -66,13 +67,13 @@ export function GeneralSection() {
         />
       </Card>
 
-      <Card title="强调色">
+      <Card title={t("settings.general.accent")}>
         <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
           <Each of={ACCENTS}>
             {(accent) => (
               <Press
                 onPress={() => applyAppearance({ scheme: appearanceScheme(), accent: accent().id })}
-                accessibilityLabel={`强调色 ${accent().label}`}
+                accessibilityLabel={t("settings.accent.pick", { label: t(accent().label) })}
                 accessibilityState={{ selected: accentChoice() === accent().id }}
                 scale={0.94}
                 style={{ alignItems: "center", gap: 5, minWidth: 52 }}
@@ -84,7 +85,7 @@ export function GeneralSection() {
                     color: accentChoice() === accent().id ? colors.text : colors.muted,
                   }}
                 >
-                  {accent().label}
+                  {t(accent().label)}
                 </Text>
               </Press>
             )}
@@ -102,10 +103,10 @@ export function GeneralSection() {
             }}
           >
             <Text style={{ fontSize: 12, fontWeight: "600", color: colors.onAccent }}>
-              强调色预览
+              {t("settings.accent.preview")}
             </Text>
           </View>
-          <Text style={{ fontSize: 12, color: colors.accent }}>强调色文字</Text>
+          <Text style={{ fontSize: 12, color: colors.accent }}>{t("settings.accent.text")}</Text>
         </View>
       </Card>
     </Scroll>

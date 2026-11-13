@@ -44,6 +44,7 @@ export type {
   BotPresetSkill,
   BotPresetUpdateRequest,
 } from "@myaid/dsh-web-protocol/bot-presets";
+import { t } from "../i18n";
 import { dshRequestInit, fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
 import {
@@ -241,23 +242,38 @@ export function flattenModelCatalog(value: OfficialModelCatalog): FlatModelCatal
   };
 }
 
-const messages: Record<string, string> = {
-  "session/provider-credentials-unavailable": "后台没有可用的模型凭据。",
-  "session/provider-models-unavailable": "模型提供方暂时不可用，请检查端点与凭据。",
-  "session/model-unavailable": "所选模型当前不可用。",
-  "session/conflict": "该工作区已被另一个对话占用。",
-  "session/writer-held": "该对话正被另一个客户端写入。",
-  "session/agent-busy": "该对话正在执行，请稍后再操作。",
-};
+/** A dsh error code's sentence, read now so it follows the language. */
+function knownError(code: string): string | undefined {
+  switch (code) {
+    case "session/provider-credentials-unavailable":
+      return t("dsh.error.credentialsUnavailable");
+    case "session/provider-models-unavailable":
+      return t("dsh.error.providerModelsUnavailable");
+    case "session/model-unavailable":
+      return t("dsh.error.modelUnavailable");
+    case "session/conflict":
+      return t("dsh.error.conflict");
+    case "session/writer-held":
+      return t("dsh.error.writerHeld");
+    case "session/agent-busy":
+      return t("dsh.error.agentBusy");
+    default:
+      return undefined;
+  }
+}
 
 export function readableError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
   const match = /^([a-z0-9-]+\/[a-z0-9-]+):\s*(.*)$/.exec(raw.trim());
   if (match) {
-    const known = messages[match[1]!];
-    return match[2] ? `${known ?? match[1]}（${match[2]}）` : (known ?? raw);
+    const known = knownError(match[1]!);
+    return match[2]
+      ? t("dsh.error.detail", { known: known ?? match[1]!, detail: match[2] })
+      : (known ?? raw);
   }
-  if (/Failed to fetch|NetworkError|connection/i.test(raw)) return `连接后台失败：${raw}`;
+  if (/Failed to fetch|NetworkError|connection/i.test(raw)) {
+    return t("dsh.error.connection", { error: raw });
+  }
   return raw;
 }
 
@@ -296,19 +312,25 @@ function localizedName(value: Record<string, unknown>): string | undefined {
  * injected services are missing stays parked in Cordis, so name it instead of
  * hanging the connection.
  */
+const ACTIVATION_TIMEOUT = "nsh.activation-timeout";
+
 async function activate(ctx: any, plugin: unknown, label: string): Promise<void> {
   const fiber = ctx.plugin(plugin);
   const missing = await Promise.race([
     fiber.then(() => undefined),
-    new Promise<string>((resolve) => setTimeout(() => resolve("超时"), 10_000)),
+    new Promise<string>((resolve) => setTimeout(() => resolve(ACTIVATION_TIMEOUT), 10_000)),
   ]);
   if (missing === undefined) return;
   const required = (plugin as { inject?: readonly string[] }).inject ?? [];
   const absent = required.filter((name) => ctx.get(name) === undefined);
   throw new Error(
-    `官方 Client model 未能装载（${label}）：${missing}${
-      absent.length ? `，缺少服务 ${absent.join("、")}` : ""
-    }`,
+    t("dsh.error.mountMissing", {
+      label,
+      missing: missing === ACTIVATION_TIMEOUT ? t("dsh.error.timeout") : missing,
+      services: absent.length
+        ? t("dsh.error.mountMissingServices", { services: absent.join(", ") })
+        : "",
+    }),
   );
 }
 
@@ -364,7 +386,7 @@ export class Connection {
   }
 
   async connect(loginUrl: string): Promise<void> {
-    if (this.ctx) throw new Error("已经连接后台");
+    if (this.ctx) throw new Error(t("dsh.error.alreadyConnected"));
     const epoch = ++this.epoch;
     const controller = new AbortController();
     this.connecting = controller;
@@ -380,9 +402,9 @@ export class Connection {
         }
       })();
       const message = readableError(error);
-      throw new Error(token ? message.replaceAll(token, "<已隐藏>") : message);
+      throw new Error(token ? message.replaceAll(token, t("dsh.error.tokenHidden")) : message);
     }
-    if (epoch !== this.epoch) throw new Error("连接已被新的宿主状态替代");
+    if (epoch !== this.epoch) throw new Error(t("dsh.error.replaced"));
     const { origin, cookie } = login;
 
     const ctx: any = new Context();
@@ -431,9 +453,9 @@ export class Connection {
         return owner.answerApproval(ctx, request);
       });
       this.ctx = ctx;
-      if (epoch !== this.epoch) throw new Error("连接已被新的宿主状态替代");
+      if (epoch !== this.epoch) throw new Error(t("dsh.error.replaced"));
       await this.waitForGeneration(ctx, controller.signal);
-      if (epoch !== this.epoch) throw new Error("连接已被新的宿主状态替代");
+      if (epoch !== this.epoch) throw new Error(t("dsh.error.replaced"));
       this.ready = true;
       this.onGenerationChange?.(true);
       this.generationSubscription = ctx.connection.generation.subscribe(() => {
@@ -460,8 +482,8 @@ export class Connection {
         if (error) reject(error);
         else resolve();
       };
-      const abort = () => finish(new Error("连接已被新的宿主状态替代"));
-      const timer = setTimeout(() => finish(new Error("等待后台事件流超时。")), 15_000);
+      const abort = () => finish(new Error(t("dsh.error.replaced")));
+      const timer = setTimeout(() => finish(new Error(t("dsh.error.eventTimeout"))), 15_000);
       const check = () => {
         if (ctx.connection.generation.getSnapshot()) finish();
       };
@@ -473,7 +495,7 @@ export class Connection {
   }
 
   private get installed(): Installed {
-    if (!this.ctx) throw new Error("尚未连接后台");
+    if (!this.ctx) throw new Error(t("session.hostDown"));
     return this.ctx;
   }
 
@@ -669,7 +691,7 @@ export class Connection {
     const value = unwrap(await this.remote.commands.execute(sessionId, line, [])) as
       | { result?: { kind?: string; text?: string } }
       | undefined;
-    if (!value) return { kind: "error", text: `这个版本的后台不认 ${line}。` };
+    if (!value) return { kind: "error", text: t("dsh.error.unknownLine", { line }) };
     const result = value.result ?? {};
     return {
       kind: result.kind === "success" ? "success" : "error",
@@ -820,9 +842,9 @@ export class Connection {
           : undefined;
       return await this.approval({
         sessionId,
-        toolName: String(request.toolName ?? "工具"),
+        toolName: String(request.toolName ?? t("dsh.error.tool")),
         ...(request.callId ? { callId: String(request.callId) } : {}),
-        reason: String(displayZh ?? request.reason ?? "需要你的确认"),
+        reason: String(displayZh ?? request.reason ?? t("dsh.error.approvalReason")),
         details: JSON.stringify(
           {
             toolName: request.toolName,

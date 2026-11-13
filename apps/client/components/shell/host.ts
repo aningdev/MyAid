@@ -34,6 +34,7 @@ import {
   workspaces,
 } from "../../features/workspace/state";
 import { ensureHostRunning, hostLauncher, retryHostLauncher } from "../../lib/host/launcher";
+import { t } from "../../lib/i18n";
 import { applyShellPrefs, loadShellPrefs, markPrefsLoaded } from "./prefs";
 
 /** A Host runs only beside the desktop app (the web target has none). */
@@ -87,9 +88,7 @@ export function watchHostLauncher(): void {
     last = status.phase;
     if (status.phase === "failed") {
       noteHostLost(
-        status.failure?.kind === "exited"
-          ? "Host 已退出，正在重新启动。"
-          : "Host 未运行，正在等待启动。",
+        status.failure?.kind === "exited" ? t("host.exitedNotice") : t("host.waitingNotice"),
       );
       return;
     }
@@ -178,14 +177,14 @@ async function runMigration(): Promise<void> {
       applyShellPrefs(prefs, registry());
       markPrefsLoaded();
       if (report.skipped > 0) {
-        migrationNotice.set(
-          `迁移完成；${report.skipped} 项 dsh 没有接受（名字可能重名，或旧 Session 已不存在）。`,
-        );
+        migrationNotice.set(t("registry.migrationSkipped", { count: report.skipped }));
       }
     }
   } catch (error) {
     migrationNotice.set(
-      `迁移中断：${error instanceof Error ? error.message : String(error)}；连接 Host 后会重试。`,
+      t("registry.migrationFailed", {
+        error: error instanceof Error ? error.message : String(error),
+      }),
     );
   }
 }

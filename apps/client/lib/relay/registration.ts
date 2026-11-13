@@ -16,6 +16,7 @@ import {
 } from "../background/protocol";
 import { hostControlAllowed } from "../data-root";
 import { hostDataRoot } from "../host/launcher";
+import { t } from "../i18n";
 
 /** The Relay's control port when nothing names one (`MYAID_RELAY_PORT`). */
 export const DEFAULT_RELAY_PORT = 8787;
@@ -85,7 +86,7 @@ export function createRelayRegistrationTransport(
     },
 
     call: async (op) => {
-      if (!allow()) throw new Error("测试应用不连接本机控制面");
+      if (!allow()) throw new Error(t("test.noControl"));
       const route = ROUTES[op];
       const headers: Record<string, string> = {};
       const bearer = await token();
@@ -101,7 +102,9 @@ export function createRelayRegistrationTransport(
         body,
       });
       if (!response.ok) {
-        throw new Error(`转发登记请求失败：${route.path} ${response.status}`);
+        throw new Error(
+          t("relay.registration.request", { path: route.path, status: response.status }),
+        );
       }
       return await response.text();
     },
@@ -119,21 +122,21 @@ export const relayRegistrationAccess = {
 
   registrationQuery: async (): Promise<RegistrationSnapshot> => {
     if (!(await transport.reachable())) {
-      return notRunning("Relay 未运行：请 cargo run -p myaid-relay -- serve-app，或登记为后台服务");
+      return notRunning(t("relay.notRunning"));
     }
     return decodeRegistrationSnapshot(await transport.call("registrationQuery"));
   },
 
   registrationEnable: async (): Promise<UnitRegistration> => {
     if (!(await transport.reachable())) {
-      throw new Error("Relay 未运行，无法向系统登记");
+      throw new Error(t("relay.registerFailed"));
     }
     return decodeUnitRegistration(await transport.call("registrationEnable"));
   },
 
   registrationStop: async (): Promise<UnitRegistration> => {
     if (!(await transport.reachable())) {
-      throw new Error("Relay 未运行，无法注销系统登记");
+      throw new Error(t("relay.unregisterFailed"));
     }
     return decodeUnitRegistration(await transport.call("registrationStop"));
   },

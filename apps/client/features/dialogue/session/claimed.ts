@@ -23,6 +23,7 @@ import type {
   SessionUsage,
   SkillSummary,
 } from "../../../lib/dsh/connection";
+import { t } from "../../../lib/i18n";
 import { segmentOwner, type BotRegistry } from "../../bots/model";
 import { sessionLabel } from "../../bots/sessions";
 
@@ -114,7 +115,9 @@ export function occupancyBlock(input: {
     const left = segmentOwner(input.registry, occupant);
     if (!left) continue;
     if (left.segment.workspaceId !== right.segment.workspaceId) continue;
-    return `工作区正被「${sessionLabel(left.segment, input.summaries.get(occupant) ?? null)}」占用。`;
+    return t("session.workspaceOccupied", {
+      label: sessionLabel(left.segment, input.summaries.get(occupant) ?? null),
+    });
   }
   return null;
 }
@@ -165,7 +168,7 @@ export class ClaimedSessionClient {
       })
       .catch(() => undefined);
     await work;
-    if (!this.host?.ready) throw new Error("尚未连接后台");
+    if (!this.host?.ready) throw new Error(t("session.hostDown"));
     return this.host;
   }
 
@@ -186,7 +189,7 @@ export class ClaimedSessionClient {
       agentPreset: input.agentPreset,
     });
     const saved = await this.hooks.claim(input.botId, input.workspaceId, created.sessionId);
-    if (!saved) throw new Error("会话已在后台创建，但没有写进这个 Bot 的长对话。");
+    if (!saved) throw new Error(t("session.claimLost"));
     return created.sessionId;
   }
 
@@ -198,6 +201,6 @@ export class ClaimedSessionClient {
   }
 
   private assertAlive(): void {
-    if (this.disposed) throw new Error("ClaimedSession 已释放");
+    if (this.disposed) throw new Error(t("session.claimReleased"));
   }
 }

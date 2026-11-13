@@ -7,6 +7,7 @@
 import { Canvas, type CanvasRenderingContext2D, Text, View } from "nsh";
 
 import { alpha, colors } from "../../components/ui";
+import { t } from "../../lib/i18n";
 import {
   BOT_COLOR_HEX,
   BOT_COLOR_LABELS,
@@ -109,7 +110,9 @@ export function BotIdentityPicker(props: {
   return (
     <View style={{ gap: 10 }}>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Color</Text>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+          {t("bot.identity.color")}
+        </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           <Each of={BOT_COLORS}>
             {(color) => {
@@ -118,7 +121,9 @@ export function BotIdentityPicker(props: {
                 <View
                   onPress={() => chooseColor(color())}
                   role="button"
-                  accessibilityLabel={`Color ${BOT_COLOR_LABELS[color()]}`}
+                  accessibilityLabel={t("bot.identity.colorLabel", {
+                    name: t(BOT_COLOR_LABELS[color()]),
+                  })}
                   accessibilityState={{ selected: selected() }}
                   testID={`bot-color-${color()}`}
                   style={{
@@ -146,7 +151,9 @@ export function BotIdentityPicker(props: {
         </View>
       </View>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Glyph</Text>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+          {t("bot.identity.glyph")}
+        </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
           <Each of={BOT_GLYPHS}>
             {(glyph) => {
@@ -155,7 +162,7 @@ export function BotIdentityPicker(props: {
                 <View
                   onPress={() => chooseGlyph(glyph())}
                   role="button"
-                  accessibilityLabel={`Glyph ${glyph()}`}
+                  accessibilityLabel={t("bot.identity.glyphLabel", { name: glyph() })}
                   accessibilityState={{ selected: selected() }}
                   testID={`bot-glyph-${glyph()}`}
                   style={{

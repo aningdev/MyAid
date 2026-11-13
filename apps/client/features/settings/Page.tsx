@@ -7,6 +7,7 @@
 import { Scroll, signal, Text, View } from "nsh";
 
 import { colors, Press, radius, toneTint } from "../../components/ui";
+import { t, type MessageKey } from "../../lib/i18n";
 import { AboutSection } from "./About";
 import { BackgroundSection } from "./Background";
 import { GeneralSection } from "./General";
@@ -14,11 +15,11 @@ import { ProvidersSection } from "./ModelProviders";
 
 export type SettingsGroup = "providers" | "general" | "background" | "about";
 
-const GROUPS: readonly { id: SettingsGroup; label: string }[] = [
-  { id: "providers", label: "模型供应商" },
-  { id: "general", label: "通用" },
-  { id: "background", label: "后台" },
-  { id: "about", label: "关于" },
+const GROUPS: readonly { id: SettingsGroup; label: MessageKey }[] = [
+  { id: "providers", label: "settings.nav.providers" },
+  { id: "general", label: "settings.nav.general" },
+  { id: "background", label: "settings.nav.background" },
+  { id: "about", label: "settings.nav.about" },
 ];
 
 const group = signal<SettingsGroup>("providers");
@@ -46,7 +47,7 @@ export function SettingsPage() {
               <Press
                 testID={`settings-nav-${entry().id}`}
                 onPress={() => group.set(entry().id)}
-                accessibilityLabel={entry().label}
+                accessibilityLabel={t(entry().label)}
                 accessibilityState={{ selected: group() === entry().id }}
                 scale={0.99}
                 style={{
@@ -64,7 +65,7 @@ export function SettingsPage() {
                     color: group() === entry().id ? colors.text : colors.muted,
                   }}
                 >
-                  {entry().label}
+                  {t(entry().label)}
                 </Text>
               </Press>
             )}

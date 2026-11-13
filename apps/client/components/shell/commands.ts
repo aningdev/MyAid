@@ -20,6 +20,7 @@ import { requestComposerFocus } from "../../features/dialogue/chat/focus";
 import { controllerFor, sessionList } from "../../features/dialogue/session/runtime";
 import { newTopic } from "../../features/workspace/conversation";
 import { workspaces } from "../../features/workspace/state";
+import { t, type MessageKey } from "../../lib/i18n";
 import type { IconName } from "../ui";
 import { collectPanelIds } from "./dock";
 import { toggleNavOpen } from "./layout";
@@ -39,9 +40,10 @@ export type CommandContext = {
 
 export type ShellCommand = {
   id: string;
-  label: string;
+  /** Its name in the menu, the palette and the help, in the catalog. */
+  label: MessageKey;
   /** One section of the palette (commands share one). */
-  group: string;
+  group: MessageKey;
   keywords?: string[];
   /** As `keymap` names it; the Shell binds it. */
   shortcut?: string;
@@ -94,8 +96,8 @@ function startNewTopic(): void {
 export const COMMANDS: readonly ShellCommand[] = [
   {
     id: "bot.new",
-    label: "New Bot…",
-    group: "Commands",
+    label: "command.newBot",
+    group: "palette.group.commands",
     keywords: ["create", "agent", "assistant"],
     shortcut: "mod+n",
     menu: { section: "File" },
@@ -104,8 +106,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "panel.close",
-    label: "Close Panel",
-    group: "Commands",
+    label: "command.closePanel",
+    group: "palette.group.commands",
     shortcut: "mod+w",
     menu: { section: "File", separatorBefore: true },
     icon: "close",
@@ -114,8 +116,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "settings.open",
-    label: "Settings…",
-    group: "Commands",
+    label: "command.settings",
+    group: "palette.group.commands",
     keywords: ["preferences", "providers", "background", "about"],
     shortcut: "mod+,",
     menu: { section: "File", separatorBefore: true },
@@ -124,8 +126,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "nav.toggle",
-    label: "Toggle Navigator",
-    group: "Commands",
+    label: "command.toggleNavigator",
+    group: "palette.group.commands",
     keywords: ["sidebar", "hide", "show"],
     shortcut: "mod+b",
     menu: { section: "View" },
@@ -134,8 +136,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "nav.search",
-    label: "Search Bots",
-    group: "Commands",
+    label: "command.searchBots",
+    group: "palette.group.commands",
     keywords: ["filter", "find", "sidebar"],
     shortcut: "mod+f",
     menu: { section: "View" },
@@ -144,8 +146,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "panel.split-right",
-    label: "Split Right",
-    group: "Commands",
+    label: "command.splitRight",
+    group: "palette.group.commands",
     shortcut: "mod+\\",
     menu: { section: "View", separatorBefore: true },
     icon: "panel-right",
@@ -155,8 +157,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "panel.split-down",
-    label: "Split Down",
-    group: "Commands",
+    label: "command.splitDown",
+    group: "palette.group.commands",
     shortcut: "mod+shift+\\",
     menu: { section: "View" },
     icon: "panel-bottom",
@@ -166,8 +168,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "panel.previous",
-    label: "Previous Panel",
-    group: "Commands",
+    label: "command.previousPanel",
+    group: "palette.group.commands",
     shortcut: "mod+[",
     menu: { section: "View", separatorBefore: true },
     icon: "back",
@@ -176,8 +178,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "panel.next",
-    label: "Next Panel",
-    group: "Commands",
+    label: "command.nextPanel",
+    group: "palette.group.commands",
     shortcut: "mod+]",
     menu: { section: "View" },
     icon: "chevron",
@@ -186,8 +188,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "palette.open",
-    label: "Command Palette…",
-    group: "Commands",
+    label: "command.palette",
+    group: "palette.group.commands",
     keywords: ["go to", "jump", "search"],
     shortcut: "mod+k",
     menu: { section: "View", separatorBefore: true },
@@ -197,8 +199,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "session.stop",
-    label: "Stop",
-    group: "Commands",
+    label: "command.stop",
+    group: "palette.group.commands",
     keywords: ["cancel", "interrupt", "generating"],
     shortcut: "mod+.",
     menu: { section: "Chat" },
@@ -208,8 +210,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "conversation.new",
-    label: "新话题",
-    group: "Commands",
+    label: "command.newTopic",
+    group: "palette.group.commands",
     keywords: ["new topic", "new segment", "/new", "fresh", "conversation"],
     menu: { section: "Chat", separatorBefore: true },
     icon: "chat",
@@ -218,8 +220,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "composer.focus",
-    label: "Focus Composer",
-    group: "Commands",
+    label: "command.focusComposer",
+    group: "palette.group.commands",
     shortcut: "mod+l",
     menu: { section: "Chat" },
     icon: "chat",
@@ -228,8 +230,8 @@ export const COMMANDS: readonly ShellCommand[] = [
   },
   {
     id: "bot.details",
-    label: "Bot details…",
-    group: "Commands",
+    label: "command.botDetails",
+    group: "palette.group.commands",
     keywords: ["profile", "preset", "model", "skills", "plugins", "archive", "delete"],
     menu: { section: "Chat", separatorBefore: true },
     icon: "sliders",
@@ -274,7 +276,7 @@ export type PaletteJump = {
   id: string;
   label: string;
   keywords: string[];
-  group: string;
+  group: MessageKey;
   botId: string;
 };
 
@@ -298,7 +300,7 @@ export function paletteJumps(): PaletteJump[] {
       ...(bot.archived ? ["archived"] : []),
       ...(bot.status === "draft" ? ["draft"] : []),
     ].filter(Boolean),
-    group: bot.archived ? "Archived" : "Bots",
+    group: bot.archived ? "palette.group.archived" : "palette.group.bots",
     botId: bot.id,
   }));
 }
@@ -314,9 +316,9 @@ export function paletteItems(): {
     if (command.inPalette === false) continue;
     items.push({
       id: `cmd:${command.id}`,
-      label: command.label,
+      label: t(command.label),
       keywords: command.keywords ?? [],
-      group: command.group,
+      group: t(command.group),
       ...(command.shortcut ? { shortcut: command.shortcut } : {}),
       ...(command.enabled ? { disabled: !command.enabled() } : {}),
     });
@@ -326,7 +328,7 @@ export function paletteItems(): {
       id: jump.id,
       label: jump.label,
       keywords: jump.keywords,
-      group: jump.group,
+      group: t(jump.group),
     });
     jumps.set(jump.id, jump.botId);
   }
@@ -370,7 +372,7 @@ const WINDOW_MENU: MenuItem[] = [
 
 function menuItemFor(command: ShellCommand): MenuItem {
   return {
-    label: command.label,
+    label: t(command.label),
     ...(command.shortcut ? { shortcut: command.shortcut } : {}),
     disabled: command.enabled ? !command.enabled() : false,
     onSelect: () => runCommand(command.id),
@@ -403,7 +405,7 @@ export function buildApplicationMenu(
       submenu: [
         { role: "about" },
         { type: "separator" },
-        { label: "Settings…", shortcut: "mod+,", onSelect: openSettings },
+        { label: t("command.settings"), shortcut: "mod+,", onSelect: openSettings },
         { type: "separator" },
         { role: "hide" },
         { role: "hideOthers" },
@@ -414,11 +416,11 @@ export function buildApplicationMenu(
     });
   }
   menu.push(
-    { label: "File", submenu: sectionItems(commands, "File") },
-    { label: "Edit", submenu: EDIT_MENU },
-    { label: "View", submenu: sectionItems(commands, "View") },
-    { label: "Chat", submenu: sectionItems(commands, "Chat") },
-    { label: "Window", submenu: WINDOW_MENU },
+    { label: t("menu.file"), submenu: sectionItems(commands, "File") },
+    { label: t("menu.edit"), submenu: EDIT_MENU },
+    { label: t("menu.view"), submenu: sectionItems(commands, "View") },
+    { label: t("menu.chat"), submenu: sectionItems(commands, "Chat") },
+    { label: t("menu.window"), submenu: WINDOW_MENU },
   );
   return menu;
 }

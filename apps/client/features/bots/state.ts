@@ -6,6 +6,7 @@
 import { platform, signal, untracked } from "nsh";
 
 import { usesTestStorage } from "../../lib/data-root";
+import { t } from "../../lib/i18n";
 import {
   DERIVED_PRESET_PREFIX,
   emptyRegistry,
@@ -41,9 +42,7 @@ export async function loadRegistry(): Promise<void> {
     legacyRegistry.set(result.legacy);
     loadError.set(result.corrupt);
     migrationNotice.set(
-      result.legacy
-        ? `注册表还是旧版本（v${result.legacy.version}）：连接 Host 后会把旧对话并成 Bot 的一条长对话。`
-        : null,
+      result.legacy ? t("registry.migrationTooOld", { version: result.legacy.version }) : null,
     );
   } catch (error) {
     loadError.set(messageOf(error));
@@ -66,7 +65,7 @@ export async function acceptMigratedRegistry(next: BotRegistry): Promise<boolean
     migrationNotice.set(null);
     return true;
   } catch (error) {
-    migrationNotice.set(`迁移结果没能写入：${messageOf(error)}`);
+    migrationNotice.set(t("registry.migrationNotWritten", { error: messageOf(error) }));
     return false;
   } finally {
     saving.set(false);
@@ -136,7 +135,7 @@ export async function importDshTemplates(): Promise<number> {
 function messageOf(error: unknown): string {
   if (error instanceof RegistryRejection) return error.message;
   if (error instanceof Error && error.message) return error.message;
-  return "保存失败。";
+  return t("registry.saveFailed");
 }
 
 function openRepository(): { repo: BotRegistryRepository; notice: string | null } {
@@ -144,7 +143,7 @@ function openRepository(): { repo: BotRegistryRepository; notice: string | null 
   if (!desktop || usesTestStorage()) {
     return {
       repo: new BotRegistryRepository(storageStore()),
-      notice: desktop ? null : "当前平台不写 ~/.myaid，注册表存在应用自己的存储里。",
+      notice: desktop ? null : t("registry.webStorage"),
     };
   }
   return { repo: new BotRegistryRepository(fileStore(defaultRegistryPath())), notice: null };

@@ -12,13 +12,17 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 
 import { dataRootPath, hostControlAllowed } from "../data-root";
+import { t } from "../i18n";
 import { decodeBackendInfo, decodeHostStatus, type HostStatus } from "./protocol";
 
 /** The control port when nothing names one (`MYAID_HOST_PORT`, which the Host honours too). */
 export const DEFAULT_HOST_PORT = 4872;
 
 /** What a test app's transport says instead of reaching the person's machine. */
-export const NO_CONTROL_IN_TEST = "测试应用不连接本机控制面";
+/** Why a test app stays off the control plane (read at the throw, in the app's language). */
+export function noControlInTest(): string {
+  return t("test.noControl");
+}
 
 export type EnsureSource = "attach" | "userStart";
 
@@ -110,7 +114,7 @@ export async function probeHost(
     const response = await withTimeout(
       request(`${hostBaseUrl(port)}/`, { method: "GET" }),
       timeoutMs,
-      "the Host did not answer",
+      t("host.error.probeTimeout"),
     );
     if (!response.ok) return false;
     return (await response.text()).trim() === "myaid";
@@ -127,7 +131,7 @@ async function failure(response: Response, path: string): Promise<Error> {
   } catch {
     // Not a Host error body: fall through to the status line.
   }
-  return new Error(`宿主请求失败：${path} ${response.status}`);
+  return new Error(t("host.error.request", { path, status: response.status }));
 }
 
 /** The HTTP transport the product uses; tests pass their own seams. */
@@ -174,7 +178,7 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
         : Promise.resolve(false),
 
     call: async (op) => {
-      if (!seams.allow()) throw new Error(NO_CONTROL_IN_TEST);
+      if (!seams.allow()) throw new Error(noControlInTest());
       switch (op.op) {
         case "status":
           return get("/status", decodeHostStatus);
@@ -191,12 +195,12 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
 
     watch: async (onStatus, onDown) => {
       if (!seams.allow()) {
-        onDown(NO_CONTROL_IN_TEST);
+        onDown(noControlInTest());
         return () => {};
       }
       const token = await seams.token();
       if (!token) {
-        onDown("宿主未运行（缺少访问令牌）");
+        onDown(t("host.error.noToken"));
         return () => {};
       }
       const socket = seams.socket(
@@ -208,14 +212,18 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
         try {
           onStatus(decodeHostStatus(String(event.data)));
         } catch (error) {
-          onDown(`宿主状态帧无效：${error instanceof Error ? error.message : String(error)}`);
+          onDown(
+            t("host.error.badStatusFrame", {
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
         }
       };
       socket.onerror = () => {
-        if (!closed) onDown("宿主状态订阅不可用");
+        if (!closed) onDown(t("host.error.watchUnavailable"));
       };
       socket.onclose = () => {
-        if (!closed) onDown("宿主状态订阅已断开");
+        if (!closed) onDown(t("host.error.watchClosed"));
       };
       return () => {
         closed = true;

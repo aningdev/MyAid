@@ -15,6 +15,7 @@
  */
 import { Picker } from "nsh";
 
+import { t } from "../../../lib/i18n";
 import { filesFromUrls } from "./files";
 
 /** How many files one dialog may return: dsh takes a handful per prompt. */
@@ -57,9 +58,9 @@ export async function attachDropped(
   if (picked.length > 0) return { files: [...files, ...picked], notice: null };
   const missing =
     files.length === 0
-      ? "Nothing was attached"
+      ? t("chat.attachNothing")
       : unread.length === 1
-        ? "The other file was not attached"
-        : "The other files were not attached";
-  return { files, notice: `${missing}: MyAid reads local files through the open dialog.` };
+        ? t("chat.attachOtherOne")
+        : t("chat.attachOtherMany");
+  return { files, notice: t("chat.attachDialog", { missing }) };
 }

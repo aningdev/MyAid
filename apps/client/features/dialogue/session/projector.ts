@@ -11,6 +11,7 @@ import type {
   SessionEventWindow,
 } from "@myaid/dsh-web-protocol/client";
 
+import { t } from "../../../lib/i18n";
 import type { Msg, Status, Tool } from "../chat/scripts";
 
 type Event = {
@@ -139,9 +140,32 @@ function withResult(tool: GenericTool, result: GenericTool | undefined): Generic
   };
 }
 
+/** Why a turn ended, as data: the view words it, so a switch rewords it. */
+export type TurnOutcome =
+  | { kind: "interrupted" }
+  | { kind: "stopped" }
+  | { kind: "failed"; error: string | null }
+  | null;
+
+/** A turn's outcome as the assistant message's status. */
+export function outcomeStatus(outcome: TurnOutcome): Status {
+  if (!outcome) return "done";
+  return outcome.kind === "stopped" ? "stopped" : "error";
+}
+
+/** A turn's outcome as the sentence a message or snapshot shows. */
+export function outcomeText(outcome: TurnOutcome): string {
+  if (!outcome) return "";
+  if (outcome.kind === "interrupted") return t("session.status.interrupted");
+  if (outcome.kind === "stopped") return t("session.status.stopped");
+  return outcome.error
+    ? t("session.status.failed", { error: outcome.error })
+    : t("session.status.failedHint");
+}
+
 export type ProjectedChat = {
   messages: Msg[];
-  status: string;
+  outcome: TurnOutcome;
   liveMd: string;
   liveReason: string;
   liveTools: Tool[];
@@ -175,7 +199,7 @@ export class SessionProjector {
   private revision = -1;
   /** Built messages and deliverables, dropped when a durable event lands. */
   private durable: { messages: Msg[]; deliverables: Deliverable[] } | null = null;
-  status = "";
+  outcome: TurnOutcome = null;
   /** The snapshot cut off older events (`hasMore` on the window). */
   hasMore = false;
 
@@ -219,7 +243,7 @@ export class SessionProjector {
     );
     return {
       messages: durable.messages,
-      status: this.status,
+      outcome: this.outcome,
       liveMd: this.live,
       liveReason: this.liveReasonText,
       liveTools,
@@ -243,8 +267,7 @@ export class SessionProjector {
       if (event.type === "assistant/message") {
         const parsed = parseContent(object(event.data.message).content);
         const tools = parsed.tools.map((tool) => withResult(tool, this.toolResults.get(tool.id)));
-        const status: Status =
-          this.status.includes("失败") || this.status.includes("中断") ? "error" : "done";
+        const status = outcomeStatus(this.outcome);
         messages.push({
           kind: "assistant",
           id: `a${event.seq}`,
@@ -257,7 +280,7 @@ export class SessionProjector {
           tools,
           md: parsed.text,
           status,
-          error: status === "error" ? this.status || undefined : undefined,
+          error: status === "error" ? outcomeText(this.outcome) || undefined : undefined,
         });
       }
     }
@@ -318,7 +341,7 @@ export class SessionProjector {
   private rebuild(entries: readonly SessionEventLikeEntry[]): void {
     this.events = [];
     this.durable = null;
-    this.status = "";
+    this.outcome = null;
     this.toolResults.clear();
     this.rpcIds.clear();
     this.resetLive();
@@ -405,19 +428,22 @@ export class SessionProjector {
       if (typeof source.rpcId === "string") this.rpcIds.add(source.rpcId);
     }
     if (event.type === "turn/start") {
-      this.status = "";
+      this.outcome = null;
       this.toolResults.clear();
     }
     if (event.type === "turn/end") {
       const reason = object(event.data.reason);
-      this.status =
+      this.outcome =
         reason.kind === "interrupted"
-          ? "上次执行已中断"
+          ? { kind: "interrupted" }
           : reason.kind === "aborted"
-            ? "执行已停止"
+            ? { kind: "stopped" }
             : reason.kind === "error"
-              ? `执行失败：${String(object(reason.error).message ?? "未知错误")}`
-              : "";
+              ? {
+                  kind: "failed",
+                  error: String(object(reason.error).message ?? t("common.unknownError")),
+                }
+              : null;
     }
     if (event.type === "tool/call") {
       const callId = typeof event.data.callId === "string" ? event.data.callId : "";
@@ -470,9 +496,9 @@ export class SessionProjector {
         this.liveToolMap.set(tool.id, withResult(tool, this.toolResults.get(tool.id)));
       }
     }
-    if (event.data.interrupted === true) this.status = "执行已停止";
+    if (event.data.interrupted === true) this.outcome = { kind: "stopped" };
     if (event.type.includes("error") || event.type === "llm/failure") {
-      this.status = "执行失败，请检查模型配置与凭据";
+      this.outcome = { kind: "failed", error: null };
     }
   }
 }

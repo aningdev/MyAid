@@ -15,6 +15,7 @@ import {
   launcherFailureText,
   MANUAL_HOST_COMMAND,
 } from "../../lib/host/launcher";
+import { t } from "../../lib/i18n";
 import { Button, colors, Icon } from "../ui";
 import { hasHost, retryHost } from "./host";
 import { openSettings } from "./settings";
@@ -38,10 +39,10 @@ export function HostFooter() {
   };
 
   const label = (): string => {
-    if (up()) return "Host connected";
-    if (starting()) return "Starting Host…";
+    if (up()) return t("host.connected");
+    if (starting()) return t("host.starting");
     if (launcher().phase === "failed") return launcherFailureText(launcher().failure);
-    return "Host disconnected";
+    return t("host.disconnected");
   };
 
   return (
@@ -79,7 +80,7 @@ export function HostFooter() {
         </View>
         <If when={!up()}>
           <Button
-            label="Retry"
+            label={t("common.retry")}
             size="small"
             disabled={!hasHost || busy()}
             onPress={() => void retry()}
@@ -88,7 +89,7 @@ export function HostFooter() {
         <View
           role="button"
           onPress={openSettings}
-          accessibilityLabel="Settings"
+          accessibilityLabel={t("host.settings")}
           hoverStyle={{ opacity: 0.7 }}
           style={{ width: 22, height: 22, alignItems: "center", justifyContent: "center" }}
         >
@@ -103,7 +104,7 @@ export function HostFooter() {
             numberOfLines: 1,
           }}
         >
-          {`手动启动：${MANUAL_HOST_COMMAND}`}
+          {t("host.manual", { command: MANUAL_HOST_COMMAND })}
         </Text>
       </If>
     </View>

@@ -12,6 +12,7 @@
 import { signal, untracked } from "nsh";
 
 import { readableError, type CommandOutcome, type SessionUsage } from "../../lib/dsh/connection";
+import { t } from "../../lib/i18n";
 import { controllerFor, sessionTransport } from "../dialogue/session/runtime";
 import type { Deliverable } from "../dialogue/session/turn";
 
@@ -50,7 +51,7 @@ const fromHost: SessionFactsSource = {
   command: async (sessionId, line) => {
     const transport = sessionTransport();
     if (!transport?.ready || !transport.executeCommand) {
-      throw new Error("还没连上后台。");
+      throw new Error(t("facts.notConnected"));
     }
     return transport.executeCommand(sessionId, line);
   },
@@ -61,7 +62,7 @@ const fromHost: SessionFactsSource = {
   },
   reveal: async (path) => {
     const transport = sessionTransport();
-    if (!transport?.ready || !transport.revealPath) throw new Error("还没连上后台。");
+    if (!transport?.ready || !transport.revealPath) throw new Error(t("facts.notConnected"));
     await transport.revealPath(path);
   },
   deliverables: (sessionId) => controllerFor(sessionId).view().deliverables,
@@ -135,10 +136,13 @@ export async function compactSession(sessionId: string): Promise<void> {
   try {
     const outcome = await sessionFactsSource().command(sessionId, "/compact");
     if (outcome.kind === "success") {
-      writeCompact(sessionId, { status: "done", text: outcome.text ?? "已压缩。" });
+      writeCompact(sessionId, { status: "done", text: outcome.text ?? t("facts.compacted") });
       await refreshUsage(sessionId);
     } else {
-      writeCompact(sessionId, { status: "failed", error: outcome.text ?? "压缩没有完成。" });
+      writeCompact(sessionId, {
+        status: "failed",
+        error: outcome.text ?? t("facts.compactIncomplete"),
+      });
     }
   } catch (error) {
     writeCompact(sessionId, { status: "failed", error: readableError(error) });

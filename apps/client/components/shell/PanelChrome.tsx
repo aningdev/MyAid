@@ -5,6 +5,7 @@ import { BotMark } from "../../features/bots/BotMark";
 import { openBotDetails } from "../../features/bots/details";
 import { registry } from "../../features/bots/state";
 import { sessionList } from "../../features/dialogue/session/runtime";
+import { t } from "../../lib/i18n";
 import { colors, Icon, type IconName } from "../ui";
 import { activePanelId, panelBotId, panelTitle, splitPanel } from "./state";
 
@@ -53,30 +54,34 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
         <If when={bot()}>
           {(current) => (
             <ChromeBtn
-              label={`Bot details: ${current().name}`}
+              label={t("panel.botDetails", { name: current().name })}
               icon="sliders"
               onPress={() => openBotDetails(current().id)}
             />
           )}
         </If>
         <ChromeBtn
-          label={`Split ${title()} right`}
+          label={t("panel.splitRight", { title: title() })}
           icon="panel-right"
           onPress={() => splitPanel(tab.panel, "right")}
         />
         <ChromeBtn
-          label={`Split ${title()} down`}
+          label={t("panel.splitDown", { title: title() })}
           icon="panel-bottom"
           onPress={() => splitPanel(tab.panel, "down")}
         />
         <ChromeBtn
-          label={tab.zoomed ? `Restore ${title()}` : `Zoom ${title()}`}
+          label={
+            tab.zoomed
+              ? t("panel.restore", { title: title() })
+              : t("panel.zoom", { title: title() })
+          }
           icon={tab.zoomed ? "restore" : "maximize"}
           onPress={() => props.area?.toggleZoom(tab.group)}
         />
         <If when={tab.closable}>
           <ChromeBtn
-            label={`Close ${title()}`}
+            label={t("panel.close", { title: title() })}
             icon="close"
             onPress={() => props.area?.closePanel(tab.panel)}
           />

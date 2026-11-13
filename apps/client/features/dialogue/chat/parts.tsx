@@ -17,6 +17,7 @@ import {
   toneColor,
   toneTint,
 } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import { BotMark } from "../../bots/BotMark";
 import type { BotIdentity } from "../../bots/identity";
 import { Glyph, type GlyphName } from "./glyphs";
@@ -140,7 +141,9 @@ export function SegmentDivider(props: {
   return (
     <View
       testID="segment-divider"
-      accessibilityLabel={`Segment ${row().label}${row().fullPath ? `, ${row().fullPath}` : ""}${row().current ? ", current" : ""}`}
+      accessibilityLabel={`${t("chat.segmentDivider", { label: row().label })}${
+        row().fullPath ? `, ${row().fullPath}` : ""
+      }${row().current ? `, ${t("chat.current")}` : ""}`}
       tooltip={
         row().fullPath ? (
           <Text style={{ fontSize: 12, userSelect: "text" }}>{row().fullPath}</Text>
@@ -228,7 +231,7 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         </Text>
       </View>
       <If when={props.onRemove}>
-        <Press onPress={props.onRemove} accessibilityLabel="Remove file" scale={0.85}>
+        <Press onPress={props.onRemove} accessibilityLabel={t("chat.removeFile")} scale={0.85}>
           <View style={{ width: 36, height: 40, alignItems: "center", justifyContent: "center" }}>
             <Glyph name="close" size={13} tint={colors.muted} />
           </View>
@@ -284,7 +287,7 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
       <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: colors.text }}>
         {props.message}
       </Text>
-      <Press onPress={props.onRetry} accessibilityLabel="Retry">
+      <Press onPress={props.onRetry} accessibilityLabel={t("chat.retry")}>
         <View
           style={{
             height: 30,
@@ -298,7 +301,9 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
           }}
         >
           <Glyph name="regenerate" size={13} tint={colors.onLight} />
-          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.onLight }}>Retry</Text>
+          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.onLight }}>
+            {t("common.retry")}
+          </Text>
         </View>
       </Press>
     </View>

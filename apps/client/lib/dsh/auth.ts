@@ -3,6 +3,8 @@
  * fetch `/connect?token=…` with Cookie → open `ws://127.0.0.1…/api/remote.mux`.
  */
 
+import { t } from "../i18n";
+
 export type DshLogin = {
   origin: string;
   cookie: string;
@@ -43,9 +45,7 @@ export function resolveLoginUrl(explicit?: string): string {
       : undefined;
   const url = explicit?.trim() || fromEnv;
   if (!url) {
-    throw new Error(
-      "缺少登录 URL：请先经 Host 启动后台（connectionInfo），或设置 MYAID_DSH_LOGIN_URL",
-    );
+    throw new Error(t("dsh.auth.noLoginUrl"));
   }
   return url;
 }
@@ -57,10 +57,10 @@ export async function fetchSessionCookie(
 ): Promise<DshLogin> {
   const login = new URL(loginUrl);
   if (login.protocol !== "http:" || login.hostname !== "127.0.0.1") {
-    throw new Error("后台地址必须是本机回环地址");
+    throw new Error(t("dsh.auth.loopbackOnly"));
   }
   const token = login.searchParams.get("token");
-  if (!token) throw new Error("启动链接缺少认证令牌");
+  if (!token) throw new Error(t("dsh.auth.noToken"));
 
   const url = new URL("/connect", login);
   url.searchParams.set("token", token);
@@ -79,7 +79,7 @@ export async function fetchSessionCookie(
     .filter(Boolean)
     .join("; ");
   if (response.status !== 302 || !cookie) {
-    throw new Error(`认证失败：后台返回 ${response.status}，未取得 Cookie`);
+    throw new Error(t("dsh.auth.failed", { status: response.status }));
   }
   return { origin: login.origin, cookie };
 }

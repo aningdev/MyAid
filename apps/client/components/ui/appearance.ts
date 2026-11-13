@@ -7,6 +7,8 @@
  */
 import { colorScheme, setColorScheme, signal } from "nsh";
 
+import type { MessageKey } from "../../lib/i18n";
+
 /** Follow the system, or hold one scheme. */
 export type AppearanceScheme = "system" | "light" | "dark";
 
@@ -16,7 +18,7 @@ export type AccentChoice = "default" | "blue" | "violet" | "emerald" | "amber" |
 /** One accent's colors: its hue in each appearance, and the text drawn on it. */
 export type AccentSwatch = {
   id: AccentChoice;
-  label: string;
+  label: MessageKey;
   light: string;
   dark: string;
   on: string;
@@ -28,18 +30,18 @@ export type AccentSwatch = {
  * cannot promise either.
  */
 export const ACCENTS: readonly AccentSwatch[] = [
-  { id: "default", label: "默认", light: "", dark: "", on: "" },
-  { id: "blue", label: "蓝", light: "#2563eb", dark: "#60a5fa", on: "#ffffff" },
-  { id: "violet", label: "紫", light: "#7c3aed", dark: "#a78bfa", on: "#ffffff" },
-  { id: "emerald", label: "绿", light: "#059669", dark: "#34d399", on: "#ffffff" },
-  { id: "amber", label: "琥珀", light: "#d97706", dark: "#fbbf24", on: "#1c1917" },
-  { id: "rose", label: "玫红", light: "#e11d48", dark: "#fb7185", on: "#ffffff" },
+  { id: "default", label: "accent.default", light: "", dark: "", on: "" },
+  { id: "blue", label: "accent.blue", light: "#2563eb", dark: "#60a5fa", on: "#ffffff" },
+  { id: "violet", label: "accent.violet", light: "#7c3aed", dark: "#a78bfa", on: "#ffffff" },
+  { id: "emerald", label: "accent.emerald", light: "#059669", dark: "#34d399", on: "#ffffff" },
+  { id: "amber", label: "accent.amber", light: "#d97706", dark: "#fbbf24", on: "#1c1917" },
+  { id: "rose", label: "accent.rose", light: "#e11d48", dark: "#fb7185", on: "#ffffff" },
 ];
 
-export const APPEARANCE_SCHEMES: readonly { id: AppearanceScheme; label: string }[] = [
-  { id: "system", label: "跟随系统" },
-  { id: "light", label: "浅色" },
-  { id: "dark", label: "深色" },
+export const APPEARANCE_SCHEMES: readonly { id: AppearanceScheme; label: MessageKey }[] = [
+  { id: "system", label: "appearance.system" },
+  { id: "light", label: "appearance.light" },
+  { id: "dark", label: "appearance.dark" },
 ];
 
 const scheme = signal<AppearanceScheme>("system");

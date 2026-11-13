@@ -10,6 +10,7 @@
 import { signal, Text, View } from "nsh";
 
 import { Badge, Button, colors, Icon } from "../../components/ui";
+import { t } from "../../lib/i18n";
 import { requestComposerFocus } from "../dialogue/chat/focus";
 import { ChatPane } from "../dialogue/ChatPane";
 import { controllerFor, sessionError } from "../dialogue/session/runtime";
@@ -60,11 +61,11 @@ function Missing(props: { ready: () => boolean }) {
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 24 }}>
       <Icon name="spark" size={24} tint={colors.faint} />
       <Text style={{ fontSize: 14, fontWeight: "600", color: colors.muted }}>
-        {props.ready() ? "This Bot is gone" : "Reading the registry…"}
+        {props.ready() ? t("bot.gone") : t("bot.readingRegistry")}
       </Text>
       <If when={props.ready()}>
         <Text style={{ fontSize: 12, color: colors.faint, textAlign: "center" }}>
-          Pick another Bot in the list, or press ⌘N.
+          {t("bot.goneHint")}
         </Text>
       </If>
     </View>
@@ -100,20 +101,20 @@ function NoSegment(props: { botId: string; onOpenDetails: () => void }) {
       <View style={{ alignItems: "center", gap: 12, maxWidth: 420 }}>
         <Icon name="chat" size={24} tint={colors.faint} />
         <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
-          {`No conversation with ${bot()?.name ?? "this Bot"} yet`}
+          {t("bot.noConversation", { name: bot()?.name ?? t("bot.thisBot") })}
         </Text>
         <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted, textAlign: "center" }}>
-          {bot()?.status === "ready"
-            ? "Start one in its default working directory; a new segment follows."
-            : "Finish setting this Bot up first: pick its preset and working directory."}
+          {bot()?.status === "ready" ? t("bot.noConversationHint") : t("bot.setupFirst")}
         </Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <If
             when={bot()?.status === "ready"}
-            else={<Button label="Bot details…" variant="accent" onPress={props.onOpenDetails} />}
+            else={
+              <Button label={t("menu.botDetails")} variant="accent" onPress={props.onOpenDetails} />
+            }
           >
             <Button
-              label={busy() ? "Starting…" : "Start a conversation"}
+              label={busy() ? t("bot.starting") : t("bot.startConversation")}
               variant="accent"
               disabled={!canStart()}
               onPress={() => void start()}
@@ -126,7 +127,7 @@ function NoSegment(props: { botId: string; onOpenDetails: () => void }) {
           </Text>
         </If>
         <If when={!!bot()?.archived}>
-          <Badge label="Archived" tone="neutral" />
+          <Badge label={t("bot.archivedBadge")} tone="neutral" />
         </If>
       </View>
     </View>

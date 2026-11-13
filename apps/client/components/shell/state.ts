@@ -7,6 +7,7 @@ import { signal, untracked } from "nsh";
 import type { DockAreaLayout } from "nsh/base";
 
 import { registry } from "../../features/bots/state";
+import { t } from "../../lib/i18n";
 import {
   collectPanelIds,
   emptyLayout,
@@ -59,11 +60,11 @@ export function panelBotId(panelId: string): string | null {
   return panelContentsState()[panelId]?.botId ?? null;
 }
 
-/** A Pane's title: its Bot's current name, or "Empty". */
+/** A Pane's title: its Bot's current name, or the empty Pane's word. */
 export function panelTitle(panelId: string): string {
   const botId = panelBotId(panelId);
-  if (!botId) return "Empty";
-  return registry().bots.find((bot) => bot.id === botId)?.name ?? "Empty";
+  if (!botId) return t("panel.empty");
+  return registry().bots.find((bot) => bot.id === botId)?.name ?? t("panel.empty");
 }
 
 /** The Pane showing `botId`, if one does. */

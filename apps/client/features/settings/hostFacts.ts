@@ -13,6 +13,7 @@ import {
   launcherFailureText,
   type LauncherStatus,
 } from "../../lib/host/launcher";
+import { t, type MessageKey } from "../../lib/i18n";
 
 export type HostFactsSource = {
   status(): Promise<HostStatus>;
@@ -81,7 +82,7 @@ export async function loadHostFacts(): Promise<HostFacts> {
     const actual = status.dshVersion ?? null;
     const mismatch =
       actual && supported && actual !== supported
-        ? `dsh 版本不匹配：实际 ${actual}，支持 ${supported}。Host 拒绝启动。`
+        ? t("background.mismatch", { actual, supported })
         : null;
     const next: HostFacts = {
       phase: "ready",
@@ -164,4 +165,23 @@ function errorsOf(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** The lifecycle phases the Host reports, as words. */
+const LIFECYCLE_LABELS: Record<string, MessageKey> = {
+  idle: "lifecycle.idle",
+  preparing: "lifecycle.preparing",
+  starting: "lifecycle.starting",
+  ready: "lifecycle.ready",
+  stopping: "lifecycle.stopping",
+  stopped: "lifecycle.stopped",
+  recovering: "lifecycle.recovering",
+  failed: "lifecycle.failed",
+};
+
+/** A Host / dsh web phase in the language the app shows; an unknown one stays as sent. */
+export function lifecycleLabel(phase: string | null | undefined): string {
+  if (!phase) return "—";
+  const key = LIFECYCLE_LABELS[phase];
+  return key ? t(key) : phase;
 }

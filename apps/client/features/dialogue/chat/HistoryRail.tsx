@@ -10,6 +10,7 @@ import { cleanup, effect, keymap, signal, Text, View } from "nsh";
 import { HoverCard } from "nsh/base";
 
 import { alpha, colors, finish, mono, radius } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import { middleEllipsis } from "../../workspace/paths";
 
 export type RailMark = {
@@ -37,6 +38,11 @@ function cardStyle() {
     minWidth: 180,
     maxWidth: 300,
   };
+}
+
+/** What a mark says to a screen reader: its title, time, path and whether it is current. */
+function markLabel(mark: RailMark): string {
+  return `${mark.label} · ${mark.time}${mark.fullPath ? ` · ${mark.fullPath}` : ""}${mark.current ? ` · ${t("chat.current")}` : ""}`;
 }
 
 export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: number) => void }) {
@@ -97,7 +103,7 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
     <View
       testID="history-rail"
       role="listbox"
-      accessibilityLabel="Conversation history"
+      accessibilityLabel={t("chat.history")}
       focusable
       onPress={() => {
         if (cursor() < 0) cursor.set(props.marks().length - 1);
@@ -133,7 +139,7 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
                 testID={`history-mark-${index()}`}
                 role="option"
                 focusable={false}
-                accessibilityLabel={`${mark().label} · ${mark().time}${mark().fullPath ? ` · ${mark().fullPath}` : ""}${mark().current ? " · current" : ""}`}
+                accessibilityLabel={markLabel(mark())}
                 accessibilityState={{ selected: mark().current }}
                 onPress={() => choose(index())}
                 style={{
@@ -170,11 +176,7 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
               </View>
             }
           >
-            <View
-              testID="rail-card"
-              accessibilityLabel={`${mark().label} · ${mark().time}${mark().fullPath ? ` · ${mark().fullPath}` : ""}`}
-              style={{ gap: 4 }}
-            >
+            <View testID="rail-card" accessibilityLabel={markLabel(mark())} style={{ gap: 4 }}>
               <Text
                 testID="rail-card-title"
                 style={{ numberOfLines: 1, fontSize: 12, fontWeight: "600", color: colors.text }}

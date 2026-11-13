@@ -11,7 +11,8 @@ import {
  * `notRegistered`, and `lib/background` merges the two.
  */
 import { hostControlAllowed } from "../data-root";
-import { hostBaseUrl, hostPort, hostToken, NO_CONTROL_IN_TEST } from "./client";
+import { t } from "../i18n";
+import { hostBaseUrl, hostPort, hostToken, noControlInTest } from "./client";
 
 export type HostRegistrationOp = "registrationQuery" | "registrationEnable" | "registrationStop";
 
@@ -30,7 +31,7 @@ const ROUTES: Record<HostRegistrationOp, { path: string; method: string }> = {
 function testSnapshot(): string {
   return JSON.stringify({
     version: 1,
-    host: { unit: "host", phase: "notRegistered", reason: NO_CONTROL_IN_TEST },
+    host: { unit: "host", phase: "notRegistered", reason: noControlInTest() },
     relay: { unit: "relay", phase: "notRegistered" },
     availability: "off",
   });
@@ -66,7 +67,7 @@ export function createHostRegistrationTransport(
       if (!allow()) {
         // Querying is a fact ("nothing asked"), while a verb the user starts is refused.
         if (op === "registrationQuery") return testSnapshot();
-        throw new Error(NO_CONTROL_IN_TEST);
+        throw new Error(noControlInTest());
       }
       const route = ROUTES[op];
       const headers: Record<string, string> = {};
@@ -83,7 +84,9 @@ export function createHostRegistrationTransport(
         body,
       });
       if (!response.ok) {
-        throw new Error(`宿主登记请求失败：${route.path} ${response.status}`);
+        throw new Error(
+          t("host.registration.request", { path: route.path, status: response.status }),
+        );
       }
       return await response.text();
     },

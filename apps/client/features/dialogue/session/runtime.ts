@@ -9,6 +9,7 @@
 import type { ISessions, SessionListState, SessionSummary } from "@myaid/dsh-web-protocol/client";
 import { computed, signal, untracked } from "nsh";
 
+import { t } from "../../../lib/i18n";
 import {
   claimSegment,
   presetForBot,
@@ -302,7 +303,7 @@ function onGenerationChange(up: boolean): void {
   if (!up) {
     // The official models keep the last published window while their streams
     // reconnect; the product only names the gap until the next frame.
-    sessionError.set("后台连接已断开。");
+    sessionError.set(t("session.connectionLost"));
     watchForHost();
     return;
   }
@@ -444,21 +445,21 @@ export function connectSession(_sessionId?: string): Promise<void> {
 async function connectHost(): Promise<SessionHost> {
   await connectSession();
   const api = claimed?.getHost();
-  if (!api?.ready) throw new Error("尚未连接后台");
+  if (!api?.ready) throw new Error(t("session.hostDown"));
   return api;
 }
 
 /** Create a new Session in `workspaceId` and append it as the Bot's next segment. */
 export async function createSegment(botId: string, workspaceId: string): Promise<string> {
-  if (untracked(creatingSession)) throw new Error("正在新建上下文。");
+  if (untracked(creatingSession)) throw new Error(t("session.creating"));
   sessionError.set(null);
   creatingSession.set(true);
   try {
-    if (!untracked(ready)) throw new Error("注册表还没准备好。");
+    if (!untracked(ready)) throw new Error(t("session.registryNotReady"));
     const bot = untracked(registry).bots.find((item) => item.id === botId);
-    if (!bot) throw new Error("找不到这个 Bot。");
-    if (bot.status !== "ready") throw new Error("初始化之后才能开新段。");
-    if (!workspaceId) throw new Error("这段对话还没有 dsh Workspace。");
+    if (!bot) throw new Error(t("workspace.botMissing"));
+    if (bot.status !== "ready") throw new Error(t("workspace.notReady"));
+    if (!workspaceId) throw new Error(t("session.noWorkspace"));
     await connectSession();
     const client = await ensureClient();
     const preset = presetForBot(untracked(registry), bot.id);
@@ -494,7 +495,7 @@ export async function selectSessionModel(sessionId: string, key: string): Promis
 export async function releaseMissingSession(sessionId: string): Promise<void> {
   const row = untracked(sessionList).find((item) => item.id === sessionId);
   if (!row?.missing) {
-    sessionError.set("dsh 里还在的会话不能移除。");
+    sessionError.set(t("session.removeStillInDsh"));
     return;
   }
   const owner = segmentOwner(untracked(registry), sessionId);

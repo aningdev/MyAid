@@ -5,6 +5,8 @@
  */
 import type { ImageMediaType } from "@myaid/dsh-web-protocol/session";
 
+import { t } from "../../../lib/i18n";
+
 export type Attachment = {
   id: string;
   name: string;
@@ -40,7 +42,7 @@ let nextAttachment = 1;
 /** The chip a file becomes. `name` falls back for pasted images without one. */
 export function attachmentFromFile(
   file: Blob & { name?: string },
-  name = file.name ?? "Attachment",
+  name = file.name ?? t("chat.attachmentFallback"),
 ): Attachment {
   const mediaType = asImageMediaType(file.type);
   const url =

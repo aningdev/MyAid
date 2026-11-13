@@ -6,6 +6,7 @@ import { effect, keymap, platform, View } from "nsh";
 import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { isAvailable as hasWindow, Menu, titleBar } from "nsh/desktop";
 
+import { t } from "../../lib/i18n";
 import { colors, handleThumb, Icon } from "../ui";
 import { startAttention } from "./attention";
 import { buildApplicationMenu, COMMANDS, runCommand } from "./commands";
@@ -70,7 +71,7 @@ export function Shell() {
         axis="horizontal"
         handleClass="bg-border"
         handleThumbClass={handleThumb}
-        handleAccessibilityLabel="Resize navigator"
+        handleAccessibilityLabel={t("shell.resizeNavigator")}
         style={{ flex: 1, minHeight: 0, minWidth: 0 }}
       >
         <ResizablePanel
@@ -160,7 +161,7 @@ function NavToggle() {
   return (
     <Button
       onPress={() => toggleNavOpen()}
-      accessibilityLabel={open() ? "Collapse navigator" : "Expand navigator"}
+      accessibilityLabel={open() ? t("shell.collapseNavigator") : t("shell.expandNavigator")}
       class="hover:bg-accent focus:outline-ring size-7 items-center justify-center rounded-md focus:outline-2 focus:-outline-offset-2"
     >
       <Icon name="sidebar" size={16} tint={colors.muted} />

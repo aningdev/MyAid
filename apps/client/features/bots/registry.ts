@@ -1,4 +1,6 @@
 /** Registry file vocabulary: version, rejection issues and the normalizers the file format shares. */
+
+import { t } from "../../lib/i18n";
 export const REGISTRY_VERSION = 6 as const;
 
 export type RegistryIssue =
@@ -33,39 +35,39 @@ export class RegistryRejection extends Error {
 export function rejectionMessage(issue: RegistryIssue): string {
   switch (issue.code) {
     case "corrupt":
-      return "注册表已损坏，未覆盖文件。";
+      return t("registry.corrupt");
     case "legacy-version":
-      return "注册表是旧版本：先连接 Host 把旧对话迁成 Bot 的长对话。";
+      return t("registry.legacy");
     case "invalid":
       return issue.reason;
     case "unsupported-version":
-      return "注册表版本过旧或无法读取，请删除 ~/.myaid/registry/bots.json 后重建。";
+      return t("registry.tooOld");
     case "not-found":
-      return "找不到这条记录。";
+      return t("registry.missingRecord");
     case "missing-template":
-      return "模板不在了。";
+      return t("registry.templateGone");
     case "template-in-use":
-      return "仍有 Bot 使用此模板。";
+      return t("registry.templateInUse");
     case "not-draft":
-      return "这个 Bot 已经初始化。";
+      return t("registry.botInitialized");
     case "empty-workspace":
-      return "开新段前要填写工作目录。";
+      return t("registry.workspaceRequired");
     case "frozen":
-      return "初始化后不能改模板。";
+      return t("registry.templateLocked");
     case "empty-name":
-      return "名称不能为空。";
+      return t("registry.nameEmpty");
     case "empty-preset":
-      return "Agent preset id 不能为空。";
+      return t("registry.presetEmpty");
     case "duplicate-id":
-      return "标识已存在。";
+      return t("registry.duplicateId");
     case "not-ready":
-      return "初始化之后才能开新段。";
+      return t("registry.beforeInit");
     case "session-claimed":
-      return "这条会话已经属于一个 Bot。";
+      return t("registry.sessionClaimed");
     case "bot-has-dialogues":
-      return "这个 Bot 已经有过长对话。";
+      return t("registry.alreadyHasConversation");
     case "segment-not-found":
-      return "找不到这段会话。";
+      return t("registry.sessionMissing");
   }
 }
 

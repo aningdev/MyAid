@@ -7,6 +7,7 @@ import type { Msg, Tool } from "./scripts";
 
 export type Assistant = Extract<Msg, { kind: "assistant" }>;
 export type User = Extract<Msg, { kind: "user" }>;
+import { t, tCount } from "../../../lib/i18n";
 import { dayKey, dayLabel } from "./time";
 
 /** One message's parts, in the order the Harness wrote them. */
@@ -179,9 +180,9 @@ export function groupsSteps(tools: readonly Tool[]): boolean {
   return tools.length > 1;
 }
 
-/** "1 step", "4 steps". */
+/** "1 step", "4 steps" / "1 步", "4 步". */
 export function stepsLabel(tools: readonly Tool[]): string {
-  return `${tools.length} ${tools.length === 1 ? "step" : "steps"}`;
+  return tCount("chat.steps.one", "chat.steps.other", tools.length);
 }
 
 /**
@@ -190,7 +191,7 @@ export function stepsLabel(tools: readonly Tool[]): string {
  * them is the target beside the verb.
  */
 export function toolSummary(tool: Tool): { verb: string; target: string } {
-  const verb = tool.name || "Tool";
+  const verb = tool.name || t("common.unknown");
   return { verb, target: firstArgument(tool.arguments) };
 }
 

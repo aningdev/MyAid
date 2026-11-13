@@ -7,6 +7,7 @@
 import { cleanup, effect, keymap, signal, Text, View } from "nsh";
 
 import { alpha, colors, finish, Press, radius, toneTint } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import type { ApprovalRequest } from "../session/claimed";
 import type { SessionController } from "../session/controller";
 import { Glyph } from "./glyphs";
@@ -23,7 +24,7 @@ export function ApprovalCard(props: { controller: () => SessionController }) {
   });
 
   const answer = (allowed: boolean) => {
-    const tool = request()?.toolName || "the tool";
+    const tool = request()?.toolName || t("dsh.error.tool");
     record.set({ tool, allowed });
     props.controller().answerApproval(allowed ? "allowed-once" : "rejected");
   };
@@ -80,17 +81,21 @@ function Card(props: {
           <Glyph name="alert" size={13} tint={colors.warn} />
         </View>
         <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.text }}>
-          {`Allow ${req()?.toolName || "this tool"}?`}
+          {t("chat.allowTool", { tool: req()?.toolName || t("dsh.error.tool") })}
         </Text>
       </View>
       <Text style={{ fontSize: 13, lineHeight: 18, color: colors.muted }}>
-        {req()?.reason || "This call needs your permission."}
+        {req()?.reason || t("chat.permission")}
       </Text>
       <If when={!!req()?.details}>
         <Text style={{ fontSize: 12, lineHeight: 17, color: colors.faint }}>{req()?.details}</Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Press onPress={() => props.onAnswer(true)} accessibilityLabel="Allow once" scale={0.97}>
+        <Press
+          onPress={() => props.onAnswer(true)}
+          accessibilityLabel={t("chat.allowOnce")}
+          scale={0.97}
+        >
           <View
             style={{
               height: 30,
@@ -103,11 +108,15 @@ function Card(props: {
             }}
           >
             <Text style={{ fontSize: 13, fontWeight: "600", color: colors.onLight }}>
-              Allow once
+              {t("chat.allowOnce")}
             </Text>
           </View>
         </Press>
-        <Press onPress={() => props.onAnswer(false)} accessibilityLabel="Deny" scale={0.97}>
+        <Press
+          onPress={() => props.onAnswer(false)}
+          accessibilityLabel={t("chat.deny")}
+          scale={0.97}
+        >
           <View
             style={{
               height: 30,
@@ -121,11 +130,13 @@ function Card(props: {
               ...finish.raised,
             }}
           >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Deny</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>
+              {t("chat.deny")}
+            </Text>
           </View>
         </Press>
         <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 11, color: colors.faint }}>Return allows · Esc denies</Text>
+        <Text style={{ fontSize: 11, color: colors.faint }}>{t("chat.approvalKeys")}</Text>
       </View>
     </View>
   );

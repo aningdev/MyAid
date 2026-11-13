@@ -1,5 +1,6 @@
 /** Desktop registry: Bot → its one long conversation (segments). Bot capability = Agent preset. */
 
+import { t } from "../../lib/i18n";
 import { defaultIdentity, type BotIdentity } from "./identity";
 import { blankToNull, REGISTRY_VERSION, RegistryRejection } from "./registry";
 
@@ -82,7 +83,8 @@ export type BotRegistry = {
   bots: Bot[];
 };
 
-export type PresetBindingLabel = "跟随模板" | "已绑定" | "单独配置";
+/** How a Bot stands to its template's preset: the words are the view's. */
+export type PresetBinding = "inherit" | "bound" | "custom";
 
 export function emptyRegistry(): BotRegistry {
   return { version: REGISTRY_VERSION, templates: [], bots: [] };
@@ -113,11 +115,11 @@ export function presetForBot(registry: BotRegistry, botId: string): string {
 export function presetBinding(
   bot: Bot,
   template: BotTemplate | null,
-): { presetId: string; label: PresetBindingLabel } {
+): { presetId: string; binding: PresetBinding } {
   const presetId = resolveAgentPreset(bot, template);
-  if (blankToNull(bot.derivedPresetId)) return { presetId, label: "单独配置" };
-  if (blankToNull(bot.boundPresetId)) return { presetId, label: "已绑定" };
-  return { presetId, label: "跟随模板" };
+  if (blankToNull(bot.derivedPresetId)) return { presetId, binding: "custom" };
+  if (blankToNull(bot.boundPresetId)) return { presetId, binding: "bound" };
+  return { presetId, binding: "inherit" };
 }
 
 export function createTemplate(
@@ -296,7 +298,7 @@ export function claimSegment(
   const bot = mustBot(registry, botId);
   if (bot.status !== "ready") throw new RegistryRejection({ code: "not-ready", botId });
   const id = sessionId.trim();
-  if (!id) throw new RegistryRejection({ code: "invalid", reason: "Session id 不能为空。" });
+  if (!id) throw new RegistryRejection({ code: "invalid", reason: t("registry.sessionIdEmpty") });
   const workspace = workspaceId.trim();
   if (!workspace) throw new RegistryRejection({ code: "empty-workspace" });
   if (segmentOwner(registry, id))
@@ -384,7 +386,8 @@ export function assignDerivedPreset(
 
 function readTemplateInput(id: string, name: string, presetId: string): BotTemplate {
   const trimmedId = id.trim();
-  if (!trimmedId) throw new RegistryRejection({ code: "invalid", reason: "模板 id 不能为空。" });
+  if (!trimmedId)
+    throw new RegistryRejection({ code: "invalid", reason: t("registry.templateIdEmpty") });
   return { id: trimmedId, name: requireName(name), presetId: requirePresetId(presetId) };
 }
 

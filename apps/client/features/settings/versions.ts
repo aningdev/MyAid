@@ -6,7 +6,8 @@
  */
 import { platform } from "nsh";
 
-import type { HostFacts } from "./hostFacts";
+import { t } from "../../lib/i18n";
+import { lifecycleLabel, type HostFacts } from "./hostFacts";
 
 /** Keep in step with `apps/client/package.json` and `nsh.json`. */
 export const APP_VERSION = "0.1.0";
@@ -35,17 +36,26 @@ export function versionRows(facts: HostFacts): VersionRows {
  */
 export function diagnosticsText(facts: HostFacts): string {
   const rows = versionRows(facts);
+  const phase = lifecycleLabel(rows.hostPhase);
   const lines = [
-    "MyAid 诊断信息",
+    t("diagnostics.title"),
     `MyAid: ${rows.myaid}`,
-    `Host: ${rows.host}（${rows.hostPhase}）`,
-    `dsh: ${rows.dsh}`,
-    `dsh 支持版本: ${rows.supportedDsh}`,
-    `Host 连接: ${facts.reachable ? "已连接" : "未连接"}`,
-    `dsh web: ${rows.hostPhase}`,
+    t("diagnostics.host", { version: rows.host, phase }),
+    t("diagnostics.dsh", { version: rows.dsh }),
+    t("diagnostics.supported", { version: rows.supportedDsh }),
+    t("diagnostics.hostState", {
+      state: facts.reachable ? t("background.connected") : t("background.disconnected"),
+    }),
+    t("diagnostics.dshWeb", { phase }),
   ];
-  if (facts.mismatch) lines.push(`问题: ${facts.mismatch}`);
-  if (facts.errors.length > 0) lines.push(`最近错误: ${facts.errors.join("；")}`);
-  lines.push(`平台: ${platform.os} ${platform.version}`);
+  if (facts.mismatch) lines.push(t("diagnostics.problem", { problem: facts.mismatch }));
+  if (facts.errors.length > 0) {
+    lines.push(
+      t("diagnostics.recentErrors", {
+        errors: facts.errors.join(t("diagnostics.errorSeparator")),
+      }),
+    );
+  }
+  lines.push(t("diagnostics.platform", { os: platform.os, version: platform.version }));
   return `${lines.join("\n")}\n`;
 }

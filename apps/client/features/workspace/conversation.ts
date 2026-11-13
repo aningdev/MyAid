@@ -1,3 +1,4 @@
+import { t } from "../../lib/i18n";
 /**
  * The product commands that start a segment of a Bot's long conversation: the
  * Bot's working directory resolves to a dsh Workspace (created when the
@@ -84,11 +85,11 @@ export async function startSegment(
   const use = starter ?? substituted ?? productStarter();
   const bot = registry().bots.find((item) => item.id === botId);
   if (!bot) {
-    setActionError("找不到这个 Bot。");
+    setActionError(t("workspace.botMissing"));
     return null;
   }
   if (bot.status !== "ready") {
-    setActionError("初始化之后才能开新段。");
+    setActionError(t("workspace.notReady"));
     return null;
   }
   let target = path === undefined ? "" : await expandHome(path);
@@ -97,7 +98,7 @@ export async function startSegment(
   }
   if (!target) target = (await use.pickDirectory()) ?? "";
   if (!target) {
-    setActionError("开新段前要选择工作目录。");
+    setActionError(t("workspace.needsDirectory"));
     return null;
   }
   try {
@@ -123,7 +124,7 @@ export async function changeWorkingDirectory(
 ): Promise<string | null> {
   const target = await expandHome(path);
   if (!target) {
-    setActionError("工作目录不能为空。");
+    setActionError(t("workspace.emptyDirectory"));
     return null;
   }
   const current = workingDirectoryOf(registry(), workspaces(), botId);
@@ -139,5 +140,5 @@ export function newTopic(botId: string, starter?: SegmentStarter): Promise<strin
 /** The starter's readable line for a failure. */
 export function messageOf(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
-  return "Workspace 调用失败。";
+  return t("workspace.callFailed");
 }

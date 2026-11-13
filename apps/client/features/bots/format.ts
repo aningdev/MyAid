@@ -3,6 +3,8 @@
  * a Host to migrate) and serialize. The domain model and its mutations live in
  * `model.ts`; this module owns only the bytes.
  */
+
+import { t } from "../../lib/i18n";
 import { defaultIdentity, readIdentity } from "./identity";
 import type { Bot, BotRegistry, BotTemplate, Segment } from "./model";
 import {
@@ -65,10 +67,10 @@ export function parseRegistry(text: string): ParseResult {
   try {
     value = JSON.parse(text);
   } catch {
-    return { ok: false, message: "注册表不是 JSON。" };
+    return { ok: false, message: t("registry.notJson") };
   }
   if (!isRecord(value)) {
-    return { ok: false, message: "注册表不是对象。" };
+    return { ok: false, message: t("registry.notObject") };
   }
   const sourceVersion = value.version;
   if (
@@ -83,18 +85,18 @@ export function parseRegistry(text: string): ParseResult {
     };
   }
   if (!Array.isArray(value.templates) || !Array.isArray(value.bots)) {
-    return { ok: false, message: "注册表缺少模板或 Bot 列表。" };
+    return { ok: false, message: t("registry.missingLists") };
   }
   const legacy = sourceVersion === 3 || sourceVersion === 4 || sourceVersion === 5;
   if (legacy && !Array.isArray(value.dialogues)) {
-    return { ok: false, message: "注册表缺少 Dialogue 列表。" };
+    return { ok: false, message: t("registry.missingDialogues") };
   }
   const templates: BotTemplate[] = [];
   const templateIds = new Set<string>();
   for (const item of value.templates) {
     const parsed = parseTemplate(item);
     if (typeof parsed === "string") return { ok: false, message: parsed };
-    if (templateIds.has(parsed.id)) return { ok: false, message: "模板 id 重复。" };
+    if (templateIds.has(parsed.id)) return { ok: false, message: t("registry.duplicateTemplate") };
     templateIds.add(parsed.id);
     templates.push(parsed);
   }
@@ -103,9 +105,9 @@ export function parseRegistry(text: string): ParseResult {
   for (const item of value.bots) {
     const parsed = parseBot(item, sourceVersion, legacy ? [] : undefined);
     if (typeof parsed === "string") return { ok: false, message: parsed };
-    if (botIds.has(parsed.id)) return { ok: false, message: "Bot id 重复。" };
+    if (botIds.has(parsed.id)) return { ok: false, message: t("registry.duplicateBot") };
     if (!templateIds.has(parsed.templateId)) {
-      return { ok: false, message: "Bot 引用了不存在的模板。" };
+      return { ok: false, message: t("registry.botTemplateMissing") };
     }
     botIds.add(parsed.id);
     bots.push(parsed);
@@ -113,7 +115,8 @@ export function parseRegistry(text: string): ParseResult {
   const sessionIds = new Set<string>();
   for (const bot of bots) {
     for (const segment of bot.segments) {
-      if (sessionIds.has(segment.sessionId)) return { ok: false, message: "Session id 重复。" };
+      if (sessionIds.has(segment.sessionId))
+        return { ok: false, message: t("registry.duplicateSession") };
       sessionIds.add(segment.sessionId);
     }
   }
@@ -126,13 +129,14 @@ export function parseRegistry(text: string): ParseResult {
           ? parsePreviousDialogue(item)
           : parseLegacyDialogue(item, sourceVersion);
       if (typeof parsed === "string") return { ok: false, message: parsed };
-      if (dialogueIds.has(parsed.id)) return { ok: false, message: "Dialogue id 重复。" };
+      if (dialogueIds.has(parsed.id))
+        return { ok: false, message: t("registry.duplicateDialogue") };
       if (!botIds.has(parsed.botId)) {
-        return { ok: false, message: "Dialogue 引用了不存在的 Bot。" };
+        return { ok: false, message: t("registry.dialogueBotMissing") };
       }
       for (const claim of parsed.claims) {
         if (sessionIds.has(claim.sessionId)) {
-          return { ok: false, message: "Session id 重复。" };
+          return { ok: false, message: t("registry.duplicateSession") };
         }
         sessionIds.add(claim.sessionId);
       }
@@ -141,7 +145,7 @@ export function parseRegistry(text: string): ParseResult {
     }
     for (const bot of bots) {
       if (dialogues.some((item) => item.botId === bot.id) && !bot.hadDialogue) {
-        return { ok: false, message: "Bot 项无效：存在 Dialogue 但 hadDialogue 为 false。" };
+        return { ok: false, message: t("registry.botHadDialogue") };
       }
     }
     return {
@@ -152,7 +156,7 @@ export function parseRegistry(text: string): ParseResult {
   }
   for (const bot of bots) {
     if (bot.segments.length > 0 && !bot.hadDialogue) {
-      return { ok: false, message: "Bot 项无效：存在段但 hadDialogue 为 false。" };
+      return { ok: false, message: t("registry.botHadSegment") };
     }
   }
   return {
@@ -163,12 +167,12 @@ export function parseRegistry(text: string): ParseResult {
 }
 
 function parseTemplate(value: unknown): BotTemplate | string {
-  if (!isRecord(value)) return "模板项无效。";
+  if (!isRecord(value)) return t("registry.badTemplate");
   const id = readRequiredString(value, "id");
   const name = readRequiredString(value, "name");
   const presetId = readRequiredString(value, "presetId");
-  if (!id || !name || !presetId) return "模板项无效。";
-  if (!name.trim() || !presetId.trim()) return "模板项无效。";
+  if (!id || !name || !presetId) return t("registry.badTemplate");
+  if (!name.trim() || !presetId.trim()) return t("registry.badTemplate");
   return { id, name: name.trim(), presetId: presetId.trim() };
 }
 
@@ -177,7 +181,7 @@ function parseBot(
   version: number,
   legacySegments?: readonly Segment[],
 ): Bot | string {
-  if (!isRecord(value)) return "Bot 项无效。";
+  if (!isRecord(value)) return t("registry.badBot");
   const id = readRequiredString(value, "id");
   const name = readRequiredString(value, "name");
   const templateId = readRequiredString(value, "templateId");
@@ -189,24 +193,24 @@ function parseBot(
   const description = readOptionalString(value, "description");
   const defaultThinking = readOptionalString(value, "defaultThinking");
   const defaultWorkspacePath = readOptionalString(value, "defaultWorkspacePath");
-  if (!id || !name?.trim() || !templateId) return "Bot 项无效。";
-  if (status !== "draft" && status !== "ready") return "Bot 项无效。";
+  if (!id || !name?.trim() || !templateId) return t("registry.badBot");
+  if (status !== "draft" && status !== "ready") return t("registry.badBot");
   if (defaultModel === undefined || boundPresetId === undefined || derivedPresetId === undefined) {
-    return "Bot 项无效。";
+    return t("registry.badBot");
   }
   if (
     description === undefined ||
     defaultThinking === undefined ||
     defaultWorkspacePath === undefined
   ) {
-    return "Bot 项无效。";
+    return t("registry.badBot");
   }
   if (status === "ready" && !blankToNull(boundPresetId) && !blankToNull(derivedPresetId)) {
-    return "Bot 项无效。";
+    return t("registry.badBot");
   }
-  if (typeof value.hadDialogue !== "boolean") return "Bot 项无效。";
+  if (typeof value.hadDialogue !== "boolean") return t("registry.badBot");
   // Archived shipped after v3: absent reads as not archived, a present value must be a boolean.
-  if ("archived" in value && typeof value.archived !== "boolean") return "Bot 项无效。";
+  if ("archived" in value && typeof value.archived !== "boolean") return t("registry.badBot");
   let segments: Segment[];
   if (legacySegments !== undefined) {
     segments = [...legacySegments];
@@ -235,16 +239,16 @@ function parseBot(
 }
 
 function parseSegments(value: unknown): Segment[] | string {
-  if (!Array.isArray(value)) return "Bot 项无效。";
+  if (!Array.isArray(value)) return t("registry.badBot");
   const segments: Segment[] = [];
   const seen = new Set<string>();
   for (const item of value) {
-    if (!isRecord(item)) return "Bot 项无效。";
+    if (!isRecord(item)) return t("registry.badBot");
     const sessionId = readRequiredString(item, "sessionId")?.trim();
     const workspaceId = readRequiredString(item, "workspaceId")?.trim();
     const title = readNullableString(item, "title");
-    if (!sessionId || !workspaceId || title === undefined) return "Bot 项无效。";
-    if (seen.has(sessionId)) return "Bot 项无效。";
+    if (!sessionId || !workspaceId || title === undefined) return t("registry.badBot");
+    if (seen.has(sessionId)) return t("registry.badBot");
     seen.add(sessionId);
     segments.push({ sessionId, workspaceId, title: blankToNull(title) });
   }
@@ -252,11 +256,11 @@ function parseSegments(value: unknown): Segment[] | string {
 }
 
 function parsePreviousDialogue(value: unknown): PreviousDialogue | string {
-  if (!isRecord(value)) return "Dialogue 项无效。";
+  if (!isRecord(value)) return t("registry.badDialogue");
   const id = readRequiredString(value, "id");
   const botId = readRequiredString(value, "botId");
   const workspaceId = readRequiredString(value, "workspaceId");
-  if (!id || !botId || !workspaceId?.trim()) return "Dialogue 项无效。";
+  if (!id || !botId || !workspaceId?.trim()) return t("registry.badDialogue");
   const claims = parseClaims(value.claims, 5);
   if (typeof claims === "string") return claims;
   return {
@@ -268,16 +272,16 @@ function parsePreviousDialogue(value: unknown): PreviousDialogue | string {
 }
 
 function parseLegacyDialogue(value: unknown, version: 3 | 4): LegacyDialogue | string {
-  if (!isRecord(value)) return "Dialogue 项无效。";
+  if (!isRecord(value)) return t("registry.badDialogue");
   const id = readRequiredString(value, "id");
   const botId = readRequiredString(value, "botId");
   const workspacePath = readRequiredString(value, "workspacePath");
-  if (!id || !botId || workspacePath === undefined) return "Dialogue 项无效。";
-  if (!workspacePath.trim()) return "Dialogue 项无效。";
-  if (typeof value.archived !== "boolean") return "Dialogue 项无效。";
+  if (!id || !botId || workspacePath === undefined) return t("registry.badDialogue");
+  if (!workspacePath.trim()) return t("registry.badDialogue");
+  if (typeof value.archived !== "boolean") return t("registry.badDialogue");
   // Names shipped after v3: an older file reads its workspace's segment.
   const name = version === 3 ? null : readOptionalString(value, "name");
-  if (name === undefined) return "Dialogue 项无效。";
+  if (name === undefined) return t("registry.badDialogue");
   const claims = parseClaims(value.claims, version);
   if (typeof claims === "string") return claims;
   return {
@@ -298,19 +302,19 @@ function parseClaims(
   value: unknown,
   version: number,
 ): (LegacyClaim & { archived?: boolean })[] | string {
-  if (!Array.isArray(value)) return "Dialogue 项无效。";
+  if (!Array.isArray(value)) return t("registry.badDialogue");
   const claims: (LegacyClaim & { archived?: boolean })[] = [];
   const seen = new Set<string>();
   for (const item of value) {
-    if (!isRecord(item)) return "Dialogue 项无效。";
+    if (!isRecord(item)) return t("registry.badDialogue");
     const sessionId = readRequiredString(item, "sessionId")?.trim();
     const title = readNullableString(item, "title");
-    if (!sessionId || title === undefined) return "Dialogue 项无效。";
-    if (seen.has(sessionId)) return "Dialogue 项无效。";
+    if (!sessionId || title === undefined) return t("registry.badDialogue");
+    if (seen.has(sessionId)) return t("registry.badDialogue");
     seen.add(sessionId);
     // Archived claims shipped after v3, and only a v4 file still carries them.
     const archived = version === 3 ? false : version === 4 ? item.archived : undefined;
-    if (version === 4 && typeof archived !== "boolean") return "Dialogue 项无效。";
+    if (version === 4 && typeof archived !== "boolean") return t("registry.badDialogue");
     claims.push({
       sessionId,
       title: blankToNull(title),

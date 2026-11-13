@@ -18,6 +18,7 @@ import {
   Segmented,
   toneTint,
 } from "../../components/ui";
+import { t } from "../../lib/i18n";
 import type { ProviderField } from "./providerModel";
 import {
   credentialLabel,
@@ -30,7 +31,7 @@ import {
   currentDefault,
   fieldsOf,
   loadProviders,
-  PROVIDERS_NEED_HOST,
+  providersNeedHost,
   providersState,
   saveDefaultModel,
   saveProviderFields,
@@ -63,9 +64,11 @@ export function ProvidersSection() {
   return (
     <View testID="settings-providers" style={{ flex: 1, minHeight: 0 }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 12, gap: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>模型供应商</Text>
+        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+          {t("providers.title")}
+        </Text>
         <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
-          供应商与字段来自 dsh 的设置表单。API Key 只写入 dsh 的凭据存储。
+          {t("providers.note")}
         </Text>
       </View>
       <If when={state().phase === "unavailable" || state().phase === "error"}>
@@ -82,25 +85,23 @@ export function ProvidersSection() {
             }}
           >
             <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-              {state().phase === "unavailable"
-                ? PROVIDERS_NEED_HOST
-                : "无法读取 dsh 的供应商设置。"}
+              {state().phase === "unavailable" ? providersNeedHost() : t("providers.unreadable")}
             </Text>
             <Text
               testID="settings-providers-reason"
               style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}
             >
-              {state().error ?? "Host 未连接。"}
+              {state().error ?? t("providers.hostDown")}
             </Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button label="重试" size="small" onPress={() => void loadProviders()} />
+              <Button label={t("common.retry")} size="small" onPress={() => void loadProviders()} />
             </View>
           </View>
         </View>
       </If>
       <If when={state().phase === "loading"}>
         <Text style={{ paddingHorizontal: 20, fontSize: 13, color: colors.muted }}>
-          正在读取 dsh 的供应商…
+          {t("providers.loading")}
         </Text>
       </If>
       <If when={state().phase === "ready"}>
@@ -111,7 +112,7 @@ export function ProvidersSection() {
               when={active()}
               else={
                 <Text style={{ padding: 20, fontSize: 13, color: colors.muted }}>
-                  选择一个供应商。
+                  {t("providers.pick")}
                 </Text>
               }
             >
@@ -130,7 +131,7 @@ function ProviderList(props: { selected: ReturnType<typeof signal<string | null>
   const dormant = () => state().rows.filter((row) => !row.entry.active);
   return (
     <Scroll style={{ width: 248, flexShrink: 0 }} contentStyle={{ padding: 10, gap: 2 }}>
-      <GroupLabel label="已启用" />
+      <GroupLabel label={t("providers.enabledGroup")} />
       <Each of={live()}>
         {(row) => (
           <ProviderName
@@ -140,7 +141,7 @@ function ProviderList(props: { selected: ReturnType<typeof signal<string | null>
           />
         )}
       </Each>
-      <GroupLabel label="可配置（未启用）" note={`${dormant().length}`} />
+      <GroupLabel label={t("providers.dormantGroup")} note={`${dormant().length}`} />
       <Each of={dormant()}>
         {(row) => (
           <ProviderName
@@ -168,7 +169,8 @@ function GroupLabel(props: { label: string; note?: string }) {
 }
 
 function ProviderName(props: { row: ProviderRow; selected: boolean; onPress: () => void }) {
-  const label = () => (props.row.account ? "账号" : credentialLabel(props.row.credential));
+  const label = () =>
+    props.row.account ? t("providers.account") : credentialLabel(props.row.credential);
   const tone = () => {
     if (props.row.account) return colors.muted;
     return props.row.credential?.configured ? colors.up : colors.faint;
@@ -177,7 +179,7 @@ function ProviderName(props: { row: ProviderRow; selected: boolean; onPress: () 
     <Press
       onPress={props.onPress}
       scale={0.99}
-      accessibilityLabel={`供应商 ${props.row.entry.displayName}`}
+      accessibilityLabel={t("providers.rowLabel", { name: props.row.entry.displayName })}
       accessibilityState={{ selected: props.selected }}
       style={{
         flexDirection: "row",
@@ -263,7 +265,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
       if (def.kind === "number") {
         const parsed = Number(drafts()[field]);
         if (!Number.isFinite(parsed)) {
-          localError.set(`${field} 需要一个数字。`);
+          localError.set(t("providers.numberField", { field }));
           return;
         }
         values[field] = parsed;
@@ -283,7 +285,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
             {props.row.entry.displayName}
           </Text>
           <Badge
-            label={props.row.entry.active ? "已启用" : "未启用"}
+            label={props.row.entry.active ? t("providers.enabled") : t("providers.notEnabled")}
             tone={props.row.entry.active ? "up" : "neutral"}
           />
         </View>
@@ -302,7 +304,9 @@ function ProviderEditor(props: { row: ProviderRow }) {
         else={
           <Card title="API Key">
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>状态</Text>
+              <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>
+                {t("providers.state")}
+              </Text>
               <Badge
                 label={credentialLabel(props.row.credential)}
                 tone={props.row.credential?.configured ? "up" : "neutral"}
@@ -310,17 +314,21 @@ function ProviderEditor(props: { row: ProviderRow }) {
             </View>
             <View style={{ gap: 6 }}>
               <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
-                新的 API Key
+                {t("providers.apiKey")}
               </Text>
               <Input
                 testID="settings-provider-key"
-                accessibilityLabel={`${props.row.entry.displayName} 的 API Key`}
+                accessibilityLabel={t("providers.apiKeyLabel", {
+                  name: props.row.entry.displayName,
+                })}
                 masked
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="off"
                 value={key()}
-                placeholder={props.row.credential?.configured ? "已保存；输入新的值可替换" : "sk-…"}
+                placeholder={
+                  props.row.credential?.configured ? t("providers.apiKeyReplace") : "sk-…"
+                }
                 onChange={(event) => key.set(event.value)}
                 style={{
                   height: 40,
@@ -336,11 +344,11 @@ function ProviderEditor(props: { row: ProviderRow }) {
                 }}
               />
               <Text style={{ fontSize: 11, lineHeight: 16, color: colors.faint }}>
-                {`引用 ${props.row.keyRef}；Key 只写入 dsh 的凭据存储，不写入 MyAid 的任何文件。`}
+                {t("providers.keyRef", { ref: props.row.keyRef })}
               </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <Button
-                  label="保存 Key"
+                  label={t("providers.saveKey")}
                   variant="accent"
                   size="small"
                   disabled={!canWriteKey() || busy() || !key().trim()}
@@ -351,7 +359,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
                   }}
                 />
                 <Button
-                  label="清除 Key"
+                  label={t("providers.clearKey")}
                   size="small"
                   disabled={!canWriteKey() || busy() || !props.row.credential?.configured}
                   onPress={() => void clearProviderKey(props.row.entry.provider)}
@@ -361,19 +369,19 @@ function ProviderEditor(props: { row: ProviderRow }) {
           </Card>
         }
       >
-        <Card title="账号">
+        <Card title={t("providers.accountCard")}>
           <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
-            DeepSeek Account 在 dsh 里用账号登录，没有可在此填写的 API Key。
+            {t("providers.accountNote")}
           </Text>
         </Card>
       </If>
 
-      <Card title="供应商字段">
+      <Card title={t("providers.fieldsCard")}>
         <If
           when={base()}
           else={
             <Text style={{ fontSize: 12, lineHeight: 18, color: colors.faint }}>
-              这个供应商的设置表单没有 base URL 字段。
+              {t("providers.noBaseUrl")}
             </Text>
           }
         >
@@ -394,10 +402,14 @@ function ProviderEditor(props: { row: ProviderRow }) {
           <Press
             onPress={() => advanced.set(!advanced())}
             style={{ flexDirection: "row", alignItems: "center", gap: 6, minHeight: 32 }}
-            accessibilityLabel={advanced() ? "收起高级设置" : "展开高级设置"}
+            accessibilityLabel={
+              advanced() ? t("providers.collapseAdvanced") : t("providers.expandAdvanced")
+            }
           >
             <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
-              {advanced() ? "收起高级设置" : `高级设置（${others().length}）`}
+              {advanced()
+                ? t("providers.collapseAdvanced")
+                : t("providers.expandAdvancedCount", { count: others().length })}
             </Text>
           </Press>
         </If>
@@ -430,7 +442,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
             <View style={{ flex: 1 }} />
           </If>
           <Button
-            label="保存字段"
+            label={t("providers.saveFields")}
             size="small"
             disabled={
               !canWriteSettings() || busy() || !Object.values(dirty()).some((isDirty) => isDirty)
@@ -440,7 +452,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
         </View>
         <If when={!state().writable}>
           <Text style={{ fontSize: 12, lineHeight: 18, color: colors.warn }}>
-            dsh 的设置文档是只读的；字段与 Key 都不能写入。
+            {t("providers.readOnly")}
           </Text>
         </If>
       </Card>
@@ -454,9 +466,9 @@ function ProviderEditor(props: { row: ProviderRow }) {
 function endpointHint(row: ProviderRow): string {
   if (row.entry.defaultBaseURL) return row.entry.defaultBaseURL;
   if (row.entry.baseURLEnv && row.entry.baseURLEnv.length > 0) {
-    return `dsh 默认（或 ${row.entry.baseURLEnv.join(" / ")}）`;
+    return t("providers.baseDefault", { env: row.entry.baseURLEnv.join(" / ") });
   }
-  return "dsh 默认";
+  return t("providers.baseDshDefault");
 }
 
 function ProviderFieldInput(props: {
@@ -473,8 +485,8 @@ function ProviderFieldInput(props: {
         <Segmented
           size="small"
           options={[
-            { value: "false", label: "关" },
-            { value: "true", label: "开" },
+            { value: "false", label: t("common.off") },
+            { value: "true", label: t("common.on") },
           ]}
           value={props.value === true ? "true" : "false"}
           onChange={(value) => props.onChange(value === "true")}
@@ -550,15 +562,20 @@ function DefaultModelCard() {
     );
   const saving = () => state().busy === "default";
   return (
-    <Card title="默认模型">
+    <Card title={t("providers.defaultModel")}>
       <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>
-        {current() ? `当前：${current()!.provider} / ${current()!.model}` : "dsh 未报告默认模型。"}
+        {current()
+          ? t("providers.currentModel", {
+              provider: current()!.provider,
+              model: current()!.model,
+            })
+          : t("providers.noDefaultModel")}
       </Text>
       <If
         when={options().length > 0}
         else={
           <Text style={{ fontSize: 12, lineHeight: 18, color: colors.faint }}>
-            还没有可选的模型；配置供应商密钥后，dsh 会公布它的目录。
+            {t("providers.noModels")}
           </Text>
         }
       >
@@ -571,7 +588,10 @@ function DefaultModelCard() {
                 <Press
                   onPress={() => void saveDefaultModel(option().provider, option().model)}
                   disabled={!state().writable || saving()}
-                  accessibilityLabel={`默认模型 ${option().provider} ${option().name}`}
+                  accessibilityLabel={t("providers.defaultModelLabel", {
+                    provider: option().provider,
+                    name: option().name,
+                  })}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",

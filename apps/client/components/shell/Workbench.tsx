@@ -1,6 +1,7 @@
 import { Text, View } from "nsh";
 import { DockArea, type DockAreaRef, type DockPanel } from "nsh/base";
 
+import { t } from "../../lib/i18n";
 import { alpha, colors, handleThumb } from "../ui";
 import { PanelChrome } from "./PanelChrome";
 import { PanelView } from "./PanelView";
@@ -35,7 +36,7 @@ export function Workbench() {
         tabBarClass="flex-row"
         tabClass="group flex-1"
         contentClass="flex-1"
-        handleAccessibilityLabel="Resize panels"
+        handleAccessibilityLabel={t("shell.resizePanels")}
         handleClass="basis-px bg-border"
         handleThumbClass={handleThumb}
         dropIndicatorClass="rounded-lg border-2 border-primary bg-primary/10"
@@ -44,10 +45,10 @@ export function Workbench() {
         renderEmpty={(_placement) => (
           <View class="flex-1 items-center justify-center gap-1 p-6">
             <Text class="text-sm font-semibold" style={{ color: colors.text }}>
-              No panels
+              {t("panel.noPanels")}
             </Text>
             <Text class="text-xs" style={{ color: colors.muted }}>
-              Split a panel or pick a Bot in the list.
+              {t("panel.noPanelsNote")}
             </Text>
           </View>
         )}

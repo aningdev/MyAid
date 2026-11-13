@@ -1,5 +1,7 @@
 /** Shared Background Service registration contract (mirrors myaid-background-service). */
 
+import { t } from "../i18n";
+
 export const REGISTRATION_CONTRACT_VERSION = 1;
 
 export type ServiceUnit = "host" | "relay";
@@ -80,7 +82,7 @@ export function mergeProductRegistration(
 
 function assertUnitRegistration(value: UnitRegistration): void {
   if (!UNITS.has(value.unit) || !PHASES.has(value.phase)) {
-    throw new Error("Invalid unit registration");
+    throw new Error(t("background.error.invalidUnit"));
   }
 }
 
@@ -95,7 +97,7 @@ export function decodeRegistrationSnapshot(raw: string): RegistrationSnapshot {
   assertUnitRegistration(value.host);
   assertUnitRegistration(value.relay);
   if (typeof value.version !== "number") {
-    throw new Error("Invalid registration snapshot");
+    throw new Error(t("background.error.invalidSnapshot"));
   }
   return value;
 }

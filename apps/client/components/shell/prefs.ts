@@ -28,13 +28,8 @@ import {
   type AppearanceScheme,
 } from "../../components/ui/appearance";
 import type { BotRegistry } from "../../features/bots/model";
-import {
-  LANGUAGES,
-  languagePref,
-  setLanguagePref,
-  type LanguagePref,
-} from "../../features/settings/language";
 import { prefsPath, usesTestStorage } from "../../lib/data-root";
+import { LANGUAGES, languagePref, setLanguagePref, type LanguagePref } from "../../lib/i18n";
 import {
   NAV_DEFAULT_WIDTH,
   NAV_MAX_WIDTH,

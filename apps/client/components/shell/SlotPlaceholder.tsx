@@ -9,6 +9,7 @@ import { BotMark } from "../../features/bots/BotMark";
 import { nextIdentity } from "../../features/bots/identity";
 import { openNewBot } from "../../features/bots/newBot";
 import { legacyRegistry, loadError, ready, registry } from "../../features/bots/state";
+import { t } from "../../lib/i18n";
 import { Button, colors, Icon } from "../ui";
 
 export function SlotPlaceholder() {
@@ -26,7 +27,7 @@ export function SlotPlaceholder() {
       <View class="flex-1 items-center justify-center gap-2 p-6">
         <Icon name="diagnostics" size={24} tint={colors.danger} />
         <Text class="text-sm font-medium" style={{ color: colors.text }}>
-          The registry could not be read
+          {t("empty.registryTitle")}
         </Text>
         <Text class="text-xs" style={{ color: colors.muted, textAlign: "center" }}>
           {loadError()}
@@ -41,10 +42,10 @@ function EmptyPanel() {
     <View class="flex-1 items-center justify-center gap-2 p-6">
       <Icon name="nav" size={24} tint={colors.faint} />
       <Text class="text-sm font-medium" style={{ color: colors.muted }}>
-        Empty panel
+        {t("empty.panelTitle")}
       </Text>
       <Text class="text-xs" style={{ color: colors.faint, textAlign: "center" }}>
-        Pick a Bot on the left, or split this panel and drag one in.
+        {t("empty.panelNote")}
       </Text>
     </View>
   );
@@ -58,7 +59,7 @@ function Welcome() {
         <BotMark identity={nextIdentity(0)} size={56} />
         <View style={{ alignItems: "center", gap: 6 }}>
           <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
-            Welcome to MyAid
+            {t("welcome.title")}
           </Text>
           <Text
             style={{
@@ -68,13 +69,12 @@ function Welcome() {
               textAlign: "center",
             }}
           >
-            Bots are who you work with. Give one a name, a mark and a workspace; every conversation
-            with it is one long conversation.
+            {t("welcome.body")}
           </Text>
         </View>
-        <Button label="Create your first Bot" variant="accent" onPress={openNewBot} />
+        <Button label={t("welcome.create")} variant="accent" onPress={openNewBot} />
         <Text style={{ fontSize: 11, color: colors.faint }}>
-          {`${keymap.label("mod+n")} opens this any time`}
+          {t("welcome.shortcut", { shortcut: keymap.label("mod+n") ?? "" })}
         </Text>
       </View>
     </View>

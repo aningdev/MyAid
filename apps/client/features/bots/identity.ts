@@ -6,6 +6,7 @@
  * Every stored value is a key of the tables below. An unknown key reads as
  * the Bot's default, so an older or a newer file still opens.
  */
+import type { MessageKey } from "../../lib/i18n";
 
 export const BOT_COLORS = [
   "indigo",
@@ -50,15 +51,15 @@ export const BOT_COLOR_HEX: Record<BotColor, string> = {
   violet: "#9A57E0",
 };
 
-export const BOT_COLOR_LABELS: Record<BotColor, string> = {
-  indigo: "Indigo",
-  sky: "Sky",
-  teal: "Teal",
-  lime: "Lime",
-  amber: "Amber",
-  coral: "Coral",
-  rose: "Rose",
-  violet: "Violet",
+export const BOT_COLOR_LABELS: Record<BotColor, MessageKey> = {
+  indigo: "bot.color.indigo",
+  sky: "bot.color.sky",
+  teal: "bot.color.teal",
+  lime: "bot.color.lime",
+  amber: "bot.color.amber",
+  coral: "bot.color.coral",
+  rose: "bot.color.rose",
+  violet: "bot.color.violet",
 };
 
 export function isBotColor(value: unknown): value is BotColor {

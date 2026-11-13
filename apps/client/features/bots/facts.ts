@@ -5,6 +5,7 @@
  * sheet's tabs can be driven without a Host; nothing in the product does.
  */
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
+import { t } from "../../lib/i18n";
 import { sessionTransport } from "../dialogue/session/runtime";
 
 export type BotFactsRequest = {
@@ -27,14 +28,14 @@ export type BotFactsSource = (request: BotFactsRequest) => Promise<BotFacts>;
 
 const fromHost: BotFactsSource = async (request) => {
   const transport = sessionTransport();
-  if (!transport?.ready) return { skills: [], preset: null, note: "连上后台后显示技能与插件。" };
+  if (!transport?.ready) return { skills: [], preset: null, note: t("facts.offline") };
   const note: string[] = [];
   let preset: InventoryPreset | null = null;
   let skills: SkillSummary[] = [];
   if (transport.pluginInventory) {
     const read = await transport.pluginInventory();
     preset = read.presets.find((item) => item.id === request.presetId) ?? null;
-    if (!read.managementAvailable) note.push("这个后台没有持久化的插件管理面。");
+    if (!read.managementAvailable) note.push(t("facts.noManagement"));
   }
   if (request.sessionId && transport.listSkills) {
     skills = await transport.listSkills(request.sessionId);

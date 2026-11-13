@@ -21,6 +21,7 @@ import {
 import { LayoutAnimation } from "nsh";
 
 import { alpha, Appear, colors, IconTile, Press, radius } from "../../components/ui";
+import { t } from "../../lib/i18n";
 import { BotMark } from "../bots/BotMark";
 import { segmentOwner } from "../bots/model";
 import { conversationOf, sessionLabel, type ConversationSegment } from "../bots/sessions";
@@ -79,7 +80,7 @@ export function ChatPane(props: {
   const botName = () => bot()?.name ?? "Bot";
   const title = () => {
     const row = sessionList().find((item) => item.id === props.controller.sessionId);
-    return row?.label ?? owner()?.segment.title ?? "New Session";
+    return row?.label ?? owner()?.segment.title ?? t("chat.newSession");
   };
   const currentShown = () =>
     segments().find((segment) => segment.sessionId === controller().sessionId) ??
@@ -622,7 +623,7 @@ export function ChatPane(props: {
       kind: "user",
       id: nextId(),
       at: Date.now(),
-      text: text || "(attachment)",
+      text: text || t("chat.attachmentOnly"),
       ...(image?.url ? { image: image.url } : {}),
       ...(file ? { file: { name: file.name, size: file.size } } : {}),
     };
@@ -718,7 +719,7 @@ export function ChatPane(props: {
     }));
     const fallback = owner()?.bot.defaultModel ?? null;
     const current = catalogModelKey() ?? fallback ?? options[0]?.value ?? null;
-    const label = options.find((item) => item.value === current)?.label ?? "Model";
+    const label = options.find((item) => item.value === current)?.label ?? t("bot.model");
     return { label, current, options };
   };
 
@@ -940,10 +941,12 @@ export function ChatPane(props: {
           <Text style={{ flex: 1, fontSize: 12, color: colors.text }}>{banner()}</Text>
           <Press
             onPress={() => void connectSession()}
-            accessibilityLabel="Reconnect to the Host"
+            accessibilityLabel={t("chat.reconnect")}
             scale={0.96}
           >
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>Retry</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>
+              {t("common.retry")}
+            </Text>
           </Press>
         </View>
       </If>
@@ -957,14 +960,12 @@ export function ChatPane(props: {
                   {(current) => <BotMark identity={current().identity} size={48} />}
                 </If>
                 <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
-                  {`Message ${botName()}`}
+                  {t("chat.messageBot", { name: botName() })}
                 </Text>
                 <Text
                   style={{ fontSize: 13, lineHeight: 19, color: colors.muted, textAlign: "center" }}
                 >
-                  {native
-                    ? "Prompts go to the official dsh Session through the local Host."
-                    : "The chat needs the desktop Client connected to Host / dsh."}
+                  {native ? t("chat.promptsHost") : t("chat.needsHost")}
                 </Text>
               </View>
             </Appear>
@@ -1032,7 +1033,7 @@ export function ChatPane(props: {
           }}
         >
           <Text style={{ fontSize: 14, fontWeight: "600", color: colors.accent }}>
-            Drop files to attach
+            {t("chat.dropFiles")}
           </Text>
         </View>
       </If>

@@ -4,6 +4,8 @@
  */
 import { platform, signal, Storage } from "nsh";
 
+import { t } from "../../../lib/i18n";
+
 /** Enter sends (Shift+Enter adds a line), or the platform's command key does. */
 export type SendKey = "enter" | "mod-enter";
 
@@ -15,8 +17,9 @@ export function parseSendKey(raw: string | null | undefined): SendKey {
 
 /** "Return" or "⌘Return" / "Ctrl+Return", as the composer's hint says it. */
 export function sendKeyLabel(key: SendKey): string {
-  if (key === "enter") return "Return";
-  return `${platform.os === "macos" || platform.os === "ios" ? "⌘" : "Ctrl+"}Return`;
+  if (key === "enter") return t("chat.sendKey.return");
+  // The command key itself is the platform's; "Return" is the key.
+  return `${platform.os === "macos" || platform.os === "ios" ? "⌘" : "Ctrl+"}${t("chat.sendKey.return")}`;
 }
 
 export const sendKey = signal<SendKey>("enter");

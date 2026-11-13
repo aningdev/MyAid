@@ -22,6 +22,7 @@ import {
 import { Input, Menu, MenuItem } from "nsh/base";
 
 import { alpha, colors, finish, Press, radius, RoundButton } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import type { Attachment, SessionController } from "../session/controller";
 import { attachDropped } from "./attach";
 import { composerFocusRequest, takeComposerFocus } from "./focus";
@@ -200,7 +201,7 @@ export function Composer(props: {
             if (event.files.length) attach(event.files);
             if (event.uris.length) void attachUrls(event.uris);
           }}
-          placeholder={`Message ${props.botName()}…`}
+          placeholder={t("chat.composerPlaceholder", { name: props.botName() })}
           onFocus={() => focused.set(true)}
           onBlur={() => focused.set(false)}
           onContentSizeChange={(event) =>
@@ -224,7 +225,11 @@ export function Composer(props: {
           }}
         />
         <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-          <MiniGlyphButton glyph="clip" label="Attach files" onPress={() => void chooseFiles()} />
+          <MiniGlyphButton
+            glyph="clip"
+            label={t("chat.attach")}
+            onPress={() => void chooseFiles()}
+          />
           <ModelChip model={props.model} onPick={props.onPickModel} />
           <View style={{ flex: 1 }} />
           <SendKeyMenu />
@@ -237,11 +242,15 @@ export function Composer(props: {
                   opacity: props.canSend() ? 1 : 0.35,
                 }}
               >
-                <RoundButton icon="arrow-up" label="Send" onPress={send} />
+                <RoundButton icon="arrow-up" label={t("chat.send")} onPress={send} />
               </View>
             }
           >
-            <Press onPress={() => props.onStop()} scale={0.9} accessibilityLabel="Stop generating">
+            <Press
+              onPress={() => props.onStop()}
+              scale={0.9}
+              accessibilityLabel={t("chat.stopGenerating")}
+            >
               <View
                 style={{
                   width: 36,
@@ -285,17 +294,17 @@ function QueuedRow(props: { text: string; onWithdraw: () => void }) {
       }}
     >
       <Glyph name="caret-down" size={11} tint={colors.faint} />
-      <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>QUEUED</Text>
+      <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>
+        {t("chat.queued")}
+      </Text>
       <Text style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: colors.text }}>
         {props.text}
       </Text>
-      <Press
-        onPress={props.onWithdraw}
-        accessibilityLabel="Withdraw the queued message"
-        scale={0.94}
-      >
+      <Press onPress={props.onWithdraw} accessibilityLabel={t("chat.withdraw")} scale={0.94}>
         <View style={{ paddingHorizontal: 8, height: 24, justifyContent: "center" }}>
-          <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>Withdraw</Text>
+          <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>
+            {t("chat.withdrawAction")}
+          </Text>
         </View>
       </Press>
     </View>
@@ -330,7 +339,7 @@ function AttachmentChip(props: { attachment: Attachment; onRemove: () => void })
       <Text style={{ fontSize: 11, color: colors.faint }}>{props.attachment.size}</Text>
       <Press
         onPress={props.onRemove}
-        accessibilityLabel={`Remove ${props.attachment.name}`}
+        accessibilityLabel={t("chat.removeAttachment", { name: props.attachment.name })}
         scale={0.85}
       >
         <View style={{ width: 26, height: 28, alignItems: "center", justifyContent: "center" }}>
@@ -402,8 +411,8 @@ function ModelChip(props: { model: () => ComposerModel; onPick: (value: string) 
 /** The send key, and where to change it. */
 function SendKeyMenu() {
   const options: { value: SendKey; label: string }[] = [
-    { value: "enter", label: "Return sends" },
-    { value: "mod-enter", label: `${sendKeyLabel("mod-enter")} sends` },
+    { value: "enter", label: t("chat.sendKey.enter") },
+    { value: "mod-enter", label: t("chat.sendKey.modEnter", { label: sendKeyLabel("mod-enter") }) },
   ];
   return (
     <Menu
@@ -413,7 +422,7 @@ function SendKeyMenu() {
       trigger={
         <View style={{ paddingHorizontal: 8, height: 28, justifyContent: "center" }}>
           <Text style={{ fontSize: 11, color: colors.faint }}>
-            {sendKeyLabel(sendKey())} to send
+            {t("chat.sendKeyToSend", { label: sendKeyLabel(sendKey()) })}
           </Text>
         </View>
       }
@@ -451,6 +460,6 @@ function MiniGlyphButton(props: { glyph: "clip"; label: string; onPress: () => v
 
 function readFailure(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (/denied|ACCESS/i.test(message)) return "This app may not read that file.";
-  return message || "That file could not be read.";
+  if (/denied|ACCESS/i.test(message)) return t("chat.fileDenied");
+  return message || t("chat.fileUnreadable");
 }

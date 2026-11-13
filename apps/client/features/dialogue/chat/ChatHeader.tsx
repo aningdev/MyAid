@@ -10,6 +10,7 @@ import { signal } from "nsh";
 import { Input } from "nsh/base";
 
 import { colors, Icon, mono, Press } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import { BotMark } from "../../bots/BotMark";
 import type { Bot } from "../../bots/model";
 
@@ -72,7 +73,7 @@ export function ChatHeader(props: {
                 draft.set(props.title());
                 editing.set(true);
               }}
-              tooltip={<Text style={{ fontSize: 12 }}>Double click to rename</Text>}
+              tooltip={<Text style={{ fontSize: 12 }}>{t("chat.renameHint")}</Text>}
               style={{ flex: 1 }}
             >
               <Text
@@ -129,7 +130,7 @@ export function ChatHeader(props: {
             tooltip={
               props.onWorkspace ? (
                 <View style={{ gap: 3, maxWidth: 460 }}>
-                  <Text style={{ fontSize: 12 }}>Click to change the working directory</Text>
+                  <Text style={{ fontSize: 12 }}>{t("chat.workspaceHint")}</Text>
                   <Text style={{ fontSize: 11, color: colors.muted, fontFamily: mono }}>
                     {props.fullPath?.() || props.subtitle()}
                   </Text>
@@ -142,7 +143,7 @@ export function ChatHeader(props: {
               style={{ numberOfLines: 1, fontSize: 11, color: colors.faint }}
               testID="session-workspace"
             >
-              {props.subtitle() || "Choose a working directory…"}
+              {props.subtitle() || t("chat.chooseWorkspace")}
             </Text>
           </View>
         }
@@ -155,7 +156,7 @@ export function ChatHeader(props: {
             onBlur={commitPath}
             autoFocus
             testID="session-workspace-input"
-            accessibilityLabel="Working directory"
+            accessibilityLabel={t("chat.workingDirectory")}
             style={{
               flex: 1,
               height: 24,
@@ -166,7 +167,7 @@ export function ChatHeader(props: {
           />
           <Press
             onPress={commitPath}
-            accessibilityLabel="Use this working directory"
+            accessibilityLabel={t("chat.useWorkspace")}
             scale={0.9}
             style={{ width: 22, height: 22 }}
           >

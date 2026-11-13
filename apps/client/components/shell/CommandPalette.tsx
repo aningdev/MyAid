@@ -7,6 +7,7 @@
 import { effect, keymap, signal, Text, View } from "nsh";
 import { Command, Dialog, type CommandEntry } from "nsh/base";
 
+import { t } from "../../lib/i18n";
 import { alpha, colors, finish, Icon, radius } from "../ui";
 import {
   closeCommandPalette,
@@ -46,7 +47,7 @@ export function CommandPalette() {
     <Dialog
       open={open()}
       animation="fade"
-      accessibilityLabel="Command palette"
+      accessibilityLabel={t("palette.title")}
       onCancel={closeCommandPalette}
       onOpenChange={({ open: next }) => {
         if (!next) closeCommandPalette();
@@ -69,9 +70,9 @@ export function CommandPalette() {
           onSelect={({ id }) => choose(id)}
           onHighlightChange={({ highlighted: next }) => highlighted.set(next)}
           autoFocus
-          placeholder="Search Bots, segments and commands…"
-          accessibilityLabel="Commands and places"
-          searchAccessibilityLabel="Search commands and places"
+          placeholder={t("palette.placeholder")}
+          accessibilityLabel={t("palette.label")}
+          searchAccessibilityLabel={t("palette.searchLabel")}
           style={paletteCardStyle()}
           searchBarClass="flex-row items-center gap-2 border-b border-border px-3"
           searchClass="h-11 flex-1 text-sm"
@@ -94,7 +95,7 @@ export function CommandPalette() {
                 color: colors.muted,
               }}
             >
-              Nothing matches.
+              {t("palette.nothing")}
             </Text>
           }
           renderGroup={(group) => (
@@ -115,9 +116,9 @@ export function CommandPalette() {
               class="flex-row items-center gap-4 border-t px-3"
               style={{ height: 32, borderTopColor: colors.line }}
             >
-              <Hint label="↑↓ move" />
-              <Hint label="↩ open" />
-              <Hint label="esc close" />
+              <Hint label={t("palette.hintMove")} />
+              <Hint label={t("palette.hintOpen")} />
+              <Hint label={t("palette.hintClose")} />
               <Text style={{ flex: 1 }} />
               <Hint label={highlighted() ? labelOf(highlighted()!) : ""} />
             </View>

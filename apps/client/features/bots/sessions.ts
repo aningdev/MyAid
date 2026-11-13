@@ -1,3 +1,4 @@
+import { t } from "../../lib/i18n";
 import type { WorkspaceProjection } from "../workspace/projection";
 import { workspaceOf, workspacePath } from "../workspace/projection";
 import type { BotRegistry, Segment } from "./model";
@@ -64,7 +65,7 @@ export function sessionLabel(
 ): string {
   if (session.title) return session.title;
   const text = summary?.trim();
-  if (!text) return "未命名上下文";
+  if (!text) return t("facts.untitledContext");
   return text.length > 32 ? `${text.slice(0, 32)}…` : text;
 }
 
@@ -106,16 +107,20 @@ export function conversationOf(
   const bot = registry.bots.find((item) => item.id === botId);
   if (!bot) return [];
   const known = listed ? new Map(listed.map((item) => [item.sessionId, item])) : null;
-  return bot.segments.map((segment, index) => ({
-    index,
-    sessionId: segment.sessionId,
-    workspaceId: segment.workspaceId,
-    path: workspacePath(workspaces, segment),
-    title: segment.title,
-    current: index === bot.segments.length - 1,
-    updatedAt: known?.get(segment.sessionId)?.updatedAt ?? null,
-    missing: known ? !known.has(segment.sessionId) : false,
-  }));
+  return bot.segments.map((segment, index) => {
+    const stamp = known?.get(segment.sessionId)?.updatedAt ?? null;
+    return {
+      index,
+      sessionId: segment.sessionId,
+      workspaceId: segment.workspaceId,
+      path: workspacePath(workspaces, segment),
+      title: segment.title,
+      current: index === bot.segments.length - 1,
+      // 0 is the listing's "no stamp", not 1970: the divider falls back to now.
+      updatedAt: stamp !== null && stamp > 0 ? stamp : null,
+      missing: known ? !known.has(segment.sessionId) : false,
+    };
+  });
 }
 
 /** The Bot's current working directory: the latest segment's Workspace path. */

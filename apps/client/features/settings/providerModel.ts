@@ -5,6 +5,7 @@ import type {
 } from "@myaid/dsh-web-protocol/settings";
 
 import type { FlatCatalogModel } from "../../lib/dsh/connection";
+import type { ModelProviderEntry } from "../../lib/dsh/providers";
 /**
  * The pure half of Settings › Model providers: read dsh's own description of a
  * provider (its settings namespace, its profile, its field schema) instead of
@@ -12,7 +13,7 @@ import type { FlatCatalogModel } from "../../lib/dsh/connection";
  * settings snapshot and the directory row, so the tests can pin the shapes
  * without a Host.
  */
-import type { ModelProviderEntry } from "../../lib/dsh/providers";
+import { t } from "../../lib/i18n";
 
 /** One serialized Schemastery node (`{ uid, refs }`), or a node inside `refs`. */
 type SerializedSchema = {
@@ -83,8 +84,10 @@ export function providerKeyRef(
 
 /** How a provider's key reads on the page. */
 export function credentialLabel(credential: CredentialInfo | undefined): string {
-  if (!credential) return "未检查";
-  return credential.configured ? "已配置" : "未配置";
+  if (!credential) return t("providers.credentialChecked");
+  return credential.configured
+    ? t("providers.credentialConfigured")
+    : t("providers.credentialMissing");
 }
 
 /** A key may be written only while the store is writable and the credential is not read-only. */

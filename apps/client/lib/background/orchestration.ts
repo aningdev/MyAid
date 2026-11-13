@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import {
   mergeProductRegistration,
   type ProductBackgroundRegistration,
@@ -31,7 +32,7 @@ export function setBackgroundOrchestration(next: BackgroundOrchestration | null)
 
 function deps(): BackgroundOrchestration {
   if (!orchestration) {
-    throw new Error("Background orchestration is not configured");
+    throw new Error(t("background.error.notConfigured"));
   }
   return orchestration;
 }

@@ -13,6 +13,7 @@ import { BotMark } from "../../features/bots/BotMark";
 import { unarchiveBot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
 import { changeRegistry, registry } from "../../features/bots/state";
+import { t, tCount } from "../../lib/i18n";
 import { colors, hovered, Icon, Press, radius } from "../ui";
 import { type BotRow, botRows } from "./botList";
 import { navSearchFocusRequest, navQuery, setNavQuery, takeNavSearchFocus } from "./navFilter";
@@ -57,9 +58,9 @@ export function Navigator() {
           <Input
             ref={(node) => (search = node ?? undefined)}
             testID="nav-search"
-            accessibilityLabel="Search Bots"
+            accessibilityLabel={t("nav.searchLabel")}
             value={navQuery()}
-            placeholder="Search…"
+            placeholder={t("nav.searchPlaceholder")}
             autoCapitalize="none"
             autoCorrect={false}
             onChange={(event) => setNavQuery(event.value)}
@@ -75,7 +76,7 @@ export function Navigator() {
           <If when={!!navQuery()}>
             <Button
               onPress={() => setNavQuery("")}
-              accessibilityLabel="Clear search"
+              accessibilityLabel={t("nav.clearSearch")}
               class="hover:bg-accent size-5 items-center justify-center rounded"
             >
               <Icon name="close" size={11} tint={colors.muted} />
@@ -85,7 +86,7 @@ export function Navigator() {
       </View>
       <Scroll style={{ flex: 1 }} contentStyle={{ paddingHorizontal: 6, paddingBottom: 6 }}>
         <If when={botRows().pinned.length > 0}>
-          <GroupHeader label="Pin" first />
+          <GroupHeader label={t("nav.pin")} first />
           <Each of={botRows().pinned} key={(row) => row.bot.id}>
             {(row) => <Row row={row()} />}
           </Each>
@@ -106,7 +107,7 @@ export function Navigator() {
         </Each>
         <If when={botRows().archived.length > 0}>
           <GroupHeader
-            label="Archived"
+            label={t("nav.archived")}
             first={botRows().pinned.length === 0 && botRows().others.length === 0}
           />
           <Each of={botRows().archived} key={(row) => row.bot.id}>
@@ -117,16 +118,14 @@ export function Navigator() {
           <Text
             style={{ paddingHorizontal: 6, paddingVertical: 8, fontSize: 12, color: colors.muted }}
           >
-            No Bots match.
+            {t("nav.noMatch")}
           </Text>
         </If>
         <If when={empty() && !navQuery().trim()}>
           <Text
             style={{ paddingHorizontal: 6, paddingVertical: 8, fontSize: 12, color: colors.muted }}
           >
-            {registry().bots.length > 0
-              ? "Every Bot is archived. Search for one to bring it back."
-              : "No Bots yet."}
+            {registry().bots.length > 0 ? t("nav.allArchived") : t("nav.noBots")}
           </Text>
         </If>
         <NewBotRow />
@@ -188,7 +187,7 @@ function Row(props: { row: BotRow }) {
           // A press after a drop starts a fresh gesture: the drop is done.
           if (dropped === bot().id) dropped = null;
         }}
-        tooltip={<Text style={{ fontSize: 11 }}>Drag right to open beside the active Pane</Text>}
+        tooltip={<Text style={{ fontSize: 11 }}>{t("nav.dragHint")}</Text>}
         onPanEnd={(event) => {
           if (event.cancelled) return;
           // A drag to the right leaves the list and lands in the Pane area.
@@ -234,15 +233,15 @@ function StatusMarks(props: { row: BotRow }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
       <If when={props.row.attention}>
-        <Dot testID="nav-status-attention" label="Waiting for approval" color={colors.warn} />
+        <Dot testID="nav-status-attention" label={t("nav.waitingApproval")} color={colors.warn} />
       </If>
       <If when={props.row.working}>
-        <Dot testID="nav-status-working" label="Working" color={colors.up} />
+        <Dot testID="nav-status-working" label={t("nav.working")} color={colors.up} />
       </If>
       <If when={props.row.unread > 0}>
         <View
           testID="nav-status-unread"
-          accessibilityLabel={`${props.row.unread} unread`}
+          accessibilityLabel={tCount("nav.unread.one", "nav.unread.other", props.row.unread)}
           style={{
             minWidth: 16,
             height: 16,
@@ -276,11 +275,13 @@ function Unarchive(props: { botId: string; name: string }) {
   return (
     <Press
       onPress={() => void unarchive(props.botId)}
-      accessibilityLabel={`Unarchive ${props.name}`}
+      accessibilityLabel={t("nav.unarchiveBot", { name: props.name })}
       scale={0.96}
       style={{ paddingHorizontal: 6, paddingVertical: 2 }}
     >
-      <Text style={{ fontSize: 11, fontWeight: "600", color: colors.accent }}>Unarchive</Text>
+      <Text style={{ fontSize: 11, fontWeight: "600", color: colors.accent }}>
+        {t("common.unarchive")}
+      </Text>
     </Press>
   );
 }
@@ -295,7 +296,7 @@ function NewBotRow() {
     <View
       role="button"
       onPress={openNewBot}
-      accessibilityLabel="New Bot"
+      accessibilityLabel={t("nav.newBot")}
       hoverStyle={hovered()}
       activeStyle={{ backgroundColor: colors.raised }}
       style={{
@@ -315,7 +316,7 @@ function NewBotRow() {
       <Text
         style={{ flex: 1, fontSize: platform.idiom === "desktop" ? 13 : 15, color: colors.muted }}
       >
-        New Bot
+        {t("nav.newBot")}
       </Text>
       <Text style={{ fontSize: 11, color: colors.faint }}>{keymap.label("mod+n") ?? ""}</Text>
     </View>

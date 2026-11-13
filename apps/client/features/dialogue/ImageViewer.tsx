@@ -4,6 +4,7 @@ import { safeArea } from "nsh";
 import { Dialog, type TextViewImage } from "nsh/base";
 
 import { colors, motion, Press } from "../../components/ui";
+import { t } from "../../lib/i18n";
 
 /** The deepest zoom, and where a double tap zooms in to. */
 const MAX_ZOOM = 4;
@@ -175,7 +176,12 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
         <View
           style={{ position: "absolute", top: safeArea().top + 12, right: safeArea().right + 12 }}
         >
-          <Press onPress={props.onClose} accessibilityLabel="Close" scale={0.9} hitSlop={8}>
+          <Press
+            onPress={props.onClose}
+            accessibilityLabel={t("chat.closeImage")}
+            scale={0.9}
+            hitSlop={8}
+          >
             <View
               style={{
                 width: 44,

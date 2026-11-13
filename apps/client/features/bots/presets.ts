@@ -16,6 +16,7 @@ import type {
   BotPresetUpdateRequest,
 } from "@myaid/dsh-web-protocol/bot-presets";
 
+import { t } from "../../lib/i18n";
 import { sessionTransport } from "../dialogue/session/runtime";
 
 /** One capability change the sheet asks the plugin to save. */
@@ -38,9 +39,9 @@ export type BotPresetWriter = {
 };
 
 /** Why capability edits cannot be saved, in the sheet and in the docs. */
-export const PRESET_WRITE_GAP =
-  "后台没有挂载 myaid-plugin-bot-presets：Agent preset 仍只读" +
-  "（list / read / select），能力增删无法保存。";
+export function presetWriteGap(): string {
+  return t("presets.writeGap");
+}
 
 let replacement: BotPresetWriter | undefined;
 
@@ -74,7 +75,7 @@ function hostWriter(): BotPresetWriter {
     },
     derive: async (request) => {
       const remote = transport();
-      if (!remote) return { unavailable: PRESET_WRITE_GAP };
+      if (!remote) return { unavailable: presetWriteGap() };
       try {
         return await remote.derive(request);
       } catch (error) {
@@ -92,7 +93,7 @@ function hostWriter(): BotPresetWriter {
     },
     update: async (presetId, patch) => {
       const remote = transport();
-      if (!remote) return { unavailable: PRESET_WRITE_GAP };
+      if (!remote) return { unavailable: presetWriteGap() };
       try {
         return await remote.update(presetId, patch);
       } catch (error) {

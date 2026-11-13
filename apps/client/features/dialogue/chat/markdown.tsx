@@ -2,6 +2,7 @@ import { type JSX, signal } from "nsh";
 import { TextView, type TextViewImage } from "nsh/base";
 
 import { colors } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import { ImageViewer } from "../ImageViewer";
 import { orderedListIndent } from "./markdownLists";
 
@@ -58,7 +59,7 @@ export function Markdown(props: {
           // column than one that stops at 9.
           ...listStyle(),
         }}
-        codeBlockActions={[{ id: "copy", label: "Copy code" }]}
+        codeBlockActions={[{ id: "copy", label: t("chat.copyCode") }]}
         onImagePress={(event) => {
           used.set(true);
           viewing.set(event.image);

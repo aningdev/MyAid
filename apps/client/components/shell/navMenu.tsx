@@ -9,6 +9,7 @@ import { ContextMenu, MenuItem, MenuSeparator } from "nsh/base";
 import { openBotDetails } from "../../features/bots/details";
 import { archiveBot, type Bot, unarchiveBot } from "../../features/bots/model";
 import { changeRegistry } from "../../features/bots/state";
+import { t, type MessageKey } from "../../lib/i18n";
 import { colors, Icon, type IconName } from "../ui";
 import { openRename } from "./navSheets";
 import { isPinned, togglePin } from "./pins";
@@ -18,7 +19,7 @@ type Entry =
   | {
       kind: "item";
       id: string;
-      label: string;
+      label: MessageKey;
       icon?: IconName;
       disabled?: boolean;
       onSelect: () => void;
@@ -31,21 +32,21 @@ export function contextEntries(bot: Bot | null, options: { pinned: boolean }): E
     {
       kind: "item",
       id: "bot-pin",
-      label: options.pinned ? "Unpin" : "Pin",
+      label: options.pinned ? "menu.unpin" : "menu.pin",
       icon: "star",
       onSelect: () => togglePin(bot.id),
     },
     {
       kind: "item",
       id: "bot-details",
-      label: "Bot details…",
+      label: "menu.botDetails",
       icon: "sliders",
       onSelect: () => openBotDetails(bot.id),
     },
     {
       kind: "item",
       id: "bot-rename",
-      label: "Rename…",
+      label: "menu.rename",
       icon: "text",
       onSelect: () => openRename({ botId: bot.id, value: bot.name }),
     },
@@ -54,14 +55,14 @@ export function contextEntries(bot: Bot | null, options: { pinned: boolean }): E
       ? {
           kind: "item",
           id: "bot-unarchive",
-          label: "Unarchive",
+          label: "menu.unarchive",
           icon: "storage",
           onSelect: () => void setArchived(bot.id, false),
         }
       : {
           kind: "item",
           id: "bot-archive",
-          label: "Archive",
+          label: "menu.archive",
           icon: "storage",
           onSelect: () => void setArchived(bot.id, true),
         },
@@ -105,7 +106,7 @@ function EntryItem(props: { entry: Entry }) {
         <If when={!!item.icon}>
           <Icon name={item.icon ?? "spark"} size={14} tint={colors.muted} />
         </If>
-        <Text style={{ fontSize: 13, color: colors.text }}>{item.label}</Text>
+        <Text style={{ fontSize: 13, color: colors.text }}>{t(item.label)}</Text>
       </View>
     </MenuItem>
   );

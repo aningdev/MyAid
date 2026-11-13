@@ -1,4 +1,5 @@
 /** Decode HostControl JSON status payloads (public status never carries URL/token). */
+import { t } from "../i18n";
 
 export type HostStatus = {
   phase: string;
@@ -38,7 +39,7 @@ export function parseReadyUrl(raw: string): URL {
   try {
     url = new URL(raw.trim());
   } catch {
-    throw new Error("Invalid host connection URL");
+    throw new Error(t("host.protocol.invalidUrl"));
   }
   if (
     url.protocol !== "http:" ||
@@ -49,17 +50,17 @@ export function parseReadyUrl(raw: string): URL {
     url.hash ||
     !url.searchParams.get("token")
   ) {
-    throw new Error("Invalid host connection URL");
+    throw new Error(t("host.protocol.invalidUrl"));
   }
   return url;
 }
 
 export function assertPublicStatus(status: HostStatus): void {
   if (!PHASES.has(status.phase) || !status.version || status.url) {
-    throw new Error("Invalid host status");
+    throw new Error(t("host.protocol.invalidStatus"));
   }
   if (status.phase === "ready" && (!status.generation || !status.pid || status.blocked)) {
-    throw new Error("Invalid ready host status");
+    throw new Error(t("host.protocol.invalidStatus"));
   }
 }
 
@@ -71,7 +72,7 @@ export function assertConnectionInfo(status: HostStatus): void {
     !status.pid ||
     status.blocked
   ) {
-    throw new Error(status.reason || "Host connection is not ready");
+    throw new Error(status.reason || t("host.protocol.notReady"));
   }
   parseReadyUrl(status.url);
 }

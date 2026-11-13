@@ -6,7 +6,13 @@
 import type { SessionEventWindow } from "@myaid/dsh-web-protocol/client";
 
 import type { Msg, Status, Tool } from "../chat/scripts";
-import { SessionProjector, type Deliverable, type ProjectedChat } from "./projector";
+import {
+  outcomeStatus,
+  outcomeText,
+  SessionProjector,
+  type Deliverable,
+  type ProjectedChat,
+} from "./projector";
 
 export type { Deliverable };
 
@@ -44,12 +50,6 @@ type LocalTurn = {
 
 function liveBusy(snap: ProjectedChat): boolean {
   return !!(snap.liveMd || snap.liveReason || snap.liveTools.length);
-}
-
-function mapFreezeStatus(status: string): Status {
-  if (status.includes("失败")) return "error";
-  if (status.includes("停止") || status.includes("中断")) return "stopped";
-  return "done";
 }
 
 /**
@@ -135,8 +135,8 @@ export class TurnProjection {
       if (running || busy || this.admitted(snap, this.local)) this.local.turned = true;
       if (!running && this.local.turned && !this.local.cancelled) {
         this.pendingFreeze = {
-          status: mapFreezeStatus(snap.status),
-          error: snap.status || undefined,
+          status: outcomeStatus(snap.outcome),
+          error: outcomeText(snap.outcome) || undefined,
           messages: snap.messages,
         };
         this.local = null;
@@ -164,7 +164,7 @@ export class TurnProjection {
     return {
       messages: snap.messages,
       running,
-      status: snap.status,
+      status: outcomeText(snap.outcome),
       liveMd: snap.liveMd,
       liveReason: snap.liveReason,
       liveTools: snap.liveTools,

@@ -9,6 +9,7 @@ import { effect, signal, Text, View, windowSize } from "nsh";
 
 import { openBot } from "../../components/shell/state";
 import { Button, colors, Field, radius, Sheet } from "../../components/ui";
+import { t } from "../../lib/i18n";
 import { requestComposerFocus } from "../dialogue/chat/focus";
 import { startSegment } from "../workspace/conversation";
 import { BotIdentityPicker, BotMark } from "./BotMark";
@@ -133,7 +134,7 @@ function Body() {
         ),
       );
       if (!bot) {
-        localError.set(actionError() ?? "Could not create the Bot.");
+        localError.set(actionError() ?? t("newBot.createFailed"));
         return;
       }
       // The Bot is saved; its Pane is the surface from here on. The segment
@@ -153,15 +154,15 @@ function Body() {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <BotMark identity={identity()} size={38} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>New Bot</Text>
-          <Text style={{ fontSize: 12, color: colors.muted }}>
-            A name, a look and the working directory of its first segment.
+          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+            {t("newBot.title")}
           </Text>
+          <Text style={{ fontSize: 12, color: colors.muted }}>{t("newBot.note")}</Text>
         </View>
       </View>
 
       <Field
-        label="Name"
+        label={t("common.name")}
         testID="new-bot-name"
         value={name()}
         placeholder="Ada"
@@ -172,16 +173,18 @@ function Body() {
       />
 
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Template</Text>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+          {t("newBot.template")}
+        </Text>
         <If
           when={templates().length > 0}
           else={
             <View style={{ gap: 8 }}>
               <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>
-                {saving() ? "Reading dsh presets…" : "No templates yet. Import them from dsh."}
+                {saving() ? t("newBot.readingPresets") : t("newBot.noTemplates")}
               </Text>
               <Button
-                label="Import presets from dsh"
+                label={t("newBot.import")}
                 size="small"
                 disabled={writeBlocked()}
                 onPress={() => void importDshTemplates()}
@@ -195,7 +198,7 @@ function Body() {
                 <View
                   onPress={() => templateId.set(template().id)}
                   role="button"
-                  accessibilityLabel={`Template ${template().name}`}
+                  accessibilityLabel={t("newBot.templateLabel", { name: template().name })}
                   accessibilityState={{ selected: chosen()?.id === template().id }}
                   testID={`new-bot-template-${template().id}`}
                   style={{
@@ -216,12 +219,12 @@ function Body() {
                       {template().name}
                     </Text>
                     <Text style={{ fontSize: 11, color: colors.muted }}>
-                      {`Agent preset · ${template().presetId}`}
+                      {t("newBot.templateMeta", { preset: template().presetId })}
                     </Text>
                   </View>
                   <If when={chosen()?.id === template().id}>
                     <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>
-                      Selected
+                      {t("common.selected")}
                     </Text>
                   </If>
                 </View>
@@ -235,10 +238,10 @@ function Body() {
 
       <View style={{ gap: 6 }}>
         <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
-          First segment directory
+          {t("newBot.firstDir")}
         </Text>
         <Field
-          label="Path"
+          label={t("common.path")}
           testID="new-bot-workspace"
           value={workspace()}
           placeholder="/Users/you/Work/project"
@@ -249,7 +252,7 @@ function Body() {
         />
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Button
-            label="Choose Folder…"
+            label={t("newBot.chooseFolder")}
             size="small"
             disabled={writeBlocked()}
             onPress={() => void chooseWorkspace()}
@@ -264,9 +267,9 @@ function Body() {
       </If>
 
       <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-        <Button label="Cancel" size="small" variant="ghost" onPress={closeNewBot} />
+        <Button label={t("common.cancel")} size="small" variant="ghost" onPress={closeNewBot} />
         <Button
-          label={creating() ? "Creating…" : "Create Bot"}
+          label={creating() ? t("newBot.creating") : t("newBot.create")}
           size="small"
           variant="accent"
           disabled={!canCreate()}

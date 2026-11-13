@@ -18,6 +18,7 @@ import {
 } from "nsh";
 
 import { alpha, colors, motion, RoundButton } from "../../../components/ui";
+import { t } from "../../../lib/i18n";
 import type { Bot } from "../../bots/model";
 import { MessageRow, type RowHandlers } from "./MessageRow";
 import { DateSeparator, SegmentDivider } from "./parts";
@@ -91,7 +92,7 @@ export function Transcript(props: {
           header={() => (
             <If when={props.loadingOlder()}>
               <View style={{ alignItems: "center", paddingVertical: 10 }}>
-                <Text style={{ fontSize: 12, color: colors.faint }}>Loading older messages…</Text>
+                <Text style={{ fontSize: 12, color: colors.faint }}>{t("chat.loadingOlder")}</Text>
               </View>
             </If>
           )}
@@ -137,7 +138,7 @@ export function Transcript(props: {
         >
           <RoundButton
             icon="arrow-down"
-            label="Jump to the latest message"
+            label={t("chat.jumpLatest")}
             variant="secondary"
             onPress={props.onJump}
           />

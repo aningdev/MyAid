@@ -7,6 +7,7 @@
 import { Text, View } from "nsh";
 
 import { alpha, colors, isDark, mono, Press, radius, toneTint } from "../../../components/ui";
+import { t, type MessageKey } from "../../../lib/i18n";
 import { Glyph } from "./glyphs";
 import { Spinner } from "./parts";
 import { stepsLabel, toolDisplayState, toolSummary, type ToolDisplayState } from "./rows";
@@ -14,12 +15,12 @@ import type { Tool } from "./scripts";
 
 const ROW_HEIGHT = 30;
 
-const stateLabel: Record<ToolDisplayState, string> = {
-  pending: "Queued",
-  running: "Running",
-  done: "Done",
-  failed: "Failed",
-  cut: "Cut off",
+const stateLabel: Record<ToolDisplayState, MessageKey> = {
+  pending: "chat.toolState.queued",
+  running: "chat.toolState.running",
+  done: "chat.toolState.done",
+  failed: "chat.toolState.failed",
+  cut: "chat.toolState.cut",
 };
 
 const stateTint = (state: ToolDisplayState) =>
@@ -42,7 +43,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
       <Press
         onPress={props.onToggle}
         scale={0.995}
-        accessibilityLabel={`Tool ${props.tool().name}`}
+        accessibilityLabel={t("chat.tool", { name: props.tool().name })}
         accessibilityState={{ selected: props.open() }}
         style={{ borderRadius: radius.control }}
         hoverStyle={{ backgroundColor: alpha(colors.text, 0.04) }}
@@ -75,7 +76,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
           <If when={!summary().target}>
             <View style={{ flex: 1 }} />
           </If>
-          <Text style={{ fontSize: 12, color: stateTint(state()) }}>{stateLabel[state()]}</Text>
+          <Text style={{ fontSize: 12, color: stateTint(state()) }}>{t(stateLabel[state()])}</Text>
           <View
             style={{
               transform: [{ rotate: props.open() ? "0deg" : "-90deg" }],
@@ -114,7 +115,11 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
           <If when={props.tool().result !== undefined || state() === "failed" || state() === "cut"}>
             <View style={{ gap: 2 }}>
               <Text style={{ fontSize: 12, color: stateTint(state()) }}>
-                {state() === "failed" ? "Error" : state() === "cut" ? "Cut off" : "Result"}
+                {state() === "failed"
+                  ? t("common.error")
+                  : state() === "cut"
+                    ? t("chat.toolState.cut")
+                    : t("common.result")}
               </Text>
               <Text
                 style={{
@@ -123,7 +128,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
                 }}
               >
                 {props.tool().result?.trim() ||
-                  (state() === "cut" ? "Stopped before this call returned." : "(empty)")}
+                  (state() === "cut" ? t("chat.toolCutLong") : t("common.empty"))}
               </Text>
             </View>
           </If>
@@ -152,7 +157,9 @@ export function StepGroup(props: {
       <Press
         onPress={props.onToggle}
         scale={0.995}
-        accessibilityLabel={`${stepsLabel(props.tools())}, ${props.open() ? "collapse" : "expand"}`}
+        accessibilityLabel={`${stepsLabel(props.tools())}, ${
+          props.open() ? t("chat.stepsCollapse") : t("chat.stepsExpand")
+        }`}
         accessibilityState={{ selected: props.open() }}
         style={{ borderRadius: radius.control }}
         hoverStyle={{ backgroundColor: alpha(colors.text, 0.04) }}
@@ -183,7 +190,9 @@ export function StepGroup(props: {
                 backgroundColor: toneTint("danger"),
               }}
             >
-              <Text style={{ fontSize: 11, color: colors.danger }}>Failed</Text>
+              <Text style={{ fontSize: 11, color: colors.danger }}>
+                {t("chat.toolState.failed")}
+              </Text>
             </View>
           </If>
           <View
@@ -234,17 +243,19 @@ export function ThinkingRow(props: {
 }) {
   const label = () => {
     if (props.live === "thinking") {
-      return props.seconds() > 0 ? `Thinking… ${props.seconds()}s` : "Thinking…";
+      return props.seconds() > 0
+        ? t("chat.thinking", { seconds: props.seconds() })
+        : t("chat.thinkingNow");
     }
     const seconds = Math.max(1, props.seconds());
-    return `Thought for ${seconds}s`;
+    return t("chat.thoughtFor", { seconds });
   };
   return (
     <View style={{ gap: 6 }}>
       <Press
         onPress={props.onToggle}
         scale={0.995}
-        accessibilityLabel="Reasoning"
+        accessibilityLabel={t("chat.reasoning")}
         accessibilityState={{ selected: props.open() }}
         style={{ borderRadius: radius.control }}
         hoverStyle={{ backgroundColor: alpha(colors.text, 0.04) }}

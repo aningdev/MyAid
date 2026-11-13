@@ -17,6 +17,7 @@ import { currentSegmentOf } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { sessionList, type SessionRow } from "../../features/dialogue/session/runtime";
 import { isSessionArchived, workspaces } from "../../features/workspace/state";
+import { t } from "../../lib/i18n";
 import { activeBotId, openBot } from "./state";
 
 /** The notification id prefix; the rest is the Session id that fired it. */
@@ -79,7 +80,7 @@ export function notificationText(
 ): { title: string; body: string } {
   return {
     title: row.botName || "MyAid",
-    body: kind === "approval" ? "is waiting for approval" : "replied",
+    body: kind === "approval" ? t("notification.approval") : t("notification.replied"),
   };
 }
 

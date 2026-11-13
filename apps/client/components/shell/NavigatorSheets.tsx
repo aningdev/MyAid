@@ -7,6 +7,7 @@ import { effect, signal, Text, View, windowSize } from "nsh";
 import { openBotDetails } from "../../features/bots/details";
 import { updateBot } from "../../features/bots/model";
 import { actionError, changeRegistry, registry } from "../../features/bots/state";
+import { t } from "../../lib/i18n";
 import { Button, colors, Field, Sheet } from "../ui";
 import { closeRename, renameTarget } from "./navSheets";
 
@@ -39,7 +40,7 @@ function RenameSheet() {
     const next = value().trim();
     if (!current || busy()) return;
     if (!next) {
-      failure.set("A Bot needs a name.");
+      failure.set(t("rename.needsName"));
       return;
     }
     busy.set(true);
@@ -49,7 +50,7 @@ function RenameSheet() {
         updateBot(registry, current.botId, { name: next }),
       );
       if (!saved) {
-        failure.set(actionError() ?? "Could not save the name.");
+        failure.set(actionError() ?? t("rename.saveFailed"));
         return;
       }
       closeRename();
@@ -78,9 +79,11 @@ function RenameSheet() {
       <If when={target()}>
         {(current) => (
           <View style={{ gap: 12 }} testID="rename-sheet">
-            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>Rename Bot</Text>
+            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+              {t("rename.title")}
+            </Text>
             <Field
-              label="Name"
+              label={t("rename.name")}
               testID="rename-name"
               value={value()}
               placeholder={registry().bots.find((bot) => bot.id === current().botId)?.name ?? "Ada"}
@@ -93,10 +96,15 @@ function RenameSheet() {
               <Text style={{ fontSize: 12, color: colors.danger }}>{failure()}</Text>
             </If>
             <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-              <Button label="Bot details…" size="small" variant="ghost" onPress={details} />
-              <Button label="Cancel" size="small" variant="ghost" onPress={closeRename} />
+              <Button label={t("menu.botDetails")} size="small" variant="ghost" onPress={details} />
               <Button
-                label={busy() ? "Saving…" : "Save"}
+                label={t("common.cancel")}
+                size="small"
+                variant="ghost"
+                onPress={closeRename}
+              />
+              <Button
+                label={busy() ? t("common.saving") : t("common.save")}
                 size="small"
                 variant="accent"
                 disabled={busy()}

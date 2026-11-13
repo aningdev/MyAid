@@ -57,6 +57,7 @@ import {
   Segmented,
 } from "../../components/ui";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
+import { t, type MessageKey } from "../../lib/i18n";
 import { catalogModelKey, modelCatalog, sessionList } from "../dialogue/session/runtime";
 import { workspacePath, workspaces } from "../workspace/state";
 import { BotIdentityPicker, BotMark } from "./BotMark";
@@ -72,9 +73,9 @@ import {
   updateBot,
   type Bot,
   type BotTemplate,
-  type PresetBindingLabel,
+  type PresetBinding,
 } from "./model";
-import { presetWriter, PRESET_WRITE_GAP } from "./presets";
+import { presetWriter, presetWriteGap } from "./presets";
 import {
   canReveal,
   compactCount,
@@ -92,12 +93,19 @@ import { actionError, changeRegistry, ready, registry, saving } from "./state";
 
 type Tab = "profile" | "runs" | "skills" | "plugins";
 
-const TABS: readonly { value: Tab; label: string }[] = [
-  { value: "profile", label: "Profile" },
-  { value: "runs", label: "Runs with" },
-  { value: "skills", label: "Skills" },
-  { value: "plugins", label: "Plugins" },
+const TABS: readonly { value: Tab; label: MessageKey }[] = [
+  { value: "profile", label: "bot.tab.profile" },
+  { value: "runs", label: "bot.tab.runs" },
+  { value: "skills", label: "bot.tab.skills" },
+  { value: "plugins", label: "bot.tab.plugins" },
 ];
+
+/** The saved preset's standing, in the words the tab shows. */
+const BINDING_LABELS: Record<PresetBinding, MessageKey> = {
+  inherit: "bot.binding.inherit",
+  bound: "bot.binding.bound",
+  custom: "bot.binding.custom",
+};
 
 /** Stable key for one inventory row: entry id when present, else module name. */
 function pluginKey(row: { entryId: string | null; moduleName: string }): string {
@@ -111,7 +119,7 @@ export function BotDetails() {
     <Dialog
       open={botId() !== null}
       animation="fade"
-      accessibilityLabel="Bot details"
+      accessibilityLabel={t("bot.details")}
       onCancel={closeBotDetails}
       onOpenChange={({ open }) => {
         if (!open) closeBotDetails();
@@ -130,7 +138,7 @@ function Body(props: { botId: string; onClose: () => void }) {
     const id = bot()?.templateId;
     return registry().templates.find((item) => item.id === id) ?? null;
   };
-  const binding = (): { presetId: string; label: PresetBindingLabel } | null => {
+  const binding = (): { presetId: string; binding: PresetBinding } | null => {
     const current = bot();
     if (!current) return null;
     try {
@@ -251,13 +259,13 @@ function Body(props: { botId: string; onClose: () => void }) {
     const current = bot();
     if (!current || savingNow()) return;
     if (!name().trim()) {
-      failure.set("名称不能为空。");
+      failure.set(t("registry.nameEmpty"));
       return;
     }
     const wantsPlugins = pluginsDirty();
     const wantsSkills = skillsDirty();
     if ((wantsPlugins || wantsSkills) && !writable()) {
-      failure.set(PRESET_WRITE_GAP);
+      failure.set(presetWriteGap());
       return;
     }
     savingNow.set(true);
@@ -313,7 +321,7 @@ function Body(props: { botId: string; onClose: () => void }) {
         props.onClose();
         return;
       }
-      failure.set(actionError() ?? "保存失败。");
+      failure.set(actionError() ?? t("bot.saveFailed"));
     } finally {
       savingNow.set(false);
     }
@@ -327,7 +335,7 @@ function Body(props: { botId: string; onClose: () => void }) {
       props.onClose();
       return;
     }
-    failure.set(actionError() ?? "This Bot cannot be deleted.");
+    failure.set(actionError() ?? t("bot.deleteFailed"));
   };
 
   const setArchived = async (archived: boolean): Promise<void> => {
@@ -393,22 +401,27 @@ function Body(props: { botId: string; onClose: () => void }) {
         <If when={bot()}>{(current) => <BotMark identity={current().identity} size={28} />}</If>
         <View style={{ flex: 1, gap: 1 }}>
           <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
-            {bot()?.name ?? "Bot details"}
+            {bot()?.name ?? t("bot.details")}
           </Text>
           <Text style={{ fontSize: 11, color: colors.faint }}>
-            {bot()?.archived ? "Archived · Profile, Runs with, Skills, Plugins" : "Bot details"}
+            {bot()?.archived ? t("bot.detailsArchived") : t("bot.details")}
           </Text>
         </View>
         <Press
           onPress={props.onClose}
-          accessibilityLabel="Close Bot details"
+          accessibilityLabel={t("bot.closeDetails")}
           scale={0.96}
           style={{ padding: 6 }}
         >
           <Icon name="close" size={14} tint={colors.muted} />
         </Press>
       </View>
-      <Segmented options={TABS} value={tab()} onChange={tab.set} size="small" />
+      <Segmented
+        options={TABS.map((entry) => ({ value: entry.value, label: t(entry.label) }))}
+        value={tab()}
+        onChange={tab.set}
+        size="small"
+      />
       <Scroll
         testID="bot-details-scroll"
         style={{ flexShrink: 1, minHeight: 0 }}
@@ -467,14 +480,14 @@ function Body(props: { botId: string; onClose: () => void }) {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <If when={!!bot()}>
           <Button
-            label="Delete"
+            label={t("common.delete")}
             variant="ghost"
             size="small"
             disabled={saving() || savingNow() || !!bot()?.hadDialogue}
             onPress={() => void remove()}
           />
           <Button
-            label={bot()?.archived ? "Unarchive" : "Archive"}
+            label={bot()?.archived ? t("common.unarchive") : t("common.archive")}
             variant="ghost"
             size="small"
             disabled={saving() || savingNow()}
@@ -482,9 +495,14 @@ function Body(props: { botId: string; onClose: () => void }) {
           />
         </If>
         <View style={{ flex: 1 }} />
-        <Button label="Cancel" variant="secondary" size="small" onPress={props.onClose} />
         <Button
-          label="Save"
+          label={t("common.cancel")}
+          variant="secondary"
+          size="small"
+          onPress={props.onClose}
+        />
+        <Button
+          label={t("common.save")}
           variant="accent"
           size="small"
           disabled={saving() || savingNow()}
@@ -564,19 +582,23 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
   return (
     <View style={{ gap: 10 }} testID="bot-details-segment">
       <View style={{ height: 1, backgroundColor: colors.line }} />
-      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Current segment</Text>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        {t("bot.segment.current")}
+      </Text>
       <If
         when={segmentId()}
         else={
           <Text style={{ fontSize: 11, lineHeight: 16, color: colors.muted }}>
-            This Bot has no segment yet. Send a first message in its Pane.
+            {t("bot.segment.none")}
           </Text>
         }
       >
         {(sessionId) => (
           <View style={{ gap: 8 }}>
             <View style={{ gap: 3 }}>
-              <Text style={{ fontSize: 11, color: colors.muted }}>Working directory</Text>
+              <Text style={{ fontSize: 11, color: colors.muted }}>
+                {t("bot.segment.workspace")}
+              </Text>
               {/* dsh may not have reported the Workspace yet: the line stays
                   rather than collapsing, so the section never reads as cut off. */}
               <Text
@@ -594,14 +616,17 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
             </View>
             <If when={!!path()}>
               <View style={{ flexDirection: "row", gap: 12 }}>
-                <Tiny label={copied() ? "Copied" : "Copy path"} onPress={() => copy(path())} />
+                <Tiny
+                  label={copied() ? t("common.copied") : t("bot.segment.copyPath")}
+                  onPress={() => copy(path())}
+                />
                 <If when={canReveal()}>
-                  <Tiny label="Reveal in Finder" onPress={() => void reveal(path())} />
+                  <Tiny label={t("bot.segment.reveal")} onPress={() => void reveal(path())} />
                 </If>
               </View>
             </If>
             <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-              <Text style={{ width: 72, fontSize: 11, color: colors.muted }}>Model</Text>
+              <Text style={{ width: 72, fontSize: 11, color: colors.muted }}>{t("bot.model")}</Text>
               <Text
                 testID="bot-details-model"
                 style={{ flex: 1, fontSize: 12, color: colors.text, numberOfLines: 1 }}
@@ -648,15 +673,15 @@ function Usage(props: {
         <If
           when={context()}
           else={
-            <Text style={{ fontSize: 11, color: colors.muted }}>
-              The backend reports no context window.
-            </Text>
+            <Text style={{ fontSize: 11, color: colors.muted }}>{t("bot.segment.noContext")}</Text>
           }
         >
           {(read) => (
             <View style={{ gap: 4 }}>
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-                <Text style={{ flex: 1, fontSize: 11, color: colors.muted }}>Context</Text>
+                <Text style={{ flex: 1, fontSize: 11, color: colors.muted }}>
+                  {t("bot.segment.context")}
+                </Text>
                 <Text
                   testID="bot-details-context"
                   style={{ fontSize: 11, color: colors.text, fontVariant: ["tabular-nums"] }}
@@ -675,13 +700,17 @@ function Usage(props: {
       <If when={props.read().status === "idle" || props.read().status === "loading"}>
         <Text style={{ fontSize: 11, color: colors.muted }}>
           {props.read().status === "loading"
-            ? "Reading…"
-            : "Usage shows once connected to the backend."}
+            ? t("bot.segment.usageLoading")
+            : t("bot.segment.usageIdle")}
         </Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Button
-          label={props.compactRead().status === "running" ? "Compacting…" : "Compact"}
+          label={
+            props.compactRead().status === "running"
+              ? t("bot.segment.compacting")
+              : t("bot.segment.compact")
+          }
           variant="secondary"
           size="small"
           disabled={props.compactRead().status === "running"}
@@ -720,33 +749,35 @@ function ProfileTab(props: {
   description: Signal<string>;
   identity: Signal<BotIdentity>;
   template: () => BotTemplate | null;
-  binding: () => { presetId: string; label: PresetBindingLabel } | null;
+  binding: () => { presetId: string; binding: PresetBinding } | null;
   ready: () => boolean;
 }) {
-  const label = () => props.binding()?.label ?? "";
+  const binding = () => props.binding()?.binding ?? null;
   const tone = () =>
-    label() === "已绑定" ? colors.accent : label() === "单独配置" ? colors.info : colors.muted;
+    binding() === "bound" ? colors.accent : binding() === "custom" ? colors.info : colors.muted;
   return (
     <View style={{ gap: 12 }}>
-      <If when={props.ready()} else={<Hint text="Reading the registry…" />}>
+      <If when={props.ready()} else={<Hint text={t("bot.readingRegistry")} />}>
         <Field
-          label="名称"
+          label={t("common.name")}
           testID="bot-details-name"
           value={props.name()}
           placeholder="Ada"
           onChange={props.name.set}
         />
         <Field
-          label="说明"
+          label={t("common.description")}
           testID="bot-details-description"
           value={props.description()}
-          placeholder="一句话说清它帮你做什么"
+          placeholder={t("bot.field.descriptionPlaceholder")}
           onChange={props.description.set}
         />
         <View style={{ gap: 8 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <BotMark identity={props.identity()} size={22} />
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>Identity</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+              {t("bot.identity")}
+            </Text>
           </View>
           <BotIdentityPicker
             identity={() => props.identity()}
@@ -755,10 +786,10 @@ function ProfileTab(props: {
         </View>
         <View style={{ gap: 6 }}>
           <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
-            模板与 preset
+            {t("bot.template")}
           </Text>
           <Text style={{ fontSize: 14, color: colors.text }}>
-            {props.template()?.name ?? "模板不在了"}
+            {props.template()?.name ?? t("bot.templateGone")}
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text
@@ -766,9 +797,11 @@ function ProfileTab(props: {
             >
               {props.binding()?.presetId ?? "—"}
             </Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: tone() }}>{label()}</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: tone() }}>
+              {binding() ? t(BINDING_LABELS[binding()!]) : ""}
+            </Text>
           </View>
-          <Hint text="保存能力后，这个 Bot 的新段使用派生 preset；已打开的段不变。" />
+          <Hint text={t("bot.bindingHint")} />
         </View>
       </If>
     </View>
@@ -786,11 +819,10 @@ function RunsTab(props: {
   return (
     <View style={{ gap: 12 }}>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>模型</Text>
-        <If
-          when={props.models().length > 0}
-          else={<Hint text="后台没有报告模型目录；连上之后从 dsh 的目录里选。" />}
-        >
+        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+          {t("bot.model")}
+        </Text>
+        <If when={props.models().length > 0} else={<Hint text={t("bot.modelNoCatalog")} />}>
           <View style={{ gap: 1 }}>
             <Each of={props.models()}>
               {(item) => (
@@ -809,12 +841,14 @@ function RunsTab(props: {
         </If>
       </View>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>思考</Text>
-        <If when={props.levels().length > 0} else={<Hint text="这个模型没有报告思考档位。" />}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+          {t("bot.thinking")}
+        </Text>
+        <If when={props.levels().length > 0} else={<Hint text={t("bot.thinkingNone")} />}>
           <Segmented
             size="small"
             options={[
-              { value: "", label: "默认" },
+              { value: "", label: t("common.default") },
               ...props.levels().map((item) => ({ value: item.id, label: item.name })),
             ]}
             value={props.thinking()}
@@ -823,16 +857,16 @@ function RunsTab(props: {
         </If>
       </View>
       <Field
-        label="默认工作目录"
+        label={t("bot.defaultWorkspace")}
         testID="bot-details-workspace"
         value={props.workspace()}
         placeholder="/path/to/project"
         onChange={props.workspace.set}
       />
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <Button label="选择目录…" size="small" onPress={props.onChooseWorkspace} />
+        <Button label={t("bot.chooseDirectory")} size="small" onPress={props.onChooseWorkspace} />
       </View>
-      <Hint text="开新段时作为默认工作目录；已有的段保留自己的路径。" />
+      <Hint text={t("bot.defaultWorkspaceHint")} />
     </View>
   );
 }
@@ -848,11 +882,11 @@ function SkillsTab(props: {
   const base = () => props.skills() ?? [];
   return (
     <View style={{ gap: 10 }}>
-      <SectionTitle title="组合自带的技能" />
+      <SectionTitle title={t("bot.skills.base")} />
       <If when={props.skills() === null} else={null}>
-        <Hint text="正在读取…" />
+        <Hint text={t("common.reading")} />
       </If>
-      <If when={base().length > 0} else={<Hint text="这个 Bot 的组合里还没有用户可调用的技能。" />}>
+      <If when={base().length > 0} else={<Hint text={t("bot.skills.baseEmpty")} />}>
         <View style={{ gap: 1 }}>
           <Each of={base()}>
             {(skill) => <Row label={`/${skill().name}`} detail={skill().description || "—"} />}
@@ -860,22 +894,17 @@ function SkillsTab(props: {
         </View>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <SectionTitle title="已添加" />
+        <SectionTitle title={t("bot.skills.added")} />
         <View style={{ flex: 1 }} />
         <Button
-          label="+ 添加技能目录…"
+          label={t("bot.skills.add")}
           size="small"
           variant="secondary"
           disabled={!props.writable()}
           onPress={props.onAdd}
         />
       </View>
-      <If
-        when={props.added().length > 0}
-        else={
-          <Hint text="还没有添加技能。选一个含 SKILL.md 的目录，复制进这个 Bot 的派生 preset。" />
-        }
-      >
+      <If when={props.added().length > 0} else={<Hint text={t("bot.skills.none")} />}>
         <View style={{ gap: 1 }}>
           <Each of={props.added()}>
             {(skill) => (
@@ -900,13 +929,13 @@ function SkillsTab(props: {
                 </View>
                 <Press
                   onPress={() => props.onRemove(skill().path)}
-                  accessibilityLabel={`移除 ${skill().name}`}
+                  accessibilityLabel={t("bot.skills.remove", { name: skill().name })}
                   accessibilityState={{ disabled: !props.writable() }}
                   disabled={!props.writable()}
                   scale={0.96}
                 >
                   <Text style={{ fontSize: 11, fontWeight: "600", color: colors.danger }}>
-                    移除
+                    {t("common.remove")}
                   </Text>
                 </Press>
               </View>
@@ -918,10 +947,10 @@ function SkillsTab(props: {
         <Hint text={props.note() ?? ""} />
       </If>
       <If when={!props.writable()}>
-        <Hint text={PRESET_WRITE_GAP} />
+        <Hint text={presetWriteGap()} />
       </If>
       <If when={props.writable()}>
-        <Hint text="已添加的技能复制进这个 Bot 的派生 preset；组合自带的技能不受影响。新段使用派生 preset，已打开的段不变。" />
+        <Hint text={t("bot.skills.hint")} />
       </If>
     </View>
   );
@@ -942,11 +971,11 @@ function PluginsTab(props: {
   return (
     <View style={{ gap: 10 }}>
       <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
-        {`${props.presetId() || "preset"} 的组合`}
+        {t("bot.plugins.heading", { preset: props.presetId() || "preset" })}
       </Text>
       <If
         when={(props.preset()?.rows ?? []).length > 0}
-        else={<Hint text="后台没有报告这个 preset 的组合（可能未挂载或已损坏）。" />}
+        else={<Hint text={t("bot.plugins.none")} />}
       >
         <View style={{ gap: 1 }}>
           <Each of={props.preset()?.rows ?? []}>
@@ -978,7 +1007,9 @@ function PluginsTab(props: {
                 </View>
                 <Press
                   onPress={() => props.onToggle(row())}
-                  accessibilityLabel={`切换 ${row().name ?? row().moduleName}`}
+                  accessibilityLabel={t("bot.plugins.toggle", {
+                    name: row().name ?? row().moduleName,
+                  })}
                   accessibilityState={{ checked: enabledOf(row()), disabled: !props.writable() }}
                   disabled={!props.writable()}
                   scale={0.96}
@@ -990,7 +1021,7 @@ function PluginsTab(props: {
                       color: enabledOf(row()) ? colors.accent : colors.muted,
                     }}
                   >
-                    {enabledOf(row()) ? "已启用" : "已停用"}
+                    {enabledOf(row()) ? t("common.enabled") : t("common.disabled")}
                   </Text>
                 </Press>
               </View>
@@ -1005,10 +1036,10 @@ function PluginsTab(props: {
         <Hint text={props.note() ?? ""} />
       </If>
       <If when={!props.writable()}>
-        <Hint text={PRESET_WRITE_GAP} />
+        <Hint text={presetWriteGap()} />
       </If>
       <If when={props.writable()}>
-        <Hint text="切换后保存，这个 Bot 改用派生 preset；新段使用它，已打开的段不变。" />
+        <Hint text={t("bot.plugins.hint")} />
       </If>
     </View>
   );

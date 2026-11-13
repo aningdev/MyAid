@@ -1,3 +1,4 @@
+import { t } from "../../../lib/i18n";
 /**
  * Deep module: claim × dsh listing × summary × controller status → SessionRow.
  * Pure assembly; callers subscribe to rows and issue create/open elsewhere.
@@ -40,8 +41,8 @@ export function sessionDetail(
   running: boolean,
 ): string {
   const bits = [item.botName, item.workspacePath];
-  if (running) bits.push("执行中");
-  if (item.missing) bits.push("待核对");
+  if (running) bits.push(t("session.status.running"));
+  if (item.missing) bits.push(t("session.status.missing"));
   return bits.join(" · ");
 }
 

@@ -7,7 +7,8 @@
 import { Clipboard, effect, Scroll, signal, Text, untracked, View, type JSX } from "nsh";
 
 import { Button, colors, finish, mono, radius } from "../../components/ui";
-import { hostFacts, loadHostFacts } from "./hostFacts";
+import { t } from "../../lib/i18n";
+import { hostFacts, lifecycleLabel, loadHostFacts } from "./hostFacts";
 import { diagnosticsText, versionRows } from "./versions";
 
 export function AboutSection() {
@@ -33,30 +34,40 @@ export function AboutSection() {
       contentStyle={{ padding: 20, gap: 16, maxWidth: 720 }}
     >
       <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>关于</Text>
+        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+          {t("settings.about.title")}
+        </Text>
         <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
-          MyAid、Host 与 dsh 的版本，以及当前的连接状态。
+          {t("settings.about.note")}
         </Text>
       </View>
 
-      <Card title="版本">
+      <Card title={t("settings.about.versions")}>
         <VersionRow label="MyAid" value={rows().myaid} testID="settings-about-myaid" />
         <VersionRow label="Host" value={rows().host} testID="settings-about-host" />
         <VersionRow
           label="dsh"
           value={rows().dsh}
-          note={facts().actualDsh ? undefined : `支持 ${rows().supportedDsh}`}
+          note={
+            facts().actualDsh
+              ? undefined
+              : t("settings.about.support", { version: rows().supportedDsh })
+          }
           testID="settings-about-dsh"
         />
       </Card>
 
-      <Card title="连接">
+      <Card title={t("settings.about.connection")}>
         <VersionRow
           label="Host"
-          value={facts().reachable ? "已连接" : "未连接"}
+          value={facts().reachable ? t("background.connected") : t("background.disconnected")}
           testID="settings-about-host-state"
         />
-        <VersionRow label="dsh web" value={rows().hostPhase} testID="settings-about-dsh-state" />
+        <VersionRow
+          label="dsh web"
+          value={lifecycleLabel(rows().hostPhase)}
+          testID="settings-about-dsh-state"
+        />
         <If when={facts().mismatch}>
           <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>
             {facts().mismatch}
@@ -64,19 +75,19 @@ export function AboutSection() {
         </If>
       </Card>
 
-      <Card title="诊断信息">
+      <Card title={t("settings.about.diagnostics")}>
         <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>
-          复制一段包含版本与连接状态的文本，交给支持或贴进 issue。里面没有 Key、令牌或会话内容。
+          {t("settings.about.diagnosticsNote")}
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Button
-            label={copied() ? "已复制" : "复制诊断信息"}
+            label={copied() ? t("common.copied") : t("settings.about.copy")}
             variant="accent"
             size="small"
             onPress={copy}
           />
           <Text testID="settings-about-copied" style={{ fontSize: 12, color: colors.faint }}>
-            {copied() ? "已复制到剪贴板" : "不含 Key、令牌或会话内容"}
+            {copied() ? t("settings.about.copied") : t("settings.about.noSecrets")}
           </Text>
         </View>
       </Card>
