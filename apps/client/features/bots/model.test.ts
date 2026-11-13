@@ -2,6 +2,7 @@ import { expect, test } from "nsh/test";
 
 import { defaultIdentity } from "./identity";
 import {
+  archiveBot,
   assignDerivedPreset,
   claimSession,
   createBot,
@@ -21,6 +22,7 @@ import {
   removeDialogue,
   renameClaim,
   serializeRegistry,
+  unarchiveBot,
   updateBot,
   updateTemplate,
 } from "./model";
@@ -306,6 +308,27 @@ test("a v5 registry round-trips with its Workspace ids and claims", () => {
     sessionId: "s1",
     title: "Release notes",
   });
+});
+
+test("a Bot's archive flag round-trips, and an older file reads as unarchived", () => {
+  const archived = archiveBot(readyWithDialogue(), "bot");
+  expect(archived.bots[0]?.archived).toBe(true);
+  const parsed = parseRegistry(serializeRegistry(archived));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok || parsed.state !== "current") return;
+  expect(parsed.registry.bots[0]?.archived).toBe(true);
+  expect(unarchiveBot(parsed.registry, "bot").bots[0]?.archived).toBe(false);
+
+  // The field shipped after v5: a file without it is a Bot that is not archived.
+  const older: unknown = JSON.parse(serializeRegistry(readyWithDialogue()));
+  if (typeof older === "object" && older !== null && "bots" in older) {
+    const bots = (older as { bots: Record<string, unknown>[] }).bots;
+    for (const bot of bots) delete bot.archived;
+  }
+  const read = parseRegistry(JSON.stringify(older));
+  expect(read.ok).toBe(true);
+  if (!read.ok || read.state !== "current") return;
+  expect(read.registry.bots[0]?.archived).toBe(false);
 });
 
 test("a file that becomes unreadable drops the previous snapshot", async () => {
