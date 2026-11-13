@@ -5,8 +5,9 @@
  *
  *   nsh test screens/settings-background.test.tsx --target macos
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { open } from "../test/open";
 import { graphical, shoot, SHOTS_A1 } from "./shots";
 
 test("the Background Services panel shows both registered units", async () => {

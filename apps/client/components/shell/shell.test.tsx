@@ -3,7 +3,7 @@
  * opens that object's Panel. The registry is seeded through the app's storage
  * (the web target's store), so the test needs no Host and writes nothing.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
 import {
   claimSession,
@@ -17,6 +17,7 @@ import {
 } from "../../features/bots/model";
 import { serializeRegistry } from "../../features/bots/model";
 import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
+import { open } from "../../test/open";
 
 const desktop = { platform: "web" as const, width: 1100, height: 800 };
 

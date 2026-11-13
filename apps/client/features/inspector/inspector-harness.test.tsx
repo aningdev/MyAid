@@ -3,7 +3,9 @@
  * (`inspector-harness.tsx`): the sections a connected Host fills, the sheet's
  * tabs, and Compact's own outcome.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
+
+import { open } from "../../test/open";
 
 const desktop = { platform: "web" as const, width: 1280, height: 820 };
 

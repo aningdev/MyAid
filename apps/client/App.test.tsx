@@ -1,4 +1,6 @@
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
+
+import { open } from "./test/open";
 
 /** Wide enough for the desktop shell on both desktop (700) and other (900) idioms. */
 const desktop = { platform: "web" as const, width: 1100, height: 800 };

@@ -21,15 +21,7 @@ export const SHOTS_A1 = `${SCRATCHPAD}/pi-shots-a1`;
 /** The Bot preset plugin smoke: editable tabs, binding label, new Session reply. */
 export const SHOTS_P1 = `${SCRATCHPAD}/pi-shots-p1`;
 
-/** True on a graphical target: a headless run throws here. */
-export async function graphical(app: App): Promise<boolean> {
-  try {
-    await app.screenshot();
-    return true;
-  } catch {
-    return false;
-  }
-}
+export { graphical } from "../test/graphical";
 
 /** Real-Host smokes are opt-in: no default suite may need a live Host. */
 export function hostSmokeRequested(): boolean {
@@ -37,5 +29,13 @@ export function hostSmokeRequested(): boolean {
 }
 
 export async function shoot(app: App, name: string, dir: string = SHOTS_SHELL): Promise<void> {
-  await app.screenshot(`${dir}/${name}`);
+  try {
+    await app.screenshot(`${dir}/${name}`);
+  } catch (error) {
+    // A test runner has no filesystem for the picture directory. The picture
+    // still proves the frame drew; only saving it is best-effort.
+    const message = String(error);
+    if (!/No such file|ENOENT|cannot find the path/i.test(message)) throw error;
+    await app.screenshot();
+  }
 }

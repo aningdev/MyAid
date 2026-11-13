@@ -2,8 +2,9 @@
  * The Bot editor as a Panel: a draft runs template → Bot → initialized Bot →
  * Dialogue without leaving the Workbench.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { open } from "../../test/open";
 import {
   claimSession,
   createBot,

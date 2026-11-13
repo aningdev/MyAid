@@ -3,7 +3,9 @@
  * (`settings-harness.tsx`): the panel shows the Host's and Relay's own
  * registration facts, and its verbs issue the shared registration calls.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
+
+import { open } from "../../test/open";
 
 const desktop = { platform: "macos" as const, width: 1100, height: 800 };
 

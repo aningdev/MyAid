@@ -10,8 +10,9 @@
  *   MYAID_SMOKE_HOST_SOCKET=$MYAID_HOST_SOCKET \
  *     nsh test screens/bot-presets-real-host.smoke.test.tsx --target macos
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_P1 } from "./shots";
 
 const ECHO = "P1-PRESET-8173";

@@ -2,8 +2,6 @@
  * Product HostControl module: typed ops, decoded HostStatus, watch-based ensureReady.
  * Native HostControl is a thin adapter behind `HostTransport`.
  */
-import { HostControl } from "myaid/native";
-
 import { decodeBackendInfo, decodeHostStatus, type HostStatus, type HostView } from "./protocol";
 
 export type { HostStatus, HostView };
@@ -27,33 +25,44 @@ export type HostTransport = {
   ): Promise<() => void>;
 };
 
-function nativeCall(op: HostOp): Promise<string> {
+type NativeHostControl = typeof import("myaid/native").HostControl;
+
+let nativeModule: Promise<NativeHostControl> | undefined;
+
+/** Load the native adapter only when a call needs it; unit tests stay native-free. */
+function nativeControl(): Promise<NativeHostControl> {
+  return (nativeModule ??= import("myaid/native").then((module) => module.HostControl));
+}
+
+async function nativeCall(op: HostOp): Promise<string> {
+  const host = await nativeControl();
   switch (op.op) {
     case "status":
-      return HostControl.request("status", "");
+      return host.request("status", "");
     case "ensureDsh":
-      return HostControl.request("ensureDsh", op.source);
+      return host.request("ensureDsh", op.source);
     case "stopDsh":
-      return HostControl.request("stopDsh", "");
+      return host.request("stopDsh", "");
     case "restartDsh":
-      return HostControl.request("restartDsh", "");
+      return host.request("restartDsh", "");
     case "connectionInfo":
-      return HostControl.request("connectionInfo", "");
+      return host.request("connectionInfo", "");
   }
 }
 
 const nativeTransport: HostTransport = {
-  reachable: () => HostControl.reachable(),
+  reachable: async () => (await nativeControl()).reachable(),
   call: async (op) => {
     const raw = await nativeCall(op);
     return op.op === "connectionInfo" ? decodeBackendInfo(raw) : decodeHostStatus(raw);
   },
   watch: async (onStatus, onDown) => {
-    if (!(await HostControl.reachable())) {
+    const host = await nativeControl();
+    if (!(await host.reachable())) {
       onDown("宿主未运行");
       return () => {};
     }
-    const watch = await HostControl.watch();
+    const watch = await host.watch();
     let closed = false;
     void (async () => {
       try {

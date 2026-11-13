@@ -3,7 +3,10 @@
  * `chat-harness.tsx`: following the newest message, tool steps, Stop keeping
  * what was written, a queued prompt, the per-Session draft, pasted files.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
+
+import { graphical } from "../../../test/graphical";
+import { open } from "../../../test/open";
 
 const desktop = { platform: "web" as const, width: 1200, height: 900 };
 
@@ -29,6 +32,16 @@ async function chat() {
   const app = await open("./chat-harness.tsx", desktop);
   await app.waitFor("text:Message Ada");
   return app;
+}
+
+/** `modules` stands in for native calls in a headless runner; a target rejects it. */
+async function openHeadless(options: Parameters<typeof open>[1]) {
+  try {
+    return await open("./chat-harness.tsx", options);
+  } catch (error) {
+    if (String(error).includes("unsupported")) return null;
+    throw error;
+  }
 }
 
 test("the transcript follows the newest message until scrolled up", async () => {
@@ -137,6 +150,8 @@ const readable = (bytes: Uint8Array) => ({
 
 test("the paperclip attaches the files the open dialog returns", async () => {
   const app = await chat();
+  // `onPick` and the stand-ins below answer a headless runner's calls only.
+  if (await graphical(app)) return;
   app.onPick(() => [{ name: "notes.md", type: "text/markdown", data: NOTES }]);
 
   await app.press("label:Attach files");
@@ -148,10 +163,11 @@ test("the paperclip attaches the files the open dialog returns", async () => {
 test("a pasted or dropped file the app may read lands as a chip", async () => {
   // The picker's bytes need no grant; a `file:` URL's do (`fs.read`), and
   // this stand-in is the grant the app has.
-  const app = await open("./chat-harness.tsx", {
+  const app = await openHeadless({
     ...desktop,
     modules: { "fs/promises": readable(PNG) },
   });
+  if (!app) return;
   await app.waitFor("text:Message Ada");
 
   await app.paste(composer, { text: "", uris: ["file:///tmp/cat.png"] });
@@ -169,11 +185,12 @@ test("a pasted or dropped file the app may read lands as a chip", async () => {
 });
 
 test("a dropped file the app cannot read comes through the open dialog", async () => {
-  const app = await open("./chat-harness.tsx", {
+  const app = await openHeadless({
     ...desktop,
     // A path outside `capabilities.fs.read`: nsh.json grants the app's data.
     modules: { "fs/promises": { readFile: denial, "default.readFile": denial } },
   });
+  if (!app) return;
   await app.waitFor("text:Message Ada");
   app.onPick(() => [{ name: "dropped-notes.md", type: "text/markdown", data: NOTES }]);
 
@@ -184,10 +201,11 @@ test("a dropped file the app cannot read comes through the open dialog", async (
 });
 
 test("a dropped file the app cannot read, with the dialog closed, says how to attach", async () => {
-  const app = await open("./chat-harness.tsx", {
+  const app = await openHeadless({
     ...desktop,
     modules: { "fs/promises": { readFile: denial, "default.readFile": denial } },
   });
+  if (!app) return;
   await app.waitFor("text:Message Ada");
   app.onPick(() => null);
 

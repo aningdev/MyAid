@@ -1,16 +1,69 @@
 /**
  * Screenshots over a seeded registry: the Bot marks in the sidebar, the
- * New Bot sheet, the ⌘K palette and a row's context menu. Run with a HOME
- * whose ~/.myaid holds the fixture registry and prefs, on a graphical target:
+ * New Bot sheet, the ⌘K palette and a row's context menu. The fixture lives in
+ * the app's isolated test storage, never the real `~/.myaid`:
  *
- *   HOME=/tmp/myaid-marks-fixture nsh test screens/navigator-marks.test.tsx --target macos
+ *   nsh test screens/navigator-marks.test.tsx --target macos
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import {
+  emptyShellPrefs,
+  serializeShellPrefs,
+  SHELL_PREFS_STORAGE,
+} from "../components/shell/prefs";
+import {
+  claimSession,
+  createBot,
+  createDialogue,
+  createTemplate,
+  emptyRegistry,
+  initializeBot,
+  renameClaim,
+  serializeRegistry,
+  type BotRegistry,
+} from "../features/bots/model";
+import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
+import { open } from "../test/open";
 import { graphical, shoot } from "./shots";
 
+/** Ada with a release-notes Session, and Iota as a second Bot. */
+function fixture(): BotRegistry {
+  const created = claimSession(
+    createDialogue(
+      initializeBot(
+        createBot(
+          createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
+          { name: "Ada", templateId: "tmpl" },
+          "bot",
+        ),
+        "bot",
+      ),
+      { botId: "bot", workspacePath: "/work/release" },
+      "dlg",
+    ),
+    "dlg",
+    "s1",
+  );
+  const withIota = createBot(created, { name: "Iota", templateId: "tmpl" }, "bot2");
+  return renameClaim(withIota, "dlg", "s1", "Release notes for 0.5");
+}
+
+function fixturePrefs(): string {
+  const prefs = emptyShellPrefs();
+  prefs.nav.expanded = [...prefs.nav.expanded, "bots:bot", "bots:bot2", "dialogues:dlg"];
+  return serializeShellPrefs(prefs);
+}
+
 test("marks, New Bot, palette and context menu", async () => {
-  const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
+  const app = await open("../App.tsx", {
+    width: 1440,
+    height: 900,
+    storage: {
+      [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+      [SHELL_PREFS_STORAGE]: fixturePrefs(),
+    },
+  });
   if (!(await graphical(app))) return;
 
   await app.waitFor("role:treeitem[Ada]");

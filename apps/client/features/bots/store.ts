@@ -1,9 +1,9 @@
 import fs from "fs/promises";
-import { homedir } from "os";
-import { dirname, join } from "path";
+import { dirname } from "path";
 
 import { Storage } from "nsh";
 
+import { registryPath } from "../../lib/data-root";
 import {
   emptyRegistry,
   parseRegistry,
@@ -48,7 +48,7 @@ export function storageStore(key: string = REGISTRY_STORAGE_KEY): RegistryStore 
 
 /** `~/.myaid/registry/bots.json` (v3: templates + bots + dialogues). Beside the dsh profile, not inside a preset patch. */
 export function defaultRegistryPath(): string {
-  return join(homedir(), ".myaid", "registry", "bots.json");
+  return registryPath();
 }
 
 export function fileStore(path: string): RegistryStore {

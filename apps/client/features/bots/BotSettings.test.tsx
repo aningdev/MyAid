@@ -3,8 +3,9 @@
  * template-bound Bot edits its registry preferences, and a capability change
  * derives its own preset instead of touching the template.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { open } from "../../test/open";
 import {
   assignDerivedPreset,
   claimSession,

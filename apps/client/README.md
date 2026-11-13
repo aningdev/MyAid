@@ -42,6 +42,7 @@ vp run @myaid/client#package:web
 - Service only (attach your own simulator/host): `dev:server`.
 - `package:macos` produces an NSH-installable `.app`, **not** the finished App + Host + `SMAppService` product.
 - Real-Host smokes are opt-in: `screens/*.smoke.test.tsx` returns unless `MYAID_SMOKE_HOST_SOCKET` is set. See [screens/README.md](screens/README.md).
+- Tests that open the app use [`test/open.ts`](test/open.ts): its host parameter makes the registry and shell prefs use the test app's isolated storage, never the real `~/.myaid`.
 
 ## Shell
 

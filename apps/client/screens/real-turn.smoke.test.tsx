@@ -12,8 +12,9 @@
  *
  * A headless run stops at the picture probe.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_CHAT } from "./shots";
 
 const ECHO = "TURN-SMOKE-5219";

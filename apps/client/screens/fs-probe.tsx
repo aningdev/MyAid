@@ -39,14 +39,11 @@ async function write(call: string, path: string) {
 }
 
 async function probe() {
-  const data = join(homedir(), ".myaid");
-  // The app's data root: the registry it keeps, and a missing file beside it.
-  await read("read-data", join(data, "registry", "bots.json"));
-  await read("read-data-missing", join(data, "nothing-here.json"));
-  // Inside the home but outside the data root, and outside the home.
+  // The grant is `${homeDir}/.myaid`; this probe deliberately does not touch
+  // it, so a test run leaves the real data root alone. It only proves what the
+  // grant refuses: the home itself, and a path outside it.
   await read("read-home", homedir());
   await read("read-outside", "/etc/hosts");
-  await write("write-data", join(data, ".w2-probe"));
   await write("write-outside", "/tmp/w2-probe-write");
 }
 

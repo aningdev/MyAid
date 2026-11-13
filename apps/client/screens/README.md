@@ -7,19 +7,16 @@ the steps and saves PNGs under the scratchpad directory named in
 [`shots.ts`](shots.ts).
 
 ```sh
-# Welcome: no Bots, so back up ~/.myaid/registry/bots.json (or move it aside),
-# run, then put it back. 01-welcome.png
+# Welcome: the test app's isolated storage is empty, never the real ~/.myaid.
 nsh test screens/welcome.test.tsx --target macos
 
-# Seeded registry + client prefs: marks, New Bot, ⌘K, a context menu.
-# Swap ~/.myaid/registry/bots.json and ~/.myaid/prefs/client.json for a
-# fixture, run, then put the real files back.
+# Seeded registry + client prefs in the app's isolated test storage.
 nsh test screens/navigator-marks.test.tsx --target macos
 
 # A 22-item ordered list over the harness (no Host): the marker column.
 nsh test screens/ordered-list-markers.test.tsx --target macos
 
-# fs grants as the app really has them (reads of ~/.myaid, refusals outside).
+# fs grants as the app really has them (refusals outside; the real ~/.myaid is not read).
 nsh test screens/fs-grant.test.tsx --target macos
 
 # Settings › Background Services over stand-in control channels (no Host).
@@ -29,7 +26,7 @@ nsh test screens/settings-background.test.tsx --target macos
 ## Real-Host smokes: opt-in, and never the user's registry
 
 `*.smoke.test.tsx` returns unless `MYAID_SMOKE_HOST_SOCKET` is set, so no
-default `nsh test` run needs a live Host. The two smokes create a Bot, a
+default `nsh test` run needs a live Host. The real-Host smokes create a Bot, a
 Dialogue and a Session as the product does. Point both halves at a scratch
 root instead of `~/.myaid`:
 

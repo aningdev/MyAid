@@ -1,6 +1,5 @@
 import fs from "fs/promises";
-import { homedir } from "os";
-import { dirname, join } from "path";
+import { dirname } from "path";
 
 /**
  * The shell's client preferences: the Navigator's width and folded sections,
@@ -14,6 +13,7 @@ import { Storage } from "nsh";
 import type { DockAreaLayout, DockNode } from "nsh/base";
 
 import { claimOwner, type BotRegistry, type Dialogue } from "../../features/bots/model";
+import { prefsPath, usesTestStorage } from "../../lib/data-root";
 import { favorites, setFavorites } from "./favorites";
 import { NAV_DEFAULT_EXPANDED } from "./fixtures";
 import {
@@ -52,7 +52,7 @@ export type ShellPrefs = {
 
 /** `~/.myaid/prefs/client.json`. */
 export function defaultPrefsPath(): string {
-  return join(homedir(), ".myaid", "prefs", "client.json");
+  return prefsPath();
 }
 
 export function emptyShellPrefs(): ShellPrefs {
@@ -234,7 +234,10 @@ interface PrefsStore {
 }
 
 export function prefsStore(): PrefsStore {
-  if (platform.os === "macos" || platform.os === "windows" || platform.os === "linux") {
+  if (
+    (platform.os === "macos" || platform.os === "windows" || platform.os === "linux") &&
+    !usesTestStorage()
+  ) {
     const path = defaultPrefsPath();
     return {
       async read() {

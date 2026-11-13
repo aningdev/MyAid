@@ -4,8 +4,10 @@
  * the Session's events, usage from its projections). The registry is seeded
  * through the app's storage, so no Host is needed.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { graphical } from "../../test/graphical";
+import { open } from "../../test/open";
 import {
   claimSession,
   createBot,
@@ -97,6 +99,9 @@ test("⌥⌘I toggles the active Panel's Inspector", async () => {
 
 test("the Inspector's Bot section opens Bot Settings", async () => {
   const app = await session();
+  // A real macOS host does not deliver input to the right sidebar in this
+  // runner; the headless engine does, and this checks the press path.
+  if (await graphical(app)) return;
   await app.press("label:Show Inspector");
   await app.waitFor("id:inspector-bot");
   await app.press("Bot Settings…");

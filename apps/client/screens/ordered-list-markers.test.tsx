@@ -5,8 +5,9 @@
  *
  *   nsh test screens/ordered-list-markers.test.tsx --target macos
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { open } from "../test/open";
 import { graphical, shoot, SHOTS_CHAT } from "./shots";
 
 /** `chat-harness.tsx`'s numbered reply: as many items (a test imports no app code). */

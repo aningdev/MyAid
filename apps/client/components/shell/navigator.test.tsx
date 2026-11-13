@@ -3,7 +3,7 @@
  * open the row), Favorites, rename, and the ⌘K palette's jumps. The registry
  * is seeded through the app's storage, so no Host is involved.
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
 import {
   claimSession,
@@ -17,6 +17,7 @@ import {
   type BotRegistry,
 } from "../../features/bots/model";
 import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
+import { open } from "../../test/open";
 import { sessionAddress } from "./navAddresses";
 import { emptyShellPrefs, serializeShellPrefs, SHELL_PREFS_STORAGE } from "./prefs";
 

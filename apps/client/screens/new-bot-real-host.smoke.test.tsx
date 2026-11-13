@@ -8,8 +8,9 @@
  *   MYAID_SMOKE_HOST_SOCKET=$MYAID_HOST_SOCKET \
  *     nsh test screens/new-bot-real-host.smoke.test.tsx --target macos
  */
-import { expect, open, test } from "nsh/test";
+import { expect, test } from "nsh/test";
 
+import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot } from "./shots";
 
 const ECHO = "SMOKE-8173";

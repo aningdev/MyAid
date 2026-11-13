@@ -5,6 +5,7 @@
  */
 import { platform, signal, untracked } from "nsh";
 
+import { usesTestStorage } from "../../lib/data-root";
 import {
   DERIVED_PRESET_PREFIX,
   emptyRegistry,
@@ -105,10 +106,10 @@ function messageOf(error: unknown): string {
 
 function openRepository(): { repo: BotRegistryRepository; notice: string | null } {
   const desktop = platform.os === "macos" || platform.os === "windows" || platform.os === "linux";
-  if (!desktop) {
+  if (!desktop || usesTestStorage()) {
     return {
       repo: new BotRegistryRepository(storageStore()),
-      notice: "当前平台不写 ~/.myaid，注册表存在应用自己的存储里。",
+      notice: desktop ? null : "当前平台不写 ~/.myaid，注册表存在应用自己的存储里。",
     };
   }
   return { repo: new BotRegistryRepository(fileStore(defaultRegistryPath())), notice: null };
