@@ -26,7 +26,14 @@ pub struct Status {
     pub phase: String,
     pub generation: Option<String>,
     pub pid: Option<u32>,
+    /// The dsh version this Host requires (`supported-dsh.json`).
     pub version: String,
+    /// The Host's own release version, for the About and Background pages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_version: Option<String>,
+    /// The dsh version the guardian actually found, once it has run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dsh_version: Option<String>,
     pub reason: Option<String>,
     pub blocked: bool,
     /// Only for `connection` responses — leave out of public status.
@@ -69,6 +76,8 @@ impl Status {
             generation: None,
             pid: None,
             version: version.into(),
+            host_version: Some(env!("CARGO_PKG_VERSION").into()),
+            dsh_version: None,
             reason: Some("请明确启动后台".into()),
             blocked: true,
             url: None,

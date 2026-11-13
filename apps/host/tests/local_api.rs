@@ -241,6 +241,9 @@ fn starting_dsh_reports_the_lifecycle_and_its_ready_url() {
     let reported: serde_json::Value = serde_json::from_str(&body).expect("status json");
     assert_eq!(reported["phase"], "ready");
     assert_eq!(reported["pid"], 4242);
+    assert_eq!(reported["version"], "0.2.2-rc.2");
+    assert_eq!(reported["dshVersion"], "0.2.2-rc.2");
+    assert_eq!(reported["hostVersion"], env!("CARGO_PKG_VERSION"));
     assert!(reported.get("url").is_none());
 
     let (status, body) = request(host.port, "GET", "/connection", &bearer(&host.token), None);

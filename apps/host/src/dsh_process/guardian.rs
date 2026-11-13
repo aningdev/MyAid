@@ -55,7 +55,17 @@ pub fn run(config: &Config) -> Result<()> {
         let _ = io::stdin().read(&mut input);
         let _ = tx.send(());
     });
-    let (env, cli) = environment(config)?;
+    let (env, cli, actual) = environment(config)?;
+    // Report the CLI the guardian actually found before validating it: the
+    // Host puts it in its public status so a mismatch names both versions.
+    let _ = writeln!(io::stdout(), "dsh-version: {actual}");
+    let _ = io::stdout().flush();
+    if actual != config.version {
+        let message = format!("官方 dsh 版本不兼容：实际 {actual}，需要 {}", config.version);
+        let _ = writeln!(io::stdout(), "dsh-error: {message}");
+        let _ = io::stdout().flush();
+        return Err(message);
+    }
     if rx.try_recv().is_ok() {
         return Ok(());
     }

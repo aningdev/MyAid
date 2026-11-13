@@ -4,7 +4,12 @@ export type HostStatus = {
   phase: string;
   generation?: string | null;
   pid?: number | null;
+  /** The dsh version this Host requires (`supported-dsh.json`). */
   version: string;
+  /** The Host's own release version. */
+  hostVersion?: string;
+  /** The dsh version the Host's guardian actually found. */
+  dshVersion?: string | null;
   reason?: string | null;
   blocked: boolean;
   url?: string | null;

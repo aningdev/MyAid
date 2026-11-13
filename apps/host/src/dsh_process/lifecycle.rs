@@ -138,6 +138,7 @@ impl DshProcess {
             let mut state = self.state.lock().unwrap();
             state.generation = Some(id);
             state.pid = None;
+            state.dsh_version = None;
         }
         let running = self.launcher.launch(&self.config)?;
         self.running = Some(running);
@@ -156,7 +157,9 @@ impl DshProcess {
                 .try_wait()?
                 .is_some()
             {
-                return Err("dsh 启动前退出；请检查安装、版本与受限日志".into());
+                let reason = self.state.lock().unwrap().reason.clone();
+                return Err(reason
+                    .unwrap_or_else(|| "dsh 启动前退出；请检查安装、版本与受限日志".into()));
             }
             if Instant::now() >= deadline {
                 return Err("dsh ready 超时".into());
@@ -178,6 +181,10 @@ impl DshProcess {
                 .and_then(|s| s.parse::<u32>().ok())
             {
                 self.state.lock().unwrap().pid = Some(pid);
+            } else if let Some(version) = line.strip_prefix("dsh-version: ") {
+                self.state.lock().unwrap().dsh_version = Some(version.trim().to_owned());
+            } else if let Some(reason) = line.strip_prefix("dsh-error: ") {
+                self.state.lock().unwrap().reason = Some(reason.trim().to_owned());
             } else if let Some(raw) = line.strip_prefix("dsh web: ") {
                 let url = parse_ready_url(raw)
                     .map_err(|_| "dsh ready 地址不符合本机认证契约".to_string())?;
@@ -358,6 +365,31 @@ mod tests {
             Some("http://127.0.0.1:9876/?token=secret")
         );
         assert!(process.public_status().url.is_none());
+    }
+
+    #[test]
+    fn a_version_mismatch_reports_the_actual_and_required_dsh() {
+        let launcher = ScriptedLauncher::new(vec![ScriptedRun {
+            lines: vec![
+                "dsh-version: 0.2.2-rc.1".into(),
+                "dsh-error: 官方 dsh 版本不兼容：实际 0.2.2-rc.1，需要 test-version".into(),
+            ],
+            exit_immediately: true,
+        }]);
+        let (_dir, mut process) = test_env(Box::new(launcher));
+        let error = process.ensure(true).unwrap_err();
+        assert!(error.contains("0.2.2-rc.1"));
+        assert!(error.contains("test-version"));
+        let status = process.public_status();
+        assert_eq!(status.dsh_version.as_deref(), Some("0.2.2-rc.1"));
+        assert_eq!(status.version, "test-version");
+        assert!(status.host_version.is_some());
+        assert!(
+            status
+                .reason
+                .as_deref()
+                .is_some_and(|reason| reason.contains("0.2.2-rc.1"))
+        );
     }
 
     #[test]

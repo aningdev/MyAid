@@ -209,7 +209,7 @@ fn resolve_official_cli(path_env: &str) -> Result<PathBuf> {
 
 pub(super) fn environment(
     config: &Config,
-) -> Result<(BTreeMap<String, String>, PathBuf)> {
+) -> Result<(BTreeMap<String, String>, PathBuf, String)> {
     let mut env = login_environment()?;
     env.insert(
         "DSH_HOME".into(),
@@ -226,8 +226,6 @@ pub(super) fn environment(
     let mut command = command_for_cli(&cli);
     command.arg("--version").env_clear().envs(&env);
     let actual = capture(command, 1024)?;
-    if String::from_utf8_lossy(&actual).trim() != config.version {
-        return Err(format!("官方 dsh 版本不兼容，需要 {}", config.version));
-    }
-    Ok((env, cli))
+    let actual = String::from_utf8_lossy(&actual).trim().to_owned();
+    Ok((env, cli, actual))
 }
