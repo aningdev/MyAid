@@ -33,12 +33,12 @@ export const SHOTS_N1 = `${SCRATCHPAD}/pi-shots-n1`;
 export { graphical } from "../test/graphical";
 
 /**
- * Real-Host smokes are opt-in: no default suite may need a live Host. `MYAID_SMOKE_HOST` runs
- * them against the Host the app launches itself; `MYAID_SMOKE_HOST_SOCKET` is the older marker
- * of the smokes that expected an externally started Host.
+ * Real-Host smokes are opt-in: no default suite may need a live Host, and an app a test opens
+ * never touches the local control plane unless this is set (`lib/data-root.ts`). `MYAID_SMOKE_HOST`
+ * runs them against the Host the app launches itself.
  */
 export function hostSmokeRequested(): boolean {
-  return !!process.env.MYAID_SMOKE_HOST || !!process.env.MYAID_SMOKE_HOST_SOCKET;
+  return !!process.env.MYAID_SMOKE_HOST;
 }
 
 /** The launcher smoke's mode: `1` for the running Host, `empty` for a Host that cannot run. */

@@ -75,8 +75,7 @@
         "MYAID_HOST_PORT",
         "MYAID_RELAY_PORT",
         "MYAID_DSH_LOGIN_URL",
-        "MYAID_SMOKE_HOST",
-        "MYAID_SMOKE_HOST_SOCKET"
+        "MYAID_SMOKE_HOST"
       ],
       "execute": ["myaid-host"]
     }

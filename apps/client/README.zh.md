@@ -40,7 +40,7 @@ vp run @myaid/client#package:web
 - 日常改 UI：`nsh run --target …`（上面的 `dev*` 脚本）。
 - 只起服务、自己连模拟器或已开宿主：`dev:server`。
 - `package:macos` 产出 NSH 可安装 `.app`，**不是**根级成品（App + Host + `SMAppService` 组装另议）。
-- 真 Host 冒烟是 opt-in：未设置 `MYAID_SMOKE_HOST_SOCKET` 时 `screens/*.smoke.test.tsx` 直接返回。见 [screens/README.md](screens/README.md)。
+- 真 Host 冒烟是 opt-in：未设置 `MYAID_SMOKE_HOST` 时 `screens/*.smoke.test.tsx` 直接返回；它也是测试应用接触本机控制面的唯一入口（`test/open.ts` 打开的应用既不探活也不 spawn）。见 [screens/README.md](screens/README.md)。
 - 打开 app 的测试统一走 [`test/open.ts`](test/open.ts)：host 参数让注册表与 shell prefs 使用测试 app 自己的 Storage，绝不碰真实 `~/.myaid`。
 
 ## 壳

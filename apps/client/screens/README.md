@@ -25,9 +25,9 @@ nsh test screens/settings-background.test.tsx --target macos
 
 ## Real-Host smokes: opt-in, and never the user's registry
 
-`*.smoke.test.tsx` returns unless `MYAID_SMOKE_HOST` (or the older
-`MYAID_SMOKE_HOST_SOCKET`) is set, so no default `nsh test` run needs a live
-Host. The app starts the Host itself (`lib/host/launcher`), so nothing has to
+`*.smoke.test.tsx` returns unless `MYAID_SMOKE_HOST` is set, so no default
+`nsh test` run needs a live Host — and that variable is also the only way a
+test app reaches the local control plane at all (`test/host-control.test.tsx`). The app starts the Host itself (`lib/host/launcher`), so nothing has to
 be running beforehand: give the app a scratch home and `myaid-host` on PATH.
 
 ```sh
