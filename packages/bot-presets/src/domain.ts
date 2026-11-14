@@ -6,7 +6,7 @@ import type { BotPresetRecord } from "./types.ts";
 import { botPresetRecordSchema } from "./wire.ts";
 
 /** Domain name; also the backend unit name under `$DSH_HOME/storages`. */
-export const DOMAIN_NAME = "myaid_bot_presets";
+export const DOMAIN_NAME = "bot_presets";
 
 /** The stored record adds the copied base body, which is not a Client DTO. */
 export const storedPresetSchema = botPresetRecordSchema.extend({

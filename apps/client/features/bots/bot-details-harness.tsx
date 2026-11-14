@@ -4,7 +4,7 @@
  * imports it, and no production path installs a writer or a facts source.
  * The Bot details modal is inside `AppShell`.
  *
- * What it stands in for: `myaid-plugin-bot-presets` (the derived-preset writer)
+ * What it stands in for: `dsh-bot-presets` (the derived-preset writer)
  * and the Host's `pluginInventory` / `skills` reads.
  */
 import { basename } from "path";
@@ -17,7 +17,7 @@ import { setBotFactsSource } from "./facts";
 import { setPresetWriter } from "./presets";
 
 let record: BotPresetRecord | null = {
-  presetId: "bot-preset-bot",
+  presetId: "bot-presets-bot",
   botId: "bot",
   basePresetId: "standard",
   label: "Ada",
@@ -29,7 +29,7 @@ setPresetWriter({
   probe: async () => true,
   derive: async (request) => {
     record = {
-      presetId: `bot-preset-${request.botId}`,
+      presetId: `bot-presets-${request.botId}`,
       botId: request.botId,
       basePresetId: request.basePresetId,
       label: request.label,

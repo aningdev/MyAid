@@ -30,10 +30,38 @@
         "@deepseek-ai/dsh-subagent": "catalog:",
         "@deepseek-ai/dsh-typert-registry": "catalog:",
         "@myaid/dsh-web-protocol": "workspace:*",
-        "@myaid/myaid-plugin-bot-presets": "workspace:*",
         "@myaid/myaid-plugin-core": "workspace:*",
+        "dsh-bot-presets": "workspace:*",
         "immer": "^10.1.1",
         "zustand": "~4.5.7",
+      },
+    },
+    "packages/bot-presets": {
+      "name": "dsh-bot-presets",
+      "version": "0.1.0",
+      "dependencies": {
+        "@deepseek-ai/schemastery": "catalog:",
+        "js-yaml": "^4.1.0",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@deepseek-ai/cordis": "catalog:",
+        "@deepseek-ai/cordis-plugin-include": "catalog:",
+        "@deepseek-ai/dsh-agent-preset-registry": "catalog:",
+        "@deepseek-ai/dsh-home-paths": "catalog:",
+        "@deepseek-ai/dsh-storage-domain": "catalog:",
+        "@deepseek-ai/dsh-typert-protocol": "catalog:",
+        "@types/js-yaml": "^4.0.9",
+        "@types/node": "catalog:",
+        "typescript": "catalog:",
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "catalog:",
+        "@deepseek-ai/cordis-plugin-include": "catalog:",
+        "@deepseek-ai/dsh-agent-preset-registry": "catalog:",
+        "@deepseek-ai/dsh-home-paths": "catalog:",
+        "@deepseek-ai/dsh-storage-domain": "catalog:",
+        "@deepseek-ai/dsh-typert-protocol": "catalog:",
       },
     },
     "packages/dsh-web-protocol": {
@@ -64,27 +92,6 @@
       },
       "devDependencies": {
         "typescript": "catalog:",
-      },
-    },
-    "packages/myaid-plugin-bot-presets": {
-      "name": "@myaid/myaid-plugin-bot-presets",
-      "version": "0.1.0",
-      "dependencies": {
-        "js-yaml": "^4.1.0",
-        "zod": "catalog:",
-      },
-      "devDependencies": {
-        "@types/js-yaml": "^4.0.9",
-        "@types/node": "catalog:",
-        "typescript": "catalog:",
-      },
-      "peerDependencies": {
-        "@deepseek-ai/cordis": "catalog:",
-        "@deepseek-ai/cordis-plugin-include": "catalog:",
-        "@deepseek-ai/dsh-agent-preset-registry": "catalog:",
-        "@deepseek-ai/dsh-home-paths": "catalog:",
-        "@deepseek-ai/dsh-storage-domain": "catalog:",
-        "@deepseek-ai/dsh-typert-protocol": "catalog:",
       },
     },
     "packages/myaid-plugin-core": {
@@ -130,6 +137,7 @@
     "@deepseek-ai/dsh-user-approval": "0.2.2-rc.3",
     "@deepseek-ai/dsh-user-questions": "0.2.2-rc.3",
     "@deepseek-ai/dsh-workspace": "0.2.2-rc.3",
+    "@deepseek-ai/schemastery": "~3.19.0",
     "@types/node": "26.6.6",
     "typescript": "7.1.0-beta",
     "zod": "4.6.6",
@@ -322,8 +330,6 @@
     "@myaid/client": ["@myaid/client@workspace:apps/client"],
 
     "@myaid/dsh-web-protocol": ["@myaid/dsh-web-protocol@workspace:packages/dsh-web-protocol"],
-
-    "@myaid/myaid-plugin-bot-presets": ["@myaid/myaid-plugin-bot-presets@workspace:packages/myaid-plugin-bot-presets"],
 
     "@myaid/myaid-plugin-core": ["@myaid/myaid-plugin-core@workspace:packages/myaid-plugin-core"],
 
@@ -624,6 +630,8 @@
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
     "dom-accessibility-api": ["dom-accessibility-api@0.5.16", "", {}, "sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg=="],
+
+    "dsh-bot-presets": ["dsh-bot-presets@workspace:packages/bot-presets"],
 
     "es-module-lexer": ["es-module-lexer@2.3.2", "", {}, "sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw=="],
 

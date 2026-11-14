@@ -43,7 +43,7 @@
     "@deepseek-ai/dsh-subagent": "catalog:",
     "@deepseek-ai/dsh-typert-registry": "catalog:",
     "@myaid/dsh-web-protocol": "workspace:*",
-    "@myaid/myaid-plugin-bot-presets": "workspace:*",
+    "dsh-bot-presets": "workspace:*",
     "@myaid/myaid-plugin-core": "workspace:*",
     "immer": "^10.1.1",
     "zustand": "~4.5.7"

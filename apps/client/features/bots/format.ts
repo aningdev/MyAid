@@ -9,6 +9,7 @@ import { defaultIdentity, readIdentity } from "./identity";
 import type { Bot, BotRegistry, BotTemplate, Segment } from "./model";
 import {
   blankToNull,
+  DERIVED_PRESET_PREFIX,
   isRecord,
   readNullableString,
   readOptionalString,
@@ -205,7 +206,13 @@ function parseBot(
   ) {
     return t("registry.badBot");
   }
-  if (status === "ready" && !blankToNull(boundPresetId) && !blankToNull(derivedPresetId)) {
+  const storedDerived = blankToNull(derivedPresetId);
+  const derived = derivedPreset(storedDerived);
+  // A ready Bot runs some preset: a bound one, a derived one, or — when the
+  // stored derived id came from another writer and was dropped just above — its
+  // template's, until the next capability save derives a new one.
+  const inheritsAfterDrop = storedDerived !== null && derived === null;
+  if (status === "ready" && !blankToNull(boundPresetId) && derived === null && !inheritsAfterDrop) {
     return t("registry.badBot");
   }
   if (typeof value.hadDialogue !== "boolean") return t("registry.badBot");
@@ -233,9 +240,22 @@ function parseBot(
     archived: value.archived === true,
     status,
     boundPresetId: blankToNull(boundPresetId),
-    derivedPresetId: blankToNull(derivedPresetId),
+    derivedPresetId: derived,
     segments,
   };
+}
+
+/**
+ * Keep a derived preset id only when it carries this product's namespace.
+ *
+ * A file written by another preset plugin (or before the namespace moved) names
+ * a preset nothing here can read or update, so the Bot goes back to its bound or
+ * template preset and derives a fresh one the next time capabilities are saved.
+ * @param id - the stored id, already blank-normalized.
+ * @returns the same id, or null when it is outside the namespace.
+ */
+function derivedPreset(id: string | null): string | null {
+  return id !== null && id.startsWith(DERIVED_PRESET_PREFIX) ? id : null;
 }
 
 function parseSegments(value: unknown): Segment[] | string {

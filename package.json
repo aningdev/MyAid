@@ -11,6 +11,7 @@
     "catalog": {
       "@deepseek-ai/cordis": "~4.1.0",
       "@deepseek-ai/cordis-plugin-include": "~1.1.0",
+      "@deepseek-ai/schemastery": "~3.19.0",
       "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.3",
       "@deepseek-ai/dsh-api-gateway": "0.2.2-rc.3",
       "@deepseek-ai/dsh-api-session-controller": "0.2.2-rc.3",
@@ -50,9 +51,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun scripts/dev.mjs",
-    "check": "node scripts/check-dsh-pin.mjs && vp check --fix && vp run -F '@myaid/*' -F '!@myaid/workspace' check && cargo check --workspace",
+    "check": "node scripts/check-dsh-pin.mjs && vp check --fix && vp run -F '@myaid/*' -F 'dsh-*' -F '!@myaid/workspace' check && cargo check --workspace",
     "build": "vp run --filter @myaid/client... build",
-    "test": "cargo test --workspace && vp run -F '@myaid/*' -F '!@myaid/workspace' test"
+    "test": "cargo test --workspace && vp run -F '@myaid/*' -F 'dsh-*' -F '!@myaid/workspace' test"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -1,0 +1,6 @@
+# The layer this bundle contributes when a profile installs it (`dsh plugin add`).
+# `dev` / the Host can instead apply an absolute `--patch` overlay naming the
+# built `lib/index.js` (see README and scripts/dev.mjs).
+- insert:
+    - id: bot-presets
+      name: dsh-bot-presets

@@ -551,22 +551,22 @@ export class Connection {
 
   /** Copy a Bot's base composition into its own derived preset. */
   async deriveBotPreset(request: BotPresetDeriveRequest): Promise<BotPresetDeriveResult> {
-    return unwrap(await this.remote.myaidBotPresets.derive(request)) as BotPresetDeriveResult;
+    return unwrap(await this.remote.botPresets.derive(request)) as BotPresetDeriveResult;
   }
 
   /** Read one derived preset's saved plugin and skill selections. */
   async readBotPreset(presetId: string): Promise<BotPresetRecord> {
-    return unwrap(await this.remote.myaidBotPresets.read(presetId)) as BotPresetRecord;
+    return unwrap(await this.remote.botPresets.read(presetId)) as BotPresetRecord;
   }
 
   /** Replace a derived preset's saved selections. */
   async updateBotPreset(presetId: string, patch: BotPresetUpdateRequest): Promise<BotPresetRecord> {
-    return unwrap(await this.remote.myaidBotPresets.update(presetId, patch)) as BotPresetRecord;
+    return unwrap(await this.remote.botPresets.update(presetId, patch)) as BotPresetRecord;
   }
 
   /** Remove a derived preset and its private skill copies. */
   async removeBotPreset(presetId: string): Promise<BotPresetRemoveResult> {
-    return unwrap(await this.remote.myaidBotPresets.discard(presetId)) as BotPresetRemoveResult;
+    return unwrap(await this.remote.botPresets.discard(presetId)) as BotPresetRemoveResult;
   }
 
   async modelCatalog(): Promise<FlatModelCatalog> {

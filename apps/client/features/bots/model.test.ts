@@ -161,6 +161,33 @@ test("legacy registry versions are rejected", () => {
   expect(parsed.message).toContain("bots.json");
 });
 
+test("a derived preset id from another writer is dropped, so the Bot inherits its template again", () => {
+  const file = JSON.parse(serializeRegistry(initializeBot(codingDraft(), "bot"))) as {
+    bots: Record<string, unknown>[];
+  };
+  // A Bot that runs only its derived preset, named in the pre-rename namespace:
+  // nothing registers those any more, and this app cannot read or update them
+  // through the bot-presets plugin.
+  file.bots[0]!.boundPresetId = null;
+  file.bots[0]!.derivedPresetId = "legacy-preset-bot-1f2e3d4c";
+
+  const parsed = parseRegistry(JSON.stringify(file));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok || parsed.state !== "current") return;
+  const bot = parsed.registry.bots[0];
+  expect(bot?.derivedPresetId).toBe(null);
+  // A ready Bot still resolves: the template's preset takes over until the
+  // next capability save derives a new preset.
+  expect(bot && presetBinding(bot, parsed.registry.templates[0]!).binding).toBe("inherit");
+
+  const kept = JSON.parse(JSON.stringify(file)) as { bots: Record<string, unknown>[] };
+  kept.bots[0]!.derivedPresetId = "bot-presets-bot-1f2e3d4c";
+  const read = parseRegistry(JSON.stringify(kept));
+  expect(read.ok && read.state === "current" ? read.registry.bots[0]?.derivedPresetId : null).toBe(
+    "bot-presets-bot-1f2e3d4c",
+  );
+});
+
 test("a missing registry starts empty and commits stay serial", async () => {
   const store = memoryStore(null);
   const repo = new BotRegistryRepository(store);

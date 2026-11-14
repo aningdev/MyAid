@@ -3,6 +3,13 @@
 import { t } from "../../lib/i18n";
 export const REGISTRY_VERSION = 6 as const;
 
+/**
+ * Namespace of every derived Bot preset id. The plugin that writes a derived
+ * preset names it, so an id outside this namespace is not one this app can
+ * read, update or remove: the Bot keeps its template's preset instead.
+ */
+export const DERIVED_PRESET_PREFIX = "bot-presets-";
+
 export type RegistryIssue =
   | { code: "corrupt" }
   | { code: "legacy-version" }

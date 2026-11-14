@@ -1,8 +1,8 @@
 /**
  * The Host-side capability Bot Settings cannot have from dsh alone: writing a
  * Bot's Agent preset. dsh exposes `agentPresets.list/read/select` only; preset
- * bodies live in the profile's YAML. `packages/myaid-plugin-bot-presets` owns
- * the missing writer and exposes it as the `myaidBotPresets` Remote.
+ * bodies live in the profile's YAML. `packages/bot-presets` owns the missing
+ * writer and exposes it as the `botPresets` Remote.
  *
  * The seam stays here rather than in the sheet: the Client keeps the
  * registry's derived-preset rule (BOT_SESSION_MAP "身份与能力"), and the sheet

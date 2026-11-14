@@ -1,7 +1,7 @@
 /**
  * The preset body: copy a base composition from dsh's `agentPresets.read`
- * YAML, then apply MyAid's two edits (plugin-row overrides and a private skill
- * root) without rebuilding the base rows.
+ * YAML, then apply the plugin's two edits (plugin-row overrides and a private
+ * skill root) without rebuilding the base rows.
  *
  * `read` renders the Loader's own dialect, `!!js` conditions included; parsing
  * and dumping with the same `entryListSchema` keeps those expressions intact.
@@ -15,11 +15,11 @@ import type { BotPresetPlugin } from "./types.ts";
 /** One child plugin row as dsh's registry declares it. */
 export type PluginRow = PresetDefinition["plugins"][number];
 
-/** Row id MyAid owns when it adds the private skill provider. */
-export const SKILL_ROW_ID = "myaid-bot-skills";
+/** Row id this plugin owns when it adds the private skill provider. */
+export const SKILL_ROW_ID = "bot-presets-skills";
 
 /** Provider name the private skill root registers under. */
-export const SKILL_PROVIDER = "myaid-bot-skills";
+export const SKILL_PROVIDER = "bot-presets-skills";
 
 /** Parse the YAML `agentPresets.read` returns. */
 export function decodeComposition(content: string): PluginRow[] {
@@ -113,7 +113,7 @@ export function hasSkillSurface(rows: readonly PluginRow[]): boolean {
 }
 
 /**
- * Replace MyAid's private skill provider row with one rooted at `skillRoot`.
+ * Replace this plugin's private skill provider row with one rooted at `skillRoot`.
  * An empty selection removes the row; the base composition stays untouched.
  */
 export function applySkillProvider(rows: PluginRow[], skillRoot: string | null): PluginRow[] {

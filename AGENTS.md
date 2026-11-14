@@ -12,7 +12,7 @@
 - **Client**：[apps/client/AGENTS.md](apps/client/AGENTS.md)（改 UI 前先 Design Guides，再 Coding Guides）。
 - **Host**：[apps/host/AGENTS.md](apps/host/AGENTS.md)。
 - **Relay**：[apps/relay/AGENTS.md](apps/relay/AGENTS.md)。
-- **Plugin**（`myaid-plugin-*`）：[packages/AGENTS.md](packages/AGENTS.md)。
+- **Plugin**（`packages/*` 里的 `dsh-*` 能力插件）：[packages/AGENTS.md](packages/AGENTS.md)。
 - **Issue / triage**：[issue-tracker](docs/agents/issue-tracker.md)、[triage-labels](docs/agents/triage-labels.md)。
 
 ## 边界
@@ -31,7 +31,7 @@
 - **dsh 版本真源**：根 `package.json` → `workspaces.catalog`（所有 `@deepseek-ai/*`）加 `apps/host/supported-dsh.json`（Host 编译进二进制）；包内一律写 `"catalog:"`，`bun run check` 校验两者一致。升级 dsh 只改这两处再 `bun install`。
 - Git hooks：已有 `.vite-hooks/pre-commit` → `vp staged`；不绑全量 `check`。
 - Client 应用生命周期走官方 `nsh run|check|build|test|package`；工作区编排仍用 `vp run @myaid/client#…`。勿在 `apps/client/scripts/` 加应用编排 TS；仓库根 `scripts/dev.mjs`（唯一 dev 入口）例外。
-- **dsh web 能力**：Session / 工具 / preset / Remote 优先复用官方 `dsh web` 与已装插件；产品缺口才新建 `myaid-plugin-*`。细则见 DSH_PRINCIPLES §4 与 [packages/AGENTS.md](packages/AGENTS.md)；Client UI 细则见 [apps/client/AGENTS.md](apps/client/AGENTS.md)。
+- **dsh web 能力**：Session / 工具 / preset / Remote 优先复用官方 `dsh web` 与已装插件；产品缺口才新建自己的插件。细则见 DSH_PRINCIPLES §4 与 [packages/AGENTS.md](packages/AGENTS.md)；Client UI 细则见 [apps/client/AGENTS.md](apps/client/AGENTS.md)。
 - 工具链版本以仓库实有文件为准：仅 [`.bun-version`](.bun-version)；共享 npm 版用 `workspaces.catalog` + `"catalog:"`。
 - 按领域与职责分目录；入口公开 Interface，实现私有。拆分保持策略与状态的**唯一所有者**。
 - JS：Bun workspace + 唯一 `bun.lock`。Rust：Cargo。

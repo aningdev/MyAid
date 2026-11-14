@@ -77,7 +77,7 @@ export type SessionHost = {
     presets: InventoryPreset[];
     managementAvailable: boolean;
   }>;
-  /** Derived Bot presets (`myaidBotPresets`), when the Host plugin is loaded. */
+  /** Derived Bot presets (`botPresets`), when the Host plugin is loaded. */
   botPresets?: {
     derive(request: BotPresetDeriveRequest): Promise<BotPresetDeriveResult>;
     read(presetId: string): Promise<BotPresetRecord>;

@@ -87,7 +87,7 @@ flowchart LR
 
 - 能力、默认模型、默认工作目录属于 **Bot**（preset）。
 - **Workspace** 属于 dsh；段只持有 `workspaceId`。`session.create` 用 `workspaceId`（dsh 解析 cwd、建好后 attach），不再传 cwd。
-- 改能力：更新派生 preset；正在跑的一轮不打断。派生正文由 `myaid-plugin-bot-presets` 拥有并注册进官方 registry；改完后**新建**的段用新组合，已存在的段保留它已持有的组合。
+- 改能力：更新派生 preset；正在跑的一轮不打断。派生正文由 `dsh-bot-presets` 拥有并注册进官方 registry；改完后**新建**的段用新组合，已存在的段保留它已持有的组合。
 
 ## 段的生命周期
 
@@ -152,7 +152,7 @@ flowchart TB
 | dsh        | Session 日志与执行状态、Workspace（path / title / 顺序 / 置顶 / 归档）、preset 正文、凭据、Deliverable 相关事件/摘要 |
 | 桌面注册表 | Bot、段的 `sessionId` / `workspaceId` / 标题、模板引用、模型偏好、默认工作目录、Bot 归档位                           |
 | 客户端偏好 | Navigator 宽度 / 折叠、Workbench 布局、**Pin 的 Bot 顺序**                                                           |
-| 插件       | 派生 preset 正文与技能副本（`myaid-plugin-bot-presets`，`$DSH_HOME`）                                                |
+| 插件       | 派生 preset 正文与技能副本（`dsh-bot-presets`，`$DSH_HOME`）                                                         |
 | Host       | dsh 生命周期与连接发现；不写业务段 / Session 权威                                                                    |
 
 ## 执行占用（按 Workspace）

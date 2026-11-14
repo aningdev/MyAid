@@ -40,7 +40,7 @@ afterEach(async () => {
 });
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "myaid-bot-presets-"));
+  const dir = await mkdtemp(join(tmpdir(), "bot-presets-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -48,7 +48,7 @@ async function tempDir(): Promise<string> {
 describe("derived preset ids", () => {
   it("are stable, namespaced and filesystem-safe", () => {
     const id = derivedPresetId("bot/with spaces");
-    expect(id.startsWith("myaid-bot-bot-with-spaces-")).toBe(true);
+    expect(id.startsWith("bot-presets-bot-with-spaces-")).toBe(true);
     expect(derivedPresetId("bot/with spaces")).toBe(id);
     expect(id).not.toBe(derivedPresetId("bot-with-spaces"));
   });
@@ -145,7 +145,7 @@ describe("preset composition", () => {
     const next = applySkillProvider(rows, "/tmp/skills");
     expect(next.at(-1)?.id).toBe(SKILL_ROW_ID);
     expect(next.at(-1)?.config).toMatchObject({
-      providerName: "myaid-bot-skills",
+      providerName: "bot-presets-skills",
       includeDefaultRoots: false,
       customSkillDirs: ["/tmp/skills"],
     });
@@ -200,7 +200,7 @@ describe("skill materialization", () => {
 describe("stored records", () => {
   it("validate the body and keep it out of the public record", () => {
     const parsed = storedPresetSchema.parse({
-      presetId: "myaid-bot-x",
+      presetId: "bot-presets-x",
       botId: "x",
       basePresetId: "standard",
       label: "Ada",

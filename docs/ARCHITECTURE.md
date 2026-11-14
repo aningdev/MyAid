@@ -14,14 +14,14 @@ flowchart LR
     D --> C[官方协议客户端]
     C -->|认证后 HTTP / WebSocket| W
     D --> B[(注册表 / 任务真源)]
-    C -->|公开插件接口| E[dsh 插件 / myaid-plugin-*]
+    C -->|公开插件接口| E[dsh 插件 / 本仓插件]
     W --> E
     BR -.->|加密帧（未实现）| R[Relay 转发]
 ```
 
 实线为单机目标形状；虚线为多端。系统边界：
 
-1. 官方 `dsh web` + `web` profile 承载全部执行；产品经声明式 bundle 使用官方或 `packages/myaid-plugin-*`。
+1. 官方 `dsh web` + `web` profile 承载全部执行；产品经声明式 bundle 使用官方插件或 `packages/*` 里的产品插件。
 2. Rust Host 独占 dsh 生命周期与连接发现（照 lorca 的 `lorca serve`，见 [ADR 0007](adr/0007-native-layer-after-lorca.md)）；Client 直连官方协议做业务。
 3. 桌面持有注册表与交互状态；dsh 持有 Session、执行状态、共享设置与凭据。
 4. **不设 `ProductService`**；本机控制面只做宿主管理与登记事实，不是业务网关。
@@ -29,15 +29,15 @@ flowchart LR
 
 ## 2. 仓库与组件
 
-| 位置                      | 职责                                                                      | 现状                                                                                                                                          |
-| ------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/client`             | NSH **TSX**：产品 UI / 注册表 / 官方协议 / 回环控制面客户端               | AppShell：扁平 Bot 列表 + Pane 分屏 + Bot 详情弹窗；设置覆盖层（供应商 / 通用 / 后台 / 关于）                                                 |
-| `apps/host`               | dsh 生命周期、回环控制 API、OS 登记、后续 Bridge                          | Lifecycle + `local_api`（HTTP/WS）+ `service` 已落地；Bridge 空壳                                                                             |
-| `apps/relay`              | 常驻 Relay 进程、本机控制 API、OS 登记；多端密文转发（后）                | `config` / `routes` / `run` / `service` 已落地；转发面与身份仍骨架                                                                            |
-| `crates/myaid-service`    | 两个单元逐字相同的 launchd / systemd / Windows 计划与登记动词（ADR 0007） | plist、systemd 单元、Run 键与监督器                                                                                                           |
-| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)                   | `myaid-plugin-core` 空壳；`myaid-plugin-bot-presets` 提供 Bot 派生 preset 写入口                                                              |
-| 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                             | `bun run dev [target]` → `scripts/dev.mjs`（核对依赖、重建过期的 Host，再起 Client，Host 由 App 启动）；`check` / `test` 按发现跑有该脚本的包 |
-| `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）              | `.gitmodules`；不参与构建                                                                                                                     |
+| 位置                   | 职责                                                                      | 现状                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/client`          | NSH **TSX**：产品 UI / 注册表 / 官方协议 / 回环控制面客户端               | AppShell：扁平 Bot 列表 + Pane 分屏 + Bot 详情弹窗；设置覆盖层（供应商 / 通用 / 后台 / 关于）                                                 |
+| `apps/host`            | dsh 生命周期、回环控制 API、OS 登记、后续 Bridge                          | Lifecycle + `local_api`（HTTP/WS）+ `service` 已落地；Bridge 空壳                                                                             |
+| `apps/relay`           | 常驻 Relay 进程、本机控制 API、OS 登记；多端密文转发（后）                | `config` / `routes` / `run` / `service` 已落地；转发面与身份仍骨架                                                                            |
+| `crates/myaid-service` | 两个单元逐字相同的 launchd / systemd / Windows 计划与登记动词（ADR 0007） | plist、systemd 单元、Run 键与监督器                                                                                                           |
+| `packages/*`           | Cordis 能力插件；规则见 [AGENTS](../packages/AGENTS.md)                   | `dsh-bot-presets` 提供 Bot 派生 preset 写入口                                                                                                 |
+| 根 `package.json`      | bun workspace；任务经 **Vite+ `vp run`** 调度                             | `bun run dev [target]` → `scripts/dev.mjs`（核对依赖、重建过期的 Host，再起 Client，Host 由 App 启动）；`check` / `test` 按发现跑有该脚本的包 |
+| `references`           | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）              | `.gitmodules`；不参与构建                                                                                                                     |
 
 Bun 管理 JS workspace 与唯一 `bun.lock`；Cargo workspace：`apps/host`、`apps/relay`、`crates/myaid-service`。不在 Rust 中重实现 Harness，也不在 Client 里放 Rust：Client 用标准 `fetch` / `WebSocket` 调宿主与转发。
 
@@ -78,16 +78,16 @@ apps/host/src/
 
 ## 4. Cordis / 插件装配
 
-- 产品插件：`packages/myaid-plugin-*`，含 `cordis.patch.yml` 与 `package.json` 的 `dsh.bundle`。
+- 产品插件按职责命名（如 `dsh-bot-presets`），含 `cordis.patch.yml` 与 `package.json` 的 `dsh.bundle`；规则全部取自上游 dsh，见 [packages/AGENTS.md](../packages/AGENTS.md)。
 - 经官方 `dsh plugin add` 或 Host/开发期 `--patch` 指向绝对 `lib/index.js`。
-- NSH 调用公开 Remote；专属数据在 `$DSH_HOME` 下由插件管理。Bot 派生 preset 的写入口归 [`myaid-plugin-bot-presets`](../packages/myaid-plugin-bot-presets/README.md)；执行组合仍经官方 registry 注册。
+- NSH 调用公开 Remote；专属数据在 `$DSH_HOME` 下由插件管理。Bot 派生 preset 的写入口归 [`bot-presets`](../packages/bot-presets/README.md)；执行组合仍经官方 registry 注册。
 - 参考：`docs/research/HARNESS_PRINCIPLES.md`。
 
 已知缺口与候选插件：
 
 | 缺口                                     | 候选                                                          | 影响                                                                                       |
 | ---------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Bot identity 只在本机                    | `myaid-plugin-bot-identity`（或 session metadata）            | identity 不能跨设备同步                                                                    |
+| Bot identity 只在本机                    | `dsh-bot-identity`（或 session metadata）                     | identity 不能跨设备同步                                                                    |
 | 审批没有 “Always allow”                  | approval-policy 插件                                          | 每次审批都要人点                                                                           |
 | prompt receipt 不带 queue item id        | 向 dsh 提需求                                                 | Withdraw 依赖 `inbox` 投影回报 item id                                                     |
 | 无凭据时 Session 模型目录为空            | 无（dsh 的凭据门控）                                          | 设置页的默认模型退回供应商设置里公布的 `models` 与当前值                                   |

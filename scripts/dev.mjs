@@ -233,16 +233,13 @@ async function ensureHost() {
  */
 async function prepareOverlay() {
   await completed(
-    run("bun", ["x", "vp", "run", "@myaid/myaid-plugin-bot-presets#build"]),
-    "构建 myaid-plugin-bot-presets 失败",
+    run("bun", ["x", "vp", "run", "dsh-bot-presets#build"]),
+    "构建 dsh-bot-presets 失败",
   );
   mkdirSync(DEV_DIR, { recursive: true });
   const patch = join(DEV_DIR, "bot-presets.patch.yml");
-  const entry = pathToFileURL(join(root, "packages/myaid-plugin-bot-presets/lib/index.js")).href;
-  writeFileSync(
-    patch,
-    `- insert:\n    - id: myaid-bot-presets\n      name: ${JSON.stringify(entry)}\n`,
-  );
+  const entry = pathToFileURL(join(root, "packages/bot-presets/lib/index.js")).href;
+  writeFileSync(patch, `- insert:\n    - id: bot-presets\n      name: ${JSON.stringify(entry)}\n`);
   return patch;
 }
 

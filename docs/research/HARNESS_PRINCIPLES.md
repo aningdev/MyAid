@@ -22,7 +22,7 @@
 
 ## MyAid 落地
 
-- 产品插件目录：`packages/myaid-plugin-*`。
+- 产品插件目录：`packages/*`（按职责命名，规则见 [packages/AGENTS.md](../../packages/AGENTS.md)）。
 - 装配元数据：`cordis.patch.yml` + `dsh.bundle`。
 - Host/开发期用绝对路径 `--patch` 指向 `lib/index.js`。
 - 详见 [DSH_PRINCIPLES.md](../DSH_PRINCIPLES.md) §4 与 [ARCHITECTURE.md](../ARCHITECTURE.md) §4。

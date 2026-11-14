@@ -1,5 +1,5 @@
 /**
- * Wire records of the `myaidBotPresets` Remote.
+ * Wire records of the `botPresets` Remote.
  *
  * This file is the plugin-owned source of truth; the Client mirrors these DTOs
  * in `@myaid/dsh-web-protocol/bot-presets` because plugins must not import that
@@ -27,7 +27,7 @@ export type BotPresetPlugin = {
 
 /** One Bot's derived preset as the Client reads it. */
 export type BotPresetRecord = {
-  /** Stable, namespaced preset id (`myaid-bot-…`). */
+  /** Stable, namespaced preset id (`bot-presets-…`). */
   presetId: string;
   /** Registry Bot that owns this derived preset. */
   botId: string;

@@ -1,5 +1,5 @@
 /**
- * Wire DTOs of `myaid-plugin-bot-presets`' `myaidBotPresets` Remote.
+ * Wire DTOs of `dsh-bot-presets`' `botPresets` Remote.
  *
  * Client-side types only: the plugin owns the same shapes in its own source and
  * must not depend on this package.

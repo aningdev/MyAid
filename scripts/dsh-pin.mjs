@@ -162,9 +162,68 @@ export function installedDrift(rootDir = root) {
 }
 
 /**
+ * Compare two versions by SemVer precedence, prerelease tags included.
+ * @param a - a version like `0.2.2-rc.3`.
+ * @param b - the version to compare against.
+ * @returns a negative number, zero, or a positive number.
+ */
+function compareVersions(a, b) {
+  const split = (value) => {
+    const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(value);
+    if (match === null) throw new Error(`版本号不是 SemVer：${value}`);
+    const [, major, minor, patch, pre = ""] = match;
+    return { core: [Number(major), Number(minor), Number(patch)], pre };
+  };
+  const left = split(a);
+  const right = split(b);
+  for (let index = 0; index < 3; index += 1) {
+    const difference = left.core[index] - right.core[index];
+    if (difference !== 0) return difference;
+  }
+  // A prerelease precedes the release it qualifies.
+  if (left.pre === right.pre) return 0;
+  if (left.pre === "") return 1;
+  if (right.pre === "") return -1;
+  return left.pre.localeCompare(right.pre, "en", { numeric: true });
+}
+
+/**
+ * Whether a version lies in a range written as `&&`-style comparators.
+ * @param version - the version to test.
+ * @param range - comparators separated by spaces, such as `>=0.2.2-rc.3 <0.3.0`.
+ * @returns true when every comparator accepts the version.
+ */
+function inRange(version, range) {
+  return range
+    .split(" ")
+    .filter((part) => part !== "")
+    .every((part) => {
+      const [, operator = "=", wanted] = /^(>=|<=|>|<|=|\^|~)?(.+)$/.exec(part) ?? [];
+      if (wanted === undefined) throw new Error(`engines.dsh 片段无法解析：${part}`);
+      const order = compareVersions(version, wanted);
+      switch (operator) {
+        case ">=":
+          return order >= 0;
+        case ">":
+          return order > 0;
+        case "<=":
+          return order <= 0;
+        case "<":
+          return order < 0;
+        case "=":
+          return order === 0;
+        default:
+          throw new Error(`engines.dsh 只支持 >=、>、<=、<、= 比较符，实际是 ${operator}`);
+      }
+    });
+}
+
+/**
  * Everything that must agree for the version source to hold: the catalog's dsh
- * version against `apps/host/supported-dsh.json`, and every workspace package
- * against `"catalog:"` instead of a hand-written dsh pin.
+ * version against `apps/host/supported-dsh.json`, every workspace package
+ * against `"catalog:"` instead of a hand-written dsh pin, and every declared
+ * `engines.dsh` range containing the catalog's version (a plugin that says it
+ * supports a range the Host does not run is a lie the pins can catch).
  * @param rootDir - repository root.
  * @returns human-readable problems; empty when the pins agree.
  */
@@ -186,6 +245,19 @@ export function pinProblems(rootDir = root) {
   for (const { name, path } of manifests(rootDir)) {
     if (path === join(rootDir, "package.json")) continue;
     const manifest = readJson(path);
+    const engine = manifest.engines?.dsh;
+    if (typeof engine === "string") {
+      try {
+        if (!inRange(pinned, engine)) {
+          problems.push(
+            `${name} 的 engines.dsh 是 ${engine}，不包含 catalog 的 dsh 版本 ${pinned}` +
+              "（放宽区间，或升级 dsh 后同步这个上下界）",
+          );
+        }
+      } catch (error) {
+        problems.push(`${name} 的 engines.dsh 无法解析：${error.message}`);
+      }
+    }
     for (const field of FIELDS) {
       for (const [dependency, value] of Object.entries(manifest[field] ?? {})) {
         if (!DSH.test(dependency)) continue;

@@ -840,8 +840,8 @@ export const messages = {
 
   // --- Bot presets, facts and the Workspace --------------------------------
   "presets.writeGap": {
-    zh: "后台没有挂载 myaid-plugin-bot-presets：Agent preset 仍只读（list / read / select），能力增删无法保存。",
-    en: "The backend does not mount myaid-plugin-bot-presets: the Agent preset stays read-only (list / read / select), so capability changes cannot be saved.",
+    zh: "后台没有挂载 bot-presets 插件：Agent preset 仍只读（list / read / select），能力增删无法保存。",
+    en: "The backend does not mount the bot-presets plugin: the Agent preset stays read-only (list / read / select), so capability changes cannot be saved.",
   },
   "facts.offline": {
     zh: "连上后台后显示技能与插件。",

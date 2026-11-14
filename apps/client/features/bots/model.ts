@@ -13,6 +13,7 @@ export {
   type PreviousDialogue,
 } from "./format";
 export {
+  DERIVED_PRESET_PREFIX,
   REGISTRY_VERSION,
   RegistryRejection,
   rejectionMessage,
@@ -25,9 +26,6 @@ export {
  * v5 (and the older v3 / v4 files) carry Dialogues instead and migrate once a
  * Host is connected (see `features/workspace/migrate`).
  */
-
-/** Derived presets are Bot-owned; they must not become pickable templates. */
-export const DERIVED_PRESET_PREFIX = "myaid-bot-";
 
 export type BotTemplate = {
   id: string;

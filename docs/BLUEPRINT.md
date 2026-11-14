@@ -62,7 +62,7 @@ MyAid 是一个**类 lorca 的桌面 Bot 应用**：管理一组 Bot，同时和
 
 ## 能力与扩展
 
-- 执行与工具优先复用官方 `dsh` / 已装插件；产品缺口才建 `myaid-plugin-*`（见 [DSH_PRINCIPLES.md](DSH_PRINCIPLES.md) §4）。
+- 执行与工具优先复用官方 `dsh` / 已装插件；产品缺口才建自己的插件（见 [DSH_PRINCIPLES.md](DSH_PRINCIPLES.md) §4）。
 - 初始化把模板当时映射的 Agent preset id 绑定到该 Bot。单独配置能力 → 派生 preset id（覆盖 `plugins`）；模板引用保持不变。
 - 该 preset 是这个 Bot 下各段的启动身份。保存后，正在执行的一轮不打断；空闲后同一 Session id 可用新 preset 恢复（受 DSH「首 turn 后锁定」等规则约束时，按上游行为新开 Session）。
 - 需授权的工具调用必须可审批；缺少审批 UI 不能默认放行。

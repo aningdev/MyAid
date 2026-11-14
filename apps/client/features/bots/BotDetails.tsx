@@ -17,7 +17,7 @@
  *   it again); delete is only for a Bot that never had a conversation.
  *
  * Capability edits (a skill added, a plugin switched) go through the
- * `presets.ts` seam, backed by `myaid-plugin-bot-presets` when the Host mounts
+ * `presets.ts` seam, backed by the `bot-presets` plugin when the Host mounts
  * it. Without that Remote the modal stays honestly read-only. Nothing here
  * fakes a preset: the registry records a derived preset id only when the writer
  * returned one.
@@ -163,7 +163,7 @@ function Body(props: { botId: string; onClose: () => void }) {
   const addedSkills = signal<readonly BotPresetSkill[]>([]);
   /** The Bot's saved derived preset, when it has one. */
   const derived = signal<BotPresetRecord | null>(null);
-  /** Whether the Host has the `myaidBotPresets` Remote. */
+  /** Whether the Host has the `botPresets` Remote. */
   const writable = signal(false);
   /** A person changed a plugin row / the added skill list. */
   const pluginsDirty = signal(false);

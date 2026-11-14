@@ -54,5 +54,5 @@
 - 不写历史叙事或「已实现 / 未来」状态注脚；现状以目录与清单为准。
 - 不复述可从 `package.json` scripts / `--help` 一眼查到的清单，除非约定或易踩坑。
 - AGENTS 不教人上手；上手进 README。
-- `myaid-plugin-*` 共用 `packages/AGENTS.md`，叶子默认不建 AGENTS。
+- `packages/*` 的插件共用 `packages/AGENTS.md`，叶子默认不建 AGENTS。
 - 改行为先改真源文档或代码，再改指向它的 README / AGENTS。

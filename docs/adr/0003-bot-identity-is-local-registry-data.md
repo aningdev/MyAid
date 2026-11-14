@@ -21,6 +21,6 @@ Bot 的 **identity**（accent 颜色 + 几何 glyph）、Dialogue 的 **name**�
 ## 后果
 
 - 本机即真源：同一注册表下，Navigator、对话、Panel 标签与 Inspector 的标记一致；删除注册表就丢失标记、名字与归档状态。
-- **跨设备暂不同步**：移动端只读快照时看不到 identity / name / archive 的另一份写入；等 `myaid-plugin-bot-identity`（或 dsh Session metadata 面）落地再补同步，不先造第二套本地同步协议。
+- **跨设备暂不同步**：移动端只读快照时看不到 identity / name / archive 的另一份写入；等 `dsh-bot-identity`（或 dsh Session metadata 面）落地再补同步，不先造第二套本地同步协议。
 - 归档不是删除：dsh 的 Session 与日志保留，产品列表按注册表隐藏。
 - 迁移只在读取时发生；`serializeRegistry` 之后文件即 v4。

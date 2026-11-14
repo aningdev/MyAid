@@ -1,8 +1,8 @@
 {
-  "name": "@myaid/myaid-plugin-bot-presets",
+  "name": "dsh-bot-presets",
   "version": "0.1.0",
   "private": true,
-  "description": "Derived Agent presets for MyAid Bots: capability edits saved under $DSH_HOME and contributed to the official preset registry.",
+  "description": "Bot-owned Agent presets: a derived preset per Bot, with its plugin and skill selections.",
   "files": [
     "lib",
     "src",
@@ -24,10 +24,17 @@
     "test": "vp test"
   },
   "dependencies": {
+    "@deepseek-ai/schemastery": "catalog:",
     "js-yaml": "^4.1.0",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/cordis-plugin-include": "catalog:",
+    "@deepseek-ai/dsh-agent-preset-registry": "catalog:",
+    "@deepseek-ai/dsh-home-paths": "catalog:",
+    "@deepseek-ai/dsh-storage-domain": "catalog:",
+    "@deepseek-ai/dsh-typert-protocol": "catalog:",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "catalog:",
     "typescript": "catalog:"
@@ -39,6 +46,9 @@
     "@deepseek-ai/dsh-home-paths": "catalog:",
     "@deepseek-ai/dsh-storage-domain": "catalog:",
     "@deepseek-ai/dsh-typert-protocol": "catalog:"
+  },
+  "engines": {
+    "dsh": ">=0.2.2-rc.3 <0.3.0"
   },
   "dsh": {
     "bundle": {

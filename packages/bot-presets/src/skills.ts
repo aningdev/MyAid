@@ -2,9 +2,10 @@
  * Private skill bundles for one derived preset.
  *
  * A preset's skill provider only takes directories, and dsh's filesystem
- * provider has no per-skill exclusion. MyAid therefore copies the person's
- * selected bundles into `$DSH_HOME/myaid-plugin-bot-presets/skills/<presetId>`
- * and mounts that directory as an extra provider. Copying (not symlinking)
+ * provider has no per-skill exclusion. The plugin therefore copies the person's
+ * selected bundles into `<dataDir>/skills/<presetId>` (by default
+ * `$DSH_HOME/bot-presets/skills/<presetId>`) and mounts that directory as an
+ * extra provider. Copying (not symlinking)
  * keeps Windows working and leaves the base composition's skills untouched.
  */
 import { cp, copyFile, mkdir, readFile, rm, stat } from "node:fs/promises";

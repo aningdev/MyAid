@@ -1,5 +1,5 @@
 /**
- * Typert consumer face for `myaidBotPresets`.
+ * Typert consumer face for `botPresets`.
  *
  * The Client mounts this contribution so it gets a typed namespace; the Host
  * side is the `@Remote`-marked `BotPresetsService`. DTOs live in
@@ -16,7 +16,7 @@ import {
   botPresetUpdateRequestSchema,
 } from "./wire";
 
-const PACKAGE = "@myaid/myaid-plugin-bot-presets";
+const PACKAGE = "dsh-bot-presets";
 
 function codec<Value>(typeSymbol: string, schema: ZodType<Value>) {
   return {
@@ -39,22 +39,22 @@ export const TYPERT_REMOTE = createTypertRemoteInfo(
   {
     package: PACKAGE,
     methods: {
-      "myaidBotPresets/derive": {
-        service: "myaidBotPresets",
+      "botPresets/derive": {
+        service: "botPresets",
         description: "Copy a Bot's base composition into its own derived preset.",
         invocation: { kind: "direct" },
         parameters: [input("request", `${PACKAGE}#derive:request`, botPresetDeriveRequestSchema)],
         result: codec(`${PACKAGE}#derive:result`, botPresetDeriveResultSchema),
       },
-      "myaidBotPresets/read": {
-        service: "myaidBotPresets",
+      "botPresets/read": {
+        service: "botPresets",
         description: "Read one derived preset's saved plugin and skill selections.",
         invocation: { kind: "direct" },
         parameters: [input("presetId", `${PACKAGE}#read:presetId`, z.string())],
         result: codec(`${PACKAGE}#read:result`, botPresetRecordSchema),
       },
-      "myaidBotPresets/update": {
-        service: "myaidBotPresets",
+      "botPresets/update": {
+        service: "botPresets",
         description: "Replace a derived preset's plugin and skill selections.",
         invocation: { kind: "direct" },
         parameters: [
@@ -65,8 +65,8 @@ export const TYPERT_REMOTE = createTypertRemoteInfo(
       },
       // `remove` is reserved by the Client's Remote namespace service, so the
       // wire name is `discard` while the Host method keeps its plain verb.
-      "myaidBotPresets/discard": {
-        service: "myaidBotPresets",
+      "botPresets/discard": {
+        service: "botPresets",
         description: "Remove a derived preset and its private skill copies.",
         implementation: "remove",
         invocation: { kind: "direct" },

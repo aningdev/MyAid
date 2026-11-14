@@ -4,13 +4,11 @@
  * `derive` copies a base composition from the official registry; `update`
  * stores complete plugin-row and skill selections; every change re-registers
  * the preset through `ctx.agentPresets`, so dsh's own `agentPresets.list/read/
- * select` and Session creation see it. Records live in the `myaid_bot_presets`
- * storage domain; the private skill copies live under `$DSH_HOME`.
+ * select` and Session creation see it. Records live in the `bot_presets` storage
+ * domain; the private skill copies live under the plugin's data root
+ * (`$DSH_HOME/bot-presets` unless configured).
  */
-import { join } from "node:path";
-
 import type { Context } from "@deepseek-ai/cordis";
-import { resolveDshHome } from "@deepseek-ai/dsh-home-paths";
 import type { KvTable } from "@deepseek-ai/dsh-storage-domain";
 import { Remote, RemoteError, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 
@@ -37,14 +35,15 @@ import type {
 export class BotPresetsService extends TypertRemoteService {
   static inject = ["agentPresets", "storageDomain"];
 
-  private readonly dataDir = join(resolveDshHome(), "myaid-plugin-bot-presets");
+  private readonly dataDir: string;
   private readonly ready: Promise<void>;
   private readonly unregisters = new Map<string, () => Promise<void>>();
   private readonly broken = new Map<string, string>();
   private table?: KvTable<string, StoredPreset>;
 
-  constructor(ctx: Context) {
-    super(ctx, "myaidBotPresets");
+  constructor(ctx: Context, options: { dataDir: string }) {
+    super(ctx, "botPresets");
+    this.dataDir = options.dataDir;
     this.ready = this.start();
     // A failed open must not become an unhandled rejection; the first Remote
     // call reports the same failure to the person.
@@ -53,7 +52,7 @@ export class BotPresetsService extends TypertRemoteService {
 
   private async start(): Promise<void> {
     const domain = await this.ctx.storageDomain.open(botPresetsDomainSpec);
-    this.ctx.effect(() => () => domain.close(), "myaid-bot-presets.domain");
+    this.ctx.effect(() => () => domain.close(), "bot-presets.domain");
     this.table = domain.table("presets");
     for (const [presetId, stored] of this.table.entries()) {
       try {
@@ -61,7 +60,7 @@ export class BotPresetsService extends TypertRemoteService {
       } catch (error) {
         const reason = messageOf(error);
         this.broken.set(presetId, reason);
-        this.ctx.logger.warn(`myaid-bot-presets: 派生 preset ${presetId} 无法装配：${reason}`);
+        this.ctx.logger.warn(`bot-presets: 派生 preset ${presetId} 无法装配：${reason}`);
       }
     }
   }
@@ -202,13 +201,13 @@ export class BotPresetsService extends TypertRemoteService {
       const unregister = await this.ctx.agentPresets.register({
         id: stored.presetId,
         name: stored.label,
-        description: `MyAid Bot preset derived from ${stored.basePresetId}`,
+        description: `Bot preset derived from ${stored.basePresetId}`,
         plugins: rows,
       });
       this.unregisters.set(stored.presetId, unregister);
       // Cordis owns the registration's lifetime, like the official
       // `@deepseek-ai/dsh-agent-preset` declaration row.
-      this.ctx.effect(() => unregister, `myaid-bot-presets.preset:${stored.presetId}`);
+      this.ctx.effect(() => unregister, `bot-presets.preset:${stored.presetId}`);
       this.broken.delete(stored.presetId);
     } catch (error) {
       throw invalid(stored.presetId, `装配派生 preset 失败：${messageOf(error)}`);
@@ -222,7 +221,7 @@ export class BotPresetsService extends TypertRemoteService {
     } catch (error) {
       const reason = messageOf(error);
       this.broken.set(stored.presetId, reason);
-      this.ctx.logger.warn(`myaid-bot-presets: 回滚 ${stored.presetId} 失败：${reason}`);
+      this.ctx.logger.warn(`bot-presets: 回滚 ${stored.presetId} 失败：${reason}`);
     }
     await this.materialize(
       stored.presetId,
@@ -254,7 +253,7 @@ for (const [method, exportName] of [
 function markRemoteMethod(prototype: object, method: string, exportName: string): void {
   const member = (prototype as Record<string, unknown>)[method];
   if (typeof member !== "function") {
-    throw new TypeError(`myaid-bot-presets: ${method} is not a method`);
+    throw new TypeError(`bot-presets: ${method} is not a method`);
   }
   const context = {
     kind: "method",
