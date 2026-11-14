@@ -73,10 +73,9 @@ export type HostLauncher = {
 /** The shell reads this to word the footer and the empty state. */
 export const hostLauncherStatus = signal<LauncherStatus>({ phase: "idle", port: hostPort() });
 
-/** The data root this app's Host serves: `MYAID_DATA_ROOT`, else the app's own. */
+/** The data root this app's Host serves: the app's own (`dataRootPath`). */
 export function hostDataRoot(): string {
-  const raw = typeof process !== "undefined" && process.env ? process.env.MYAID_DATA_ROOT : "";
-  return raw && raw.trim() ? raw.trim() : dataRootPath();
+  return dataRootPath();
 }
 
 /** Where the Host writes its log, for the empty state to name. */

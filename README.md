@@ -57,6 +57,7 @@ git submodule update --init references/deepseek-harness references/nsh reference
 bun install
 bun run dev        # desktop: rebuilds a stale Host, loads the Bot preset plugin, starts the Client
 bun run dev web    # other targets: web / mobile / ios / android / macos / windows / linux / gpui
+bun run dev --isolated[=name]   # same, against ~/.myaid-dev/<name> on port 4873 — never your real ~/.myaid
 bun run check
 bun run test
 ```

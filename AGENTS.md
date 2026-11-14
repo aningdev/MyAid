@@ -28,6 +28,7 @@
 - 根 `check` / `test` **按发现跑**，不写死包名：`vp run -F '@myaid/*' -F '!@myaid/workspace' <task>` 跑所有带该脚本的包（顺序按 workspace 依赖图）；新包只要有 `check` / `test` 脚本就自动纳进，不用改根。Cargo 步骤另起一段（`test` 在前、`check` 在后）。
 - 轻量验收：`bun install && bun run check`（与 CI 同）；`bun run test` 跑 Cargo 测试与各包测试。细节以根 `package.json` 为准。
 - 启动入口只有一个：`bun run dev [target]`（`ios` / `android` / `web` / `mobile` / `windows` / `linux` / `gpui` / `macos`，缺省桌面）。它先核对依赖与 Host 是否新鲜（必要时 `bun install` / 重建 `myaid-host`）；只有桌面目标才有 Host `PATH` 包装与 Bot preset 插件 overlay。低层 `dev*` 脚本留在 `apps/client`。
+- 普通 `bun run dev` 用的是**真实的 `~/.myaid`**（注册表、偏好、Host、dsh 数据）。Agent、脚本化验证与冒烟一律用 `bun run dev --isolated[=<name>]`（数据根 `~/.myaid-dev/<name>`、端口 4873），绝不跑不带它的 `dev`。
 - **dsh 版本真源**：根 `package.json` → `workspaces.catalog`（所有 `@deepseek-ai/*`）加 `apps/host/supported-dsh.json`（Host 编译进二进制）；包内一律写 `"catalog:"`，`bun run check` 校验两者一致。升级 dsh 只改这两处再 `bun install`。
 - Git hooks：已有 `.vite-hooks/pre-commit` → `vp staged`；不绑全量 `check`。
 - Client 应用生命周期走官方 `nsh run|check|build|test|package`；工作区编排仍用 `vp run @myaid/client#…`。勿在 `apps/client/scripts/` 加应用编排 TS；仓库根 `scripts/dev.mjs`（唯一 dev 入口）例外。

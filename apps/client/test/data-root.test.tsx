@@ -3,11 +3,15 @@
  * gave it. If the test marker or this helper regresses, the app falls back to
  * the real `~/.myaid` and these two keys stay at their seeded/absent state.
  */
+import { homedir } from "os";
+import { join } from "path";
+
 import { expect, test } from "nsh/test";
 
 import { SHELL_PREFS_STORAGE } from "../components/shell/prefs";
 import { createTemplate, emptyRegistry, serializeRegistry } from "../features/bots/model";
 import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
+import { dataRootPath } from "../lib/data-root";
 import { open } from "./open";
 
 test("a test app keeps registry and prefs in its isolated storage", async () => {
@@ -38,3 +42,11 @@ test("a test app keeps registry and prefs in its isolated storage", async () => 
   });
   expect(app.storage()[REGISTRY_STORAGE_KEY] ?? "").not.toBe(serializeRegistry(template));
 }, 60000);
+
+test("MYAID_DATA_ROOT moves the registry, prefs and Host root together", () => {
+  const isolated = join(homedir(), ".myaid-dev", "probe");
+  expect(dataRootPath(isolated)).toBe(isolated);
+  expect(dataRootPath(`  ${isolated}  `)).toBe(isolated);
+  expect(dataRootPath("")).toBe(join(homedir(), ".myaid"));
+  expect(dataRootPath(undefined)).toBe(join(homedir(), ".myaid"));
+});

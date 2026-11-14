@@ -19,6 +19,12 @@
  * Host on the port that this checkout's `target/debug` started before the binary
  * was rebuilt is stopped here; a Host from anywhere else is only reported, with
  * the command that stops it.
+ *
+ * `--isolated[=<name>]` runs against `~/.myaid-dev/<name>` (default `default`)
+ * instead of the real `~/.myaid`: the app's registry, prefs and Host token and
+ * the Host it starts all use that root (`MYAID_DATA_ROOT`), on port 4873 unless
+ * `MYAID_HOST_PORT` names another, so it never reaches the person's own Host.
+ * Agents and scripted checks always use it.
  */
 import { execFileSync, spawn } from "node:child_process";
 import {
@@ -31,6 +37,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { homedir } from "node:os";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -58,6 +65,35 @@ const HOST_BIN = join(
   "debug",
   process.platform === "win32" ? "myaid-host.exe" : "myaid-host",
 );
+
+/** Port an isolated run's Host uses when `MYAID_HOST_PORT` names none. */
+const ISOLATED_PORT = 4873;
+
+/**
+ * Apply `--isolated[=<name>]` to this process's environment before anything
+ * reads it, so the Host sweep, the app and the Host it starts agree on the root.
+ * @param argv - command-line arguments after the script name.
+ * @returns the arguments without the flag.
+ */
+function applyIsolation(argv) {
+  const flag = argv.find(
+    (argument) => argument === "--isolated" || argument.startsWith("--isolated="),
+  );
+  if (flag === undefined) return argv;
+  const name = flag.includes("=") ? flag.slice(flag.indexOf("=") + 1) : "default";
+  if (!/^[\w.-]+$/.test(name) || name === "." || name === "..") {
+    console.error(`--isolated 的名字只能用字母、数字、. _ -：${name}`);
+    process.exit(1);
+  }
+  const dataRoot = join(homedir(), ".myaid-dev", name);
+  mkdirSync(dataRoot, { recursive: true });
+  process.env.MYAID_DATA_ROOT = dataRoot;
+  process.env.MYAID_HOST_PORT ||= String(ISOLATED_PORT);
+  console.log(`隔离运行：数据根 ${dataRoot}，Host 端口 ${process.env.MYAID_HOST_PORT}`);
+  return argv.filter((argument) => argument !== flag);
+}
+
+const args = applyIsolation(process.argv.slice(2));
 
 /** The port the app's Host listens on (`apps/client/lib/host/client.ts` honours the same one). */
 const HOST_PORT = Number(process.env.MYAID_HOST_PORT ?? "") || 4872;
@@ -436,7 +472,7 @@ function stopClient(signal) {
 async function main(argv) {
   const dryRun = argv.includes("--dry-run");
   const named = argv.filter((argument) => argument !== "--dry-run");
-  if (named.length > 1) throw new Error("用法：bun run dev [target]");
+  if (named.length > 1) throw new Error("用法：bun run dev [target] [--isolated[=<name>]]");
   const name = named[0];
   if (name !== undefined && !Object.hasOwn(TARGETS, name)) {
     throw new Error(`未知目标 ${name}；可选：${Object.keys(TARGETS).join("、")}`);
@@ -464,7 +500,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 try {
-  await main(process.argv.slice(2));
+  await main(args);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;

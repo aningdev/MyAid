@@ -123,7 +123,7 @@ apps/client/
 ### 原生层（ADR 0007）
 
 - 应用不再带 Rust：控制面是 `lib/host/client.ts` 的 `fetch` + 标准 `WebSocket`，token 取自 `<数据根>/host/serve-token`（Relay 用 `relay/serve-token`）。
-- `lib/host/launcher.ts` 是 lorca 的 launcher：探 `/` → 复用或 spawn `myaid-host serve-app` → 退出后退避重启（1s 起、翻倍到 15s）→ 失败时由页脚给空状态与手动命令。启动器拿到的 `MYAID_HOST_PORT` / `MYAID_DATA_ROOT` 与客户端读 token 的根是同一套。
+- `lib/host/launcher.ts` 是 lorca 的 launcher：探 `/` → 复用或 spawn `myaid-host serve-app` → 退出后退避重启（1s 起、翻倍到 15s）→ 失败时由页脚给空状态与手动命令。启动器拿到的 `MYAID_HOST_PORT` / `MYAID_DATA_ROOT` 与客户端读 token 的根是同一套：`lib/data-root.ts` 的 `dataRootPath()` 是唯一来源，注册表、偏好、Host token 与 Host 都从它取；`MYAID_DATA_ROOT` 只能落在 `nsh.json` 授权的 `~/.myaid-dev/` 下（`bun run dev --isolated`）。
 - 页脚订阅启动器的相位：Host 退出时 Client 丢弃当前 Connection 并从新 Host 重建（dsh 自己会一直重试旧登录 URL，不能作为信号）。
 - `nsh.json` 的 `network` 只授予回环 `/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`、Relay 的 `/v1/health` 与 dsh 的 `/connect`、`/api/*`；`process.execute` 只授予 `myaid-host`。
 

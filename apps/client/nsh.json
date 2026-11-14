@@ -66,8 +66,8 @@
       ]
     },
     "fs": {
-      "read": ["${homeDir}/.myaid"],
-      "write": ["${homeDir}/.myaid"]
+      "read": ["${homeDir}/.myaid", "${homeDir}/.myaid-dev"],
+      "write": ["${homeDir}/.myaid", "${homeDir}/.myaid-dev"]
     },
     "process": {
       "env": [

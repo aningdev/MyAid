@@ -57,6 +57,7 @@ git submodule update --init references/deepseek-harness references/nsh reference
 bun install
 bun run dev        # 桌面端：重建过期的 Host、装载 Bot preset 插件、起 Client
 bun run dev web    # 其他目标：web / mobile / ios / android / macos / windows / linux / gpui
+bun run dev --isolated[=name]   # 同上，但用 ~/.myaid-dev/<name> 与端口 4873，不碰真实的 ~/.myaid
 bun run check
 bun run test
 ```

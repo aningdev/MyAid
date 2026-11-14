@@ -1,8 +1,9 @@
 /**
- * The product data root (`~/.myaid`), and the one seam tests use to keep every
- * app they open away from the real home. The test helper sets a host launch
- * parameter; the registry and shell prefs then use the app's isolated Storage
- * instead of the desktop files. The product default never sets it.
+ * The product data root (`~/.myaid`, or the isolated root `MYAID_DATA_ROOT`
+ * names), and the one seam tests use to keep every app they open away from the
+ * real home. The test helper sets a host launch parameter; the registry and
+ * shell prefs then use the app's isolated Storage instead of the desktop files.
+ * The product default sets neither.
  */
 import { homedir } from "os";
 import { join } from "path";
@@ -12,17 +13,29 @@ import { host } from "nsh";
 /** Host launch parameter a test harness sets before the app starts. */
 export const TEST_HOST_PARAM = "myaidTest";
 
-/** The desktop data root; the product default, unaffected by the test marker. */
-export function dataRootPath(): string {
-  return join(homedir(), ".myaid");
+/** Environment variable naming an isolated data root (`bun run dev --isolated`). */
+export const DATA_ROOT_ENV = "MYAID_DATA_ROOT";
+
+/**
+ * The data root the registry, prefs, Host token and the Host itself share:
+ * `MYAID_DATA_ROOT` when set (it must sit under `~/.myaid-dev`, the granted
+ * isolated area), else `~/.myaid`. Unaffected by the test marker.
+ */
+export function dataRootPath(
+  raw: string | undefined = typeof process !== "undefined" && process.env
+    ? process.env[DATA_ROOT_ENV]
+    : undefined,
+): string {
+  const named = raw?.trim();
+  return named ? named : join(homedir(), ".myaid");
 }
 
-/** `~/.myaid/registry/bots.json`. */
+/** `<data root>/registry/bots.json`. */
 export function registryPath(): string {
   return join(dataRootPath(), "registry", "bots.json");
 }
 
-/** `~/.myaid/prefs/client.json`. */
+/** `<data root>/prefs/client.json`. */
 export function prefsPath(): string {
   return join(dataRootPath(), "prefs", "client.json");
 }
