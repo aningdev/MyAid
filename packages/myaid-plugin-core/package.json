@@ -16,8 +16,7 @@
   "scripts": {
     "check": "tsc -p tsconfig.json --noEmit",
     "build": "vp pack",
-    "test": "vp test",
-    "prepare": "vp pack"
+    "test": "vp test"
   },
   "devDependencies": {
     "@types/node": "catalog:",
