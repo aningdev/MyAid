@@ -7,6 +7,7 @@ import { File, type IconNode, RotateCw, Sparkles, TriangleAlert, X } from "lucid
 import { Image, type JSX, Text, View, token } from "nsh";
 
 import { Press } from "../../../components/app";
+import { Button } from "../../../components/ui/button";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, finish, mono, radius, toneColor, toneTint, type Tone } from "../../../lib/theme";
@@ -282,25 +283,10 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
       <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: token("foreground") }}>
         {props.message}
       </Text>
-      <Press onPress={props.onRetry} accessibilityLabel={t("chat.retry")}>
-        <View
-          style={{
-            height: 30,
-            paddingHorizontal: 12,
-            borderRadius: 15,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            backgroundColor: token("primary"),
-            ...finish.light,
-          }}
-        >
-          <Icon icon={RotateCw} size={13} tint={token("primary-foreground")} />
-          <Text style={{ fontSize: 13, fontWeight: "600", color: token("primary-foreground") }}>
-            {t("common.retry")}
-          </Text>
-        </View>
-      </Press>
+      <Button onPress={props.onRetry} accessibilityLabel={t("chat.retry")}>
+        <Icon icon={RotateCw} size={13} tint={token("primary-foreground")} />
+        {t("common.retry")}
+      </Button>
     </View>
   );
 }
