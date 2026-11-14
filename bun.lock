@@ -30,7 +30,6 @@
         "@deepseek-ai/dsh-subagent": "catalog:",
         "@deepseek-ai/dsh-typert-registry": "catalog:",
         "@myaid/dsh-web-protocol": "workspace:*",
-        "@myaid/myaid-plugin-core": "workspace:*",
         "dsh-bot-presets": "workspace:*",
         "immer": "^10.1.1",
         "zustand": "~4.5.7",
@@ -91,14 +90,6 @@
         "@deepseek-ai/dsh-workspace": "catalog:",
       },
       "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "packages/myaid-plugin-core": {
-      "name": "@myaid/myaid-plugin-core",
-      "version": "0.1.0",
-      "devDependencies": {
-        "@types/node": "catalog:",
         "typescript": "catalog:",
       },
     },
@@ -330,8 +321,6 @@
     "@myaid/client": ["@myaid/client@workspace:apps/client"],
 
     "@myaid/dsh-web-protocol": ["@myaid/dsh-web-protocol@workspace:packages/dsh-web-protocol"],
-
-    "@myaid/myaid-plugin-core": ["@myaid/myaid-plugin-core@workspace:packages/myaid-plugin-core"],
 
     "@oxc-project/runtime": ["@oxc-project/runtime@0.157.0", "", {}, "sha512-srnUknwVoji5JdmU664pA4XyjBJXmgxP8rWlnZhFovzw6XQxaICGWAuScZdlLmIHI+ZRc7WgeiC2CURF4tAszQ=="],
 
