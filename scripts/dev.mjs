@@ -13,13 +13,20 @@
  * than its sources or `apps/host/supported-dsh.json`. That is what turns a stale
  * checkout into a run of the version this branch pins, instead of silently
  * running last week's build.
+ *
+ * The app stops the Host it started when it quits (see `lib/host/launcher`). A
+ * run that was killed before the app could quit still leaves one behind, so a
+ * Host on the port that this checkout's `target/debug` started before the binary
+ * was rebuilt is stopped here; a Host from anywhere else is only reported, with
+ * the command that stops it.
  */
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -51,6 +58,9 @@ const HOST_BIN = join(
   "debug",
   process.platform === "win32" ? "myaid-host.exe" : "myaid-host",
 );
+
+/** The port the app's Host listens on (`apps/client/lib/host/client.ts` honours the same one). */
+const HOST_PORT = Number(process.env.MYAID_HOST_PORT ?? "") || 4872;
 
 /** Directories and files a Host build depends on. */
 const HOST_INPUTS = ["Cargo.toml", "Cargo.lock", "apps/host", "crates"];
@@ -225,6 +235,132 @@ async function ensureHost() {
     await completed(run("cargo", ["build", "-p", "myaid-host"]), "构建 myaid-host 失败");
   }
   console.log("Host 已构建；客户端会自己启动它。");
+  // A Host still answering on the port must be the one just built (or not ours
+  // to touch): the app reuses whatever it finds there.
+  await sweepStaleHost();
+}
+
+/**
+ * Run a program and read its stdout.
+ * @param program - executable to run.
+ * @param args - its arguments.
+ * @returns its standard output, or null when it fails (`lsof` does when nothing listens).
+ */
+function readOutput(program, args) {
+  try {
+    return execFileSync(program, args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    // The program is absent (Windows has no `lsof`) or found nothing: both read
+    // as "this run cannot see a Host", never as a Host to stop.
+    return null;
+  }
+}
+
+/**
+ * Processes listening on a TCP port.
+ * @param port - the port the Host binds.
+ * @returns their pids; empty when nothing listens or nothing can tell.
+ */
+function listeningPids(port) {
+  const output = readOutput("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"]);
+  if (output === null) return [];
+  return output
+    .split("\n")
+    .map((line) => Number(line.trim()))
+    .filter((pid) => Number.isInteger(pid) && pid > 0);
+}
+
+/**
+ * The executable a running process was started from.
+ * @param pid - the process.
+ * @returns its path, or null when it cannot be read.
+ */
+function executableOf(pid) {
+  const output = readOutput("lsof", ["-a", "-p", String(pid), "-d", "txt", "-Fn"]);
+  const line = output?.split("\n").find((text) => text.startsWith("n/"));
+  return line === undefined ? null : line.slice(1);
+}
+
+/**
+ * When a process started.
+ * @param pid - the process.
+ * @returns milliseconds since the epoch, or null when it cannot be read.
+ */
+function startedAt(pid) {
+  const output = readOutput("ps", ["-p", String(pid), "-o", "lstart="]);
+  const time = output === null ? Number.NaN : Date.parse(output.trim());
+  return Number.isNaN(time) ? null : time;
+}
+
+/**
+ * Whether a binary path is this checkout's `target/debug` one.
+ * @param path - candidate executable.
+ * @returns true when both resolve to the same file.
+ */
+function isThisHostBinary(path) {
+  if (path === null) return false;
+  try {
+    return realpathSync(path) === realpathSync(HOST_BIN);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Wait until no process listens on a port.
+ * @param port - the port.
+ * @param timeoutMs - how long to wait for the stopped Host to let go.
+ * @returns true when the port is free.
+ */
+async function waitForPortFree(port, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (listeningPids(port).length === 0) return true;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  return listeningPids(port).length === 0;
+}
+
+/**
+ * Make sure the Host on the port is the binary this run just built.
+ *
+ * The app stops the Host it started when it quits, so a Host left on the port
+ * means the last run ended before the app could. Only one this checkout's
+ * `target/debug` started before that binary was rebuilt is stopped; a Host from
+ * anywhere else (an installed app, the person's own) is reported and left alone.
+ */
+async function sweepStaleHost() {
+  const pids = listeningPids(HOST_PORT);
+  for (const pid of pids) {
+    const executable = executableOf(pid);
+    if (!isThisHostBinary(executable)) {
+      console.log(
+        `端口 ${HOST_PORT} 上有一个不是本仓库 target/debug 构建的 Host（pid ${pid}，` +
+          `${executable ?? "可执行文件未知"}），不动它；要停止：kill ${pid}`,
+      );
+      continue;
+    }
+    const started = startedAt(pid);
+    if (started !== null && mtime(HOST_BIN) <= started) {
+      console.log(
+        `端口 ${HOST_PORT} 上已是本次构建的 Host（pid ${pid}），复用；要停止：kill ${pid}`,
+      );
+      continue;
+    }
+    console.log(
+      `端口 ${HOST_PORT} 上的 Host（pid ${pid}）比刚构建的 myaid-host 旧，先停掉它，` +
+        "让 App 启动新的那个。",
+    );
+    process.kill(pid, "SIGTERM");
+    if (!(await waitForPortFree(HOST_PORT))) {
+      throw new Error(
+        `端口 ${HOST_PORT} 仍被 pid ${pid} 占用；手工停止：kill ${pid}，再重跑 bun run dev。`,
+      );
+    }
+  }
 }
 
 /**

@@ -33,7 +33,12 @@ import {
   whenWorkspacesReady,
   workspaces,
 } from "../../features/workspace/state";
-import { ensureHostRunning, hostLauncher, retryHostLauncher } from "../../lib/host/launcher";
+import {
+  ensureHostRunning,
+  hostLauncher,
+  retryHostLauncher,
+  stopHostOnQuit,
+} from "../../lib/host/launcher";
 import { t } from "../../lib/i18n";
 import { applyShellPrefs, loadShellPrefs, markPrefsLoaded } from "./prefs";
 
@@ -116,6 +121,9 @@ export async function startShell(): Promise<void> {
   const prefs = await loadShellPrefs();
   // Nothing else in the app starts the Host: do it before the first probe.
   watchHostLauncher();
+  // Quitting takes the Host this app started with it, so the next run launches
+  // the binary it just built instead of adopting an old one.
+  stopHostOnQuit();
   await startHost();
   await retryHost();
   // A Host-less test app reads the baseline a fixture put in its Storage.

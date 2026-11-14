@@ -1,11 +1,17 @@
 /**
  * The Host launcher, after lorca's launcher: a Host that already answers is reused and nothing
  * is spawned; a spawned Host's exit is followed by another start after a pause; a binary that
- * cannot be found or started is the empty state's reason. Every child here is a fake.
+ * cannot be found or started is the empty state's reason; quitting the app stops the Host it
+ * started and only that one. Every child here is a fake.
  */
 import { expect, test } from "nsh/test";
 
-import { createHostLauncher, type LauncherChild, type LauncherStatus } from "./launcher";
+import {
+  createHostLauncher,
+  type LauncherChild,
+  type LauncherStatus,
+  stopHostOnQuit,
+} from "./launcher";
 
 type FakeChild = LauncherChild & {
   args: string[];
@@ -183,4 +189,48 @@ test("a stopped launcher starts nothing more", async () => {
   // It keeps the status it had when it stopped, and starts nothing again.
   expect((await launcher.ensureRunning()).phase).toBe("starting");
   expect(spawner.children.length).toBe(1);
+});
+
+test("quitting the app stops the Host it started", async () => {
+  const spawner = fakeSpawner();
+  let answering = false;
+  const launcher = createHostLauncher({
+    port: () => 4873,
+    probe: async () => answering,
+    locate: () => "myaid-host",
+    spawn: spawner.spawn,
+    startTimeoutMs: 200,
+    pollMs: 5,
+    restartDelayMs: 10,
+    maxRestartDelayMs: 40,
+  });
+  const listeners: (() => void)[] = [];
+  stopHostOnQuit((listener) => listeners.push(listener), launcher);
+  await launcher.ensureRunning();
+  answering = true;
+  await waitFor("running", (status) => status.phase === "running", launcher);
+  // Registering the hook stops nothing: the Host is running, not quitting.
+  expect(spawner.children[0]?.killed).toBe(false);
+  for (const listener of listeners) listener();
+  expect(spawner.children[0]?.killed).toBe(true);
+});
+
+test("a Host the app found running is not this app's to stop", async () => {
+  const spawner = fakeSpawner();
+  const launcher = createHostLauncher({
+    port: () => 4873,
+    probe: async () => true,
+    locate: () => "myaid-host",
+    spawn: spawner.spawn,
+    startTimeoutMs: 200,
+    pollMs: 5,
+    restartDelayMs: 10,
+    maxRestartDelayMs: 40,
+  });
+  const listeners: (() => void)[] = [];
+  stopHostOnQuit((listener) => listeners.push(listener), launcher);
+  await launcher.ensureRunning();
+  for (const listener of listeners) listener();
+  expect(spawner.children.length).toBe(0);
+  expect(launcher.status().external).toBe(true);
 });

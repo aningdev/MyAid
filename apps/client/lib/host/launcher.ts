@@ -5,11 +5,13 @@
  * port. A Host that exits is started again after a pause that doubles from a second to fifteen
  * seconds, and the pause starts over once a Host reports ready. If the binary cannot be found or
  * started, the launcher says so and the shell shows the Host empty state with the manual
- * command. The Host's own service registration is what keeps it running when the app is closed.
+ * command. The app stops the Host it started when it quits (`stopHostOnQuit`) and leaves a Host
+ * it found running alone; that one is kept by the Host's own service registration.
  */
 import { join } from "path";
 
 import { signal } from "nsh";
+import { Application, isAvailable as hasWindow } from "nsh/desktop";
 
 import { dataRootPath, hostControlAllowed } from "../data-root";
 import { t } from "../i18n";
@@ -261,6 +263,36 @@ export function hostLauncher(): HostLauncher {
 /** Start (or find) the Host. Web and other non-desktop runs never spawn one. */
 export async function ensureHostRunning(): Promise<LauncherStatus> {
   return hostLauncher().ensureRunning();
+}
+
+/**
+ * How the app learns it is quitting: `Application.on("quit")` where the platform has an app
+ * lifecycle. A test passes its own subscription.
+ */
+export type QuitSubscription = (listener: () => void) => void;
+
+const applicationQuit: QuitSubscription = (listener) => {
+  if (!hasWindow) return;
+  try {
+    Application.on("quit", listener);
+  } catch (error) {
+    // A host without an app lifecycle has nothing to quit; `scripts/dev.mjs` then owns
+    // stopping the Host this run started.
+    console.warn(`[host] quit hook unavailable: ${String(error)}`);
+  }
+};
+
+/**
+ * Stop the Host this app started when the app quits — its Quit item, the last window closing,
+ * the system ending it. A Host that was already running is not this app's to stop.
+ * @param subscribe - where the quit notification comes from.
+ * @param launcher - the one launcher this app runs.
+ */
+export function stopHostOnQuit(
+  subscribe: QuitSubscription = applicationQuit,
+  launcher: HostLauncher = hostLauncher(),
+): void {
+  subscribe(() => launcher.stop());
 }
 
 /** The empty state's Retry: ask the one launcher again. */
