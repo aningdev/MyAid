@@ -16,6 +16,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { installedDrift } from "../../../scripts/dsh-pin.mjs";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const client = join(here, "..");
 const entry = join(client, "lib/dsh/sdk.ts");
@@ -124,6 +126,25 @@ export default officialClient;
   console.log(`prepared lib/dsh/generated/${slug}.js from ${pkg}@${version}`);
 }
 
+/**
+ * Refuse to generate from a tree that does not hold the pinned dsh release.
+ *
+ * A stale `node_modules` is invisible here otherwise: the published sources are
+ * bundled as they are, so the app would run whatever was last installed. The
+ * catalog is the version source, so compare against it and name the fix.
+ */
+function assertPinnedInstalls() {
+  const drift = installedDrift();
+  if (drift.length === 0) return;
+  const detail = drift
+    .map(({ name, want, got }) => `  ${name}: 已安装 ${got ?? "（缺失）"}，catalog 要求 ${want}`)
+    .join("\n");
+  throw new Error(
+    `已安装的 dsh 包与 workspaces.catalog 不一致，先运行 \`bun install\`：\n${detail}`,
+  );
+}
+
+assertPinnedInstalls();
 mkdirSync(generated, { recursive: true });
 for (const official of OFFICIAL_CLIENTS) writeOfficialClient(official);
 

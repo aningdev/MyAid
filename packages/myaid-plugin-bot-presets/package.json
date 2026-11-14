@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "js-yaml": "^4.1.0",
-    "zod": "4.6.6"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
@@ -34,12 +34,12 @@
     "typescript": "catalog:"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.1.0",
-    "@deepseek-ai/cordis-plugin-include": "~1.1.0",
-    "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.3",
-    "@deepseek-ai/dsh-home-paths": "0.2.2-rc.3",
-    "@deepseek-ai/dsh-storage-domain": "0.2.2-rc.3",
-    "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.3"
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/cordis-plugin-include": "catalog:",
+    "@deepseek-ai/dsh-agent-preset-registry": "catalog:",
+    "@deepseek-ai/dsh-home-paths": "catalog:",
+    "@deepseek-ai/dsh-storage-domain": "catalog:",
+    "@deepseek-ai/dsh-typert-protocol": "catalog:"
   },
   "dsh": {
     "bundle": {

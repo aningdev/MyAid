@@ -2,46 +2,47 @@
 
 English | [中文](README.zh.md)
 
-**Client-only** TypeScript re-exports of official `dsh web` Typert Remote / wire contracts. Index: [packages/README.md](../README.md).
+**Client-only** TypeScript re-exports of the official `dsh web` Typert Remote / wire contracts the product imports. Index: [packages/README.md](../README.md).
 
 - **Consumer:** [`apps/client`](../../apps/client) only.
 - **Plugins (`myaid-plugin-*`):** do **not** depend on this package. Use official `@deepseek-ai/dsh-*` Host / Cordis forms directly.
-- **Source of truth:** published npm `@deepseek-ai/dsh-*`, pinned to the same version as [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json), the single source of that version. Never use npm `latest` (often an ancient RC). Never copy types from `references/deepseek-harness`.
+- **Version source:** the root [`package.json`](../../package.json) → `workspaces.catalog` pins every `@deepseek-ai/dsh-*` plus the shared pins the release dictates (`@deepseek-ai/cordis`, `zod`); packages reference it with `"catalog:"`. [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) names the same version for the Host (it compiles that file in), and `bun run check` fails when the two disagree. Never use npm `latest` (often an ancient RC). Never copy types from `references/deepseek-harness`.
+
+**Upgrading dsh:** change the `@deepseek-ai/*` entries in `workspaces.catalog` and `apps/host/supported-dsh.json` together, then `bun install` and `bun run check`. No other file names a dsh version.
 
 This package has **no runtime**. Entries are `export type` over official `./types` plus `export type {} from '.../remote'` for declaration merges.
 
 ## Usage
 
 ```ts
-import type { RemoteResult } from "@myaid/dsh-web-protocol/connection";
+import type { BotPresetRecord } from "@myaid/dsh-web-protocol/bot-presets";
+import type { ISessions } from "@myaid/dsh-web-protocol/client";
 import type { ApprovalOutcome } from "@myaid/dsh-web-protocol/interaction";
-import type { SessionFollowFrame, ModelCatalog } from "@myaid/dsh-web-protocol/session";
+import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 ```
 
-Prefer **domain subpaths** (`/session`, `/settings`, …). The root entry re-exports the remotes facade plus **namespace** aliases (`Session`, `Llm`, …) to avoid cross-domain name collisions; subpaths remain the stable import style.
+Prefer **domain subpaths**. The root entry re-exports the same modules as **namespace** aliases (`Client`, `Session`, `Llm`, …) to avoid cross-domain name collisions; subpaths stay the stable import style.
 
 Product DTOs that reshape wire (for example a flattened model list) must use **different names** from official types (e.g. `FlatModelCatalog` vs `ModelCatalog`).
 
 ## What is included
 
-Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companions:
+Only the surfaces the product imports today:
 
-| Subpath                                                                                  | Coverage                                                                 |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `/remotes`                                                                               | `dsh-api-remotes` client facade                                          |
-| `/session`                                                                               | session-controller, session, projection, stats, turn-outline, attachment |
-| `/llm`                                                                                   | llm remote + message/content types                                       |
-| `/presets`                                                                               | agent-preset-registry, permission-presets                                |
-| `/bot-presets`                                                                           | `myaid-plugin-bot-presets` `myaidBotPresets` DTOs                        |
-| `/settings`                                                                              | settings-controller, settings, credentials                               |
-| `/workspace`                                                                             | workspace-controller, workspace-files, workspace, directory-picker       |
-| `/job` `/terminal` `/account` `/commands` `/goals`                                       | matching controllers                                                     |
-| `/schedule` `/subagent`                                                                  | remote(+client); no dedicated `./types`                                  |
-| `/interaction`                                                                           | user-questions, user-approval                                            |
-| `/feedback` `/uploads` `/references` `/plugins` `/docs` `/cordis` `/analytics` `/access` | remaining remotes                                                        |
-| `/connection`                                                                            | gateway, client-connection, typert-protocol                              |
+| Subpath        | Coverage                                                                                                                         |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `/client`      | React-free official Client models: session-controller `/client`, workspace-controller `/client`, `dsh-client-store`, session ids |
+| `/session`     | session-controller, session, projection, stats, turn-outline, attachment                                                         |
+| `/llm`         | llm Remote + message / content types                                                                                             |
+| `/settings`    | settings-controller, settings, credentials                                                                                       |
+| `/workspace`   | workspace-controller, workspace-files, workspace, directory-picker                                                               |
+| `/interaction` | user-questions, user-approval                                                                                                    |
+| `/plugins`     | plugin-manager, plugin-market, plugin-inventory, plugin-manager Remote types                                                     |
+| `/bot-presets` | `myaid-plugin-bot-presets`' `myaidBotPresets` DTOs — no dsh import                                                               |
 
-**Excluded:** official Web GUI / brand packages, Host webserver/frontend runtimes, tool execution plane (`dsh-tool-*`), experimental remotes, stdio `@deepseek-ai/dsh-sdk-protocol`. For `dsh-client-ui-*`, only `./remote` (and `./types` when present) — never UI modules.
+**Not here:** Remotes the product does not call yet — account, analytics, commands, gateway / connection, feedback, goals, jobs, terminal, schedule, subagent, uploads, docs, preset registry, access. Add one together with its first caller: read the upstream surface in `references/deepseek-harness`, add a subpath, add the packages it re-exports to this `package.json` as `"catalog:"`, and mount the Remote in the Client.
+
+**Excluded:** official Web GUI / brand packages, Host webserver/frontend runtimes, tool execution plane (`dsh-tool-*`), stdio `@deepseek-ai/dsh-sdk-protocol`. For `dsh-client-ui-*`, only `./remote` — never UI modules.
 
 ## Product module → Remote → phase
 
@@ -55,7 +56,7 @@ Full web Remote surface from `@deepseek-ai/dsh-api-remotes/client` plus companio
 | Settings                        | `settings`, `credentials`                                                                                                                                                    | B                   | UI prefs stay local — never dsh               |
 | Attachments                     | `fileUploads`, `session.attachment`, `PromptContentPart`                                                                                                                     | C                   | After text-first                              |
 | Plugins nav                     | `pluginManager` (+ market/inventory later)                                                                                                                                   | D                   | Enablement UI only                            |
-| Terminal / Jobs / Goals / …     | matching remotes                                                                                                                                                             | on demand           | Not required for dialogue loop                |
+| Terminal / Jobs / Goals / …     | matching remotes, no type subpath yet                                                                                                                                        | on demand           | Not required for dialogue loop                |
 | Task / Knowledge / Note / Today | —                                                                                                                                                                            | not Session Remotes | Today = HostControl; Task is life-domain      |
 
 ## Never call from MyAid Client
@@ -77,7 +78,7 @@ Dialogue prompt path accepts `PromptContentPart` (text / image / file receipt). 
 
 1. Reuse `dsh-api-session-controller/client` session models if they shrink the Dialogue projector.
 2. Full `SessionFollowFrame` → projector mapping coverage.
-3. `userQuestions` / `permissionPresets` when product UI needs them.
+3. `userQuestions` when product UI needs it (types are here; the Remote is not mounted).
 4. Keep `lib/dsh/connection.ts` a thin facade (auth, epoch, unwrap, product DTO maps).
 5. Plugin Host contracts: use `@deepseek-ai/dsh-agent`, `dsh-tools`, `dsh-session` per upstream docs — **no** MyAid host-protocol wrapper.
 
