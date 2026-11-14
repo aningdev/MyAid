@@ -55,6 +55,10 @@ Contributor constraints: [AGENTS.md](AGENTS.md). Doc layout: [docs/AGENTS.md](do
 ```sh
 git submodule update --init references/deepseek-harness references/nsh references/waku references/lorca
 bun install
-bun run dev      # Host + Client
+bun run dev        # desktop: rebuilds a stale Host, loads the Bot preset plugin, starts the Client
+bun run dev web    # other targets: web / mobile / ios / android / macos / windows / linux / gpui
 bun run check
+bun run test
 ```
+
+`bun run dev` verifies before it starts: it runs `bun install` when `node_modules` disagrees with the catalog's `@deepseek-ai/*` versions or when `bun.lock` / a `package.json` is newer than the installed tree, and it rebuilds `myaid-host` when the binary is older than its sources or `apps/host/supported-dsh.json`. The dsh version is written twice only — the root `package.json` → `workspaces.catalog` and `apps/host/supported-dsh.json` — and `bun run check` fails when they disagree.

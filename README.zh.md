@@ -55,6 +55,10 @@ MyAid **不含** DeepSeek 产品品牌内容，也不迁入官方 harness Web GU
 ```sh
 git submodule update --init references/deepseek-harness references/nsh references/waku references/lorca
 bun install
-bun run dev      # Host + Client
+bun run dev        # 桌面端：重建过期的 Host、装载 Bot preset 插件、起 Client
+bun run dev web    # 其他目标：web / mobile / ios / android / macos / windows / linux / gpui
 bun run check
+bun run test
 ```
+
+`bun run dev` 先核对再启动：`node_modules` 与 catalog 的 `@deepseek-ai/*` 版本不符、或 `bun.lock` / `package.json` 比安装结果新时自动 `bun install`；`myaid-host` 比自身源码或 `apps/host/supported-dsh.json` 旧时自动重建。dsh 版本只有两个地方写：根 `package.json` 的 `workspaces.catalog` 与 `apps/host/supported-dsh.json`，`bun run check` 会核对二者一致。

@@ -25,7 +25,7 @@ Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE
 From the repo root:
 
 ```sh
-bun run host:dev                                             # serve-app at ~/.myaid
+cargo run --manifest-path apps/host/Cargo.toml -- serve-app   # serve-app at the default data root
 cargo run -p myaid-host -- serve-app --port 4872 --ready-stdout
 cargo run -p myaid-host -- serve --data-root PATH [--port N] [--official-dsh|--dsh PATH] [--patch FILE]…
 cargo run -p myaid-host -- service install|uninstall|status

@@ -29,15 +29,15 @@ flowchart LR
 
 ## 2. 仓库与组件
 
-| 位置                      | 职责                                                                      | 现状                                                                                          |
-| ------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `apps/client`             | NSH **TSX**：产品 UI / 注册表 / 官方协议 / 回环控制面客户端               | AppShell：扁平 Bot 列表 + Pane 分屏 + Bot 详情弹窗；设置覆盖层（供应商 / 通用 / 后台 / 关于） |
-| `apps/host`               | dsh 生命周期、回环控制 API、OS 登记、后续 Bridge                          | Lifecycle + `local_api`（HTTP/WS）+ `service` 已落地；Bridge 空壳                             |
-| `apps/relay`              | 常驻 Relay 进程、本机控制 API、OS 登记；多端密文转发（后）                | `config` / `routes` / `run` / `service` 已落地；转发面与身份仍骨架                            |
-| `crates/myaid-service`    | 两个单元逐字相同的 launchd / systemd / Windows 计划与登记动词（ADR 0007） | plist、systemd 单元、Run 键与监督器                                                           |
-| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)                   | `myaid-plugin-core` 空壳；`myaid-plugin-bot-presets` 提供 Bot 派生 preset 写入口              |
-| 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                             | `bun run dev` → `scripts/dev.mjs`（构建 Host 后起 Client，Host 由 App 启动）；`host:dev`      |
-| `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）              | `.gitmodules`；不参与构建                                                                     |
+| 位置                      | 职责                                                                      | 现状                                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/client`             | NSH **TSX**：产品 UI / 注册表 / 官方协议 / 回环控制面客户端               | AppShell：扁平 Bot 列表 + Pane 分屏 + Bot 详情弹窗；设置覆盖层（供应商 / 通用 / 后台 / 关于）                                                 |
+| `apps/host`               | dsh 生命周期、回环控制 API、OS 登记、后续 Bridge                          | Lifecycle + `local_api`（HTTP/WS）+ `service` 已落地；Bridge 空壳                                                                             |
+| `apps/relay`              | 常驻 Relay 进程、本机控制 API、OS 登记；多端密文转发（后）                | `config` / `routes` / `run` / `service` 已落地；转发面与身份仍骨架                                                                            |
+| `crates/myaid-service`    | 两个单元逐字相同的 launchd / systemd / Windows 计划与登记动词（ADR 0007） | plist、systemd 单元、Run 键与监督器                                                                                                           |
+| `packages/myaid-plugin-*` | Cordis 能力插件；约束见 [AGENTS](../packages/AGENTS.md)                   | `myaid-plugin-core` 空壳；`myaid-plugin-bot-presets` 提供 Bot 派生 preset 写入口                                                              |
+| 根 `package.json`         | bun workspace；任务经 **Vite+ `vp run`** 调度                             | `bun run dev [target]` → `scripts/dev.mjs`（核对依赖、重建过期的 Host，再起 Client，Host 由 App 启动）；`check` / `test` 按发现跑有该脚本的包 |
+| `references`              | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）              | `.gitmodules`；不参与构建                                                                                                                     |
 
 Bun 管理 JS workspace 与唯一 `bun.lock`；Cargo workspace：`apps/host`、`apps/relay`、`crates/myaid-service`。不在 Rust 中重实现 Harness，也不在 Client 里放 Rust：Client 用标准 `fetch` / `WebSocket` 调宿主与转发。
 

@@ -25,7 +25,7 @@ MyAid 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh` 
 仓库根：
 
 ```sh
-bun run host:dev                                             # serve-app（~/.myaid）
+cargo run --manifest-path apps/host/Cargo.toml -- serve-app   # serve-app（默认数据根）
 cargo run -p myaid-host -- serve-app --port 4872 --ready-stdout
 cargo run -p myaid-host -- serve --data-root PATH [--port N] [--official-dsh|--dsh PATH] [--patch FILE]…
 cargo run -p myaid-host -- service install|uninstall|status

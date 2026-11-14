@@ -9,7 +9,7 @@
 - 全部助手共用**未经修改**的官方 `dsh web` 与上游 `web` profile。
 - 产品数据根隔离为 `~/.myaid`（`DSH_HOME=~/.myaid`），不污染用户的 `~/.dsh`。
 - **不**按助手拆 dsh 进程、profile 或插件集；**不**自拼第二套 Agent 执行引擎。
-- 运行使用用户安装的官方 `dsh`；版本由 Host 启动时检查（见 `apps/host/supported-dsh.json`）。
+- 运行使用用户安装的官方 `dsh`；版本真源是根 `package.json` 的 `workspaces.catalog` 与 `apps/host/supported-dsh.json`（Host 把后者编译进二进制，启动时检查；`bun run check` 校验两者一致）。
 
 ## 2. 职责三分：Client / Host / dsh
 

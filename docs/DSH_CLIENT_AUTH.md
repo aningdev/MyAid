@@ -53,11 +53,11 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 ## 本地跑通
 
 ```sh
-# 1) Host（独占 dsh 生命周期；版本钉 apps/host/supported-dsh.json）
+# 1) Host（独占 dsh 生命周期；版本钉 catalog + apps/host/supported-dsh.json）
 cargo run -p myaid-host -- serve-app --port 4872
 
 # 2) 客户端（没有 Host 时自己拉起；myaid-host 要在 PATH 上）
-vp run @myaid/client#dev
+bun run dev        # 根目录：先核对依赖、必要时重建 Host，再起 Client
 # Settings ⇢ Background Services → Enable → 一条 Bot 的 Session
 # 无 Host 时仍可用：export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=…'
 ```

@@ -21,6 +21,8 @@ apps/client/
 
 ## 命令
 
+日常用根目录 `bun run dev [target]`：它先核对 `node_modules`、重建过期的 Host，再调下面这些脚本。
+
 根目录用 `vp run`（勿用 `bun --cwd`）：
 
 ```sh
@@ -38,7 +40,7 @@ vp run @myaid/client#package:macos    # .nsh/out/MyAid.app，打包后运行
 vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / ios / android
 ```
 
-- 日常改 UI：`nsh run --target …`（上面的 `dev*` 脚本）。
+- 日常改 UI：根目录 `bun run dev [target]`；上面这些是它调用的低层脚本。
 - 只起服务、自己连模拟器或已开宿主：`dev:server`。
 - `package:macos` 产出 NSH 可安装 `.app`，**不是**根级成品（App + Host + `SMAppService` 组装另议）。
 - 真 Host 冒烟是 opt-in：未设置 `MYAID_SMOKE_HOST` 时 `screens/*.smoke.test.tsx` 直接返回；它也是测试应用接触本机控制面的唯一入口（`test/open.ts` 打开的应用既不探活也不 spawn）。见 [screens/README.md](screens/README.md)。
@@ -98,7 +100,7 @@ vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / 
 
 本应用没有 Rust（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。Host 是 `127.0.0.1:4872`（`MYAID_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证；Relay 有自己的 `127.0.0.1:8787` 与 `relay/serve-token`。
 
-- `lib/host/launcher.ts`：没有 Host 就起（`myaid-host serve-app`），有就复用，退出后 1 秒起、翻倍到 15 秒重启；要求 `myaid-host` 在 `PATH` 上（`cargo build -p myaid-host` 产出在 `target/debug`，`scripts/run-with-host-path.mjs` 为桌面端的 `dev*` 脚本（`dev`、`dev:macos`、`dev:windows`、`dev:linux`、`dev:gpui`）把它放前面）。日常用根目录 `bun run dev`，它先构建 Host。
+- `lib/host/launcher.ts`：没有 Host 就起（`myaid-host serve-app`），有就复用，退出后 1 秒起、翻倍到 15 秒重启；要求 `myaid-host` 在 `PATH` 上（`cargo build -p myaid-host` 产出在 `target/debug`，`scripts/run-with-host-path.mjs` 为桌面端的 `dev*` 脚本（`dev`、`dev:macos`、`dev:windows`、`dev:linux`、`dev:gpui`）把它放前面）。日常用根目录 `bun run dev [target]`，它在 Host 源码变新时重建二进制，并且只给桌面目标接上这个 `PATH`。
 - `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`）。Host 的公开状态还带 `hostVersion` 与 guardian 实际找到的 `dshVersion`，供后台与关于页显示。
 - 启动器起不来时，侧栏页脚就是 Host 空状态：原因 + 手动的 `myaid-host serve-app`。
 - `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` 不起 Host——移动端经 Relay，不走本机 Host。

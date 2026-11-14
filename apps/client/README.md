@@ -21,6 +21,8 @@ apps/client/
 
 ## Commands
 
+Day-to-day: root `bun run dev [target]` — it checks `node_modules` and rebuilds the Host first, then starts the matching script below.
+
 From the repo root with `vp run` (do not use `bun --cwd`):
 
 ```sh
@@ -38,7 +40,7 @@ vp run @myaid/client#package:macos    # .nsh/out/MyAid.app, then runs it
 vp run @myaid/client#package:web      # also package:windows / linux / gpui / ios / android
 ```
 
-- Day-to-day UI: `nsh run --target …` via the `dev*` scripts above.
+- Day-to-day UI: `bun run dev [target]` at the repo root; these scripts are the low-level layer it calls.
 - Service only (attach your own simulator/host): `dev:server`.
 - `package:macos` produces an NSH-installable `.app`, **not** the finished App + Host + `SMAppService` product.
 - Real-Host smokes are opt-in: `screens/*.smoke.test.tsx` returns unless `MYAID_SMOKE_HOST` is set, and that is also the only way a test app reaches the local control plane (an app opened by `test/open.ts` never probes or spawns). See [screens/README.md](screens/README.md).
@@ -98,7 +100,7 @@ Not translated, by design: what a person typed and what a Bot is called (Bot nam
 
 There is no Rust in this app ([ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)). The Host is loopback HTTP + one WebSocket on `127.0.0.1:4872` (`MYAID_HOST_PORT`), authenticated by `<data root>/host/serve-token`; the Relay has its own at `127.0.0.1:8787` with `relay/serve-token`.
 
-- `lib/host/launcher.ts` starts the Host when none answers (`myaid-host serve-app`), reuses one that does, and starts it again after an exit (1 s doubling to 15 s). It needs `myaid-host` on `PATH`; `cargo build -p myaid-host` puts it in `target/debug`, and `scripts/run-with-host-path.mjs` puts that folder first for the desktop `dev*` scripts (`dev`, `dev:macos`, `dev:windows`, `dev:linux`, `dev:gpui`). Prefer repo-root `bun run dev`, which builds the Host first.
+- `lib/host/launcher.ts` starts the Host when none answers (`myaid-host serve-app`), reuses one that does, and starts it again after an exit (1 s doubling to 15 s). It needs `myaid-host` on `PATH`; `cargo build -p myaid-host` puts it in `target/debug`, and `scripts/run-with-host-path.mjs` puts that folder first for the desktop `dev*` scripts (`dev`, `dev:macos`, `dev:windows`, `dev:linux`, `dev:gpui`). Prefer repo-root `bun run dev [target]`, which rebuilds the Host when its sources moved on and only wires that `PATH` for desktop targets.
 - `lib/host/client.ts` is the transport (`fetch` + standard `WebSocket`); `lib/host/control.ts` is the product surface (`ensureBackendReady`, `resolveDshLoginUrl`, `watchHostStatus`). The Host's public status also carries `hostVersion` and the `dshVersion` its guardian found, which Background and About show.
 - The sidebar footer is the Host empty state when the launcher cannot run one: its reason plus the manual `myaid-host serve-app`.
 - `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` start no Host — mobile goes through the Relay, not the local Host.
