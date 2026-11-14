@@ -2,7 +2,7 @@
  * Settings against a real Host the app starts itself. It proves the providers
  * page writes a key through dsh's credentials and clears it, that a base URL
  * and the default model are stored in dsh's own settings and read back, that
- * the theme and accent persist across a relaunch, and that About shows the
+ * the colour scheme persists across a relaunch, and that About shows the
  * versions the Host reports.
  *
  * Opt in with `MYAID_SMOKE_HOST=1`, a scratch home/data root and `myaid-host`

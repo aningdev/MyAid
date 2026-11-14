@@ -3,8 +3,10 @@
 These tests open the real app. A headless `nsh test` run has nothing to draw:
 each harness takes a picture probe at the start and returns when the platform
 cannot draw, so the normal suite stays green. On a graphical target it runs
-the steps and saves PNGs under the scratchpad directory named in
-[`shots.ts`](shots.ts).
+the steps and saves PNGs under `~/.myaid-dev/shots/` ([`shots.ts`](shots.ts)), beside the
+isolated dev roots and never in the real `~/.myaid`. The test runner cannot
+create folders: `mkdir -p ~/.myaid-dev/shots/pi-shots-{shell,chat,a1,p1,l1,l2,d2,n1,l3,l4}`
+first, or a picture is skipped.
 
 ```sh
 # Welcome: the test app's isolated storage is empty, never the real ~/.myaid.
@@ -88,7 +90,7 @@ Panes, their Bots and the Pin.
 `settings-real-host.smoke.test.tsx` sets a fake DeepSeek key through
 Settings, clears it, writes a base URL and the default model into dsh's
 settings and reads them back after reopening, then checks About's versions
-and that the dark scheme and accent survive a relaunch. The scratch
+and that the dark scheme survives a relaunch. The scratch
 `.credentials.yaml` holds no key once the page's **清除 Key** has run.
 
 `long-conversation.smoke.test.tsx` proves one Bot's long conversation against a
