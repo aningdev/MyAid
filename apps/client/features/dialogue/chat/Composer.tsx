@@ -4,6 +4,7 @@
  * the send key's preference, Stop, and the model chip. Its text and files
  * belong to the SessionController, so switching Panels keeps the draft.
  */
+import { ArrowUp, ChevronDown, type IconNode, Paperclip, Square, X } from "lucide";
 import {
   cleanup,
   effect,
@@ -18,15 +19,18 @@ import {
   Text,
   View,
   type ViewStyle,
+  token,
 } from "nsh";
 import { Input, Menu, MenuItem } from "nsh/base";
 
-import { alpha, colors, finish, Press, radius, RoundButton } from "../../../components/ui";
+import { Press } from "../../../components/app";
+import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
 import { t } from "../../../lib/i18n";
+import { Icon } from "../../../lib/icons";
+import { alpha, radius } from "../../../lib/theme";
 import type { Attachment, SessionController } from "../session/controller";
 import { attachDropped } from "./attach";
 import { composerFocusRequest, takeComposerFocus } from "./focus";
-import { Glyph } from "./glyphs";
 import { ensurePreferences, sendKey, sendKeyLabel, setSendKey, type SendKey } from "./prefs";
 
 /** The model chip's data: what the Session runs on, and what it could run on. */
@@ -178,10 +182,9 @@ export function Composer(props: {
         style={{
           borderRadius: 22,
           borderCurve: "continuous",
-          ...finish.menu,
-          backdropFilter: undefined,
+          backgroundColor: token("popover"),
           borderWidth: 1,
-          borderColor: focused() ? colors.fieldBorder : colors.border,
+          borderColor: focused() ? token("input") : token("border"),
           padding: 6,
           gap: 2,
         }}
@@ -213,20 +216,20 @@ export function Composer(props: {
             )
           }
           style={{
-            placeholderColor: colors.faint,
-            caretColor: colors.accent,
-            selectionColor: colors.accent,
+            placeholderColor: token("faint"),
+            caretColor: token("brand"),
+            selectionColor: token("brand"),
             height: textHeight() + 20,
             fontSize: 15,
             lineHeight: LINE_HEIGHT,
-            color: colors.text,
+            color: token("foreground"),
             paddingHorizontal: 10,
             paddingVertical: 10,
           }}
         />
         <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
           <MiniGlyphButton
-            glyph="clip"
+            icon={Paperclip}
             label={t("chat.attach")}
             onPress={() => void chooseFiles()}
           />
@@ -242,35 +245,25 @@ export function Composer(props: {
                   opacity: props.canSend() ? 1 : 0.35,
                 }}
               >
-                <RoundButton icon="arrow-up" label={t("chat.send")} onPress={send} />
+                <RoundButton accessibilityLabel={t("chat.send")} onPress={send}>
+                  <Icon icon={ArrowUp} {...roundButtonGlyph("default")} />
+                </RoundButton>
               </View>
             }
           >
-            <Press
+            <RoundButton
+              side={36}
               onPress={() => props.onStop()}
-              scale={0.9}
               accessibilityLabel={t("chat.stopGenerating")}
             >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: colors.light,
-                  ...finish.light,
-                }}
-              >
-                <Glyph name="stop" size={14} tint={colors.onLight} />
-              </View>
-            </Press>
+              <Icon icon={Square} {...roundButtonGlyph("default", { side: 36 })} />
+            </RoundButton>
           </If>
         </View>
       </View>
 
       <If when={trouble()}>
-        <Text style={{ fontSize: 12, color: colors.danger }}>{trouble()}</Text>
+        <Text style={{ fontSize: 12, color: token("destructive") }}>{trouble()}</Text>
       </If>
     </View>
   );
@@ -288,21 +281,21 @@ function QueuedRow(props: { text: string; onWithdraw: () => void }) {
         paddingVertical: 6,
         borderRadius: radius.control,
         borderCurve: "continuous",
-        backgroundColor: colors.inset,
+        backgroundColor: token("inset"),
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: token("border"),
       }}
     >
-      <Glyph name="caret-down" size={11} tint={colors.faint} />
-      <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>
+      <Icon icon={ChevronDown} size={11} tint={token("faint")} />
+      <Text style={{ fontSize: 11, fontWeight: "600", color: token("muted-foreground") }}>
         {t("chat.queued")}
       </Text>
-      <Text style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: colors.text }}>
+      <Text style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: token("foreground") }}>
         {props.text}
       </Text>
       <Press onPress={props.onWithdraw} accessibilityLabel={t("chat.withdraw")} scale={0.94}>
         <View style={{ paddingHorizontal: 8, height: 24, justifyContent: "center" }}>
-          <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>
+          <Text style={{ fontSize: 12, fontWeight: "600", color: token("brand") }}>
             {t("chat.withdrawAction")}
           </Text>
         </View>
@@ -324,26 +317,25 @@ function AttachmentChip(props: { attachment: Attachment; onRemove: () => void })
         paddingEnd: 2,
         borderRadius: 8,
         borderCurve: "continuous",
-        backgroundColor: colors.raised,
-        ...finish.raised,
+        backgroundColor: token("raised"),
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: token("border"),
       }}
     >
       <If when={!!props.attachment.url}>
         <PhotoThumb url={props.attachment.url!} />
       </If>
-      <Text style={{ numberOfLines: 1, fontSize: 12, color: colors.text, maxWidth: 160 }}>
+      <Text style={{ numberOfLines: 1, fontSize: 12, color: token("foreground"), maxWidth: 160 }}>
         {props.attachment.name}
       </Text>
-      <Text style={{ fontSize: 11, color: colors.faint }}>{props.attachment.size}</Text>
+      <Text style={{ fontSize: 11, color: token("faint") }}>{props.attachment.size}</Text>
       <Press
         onPress={props.onRemove}
         accessibilityLabel={t("chat.removeAttachment", { name: props.attachment.name })}
         scale={0.85}
       >
         <View style={{ width: 26, height: 28, alignItems: "center", justifyContent: "center" }}>
-          <Glyph name="close" size={12} tint={colors.muted} />
+          <Icon icon={X} size={12} tint={token("muted-foreground")} />
         </View>
       </Press>
     </View>
@@ -358,7 +350,7 @@ function PhotoThumb(props: { url: string }) {
         height: 24,
         borderRadius: 5,
         overflow: "hidden",
-        backgroundColor: colors.inset,
+        backgroundColor: token("inset"),
       }}
     >
       <Image src={props.url} style={{ width: 24, height: 24 }} />
@@ -383,13 +375,13 @@ function ModelChip(props: { model: () => ComposerModel; onPick: (value: string) 
             height: 26,
             paddingHorizontal: 8,
             borderRadius: 13,
-            backgroundColor: colors.inset,
+            backgroundColor: token("inset"),
           }}
         >
-          <Text style={{ numberOfLines: 1, fontSize: 12, color: colors.muted }}>
+          <Text style={{ numberOfLines: 1, fontSize: 12, color: token("muted-foreground") }}>
             {model().label}
           </Text>
-          <Glyph name="caret-down" size={10} tint={colors.faint} />
+          <Icon icon={ChevronDown} size={10} tint={token("faint")} />
         </View>
       }
     >
@@ -400,7 +392,7 @@ function ModelChip(props: { model: () => ComposerModel; onPick: (value: string) 
             role="menuitemradio"
             onSelect={() => props.onPick(option().value)}
           >
-            <Text style={{ fontSize: 13, color: colors.text }}>{option().label}</Text>
+            <Text style={{ fontSize: 13, color: token("foreground") }}>{option().label}</Text>
           </MenuItem>
         )}
       </Each>
@@ -421,7 +413,7 @@ function SendKeyMenu() {
       popupClass="rounded-lg border border-border bg-popover p-1 shadow-lg"
       trigger={
         <View style={{ paddingHorizontal: 8, height: 28, justifyContent: "center" }}>
-          <Text style={{ fontSize: 11, color: colors.faint }}>
+          <Text style={{ fontSize: 11, color: token("faint") }}>
             {t("chat.sendKeyToSend", { label: sendKeyLabel(sendKey()) })}
           </Text>
         </View>
@@ -434,7 +426,7 @@ function SendKeyMenu() {
             role="menuitemradio"
             onSelect={() => setSendKey(option().value)}
           >
-            <Text style={{ fontSize: 13, color: colors.text }}>{option().label}</Text>
+            <Text style={{ fontSize: 13, color: token("foreground") }}>{option().label}</Text>
           </MenuItem>
         )}
       </Each>
@@ -442,17 +434,17 @@ function SendKeyMenu() {
   );
 }
 
-function MiniGlyphButton(props: { glyph: "clip"; label: string; onPress: () => void }) {
+function MiniGlyphButton(props: { icon: IconNode; label: string; onPress: () => void }) {
   return (
     <Press
       onPress={props.onPress}
       accessibilityLabel={props.label}
       scale={0.9}
       style={{ borderRadius: 14, outlineStyle: "none" }}
-      hoverStyle={{ backgroundColor: alpha(colors.text, 0.06) }}
+      hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.06) }}
     >
       <View style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
-        <Glyph name={props.glyph} size={16} tint={colors.muted} />
+        <Icon icon={props.icon} size={16} tint={token("muted-foreground")} />
       </View>
     </Press>
   );

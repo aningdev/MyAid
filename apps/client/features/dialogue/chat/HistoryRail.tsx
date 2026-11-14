@@ -6,11 +6,11 @@
  * keyboard stop: ↑ / ↓ move the mark, Return jumps. Every mark carries a
  * VoiceOver label with the full path.
  */
-import { cleanup, effect, keymap, signal, Text, View } from "nsh";
+import { cleanup, effect, keymap, signal, Text, View, token } from "nsh";
 import { HoverCard } from "nsh/base";
 
-import { alpha, colors, finish, mono, radius } from "../../../components/ui";
 import { t } from "../../../lib/i18n";
+import { alpha, mono, radius } from "../../../lib/theme";
 import { middleEllipsis } from "../../workspace/paths";
 
 export type RailMark = {
@@ -29,7 +29,8 @@ export type RailMark = {
 /** The card's surface: the app's popup family, not a bare text bubble. */
 function cardStyle() {
   return {
-    ...finish.menu,
+    backgroundColor: token("popover"),
+    borderColor: token("border"),
     borderWidth: 1,
     borderCurve: "continuous" as const,
     borderRadius: radius.control,
@@ -167,10 +168,10 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
                       height: mark().current ? 14 : 8,
                       borderRadius: 2,
                       backgroundColor: mark().current
-                        ? colors.accent
+                        ? token("brand")
                         : cursor() === index() && focused()
-                          ? colors.muted
-                          : alpha(colors.text, 0.2),
+                          ? token("muted-foreground")
+                          : alpha(token("foreground"), 0.2),
                       transitionProperty: "background-color",
                       transitionDuration: 120,
                     }}
@@ -182,13 +183,22 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
             <View testID="rail-card" accessibilityLabel={markLabel(mark())} style={{ gap: 4 }}>
               <Text
                 testID="rail-card-title"
-                style={{ numberOfLines: 1, fontSize: 12, fontWeight: "600", color: colors.text }}
+                style={{
+                  numberOfLines: 1,
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: token("foreground"),
+                }}
               >
                 {mark().label}
               </Text>
               <Text
                 testID="rail-card-time"
-                style={{ fontSize: 11, color: colors.muted, fontVariant: ["tabular-nums"] }}
+                style={{
+                  fontSize: 11,
+                  color: token("muted-foreground"),
+                  fontVariant: ["tabular-nums"],
+                }}
               >
                 {mark().time}
               </Text>
@@ -197,7 +207,7 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
                   testID="rail-card-path"
                   style={{
                     fontSize: 11,
-                    color: colors.faint,
+                    color: token("faint"),
                     fontFamily: mono,
                     numberOfLines: 1,
                   }}

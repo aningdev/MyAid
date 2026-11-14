@@ -1,8 +1,9 @@
-import { Text, View } from "nsh";
+import { Text, View, token } from "nsh";
 import { DockArea, type DockAreaRef, type DockPanel } from "nsh/base";
 
 import { t } from "../../lib/i18n";
-import { alpha, colors, handleThumb } from "../ui";
+import { alpha } from "../../lib/theme";
+import { handleThumb } from "../app";
 import { PanelChrome } from "./PanelChrome";
 import { PanelView } from "./PanelView";
 import { settingsOpen } from "./settings";
@@ -24,7 +25,7 @@ export function Workbench() {
   let area!: DockAreaRef;
 
   return (
-    <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: token("background") }}>
       <DockArea
         ref={area}
         class="flex-1"
@@ -44,10 +45,10 @@ export function Workbench() {
         renderPanel={(panel) => <PanelBody panel={panel} />}
         renderEmpty={(_placement) => (
           <View class="flex-1 items-center justify-center gap-1 p-6">
-            <Text class="text-sm font-semibold" style={{ color: colors.text }}>
+            <Text class="text-sm font-semibold" style={{ color: token("foreground") }}>
               {t("panel.noPanels")}
             </Text>
-            <Text class="text-xs" style={{ color: colors.muted }}>
+            <Text class="text-xs" style={{ color: token("muted-foreground") }}>
               {t("panel.noPanelsNote")}
             </Text>
           </View>
@@ -61,7 +62,7 @@ export function Workbench() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: colors.background,
+            backgroundColor: token("background"),
           }}
         >
           <SettingsOverlay />
@@ -79,7 +80,7 @@ function PanelBody(props: { panel: DockPanel }) {
       class="min-h-0 min-w-0 flex-1"
       style={{
         borderWidth: 1,
-        borderColor: active() ? alpha(colors.ring, 0.6) : "transparent",
+        borderColor: active() ? alpha(token("ring"), 0.6) : "transparent",
       }}
     >
       <PanelView panelId={props.panel.id} />

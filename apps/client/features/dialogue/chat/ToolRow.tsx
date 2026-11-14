@@ -4,10 +4,13 @@
  * of consecutive calls as "N steps". Reasoning is the collapsed row above
  * them. Expansion lives in the Pane: list rows are recycled.
  */
-import { Text, View } from "nsh";
+import { Brain, ChevronDown, Terminal } from "lucide";
+import { Text, View, token } from "nsh";
 
-import { alpha, colors, isDark, mono, Press, radius, toneTint } from "../../../components/ui";
+import { Press } from "../../../components/app";
 import { t, type MessageKey } from "../../../lib/i18n";
+import { Icon } from "../../../lib/icons";
+import { alpha, isDark, mono, radius, toneTint } from "../../../lib/theme";
 import { Glyph } from "./glyphs";
 import { Spinner } from "./parts";
 import { stepsLabel, toolDisplayState, toolSummary, type ToolDisplayState } from "./rows";
@@ -24,14 +27,14 @@ const stateLabel: Record<ToolDisplayState, MessageKey> = {
 };
 
 const stateTint = (state: ToolDisplayState) =>
-  state === "failed" ? colors.danger : state === "cut" ? colors.warn : colors.faint;
+  state === "failed" ? token("destructive") : state === "cut" ? token("warn") : token("faint");
 
 const monoBody = () => ({
   userSelect: "text" as const,
   fontFamily: mono,
   fontSize: 12,
   lineHeight: 18,
-  color: isDark() ? "#c9cdd3" : colors.code,
+  color: token("code"),
 });
 
 /** One call: a line at rest, its arguments and result once opened. */
@@ -46,7 +49,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
         accessibilityLabel={t("chat.tool", { name: props.tool().name })}
         accessibilityState={{ selected: props.open() }}
         style={{ borderRadius: radius.control }}
-        hoverStyle={{ backgroundColor: alpha(colors.text, 0.04) }}
+        hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
       >
         <View
           style={{
@@ -61,15 +64,24 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
         >
           <If
             when={state() === "running" || state() === "pending"}
-            else={<Glyph name="terminal" size={13} tint={colors.faint} />}
+            else={<Icon icon={Terminal} size={13} tint={token("faint")} />}
           >
-            <Spinner size={12} tint={colors.info} />
+            <Spinner size={12} tint={token("info")} />
           </If>
-          <Text style={{ numberOfLines: 1, fontSize: 13, fontWeight: "600", color: colors.text }}>
+          <Text
+            style={{
+              numberOfLines: 1,
+              fontSize: 13,
+              fontWeight: "600",
+              color: token("foreground"),
+            }}
+          >
             {summary().verb}
           </Text>
           <If when={!!summary().target}>
-            <Text style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: colors.muted }}>
+            <Text
+              style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: token("muted-foreground") }}
+            >
               {summary().target}
             </Text>
           </If>
@@ -85,7 +97,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
               transitionTimingFunction: "ease-out",
             }}
           >
-            <Glyph name="caret-down" size={12} tint={colors.faint} />
+            <Icon icon={ChevronDown} size={12} tint={token("faint")} />
           </View>
         </View>
       </Press>
@@ -97,7 +109,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
             paddingBottom: 4,
             paddingLeft: 10,
             borderLeftWidth: 1,
-            borderLeftColor: colors.line,
+            borderLeftColor: token("line"),
           }}
         >
           <If when={!!props.tool().arguments}>
@@ -106,7 +118,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
                 padding: 8,
                 borderRadius: radius.control,
                 borderCurve: "continuous",
-                backgroundColor: colors.inset,
+                backgroundColor: token("inset"),
               }}
             >
               <Text style={monoBody()}>{props.tool().arguments}</Text>
@@ -124,7 +136,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
               <Text
                 style={{
                   ...monoBody(),
-                  color: state() === "failed" ? colors.danger : monoBody().color,
+                  color: state() === "failed" ? token("destructive") : monoBody().color,
                 }}
               >
                 {props.tool().result?.trim() ||
@@ -162,7 +174,7 @@ export function StepGroup(props: {
         }`}
         accessibilityState={{ selected: props.open() }}
         style={{ borderRadius: radius.control }}
-        hoverStyle={{ backgroundColor: alpha(colors.text, 0.04) }}
+        hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
       >
         <View
           style={{
@@ -175,10 +187,10 @@ export function StepGroup(props: {
             borderCurve: "continuous",
           }}
         >
-          <If when={running()} else={<Glyph name="terminal" size={13} tint={colors.faint} />}>
-            <Spinner size={12} tint={colors.info} />
+          <If when={running()} else={<Icon icon={Terminal} size={13} tint={token("faint")} />}>
+            <Spinner size={12} tint={token("info")} />
           </If>
-          <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.text }}>
+          <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: token("foreground") }}>
             {stepsLabel(props.tools())}
           </Text>
           <If when={failed() && !running()}>
@@ -190,7 +202,7 @@ export function StepGroup(props: {
                 backgroundColor: toneTint("danger"),
               }}
             >
-              <Text style={{ fontSize: 11, color: colors.danger }}>
+              <Text style={{ fontSize: 11, color: token("destructive") }}>
                 {t("chat.toolState.failed")}
               </Text>
             </View>
@@ -203,7 +215,7 @@ export function StepGroup(props: {
               transitionTimingFunction: "ease-out",
             }}
           >
-            <Glyph name="caret-down" size={12} tint={colors.faint} />
+            <Icon icon={ChevronDown} size={12} tint={token("faint")} />
           </View>
         </View>
       </Press>
@@ -213,8 +225,8 @@ export function StepGroup(props: {
             marginLeft: 12,
             paddingLeft: 6,
             borderLeftWidth: 1,
-            borderLeftColor: colors.line,
-            backgroundColor: isDark() ? undefined : alpha(colors.text, 0.015),
+            borderLeftColor: token("line"),
+            backgroundColor: isDark() ? undefined : alpha(token("foreground"), 0.015),
             borderRadius: radius.control,
           }}
         >
@@ -258,7 +270,7 @@ export function ThinkingRow(props: {
         accessibilityLabel={t("chat.reasoning")}
         accessibilityState={{ selected: props.open() }}
         style={{ borderRadius: radius.control }}
-        hoverStyle={{ backgroundColor: alpha(colors.text, 0.04) }}
+        hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
       >
         <View
           style={{
@@ -274,11 +286,17 @@ export function ThinkingRow(props: {
         >
           <If
             when={props.live === "thinking"}
-            else={<Glyph name="brain" size={13} tint={colors.faint} />}
+            else={<Icon icon={Brain} size={13} tint={token("faint")} />}
           >
-            <Spinner size={12} tint={colors.muted} />
+            <Spinner size={12} tint={token("muted-foreground")} />
           </If>
-          <Text style={{ fontSize: 13, color: colors.muted, fontVariant: ["tabular-nums"] }}>
+          <Text
+            style={{
+              fontSize: 13,
+              color: token("muted-foreground"),
+              fontVariant: ["tabular-nums"],
+            }}
+          >
             {label()}
           </Text>
           <View
@@ -289,7 +307,7 @@ export function ThinkingRow(props: {
               transitionTimingFunction: "ease-out",
             }}
           >
-            <Glyph name="caret-down" size={12} tint={colors.faint} />
+            <Icon icon={ChevronDown} size={12} tint={token("faint")} />
           </View>
         </View>
       </Press>
@@ -301,7 +319,7 @@ export function ThinkingRow(props: {
             marginLeft: 6,
             paddingLeft: 10,
             borderLeftWidth: 2,
-            borderLeftColor: colors.line,
+            borderLeftColor: token("line"),
           }}
         >
           <Text
@@ -310,7 +328,7 @@ export function ThinkingRow(props: {
               flex: 1,
               fontSize: 13,
               lineHeight: 19,
-              color: colors.muted,
+              color: token("muted-foreground"),
             }}
           >
             {props.text()}

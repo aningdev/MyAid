@@ -1,13 +1,16 @@
+import { PanelLeft } from "lucide";
 /**
  * The Workspace Shell: collapsible left Navigator (the flat Bot list, the
  * Host's state, Settings) beside the Workbench (the Panes that show Bots).
  */
-import { effect, keymap, platform, View } from "nsh";
-import { Button, ResizablePanel, ResizablePanelGroup } from "nsh/base";
+import { effect, keymap, platform, token, View } from "nsh";
+import { ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { isAvailable as hasWindow, Menu, titleBar } from "nsh/desktop";
 
 import { t } from "../../lib/i18n";
-import { colors, handleThumb, Icon } from "../ui";
+import { Icon } from "../../lib/icons";
+import { handleThumb } from "../app";
+import { IconButton, iconButtonGlyph } from "../ui/button";
 import { startAttention } from "./attention";
 import { buildApplicationMenu, COMMANDS, runCommand } from "./commands";
 import { startShell } from "./host";
@@ -61,7 +64,7 @@ export function Shell() {
         minHeight: 0,
         minWidth: 0,
         flexDirection: "column",
-        backgroundColor: colors.inset,
+        backgroundColor: token("inset"),
       }}
     >
       <If when={!navOpen()}>
@@ -100,7 +103,7 @@ function Sidebar() {
         minWidth: 0,
         minHeight: 0,
         flexDirection: "column",
-        backgroundColor: colors.inset,
+        backgroundColor: token("inset"),
       }}
     >
       <SidebarHeader />
@@ -119,9 +122,9 @@ function SidebarHeader() {
       class="shrink-0 flex-row items-center"
       style={{
         height: TITLE_CHROME,
-        backgroundColor: colors.inset,
+        backgroundColor: token("inset"),
         borderBottomWidth: 1,
-        borderBottomColor: colors.line,
+        borderBottomColor: token("line"),
       }}
     >
       <View style={{ width: titleBar().left }} />
@@ -141,9 +144,9 @@ function CollapsedChrome() {
       class="shrink-0 flex-row items-center"
       style={{
         height: TITLE_CHROME,
-        backgroundColor: colors.inset,
+        backgroundColor: token("inset"),
         borderBottomWidth: 1,
-        borderBottomColor: colors.line,
+        borderBottomColor: token("line"),
       }}
     >
       <View style={{ width: titleBar().left }} />
@@ -159,12 +162,11 @@ function CollapsedChrome() {
 function NavToggle() {
   const open = () => navOpen();
   return (
-    <Button
+    <IconButton
       onPress={() => toggleNavOpen()}
       accessibilityLabel={open() ? t("shell.collapseNavigator") : t("shell.expandNavigator")}
-      class="hover:bg-accent focus:outline-ring size-7 items-center justify-center rounded-md focus:outline-2 focus:-outline-offset-2"
     >
-      <Icon name="sidebar" size={16} tint={colors.muted} />
-    </Button>
+      <Icon icon={PanelLeft} {...iconButtonGlyph()} />
+    </IconButton>
   );
 }

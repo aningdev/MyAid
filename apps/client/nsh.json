@@ -5,7 +5,7 @@
   "build": 1,
   "icon": "assets/icon.png",
   "appearance": "system",
-  "theme": "theme.json",
+  "theme": "./theme.json",
   "resolve": {
     "conditions": ["node"]
   },

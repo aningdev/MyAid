@@ -6,11 +6,13 @@
  * owns its reads. The open state lives in `settings.ts`, so a unit test can
  * import the command table without this page's control-channel chain.
  */
-import { cleanup, effect, keymap, Text, View } from "nsh";
+import { ChevronLeft } from "lucide";
+import { cleanup, effect, keymap, Text, View, token } from "nsh";
 
 import { SettingsPage } from "../../features/settings/Page";
 import { t } from "../../lib/i18n";
-import { colors, Icon, Press } from "../ui";
+import { Icon } from "../../lib/icons";
+import { Press } from "../app";
 import { closeSettings, settingsOpen } from "./settings";
 
 /** Escape closes the overlay while it is the top thing on screen. */
@@ -26,7 +28,7 @@ export function SettingsOverlay() {
   return (
     <View
       testID="settings-overlay"
-      style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: colors.background }}
+      style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: token("background") }}
     >
       <View
         style={{
@@ -37,7 +39,7 @@ export function SettingsOverlay() {
           gap: 8,
           paddingHorizontal: 10,
           borderBottomWidth: 1,
-          borderBottomColor: colors.line,
+          borderBottomColor: token("line"),
         }}
       >
         <Press
@@ -46,10 +48,12 @@ export function SettingsOverlay() {
           scale={0.96}
           style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
         >
-          <Icon name="back" size={14} tint={colors.muted} />
-          <Text style={{ fontSize: 13, color: colors.muted }}>{t("settings.back")}</Text>
+          <Icon icon={ChevronLeft} size={14} tint={token("muted-foreground")} />
+          <Text style={{ fontSize: 13, color: token("muted-foreground") }}>
+            {t("settings.back")}
+          </Text>
         </Press>
-        <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: colors.text }}>
+        <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: token("foreground") }}>
           {t("settings.title")}
         </Text>
       </View>

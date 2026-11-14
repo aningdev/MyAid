@@ -1,12 +1,22 @@
-import { Text, View } from "nsh";
-import { Button, type DockAreaRef, type DockTab } from "nsh/base";
+import {
+  Maximize2,
+  Minimize2,
+  PanelBottom,
+  PanelRight,
+  SlidersHorizontal,
+  X,
+  type IconNode,
+} from "lucide";
+import { Text, View, token } from "nsh";
+import { type DockAreaRef, type DockTab } from "nsh/base";
 
 import { BotMark } from "../../features/bots/BotMark";
 import { openBotDetails } from "../../features/bots/details";
 import { registry } from "../../features/bots/state";
 import { sessionList } from "../../features/dialogue/session/runtime";
 import { t } from "../../lib/i18n";
-import { colors, Icon, type IconName } from "../ui";
+import { Icon } from "../../lib/icons";
+import { IconButton, iconButtonGlyph } from "../ui/button";
 import { activePanelId, panelBotId, panelTitle, splitPanel } from "./state";
 
 /**
@@ -33,14 +43,17 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
     <View
       testID={`tab-${tab.panel}`}
       class="border-border h-9 flex-row items-center gap-1 border-b px-2"
-      style={{ backgroundColor: active() ? colors.background : colors.inset }}
+      style={{ backgroundColor: active() ? token("background") : token("inset") }}
     >
       <If when={bot()}>
         {(current) => <BotMark identity={current().identity} size={16} working={working()} />}
       </If>
       <Text
         class="flex-1 text-[13px] font-medium"
-        style={{ numberOfLines: 1, color: active() ? colors.text : colors.muted }}
+        style={{
+          numberOfLines: 1,
+          color: active() ? token("foreground") : token("muted-foreground"),
+        }}
       >
         {title()}
       </Text>
@@ -55,19 +68,19 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
           {(current) => (
             <ChromeBtn
               label={t("panel.botDetails", { name: current().name })}
-              icon="sliders"
+              icon={SlidersHorizontal}
               onPress={() => openBotDetails(current().id)}
             />
           )}
         </If>
         <ChromeBtn
           label={t("panel.splitRight", { title: title() })}
-          icon="panel-right"
+          icon={PanelRight}
           onPress={() => splitPanel(tab.panel, "right")}
         />
         <ChromeBtn
           label={t("panel.splitDown", { title: title() })}
-          icon="panel-bottom"
+          icon={PanelBottom}
           onPress={() => splitPanel(tab.panel, "down")}
         />
         <ChromeBtn
@@ -76,13 +89,13 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
               ? t("panel.restore", { title: title() })
               : t("panel.zoom", { title: title() })
           }
-          icon={tab.zoomed ? "restore" : "maximize"}
+          icon={tab.zoomed ? Minimize2 : Maximize2}
           onPress={() => props.area?.toggleZoom(tab.group)}
         />
         <If when={tab.closable}>
           <ChromeBtn
             label={t("panel.close", { title: title() })}
-            icon="close"
+            icon={X}
             onPress={() => props.area?.closePanel(tab.panel)}
           />
         </If>
@@ -91,14 +104,10 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
   );
 }
 
-function ChromeBtn(props: { label: string; icon: IconName; onPress: () => void }) {
+function ChromeBtn(props: { label: string; icon: IconNode; onPress: () => void }) {
   return (
-    <Button
-      onPress={props.onPress}
-      accessibilityLabel={props.label}
-      class="hover:bg-accent size-7 items-center justify-center rounded-md"
-    >
-      <Icon name={props.icon} size={13} tint={colors.muted} />
-    </Button>
+    <IconButton onPress={props.onPress} accessibilityLabel={props.label}>
+      <Icon icon={props.icon} {...iconButtonGlyph()} />
+    </IconButton>
   );
 }

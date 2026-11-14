@@ -5,9 +5,11 @@
  * lifecycle owns start / stop / restart and each unit's registration owns
  * enable / stop.
  */
-import { effect, Scroll, Text, untracked, View, type JSX } from "nsh";
+import { effect, Scroll, Text, untracked, View, type JSX, token } from "nsh";
 
-import { Badge, Button, colors, finish, radius, type Tone } from "../../components/ui";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card as CardFrame, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import {
   enableBackgroundFromState,
   loadProductBackgroundState,
@@ -17,6 +19,7 @@ import {
   type RegistrationPhase,
 } from "../../lib/background";
 import { t } from "../../lib/i18n";
+import { finish, radius, type Tone } from "../../lib/theme";
 import {
   hostFacts,
   lifecycleLabel,
@@ -104,10 +107,10 @@ export function BackgroundSection() {
       contentStyle={{ padding: 20, gap: 16, maxWidth: 720 }}
     >
       <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+        <Text style={{ fontSize: 20, fontWeight: "600", color: token("foreground") }}>
           {t("settings.background.title")}
         </Text>
-        <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
+        <Text style={{ fontSize: 13, lineHeight: 19, color: token("muted-foreground") }}>
           {t("settings.background.note")}
         </Text>
       </View>
@@ -115,48 +118,53 @@ export function BackgroundSection() {
       <Card title={t("settings.background.hostCard")}>
         <View style={{ flexDirection: "row", gap: 12 }}>
           <View style={{ flex: 1, gap: 4, alignItems: "flex-start" }}>
-            <Text style={{ fontSize: 12, color: colors.muted }}>Host</Text>
-            <Badge
-              label={facts().reachable ? t("background.connected") : t("background.disconnected")}
-              tone={facts().reachable ? "up" : "neutral"}
-            />
+            <Text style={{ fontSize: 12, color: token("muted-foreground") }}>Host</Text>
+            <Badge tone={facts().reachable ? "up" : "neutral"}>
+              {facts().reachable ? t("background.connected") : t("background.disconnected")}
+            </Badge>
           </View>
           <View style={{ flex: 1, gap: 4, alignItems: "flex-start" }}>
-            <Text style={{ fontSize: 12, color: colors.muted }}>dsh web</Text>
-            <Badge
-              label={
-                facts().status?.phase
-                  ? lifecycleLabel(facts().status?.phase)
-                  : facts().reachable
-                    ? t("background.unknown")
-                    : t("background.notRunning")
-              }
-              tone={lifecycleTone(facts().status?.phase)}
-            />
+            <Text style={{ fontSize: 12, color: token("muted-foreground") }}>dsh web</Text>
+            <Badge tone={lifecycleTone(facts().status?.phase)}>
+              {facts().status?.phase
+                ? lifecycleLabel(facts().status?.phase)
+                : facts().reachable
+                  ? t("background.unknown")
+                  : t("background.notRunning")}
+            </Badge>
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: 12 }}>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 11, color: colors.muted }}>
+            <Text style={{ fontSize: 11, color: token("muted-foreground") }}>
               {t("settings.background.hostVersion")}
             </Text>
-            <Text testID="settings-host-version" style={{ fontSize: 13, color: colors.text }}>
+            <Text
+              testID="settings-host-version"
+              style={{ fontSize: 13, color: token("foreground") }}
+            >
               {facts().hostVersion ?? "—"}
             </Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 11, color: colors.muted }}>
+            <Text style={{ fontSize: 11, color: token("muted-foreground") }}>
               {t("settings.background.dshVersion")}
             </Text>
-            <Text testID="settings-dsh-version" style={{ fontSize: 13, color: colors.text }}>
+            <Text
+              testID="settings-dsh-version"
+              style={{ fontSize: 13, color: token("foreground") }}
+            >
               {facts().actualDsh ?? "—"}
             </Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 11, color: colors.muted }}>
+            <Text style={{ fontSize: 11, color: token("muted-foreground") }}>
               {t("settings.background.dshSupported")}
             </Text>
-            <Text testID="settings-dsh-supported" style={{ fontSize: 13, color: colors.text }}>
+            <Text
+              testID="settings-dsh-supported"
+              style={{ fontSize: 13, color: token("foreground") }}
+            >
               {facts().supportedDsh ?? "—"}
             </Text>
           </View>
@@ -164,19 +172,19 @@ export function BackgroundSection() {
         <If when={facts().mismatch}>
           <Text
             testID="settings-dsh-mismatch"
-            style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}
+            style={{ fontSize: 12, lineHeight: 18, color: token("destructive") }}
           >
             {facts().mismatch}
           </Text>
         </If>
         <If when={facts().errors.length > 0}>
           <View style={{ gap: 4 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
               {t("settings.background.recentErrors")}
             </Text>
             <Each of={facts().errors}>
               {(error) => (
-                <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>
+                <Text style={{ fontSize: 12, lineHeight: 18, color: token("destructive") }}>
                   {error()}
                 </Text>
               )}
@@ -185,42 +193,53 @@ export function BackgroundSection() {
         </If>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <Button
-            label={t("settings.background.startDsh")}
-            size="small"
-            variant="accent"
+            size="sm"
             disabled={!facts().reachable}
             onPress={() => void startBackground()}
-          />
+            accessibilityLabel={t("settings.background.startDsh")}
+          >
+            {t("settings.background.startDsh")}
+          </Button>
           <Button
-            label={t("settings.background.stopDsh")}
-            size="small"
+            size="sm"
             disabled={!facts().reachable}
+            variant="secondary"
             onPress={() => void stopBackground()}
-          />
+            accessibilityLabel={t("settings.background.stopDsh")}
+          >
+            {t("settings.background.stopDsh")}
+          </Button>
           <Button
-            label={t("settings.background.restartDsh")}
-            size="small"
+            size="sm"
             disabled={!facts().reachable}
+            variant="secondary"
             onPress={() => void restartBackground()}
-          />
+            accessibilityLabel={t("settings.background.restartDsh")}
+          >
+            {t("settings.background.restartDsh")}
+          </Button>
           <Button
-            label={t("common.refresh")}
-            size="small"
+            size="sm"
             variant="ghost"
             onPress={() => void loadHostFacts()}
-          />
+            accessibilityLabel={t("common.refresh")}
+          >
+            {t("common.refresh")}
+          </Button>
         </View>
       </Card>
 
       <Card title={t("settings.background.services")}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>{t("background.note")}</Text>
-          <Badge label={availabilityLabel(state().view?.availability)} />
+          <Text style={{ flex: 1, fontSize: 13, color: token("muted-foreground") }}>
+            {t("background.note")}
+          </Text>
+          <Badge>{availabilityLabel(state().view?.availability)}</Badge>
         </View>
         <If
           when={state().runnable}
           else={
-            <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
+            <Text style={{ fontSize: 13, lineHeight: 19, color: token("muted-foreground") }}>
               {t("background.desktopOnly")}
             </Text>
           }
@@ -243,20 +262,29 @@ export function BackgroundSection() {
               />
             </View>
             <If when={state().error}>
-              <Text style={{ fontSize: 13, color: colors.danger }}>{state().error}</Text>
+              <Text style={{ fontSize: 13, color: token("destructive") }}>{state().error}</Text>
             </If>
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
               <Button
-                label={t("background.enable")}
-                variant="accent"
                 onPress={() => void enableBackgroundFromState()}
-              />
-              <Button label={t("background.stop")} onPress={() => void stopBackgroundFromState()} />
+                accessibilityLabel={t("background.enable")}
+              >
+                {t("background.enable")}
+              </Button>
               <Button
-                label={t("common.refresh")}
+                variant="secondary"
+                onPress={() => void stopBackgroundFromState()}
+                accessibilityLabel={t("background.stop")}
+              >
+                {t("background.stop")}
+              </Button>
+              <Button
                 variant="ghost"
                 onPress={() => void refreshProductBackgroundState()}
-              />
+                accessibilityLabel={t("common.refresh")}
+              >
+                {t("common.refresh")}
+              </Button>
             </View>
           </View>
         </If>
@@ -281,18 +309,24 @@ function UnitPhase(props: {
         padding: 12,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: colors.line,
+        borderColor: token("line"),
       }}
     >
-      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>{props.unit}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
+        {props.unit}
+      </Text>
       <View testID={props.testID} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Badge label={phaseLabel(props.phase)} tone={phaseTone(props.phase)} />
+        <Badge tone={phaseTone(props.phase)}>{phaseLabel(props.phase)}</Badge>
       </View>
       <If when={props.reason}>
-        <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>{props.reason}</Text>
+        <Text style={{ fontSize: 12, lineHeight: 18, color: token("muted-foreground") }}>
+          {props.reason}
+        </Text>
       </If>
       <If when={props.error}>
-        <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>{props.error}</Text>
+        <Text style={{ fontSize: 12, lineHeight: 18, color: token("destructive") }}>
+          {props.error}
+        </Text>
       </If>
     </View>
   );
@@ -300,20 +334,11 @@ function UnitPhase(props: {
 
 function Card(props: { title: string; children: JSX.Element }) {
   return (
-    <View
-      style={{
-        gap: 10,
-        padding: 14,
-        borderRadius: radius.card,
-        borderCurve: "continuous",
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
-        ...finish.card,
-      }}
-    >
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>{props.title}</Text>
-      {props.children}
-    </View>
+    <CardFrame>
+      <CardHeader>
+        <CardTitle>{props.title}</CardTitle>
+      </CardHeader>
+      <CardContent>{props.children}</CardContent>
+    </CardFrame>
   );
 }

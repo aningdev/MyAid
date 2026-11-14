@@ -1,3 +1,4 @@
+import { ArrowDown } from "lucide";
 /**
  * The transcript: a virtualized list that follows the newest message while
  * the person is at the end, stops following when they scroll up (a "jump to
@@ -15,10 +16,13 @@ import {
   Text,
   View,
   type ViewStyle,
+  token,
 } from "nsh";
 
-import { alpha, colors, motion, RoundButton } from "../../../components/ui";
+import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
 import { t } from "../../../lib/i18n";
+import { Icon } from "../../../lib/icons";
+import { alpha, motion } from "../../../lib/theme";
 import type { Bot } from "../../bots/model";
 import { MessageRow, type RowHandlers } from "./MessageRow";
 import { DateSeparator, SegmentDivider } from "./parts";
@@ -92,7 +96,9 @@ export function Transcript(props: {
           header={() => (
             <If when={props.loadingOlder()}>
               <View style={{ alignItems: "center", paddingVertical: 10 }}>
-                <Text style={{ fontSize: 12, color: colors.faint }}>{t("chat.loadingOlder")}</Text>
+                <Text style={{ fontSize: 12, color: token("faint") }}>
+                  {t("chat.loadingOlder")}
+                </Text>
               </View>
             </If>
           )}
@@ -137,11 +143,13 @@ export function Transcript(props: {
           }}
         >
           <RoundButton
-            icon="arrow-down"
-            label={t("chat.jumpLatest")}
             variant="secondary"
+            side={32}
+            accessibilityLabel={t("chat.jumpLatest")}
             onPress={props.onJump}
-          />
+          >
+            <Icon icon={ArrowDown} {...roundButtonGlyph("secondary", { side: 32 })} />
+          </RoundButton>
           <If when={props.streaming()}>
             <View
               style={{
@@ -151,9 +159,9 @@ export function Transcript(props: {
                 width: 10,
                 height: 10,
                 borderRadius: 5,
-                backgroundColor: colors.accent,
+                backgroundColor: token("brand"),
                 borderWidth: 2,
-                borderColor: colors.background,
+                borderColor: token("background"),
               }}
             />
           </If>
@@ -169,7 +177,7 @@ export function Transcript(props: {
           right: 0,
           bottom: 0,
           height: 1,
-          backgroundColor: alpha(colors.text, 0.06),
+          backgroundColor: alpha(token("foreground"), 0.06),
           opacity: props.following() ? 0 : 1,
           transitionProperty: "opacity",
           transitionDuration: 150,

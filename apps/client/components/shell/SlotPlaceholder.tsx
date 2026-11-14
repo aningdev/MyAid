@@ -3,14 +3,16 @@
  * could not be read, and a first launch with no Bots. The Bots' Panes mount
  * `features/bots`; nothing here reads a domain.
  */
-import { keymap, Text, View } from "nsh";
+import { PanelsTopLeft, TriangleAlert } from "lucide";
+import { keymap, Text, View, token } from "nsh";
 
 import { BotMark } from "../../features/bots/BotMark";
 import { nextIdentity } from "../../features/bots/identity";
 import { openNewBot } from "../../features/bots/newBot";
 import { legacyRegistry, loadError, ready, registry } from "../../features/bots/state";
 import { t } from "../../lib/i18n";
-import { Button, colors, Icon } from "../ui";
+import { Icon } from "../../lib/icons";
+import { Button } from "../ui/button";
 
 export function SlotPlaceholder() {
   const firstLaunch = () =>
@@ -25,11 +27,11 @@ export function SlotPlaceholder() {
       }
     >
       <View class="flex-1 items-center justify-center gap-2 p-6">
-        <Icon name="diagnostics" size={24} tint={colors.danger} />
-        <Text class="text-sm font-medium" style={{ color: colors.text }}>
+        <Icon icon={TriangleAlert} size={24} tint={token("destructive")} />
+        <Text class="text-sm font-medium" style={{ color: token("foreground") }}>
           {t("empty.registryTitle")}
         </Text>
-        <Text class="text-xs" style={{ color: colors.muted, textAlign: "center" }}>
+        <Text class="text-xs" style={{ color: token("muted-foreground"), textAlign: "center" }}>
           {loadError()}
         </Text>
       </View>
@@ -40,11 +42,11 @@ export function SlotPlaceholder() {
 function EmptyPanel() {
   return (
     <View class="flex-1 items-center justify-center gap-2 p-6">
-      <Icon name="nav" size={24} tint={colors.faint} />
-      <Text class="text-sm font-medium" style={{ color: colors.muted }}>
+      <Icon icon={PanelsTopLeft} size={24} tint={token("faint")} />
+      <Text class="text-sm font-medium" style={{ color: token("muted-foreground") }}>
         {t("empty.panelTitle")}
       </Text>
-      <Text class="text-xs" style={{ color: colors.faint, textAlign: "center" }}>
+      <Text class="text-xs" style={{ color: token("faint"), textAlign: "center" }}>
         {t("empty.panelNote")}
       </Text>
     </View>
@@ -58,22 +60,24 @@ function Welcome() {
       <View style={{ alignItems: "center", gap: 14, maxWidth: 420 }}>
         <BotMark identity={nextIdentity(0)} size={56} />
         <View style={{ alignItems: "center", gap: 6 }}>
-          <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+          <Text style={{ fontSize: 20, fontWeight: "600", color: token("foreground") }}>
             {t("welcome.title")}
           </Text>
           <Text
             style={{
               fontSize: 13,
               lineHeight: 19,
-              color: colors.muted,
+              color: token("muted-foreground"),
               textAlign: "center",
             }}
           >
             {t("welcome.body")}
           </Text>
         </View>
-        <Button label={t("welcome.create")} variant="accent" onPress={openNewBot} />
-        <Text style={{ fontSize: 11, color: colors.faint }}>
+        <Button onPress={openNewBot} accessibilityLabel={t("welcome.create")}>
+          {t("welcome.create")}
+        </Button>
+        <Text style={{ fontSize: 11, color: token("faint") }}>
           {t("welcome.shortcut", { shortcut: keymap.label("mod+n") ?? "" })}
         </Text>
       </View>

@@ -7,7 +7,8 @@
  * that keeps exiting) this is the Host empty state: the launcher's status in
  * words and the command that starts one by hand.
  */
-import { signal, Text, View } from "nsh";
+import { SlidersHorizontal } from "lucide";
+import { signal, Text, View, token } from "nsh";
 
 import { hostConnection } from "../../features/dialogue/session/runtime";
 import {
@@ -16,7 +17,8 @@ import {
   MANUAL_HOST_COMMAND,
 } from "../../lib/host/launcher";
 import { t } from "../../lib/i18n";
-import { Button, colors, Icon } from "../ui";
+import { Icon } from "../../lib/icons";
+import { Button } from "../ui/button";
 import { hasHost, retryHost } from "./host";
 import { openSettings } from "./settings";
 
@@ -54,8 +56,8 @@ export function HostFooter() {
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderTopWidth: 1,
-        borderTopColor: colors.line,
-        backgroundColor: colors.inset,
+        borderTopColor: token("line"),
+        backgroundColor: token("inset"),
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -64,14 +66,14 @@ export function HostFooter() {
             width: 6,
             height: 6,
             borderRadius: 3,
-            backgroundColor: up() ? colors.up : failed() ? colors.danger : colors.faint,
+            backgroundColor: up() ? token("up") : failed() ? token("destructive") : token("faint"),
           }}
         />
         <View testID="host-status" style={{ flex: 1, minWidth: 0 }}>
           <Text
             style={{
               fontSize: 11,
-              color: colors.muted,
+              color: token("muted-foreground"),
               numberOfLines: 2,
             }}
           >
@@ -80,11 +82,13 @@ export function HostFooter() {
         </View>
         <If when={!up()}>
           <Button
-            label={t("common.retry")}
-            size="small"
+            size="sm"
             disabled={!hasHost || busy()}
             onPress={() => void retry()}
-          />
+            accessibilityLabel={t("common.retry")}
+          >
+            {t("common.retry")}
+          </Button>
         </If>
         <View
           role="button"
@@ -93,14 +97,14 @@ export function HostFooter() {
           hoverStyle={{ opacity: 0.7 }}
           style={{ width: 22, height: 22, alignItems: "center", justifyContent: "center" }}
         >
-          <Icon name="sliders" size={14} tint={colors.muted} />
+          <Icon icon={SlidersHorizontal} size={14} tint={token("muted-foreground")} />
         </View>
       </View>
       <If when={!up() && hasHost}>
         <Text
           style={{
             fontSize: 11,
-            color: colors.faint,
+            color: token("faint"),
             numberOfLines: 1,
           }}
         >

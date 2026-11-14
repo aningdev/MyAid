@@ -7,6 +7,20 @@
  * Enabled states read the active Pane and the live Session rows, so the menu
  * is rebuilt as they change (Shell runs the build in an `effect`).
  */
+import {
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
+  Pause,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  X,
+} from "lucide";
+import type { IconNode } from "lucide";
 import { signal } from "nsh";
 import type { CommandItem } from "nsh/base";
 import type { MenuItem } from "nsh/desktop";
@@ -21,7 +35,6 @@ import { controllerFor, sessionList } from "../../features/dialogue/session/runt
 import { newTopic } from "../../features/workspace/conversation";
 import { workspaces } from "../../features/workspace/state";
 import { t, type MessageKey } from "../../lib/i18n";
-import type { IconName } from "../ui";
 import { collectPanelIds } from "./dock";
 import { toggleNavOpen } from "./layout";
 import { requestNavSearchFocus } from "./navFilter";
@@ -49,7 +62,7 @@ export type ShellCommand = {
   shortcut?: string;
   /** Its place in the application menu; absent from the menu without it. */
   menu?: { section: CommandMenuSection; separatorBefore?: boolean };
-  icon: IconName;
+  icon: IconNode;
   /** Default true. */
   enabled?: () => boolean;
   /** The palette leaves it out (a command that is itself the palette). */
@@ -101,7 +114,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     keywords: ["create", "agent", "assistant"],
     shortcut: "mod+n",
     menu: { section: "File" },
-    icon: "spark",
+    icon: Sparkles,
     run: openNewBot,
   },
   {
@@ -110,7 +123,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     shortcut: "mod+w",
     menu: { section: "File", separatorBefore: true },
-    icon: "close",
+    icon: X,
     enabled: () => collectPanelIds(dockLayout().center).length > 1,
     run: closeActivePanel,
   },
@@ -121,7 +134,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     keywords: ["preferences", "providers", "background", "about"],
     shortcut: "mod+,",
     menu: { section: "File", separatorBefore: true },
-    icon: "sliders",
+    icon: SlidersHorizontal,
     run: openSettings,
   },
   {
@@ -131,7 +144,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     keywords: ["sidebar", "hide", "show"],
     shortcut: "mod+b",
     menu: { section: "View" },
-    icon: "sidebar",
+    icon: PanelLeft,
     run: toggleNavOpen,
   },
   {
@@ -141,7 +154,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     keywords: ["filter", "find", "sidebar"],
     shortcut: "mod+f",
     menu: { section: "View" },
-    icon: "search",
+    icon: Search,
     run: requestNavSearchFocus,
   },
   {
@@ -150,7 +163,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     shortcut: "mod+\\",
     menu: { section: "View", separatorBefore: true },
-    icon: "panel-right",
+    icon: PanelRight,
     run: () => {
       splitActivePanel("right");
     },
@@ -161,7 +174,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     shortcut: "mod+shift+\\",
     menu: { section: "View" },
-    icon: "panel-bottom",
+    icon: PanelBottom,
     run: () => {
       splitActivePanel("down");
     },
@@ -172,7 +185,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     shortcut: "mod+[",
     menu: { section: "View", separatorBefore: true },
-    icon: "back",
+    icon: ChevronLeft,
     enabled: () => collectPanelIds(dockLayout().center).length > 1,
     run: () => focusPanel(-1),
   },
@@ -182,7 +195,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     shortcut: "mod+]",
     menu: { section: "View" },
-    icon: "chevron",
+    icon: ChevronRight,
     enabled: () => collectPanelIds(dockLayout().center).length > 1,
     run: () => focusPanel(1),
   },
@@ -193,7 +206,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     keywords: ["go to", "jump", "search"],
     shortcut: "mod+k",
     menu: { section: "View", separatorBefore: true },
-    icon: "search",
+    icon: Search,
     inPalette: false,
     run: toggleCommandPalette,
   },
@@ -204,7 +217,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     keywords: ["cancel", "interrupt", "generating"],
     shortcut: "mod+.",
     menu: { section: "Chat" },
-    icon: "pause",
+    icon: Pause,
     enabled: () => commandContext().running,
     run: stopActive,
   },
@@ -214,7 +227,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     keywords: ["new topic", "new segment", "/new", "fresh", "conversation"],
     menu: { section: "Chat", separatorBefore: true },
-    icon: "chat",
+    icon: MessageSquare,
     enabled: () => commandContext().bot?.status === "ready",
     run: startNewTopic,
   },
@@ -224,7 +237,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     shortcut: "mod+l",
     menu: { section: "Chat" },
-    icon: "chat",
+    icon: MessageSquare,
     enabled: () => commandContext().sessionId !== null,
     run: focusComposer,
   },
@@ -234,7 +247,7 @@ export const COMMANDS: readonly ShellCommand[] = [
     group: "palette.group.commands",
     keywords: ["profile", "preset", "model", "skills", "plugins", "archive", "delete"],
     menu: { section: "Chat", separatorBefore: true },
-    icon: "sliders",
+    icon: SlidersHorizontal,
     enabled: () => commandContext().bot !== null,
     run: botDetails,
   },
@@ -336,9 +349,9 @@ export function paletteItems(): {
 }
 
 /** The icon a palette row shows: the command's, or the Bot's. */
-export function paletteIcon(id: string): IconName {
-  if (id.startsWith("cmd:")) return commandById(id.slice(4))?.icon ?? "search";
-  return "spark";
+export function paletteIcon(id: string): IconNode {
+  if (id.startsWith("cmd:")) return commandById(id.slice(4))?.icon ?? Search;
+  return Sparkles;
 }
 
 /** Choose a palette row: run a command, or open a Bot's Pane. */

@@ -6,8 +6,7 @@
  */
 import type { App } from "nsh/test";
 
-const SCRATCHPAD =
-  "/private/tmp/claude-501/-Users-zhuxining-Code-MyAid/fcf60928-6235-47f5-bea3-690051a88ab8/scratchpad";
+const SCRATCHPAD = "/Users/zhuxining/Code/MyAid-ui/.handoff/shots";
 
 /** The shell's pictures: welcome, marks, New Bot, palette, context menu. */
 export const SHOTS_SHELL = `${SCRATCHPAD}/pi-shots-shell`;

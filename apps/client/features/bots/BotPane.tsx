@@ -7,10 +7,13 @@
  * (a picked folder when it has none): a dsh Workspace, then its first
  * segment. Both need the Host; without one the refusal is shown.
  */
-import { signal, Text, View } from "nsh";
+import { MessageSquare, Sparkles } from "lucide";
+import { signal, Text, View, token } from "nsh";
 
-import { Badge, Button, colors, Icon } from "../../components/ui";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { t } from "../../lib/i18n";
+import { Icon } from "../../lib/icons";
 import { requestComposerFocus } from "../dialogue/chat/focus";
 import { ChatPane } from "../dialogue/ChatPane";
 import { controllerFor, sessionError } from "../dialogue/session/runtime";
@@ -38,7 +41,7 @@ export function BotPane(props: { panelId: string; botId: string }) {
   const segmentId = (): string | null => segment()?.segment.sessionId ?? null;
 
   return (
-    <View style={{ flex: 1, minHeight: 0, minWidth: 0, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, minHeight: 0, minWidth: 0, backgroundColor: token("background") }}>
       <If when={bot()} else={<Missing ready={() => ready()} />}>
         <If
           when={segmentId()}
@@ -59,12 +62,12 @@ export function BotPane(props: { panelId: string; botId: string }) {
 function Missing(props: { ready: () => boolean }) {
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 24 }}>
-      <Icon name="spark" size={24} tint={colors.faint} />
-      <Text style={{ fontSize: 14, fontWeight: "600", color: colors.muted }}>
+      <Icon icon={Sparkles} size={24} tint={token("faint")} />
+      <Text style={{ fontSize: 14, fontWeight: "600", color: token("muted-foreground") }}>
         {props.ready() ? t("bot.gone") : t("bot.readingRegistry")}
       </Text>
       <If when={props.ready()}>
-        <Text style={{ fontSize: 12, color: colors.faint, textAlign: "center" }}>
+        <Text style={{ fontSize: 12, color: token("faint"), textAlign: "center" }}>
           {t("bot.goneHint")}
         </Text>
       </If>
@@ -99,35 +102,45 @@ function NoSegment(props: { botId: string; onOpenDetails: () => void }) {
       style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}
     >
       <View style={{ alignItems: "center", gap: 12, maxWidth: 420 }}>
-        <Icon name="chat" size={24} tint={colors.faint} />
-        <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
+        <Icon icon={MessageSquare} size={24} tint={token("faint")} />
+        <Text style={{ fontSize: 16, fontWeight: "600", color: token("foreground") }}>
           {t("bot.noConversation", { name: bot()?.name ?? t("bot.thisBot") })}
         </Text>
-        <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted, textAlign: "center" }}>
+        <Text
+          style={{
+            fontSize: 12,
+            lineHeight: 18,
+            color: token("muted-foreground"),
+            textAlign: "center",
+          }}
+        >
           {bot()?.status === "ready" ? t("bot.noConversationHint") : t("bot.setupFirst")}
         </Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <If
             when={bot()?.status === "ready"}
             else={
-              <Button label={t("menu.botDetails")} variant="accent" onPress={props.onOpenDetails} />
+              <Button onPress={props.onOpenDetails} accessibilityLabel={t("menu.botDetails")}>
+                {t("menu.botDetails")}
+              </Button>
             }
           >
             <Button
-              label={busy() ? t("bot.starting") : t("bot.startConversation")}
-              variant="accent"
               disabled={!canStart()}
               onPress={() => void start()}
-            />
+              accessibilityLabel={busy() ? t("bot.starting") : t("bot.startConversation")}
+            >
+              {busy() ? t("bot.starting") : t("bot.startConversation")}
+            </Button>
           </If>
         </View>
         <If when={sessionError()}>
-          <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>
+          <Text style={{ fontSize: 12, lineHeight: 18, color: token("destructive") }}>
             {sessionError()}
           </Text>
         </If>
         <If when={!!bot()?.archived}>
-          <Badge label={t("bot.archivedBadge")} tone="neutral" />
+          <Badge tone="neutral">{t("bot.archivedBadge")}</Badge>
         </If>
       </View>
     </View>

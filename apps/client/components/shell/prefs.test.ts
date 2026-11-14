@@ -155,10 +155,26 @@ test("an invalid layout degrades to one empty panel", () => {
 test("the appearance and language round-trip, and an older file reads the defaults", () => {
   const prefs: ShellPrefs = {
     ...emptyShellPrefs(),
-    appearance: { scheme: "dark", accent: "violet", language: "en" },
+    appearance: { scheme: "dark", language: "en" },
   };
   const parsed = parseShellPrefs(serializeShellPrefs(prefs));
-  expect(parsed.appearance).toEqual({ scheme: "dark", accent: "violet", language: "en" });
+  expect(parsed.appearance).toEqual({ scheme: "dark", language: "en" });
+
+  // A file written when the client still had an accent colour loads, and the field is ignored.
+  const accented = parseShellPrefs(
+    JSON.stringify({
+      version: 2,
+      appearance: { scheme: "dark", accent: "violet", language: "en" },
+      nav: { width: 232, open: true },
+      pins: [],
+      workbench: {
+        layout: { center: { type: "tabs", panels: ["p1"], activeIndex: 0 } },
+        contents: { p1: null },
+        activePanelId: "p1",
+      },
+    }),
+  );
+  expect(accented.appearance).toEqual({ scheme: "dark", language: "en" });
 
   const before = parseShellPrefs(
     JSON.stringify({
@@ -172,12 +188,12 @@ test("the appearance and language round-trip, and an older file reads the defaul
       },
     }),
   );
-  expect(before.appearance).toEqual({ scheme: "system", accent: "default", language: "system" });
+  expect(before.appearance).toEqual({ scheme: "system", language: "system" });
 
   const invalid = parseShellPrefs(
     JSON.stringify({
       version: 2,
-      appearance: { scheme: "sepia", accent: "chartreuse", language: "fr" },
+      appearance: { scheme: "sepia", language: "fr" },
       nav: { width: 232, open: true },
       pins: [],
       workbench: {
@@ -187,5 +203,5 @@ test("the appearance and language round-trip, and an older file reads the defaul
       },
     }),
   );
-  expect(invalid.appearance).toEqual({ scheme: "system", accent: "default", language: "system" });
+  expect(invalid.appearance).toEqual({ scheme: "system", language: "system" });
 });

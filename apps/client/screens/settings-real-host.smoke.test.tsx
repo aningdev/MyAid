@@ -88,18 +88,18 @@ test("a fake key round-trips, fields and the default model read back, appearance
     t("providers.currentModel", { provider: "deepseek-official", model: "deepseek-v4-pro" }),
   );
 
-  // General: apply and persist the dark scheme and the violet accent.
+  // General: apply and persist the dark scheme.
   await app.press("id:settings-nav-general");
   await app.waitFor("id:settings-general");
+  await app.press(`text:${t("appearance.light")}`);
+  const light = app.spanStyle(`text:${t("settings.general.note")}`).color;
   await app.press(`text:${t("appearance.dark")}`);
-  await app.press(`label:${t("settings.accent.pick", { label: t("accent.violet") })}`);
   await app.waitUntil(() => {
     const prefs = app.storage()["myaid.prefs.shell"] ?? "";
-    return prefs.includes('"scheme": "dark"') && prefs.includes('"accent": "violet"');
+    return prefs.includes('"scheme": "dark"');
   });
-  expect(String(app.spanStyle(`text:${t("settings.accent.text")}`).color).toLowerCase()).toContain(
-    "a78bfa",
-  );
+  const dark = app.spanStyle(`text:${t("settings.general.note")}`).color;
+  expect(dark).not.toBe(light);
 
   // About: the versions the Host reports.
   await app.press("id:settings-nav-about");
@@ -113,7 +113,7 @@ test("a fake key round-trips, fields and the default model read back, appearance
   expect(copied).toContain(`dsh: ${SUPPORTED_DSH}`);
   await shoot(app, "settings-about-real.png", SHOTS_L3);
 
-  // A relaunch on the prefs it wrote keeps the dark palette and the accent.
+  // A relaunch on the prefs it wrote keeps the dark palette.
   const again = await open("../App.tsx", {
     width: 1440,
     height: 900,
@@ -124,7 +124,5 @@ test("a fake key round-trips, fields and the default model read back, appearance
   await again.waitFor("id:settings-overlay");
   await again.press("id:settings-nav-general");
   await again.waitFor("id:settings-general");
-  expect(
-    String(again.spanStyle(`text:${t("settings.accent.text")}`).color).toLowerCase(),
-  ).toContain("a78bfa");
+  expect(again.spanStyle(`text:${t("settings.general.note")}`).color).toBe(dark);
 }, 900000);

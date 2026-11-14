@@ -4,11 +4,13 @@
  * a command is not written twice; the `Command` of `nsh/base` owns filtering,
  * the keyboard and what screen readers hear.
  */
-import { effect, keymap, signal, Text, View } from "nsh";
+import { Check, Search } from "lucide";
+import { effect, keymap, signal, Text, View, token } from "nsh";
 import { Command, Dialog, type CommandEntry } from "nsh/base";
 
 import { t } from "../../lib/i18n";
-import { alpha, colors, finish, Icon, radius } from "../ui";
+import { Icon } from "../../lib/icons";
+import { alpha, radius } from "../../lib/theme";
 import {
   closeCommandPalette,
   commandPaletteOpen,
@@ -52,7 +54,7 @@ export function CommandPalette() {
       onOpenChange={({ open: next }) => {
         if (!next) closeCommandPalette();
       }}
-      backdropStyle={{ backgroundColor: alpha(colors.text, 0.28) }}
+      backdropStyle={{ backgroundColor: alpha(token("foreground"), 0.28) }}
       style={{
         marginHorizontal: "auto",
         marginTop: "12%",
@@ -77,22 +79,22 @@ export function CommandPalette() {
           searchBarClass="flex-row items-center gap-2 border-b border-border px-3"
           searchClass="h-11 flex-1 text-sm"
           searchStyle={{
-            color: colors.text,
-            placeholderColor: colors.faint,
-            caretColor: colors.accent,
+            color: token("foreground"),
+            placeholderColor: token("faint"),
+            caretColor: token("brand"),
           }}
           listClass="max-h-96 p-1.5"
           groupClass="px-2 pt-2.5 pb-1"
           itemClass="group rounded-md border border-transparent transition-colors duration-100 motion-reduce:transition-none hover:bg-accent focus:border-ring/40 focus:bg-accent active:opacity-80 disabled:opacity-40"
           separatorClass="-mx-1.5 my-1 h-px bg-border"
-          searchPrefix={<Icon name="search" size={16} tint={colors.muted} />}
+          searchPrefix={<Icon icon={Search} size={16} tint={token("muted-foreground")} />}
           empty={
             <Text
               style={{
                 paddingVertical: 24,
                 textAlign: "center",
                 fontSize: 13,
-                color: colors.muted,
+                color: token("muted-foreground"),
               }}
             >
               {t("palette.nothing")}
@@ -104,7 +106,7 @@ export function CommandPalette() {
                 fontSize: 11,
                 fontWeight: "600",
                 letterSpacing: 0.6,
-                color: colors.faint,
+                color: token("faint"),
               }}
             >
               {group.heading.toLocaleUpperCase()}
@@ -114,7 +116,7 @@ export function CommandPalette() {
           footer={
             <View
               class="flex-row items-center gap-4 border-t px-3"
-              style={{ height: 32, borderTopColor: colors.line }}
+              style={{ height: 32, borderTopColor: token("line") }}
             >
               <Hint label={t("palette.hintMove")} />
               <Hint label={t("palette.hintOpen")} />
@@ -140,13 +142,13 @@ function PaletteRow(props: { entry: CommandEntry }) {
         paddingHorizontal: 8,
       }}
     >
-      <Icon name={paletteIcon(props.entry.id)} size={16} tint={colors.muted} />
+      <Icon icon={paletteIcon(props.entry.id)} size={16} tint={token("muted-foreground")} />
       <Text
         style={{
           flex: 1,
           minWidth: 0,
           fontSize: 13,
-          color: colors.text,
+          color: token("foreground"),
           numberOfLines: 1,
         }}
       >
@@ -160,24 +162,30 @@ function PaletteRow(props: { entry: CommandEntry }) {
             justifyContent: "center",
             borderRadius: 4,
             borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.raised,
+            borderColor: token("border"),
+            backgroundColor: token("raised"),
           }}
         >
-          <Text style={{ fontSize: 11, color: colors.muted, fontVariant: ["tabular-nums"] }}>
+          <Text
+            style={{
+              fontSize: 11,
+              color: token("muted-foreground"),
+              fontVariant: ["tabular-nums"],
+            }}
+          >
             {props.entry.shortcutLabel}
           </Text>
         </View>
       </If>
       <If when={props.entry.checked}>
-        <Icon name="check" size={14} tint={colors.text} />
+        <Icon icon={Check} size={14} tint={token("foreground")} />
       </If>
     </View>
   );
 }
 
 function Hint(props: { label: string }) {
-  return <Text style={{ fontSize: 11, color: colors.faint }}>{props.label}</Text>;
+  return <Text style={{ fontSize: 11, color: token("faint") }}>{props.label}</Text>;
 }
 
 function labelOf(id: string): string {
@@ -189,8 +197,7 @@ function paletteCardStyle() {
   return {
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...finish.menu,
+    borderColor: token("border"),
+    backgroundColor: token("popover"),
   };
 }

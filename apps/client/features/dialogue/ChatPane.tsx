@@ -6,6 +6,7 @@
  * working row's clock — and the send / stop / retry actions.
  */
 import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
+import { Sparkles } from "lucide";
 import {
   batch,
   Clipboard,
@@ -17,11 +18,13 @@ import {
   Text,
   untracked,
   View,
+  token,
 } from "nsh";
 import { LayoutAnimation } from "nsh";
 
-import { alpha, Appear, colors, IconTile, Press, radius } from "../../components/ui";
+import { Appear, IconTile, Press } from "../../components/app";
 import { t } from "../../lib/i18n";
+import { alpha, radius } from "../../lib/theme";
 import { BotMark } from "../bots/BotMark";
 import { segmentOwner } from "../bots/model";
 import { conversationOf, sessionLabel, type ConversationSegment } from "../bots/sessions";
@@ -902,7 +905,7 @@ export function ChatPane(props: {
   return (
     <View
       testID="chat"
-      style={{ flex: 1, minHeight: 0, backgroundColor: colors.background }}
+      style={{ flex: 1, minHeight: 0, backgroundColor: token("background") }}
       onFileDragEnter={() => dragging.set(true)}
       onFileDragLeave={() => dragging.set(false)}
       onFileDrop={(event) => void drop(event.uris, event.mimeTypes)}
@@ -933,18 +936,18 @@ export function ChatPane(props: {
             paddingVertical: 8,
             borderRadius: radius.control,
             borderCurve: "continuous",
-            backgroundColor: alpha(colors.danger, 0.1),
+            backgroundColor: alpha(token("destructive"), 0.1),
             borderWidth: 1,
-            borderColor: alpha(colors.danger, 0.3),
+            borderColor: alpha(token("destructive"), 0.3),
           }}
         >
-          <Text style={{ flex: 1, fontSize: 12, color: colors.text }}>{banner()}</Text>
+          <Text style={{ flex: 1, fontSize: 12, color: token("foreground") }}>{banner()}</Text>
           <Press
             onPress={() => void connectSession()}
             accessibilityLabel={t("chat.reconnect")}
             scale={0.96}
           >
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: token("brand") }}>
               {t("common.retry")}
             </Text>
           </Press>
@@ -956,14 +959,22 @@ export function ChatPane(props: {
           <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 16 }}>
             <Appear>
               <View style={{ alignItems: "center", gap: 10, maxWidth: 420, alignSelf: "center" }}>
-                <If when={bot()} else={<IconTile name="spark" tint={colors.accent} size={48} />}>
+                <If
+                  when={bot()}
+                  else={<IconTile icon={Sparkles} tint={token("brand")} size={48} />}
+                >
                   {(current) => <BotMark identity={current().identity} size={48} />}
                 </If>
-                <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+                <Text style={{ fontSize: 17, fontWeight: "600", color: token("foreground") }}>
                   {t("chat.messageBot", { name: botName() })}
                 </Text>
                 <Text
-                  style={{ fontSize: 13, lineHeight: 19, color: colors.muted, textAlign: "center" }}
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 19,
+                    color: token("muted-foreground"),
+                    textAlign: "center",
+                  }}
                 >
                   {native ? t("chat.promptsHost") : t("chat.needsHost")}
                 </Text>
@@ -997,7 +1008,12 @@ export function ChatPane(props: {
       </If>
       <If when={!!dropTrouble()}>
         <Text
-          style={{ paddingHorizontal: 16, paddingBottom: 4, fontSize: 12, color: colors.danger }}
+          style={{
+            paddingHorizontal: 16,
+            paddingBottom: 4,
+            fontSize: 12,
+            color: token("destructive"),
+          }}
         >
           {dropTrouble()}
         </Text>
@@ -1025,14 +1041,14 @@ export function ChatPane(props: {
             borderRadius: radius.card,
             borderCurve: "continuous",
             borderWidth: 2,
-            borderColor: colors.accent,
-            backgroundColor: alpha(colors.accent, 0.06),
+            borderColor: token("brand"),
+            backgroundColor: alpha(token("brand"), 0.06),
             alignItems: "center",
             justifyContent: "center",
             pointerEvents: "none",
           }}
         >
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.accent }}>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: token("brand") }}>
             {t("chat.dropFiles")}
           </Text>
         </View>

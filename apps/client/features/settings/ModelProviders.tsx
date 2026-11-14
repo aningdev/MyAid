@@ -4,21 +4,17 @@
  * describes it, its key is the credentials Remote's, and the default model is
  * the namespace dsh stores. Nothing here hard-codes a provider or a field.
  */
-import { effect, Scroll, signal, Text, untracked, View, type JSX } from "nsh";
-import { Input } from "nsh/base";
+import { effect, Scroll, signal, Text, untracked, View, type JSX, token } from "nsh";
 
-import {
-  Badge,
-  Button,
-  colors,
-  finish,
-  mono,
-  Press,
-  radius,
-  Segmented,
-  toneTint,
-} from "../../components/ui";
+import { Press } from "../../components/app";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card as CardFrame, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Field, FieldLabel } from "../../components/ui/field";
+import { Input } from "../../components/ui/input";
+import { Segmented, SegmentedItem, SegmentedList } from "../../components/ui/segmented";
 import { t } from "../../lib/i18n";
+import { finish, mono, radius, toneTint } from "../../lib/theme";
 import type { ProviderField } from "./providerModel";
 import {
   credentialLabel,
@@ -64,10 +60,10 @@ export function ProvidersSection() {
   return (
     <View testID="settings-providers" style={{ flex: 1, minHeight: 0 }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 12, gap: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+        <Text style={{ fontSize: 20, fontWeight: "600", color: token("foreground") }}>
           {t("providers.title")}
         </Text>
-        <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
+        <Text style={{ fontSize: 13, lineHeight: 19, color: token("muted-foreground") }}>
           {t("providers.note")}
         </Text>
       </View>
@@ -79,39 +75,47 @@ export function ProvidersSection() {
               padding: 14,
               borderRadius: radius.card,
               borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-              ...finish.card,
+              borderColor: token("border"),
+              backgroundColor: token("card"),
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: token("foreground") }}>
               {state().phase === "unavailable" ? providersNeedHost() : t("providers.unreadable")}
             </Text>
             <Text
               testID="settings-providers-reason"
-              style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}
+              style={{ fontSize: 13, lineHeight: 19, color: token("muted-foreground") }}
             >
               {state().error ?? t("providers.hostDown")}
             </Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button label={t("common.retry")} size="small" onPress={() => void loadProviders()} />
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => void loadProviders()}
+                accessibilityLabel={t("common.retry")}
+              >
+                {t("common.retry")}
+              </Button>
             </View>
           </View>
         </View>
       </If>
       <If when={state().phase === "loading"}>
-        <Text style={{ paddingHorizontal: 20, fontSize: 13, color: colors.muted }}>
+        <Text style={{ paddingHorizontal: 20, fontSize: 13, color: token("muted-foreground") }}>
           {t("providers.loading")}
         </Text>
       </If>
       <If when={state().phase === "ready"}>
         <View style={{ flex: 1, minHeight: 0, flexDirection: "row" }}>
           <ProviderList selected={selected} />
-          <View style={{ flex: 1, minWidth: 0, borderLeftWidth: 1, borderLeftColor: colors.line }}>
+          <View
+            style={{ flex: 1, minWidth: 0, borderLeftWidth: 1, borderLeftColor: token("line") }}
+          >
             <If
               when={active()}
               else={
-                <Text style={{ padding: 20, fontSize: 13, color: colors.muted }}>
+                <Text style={{ padding: 20, fontSize: 13, color: token("muted-foreground") }}>
                   {t("providers.pick")}
                 </Text>
               }
@@ -158,11 +162,11 @@ function ProviderList(props: { selected: ReturnType<typeof signal<string | null>
 function GroupLabel(props: { label: string; note?: string }) {
   return (
     <View style={{ flexDirection: "row", paddingHorizontal: 8, paddingTop: 10, paddingBottom: 4 }}>
-      <Text style={{ flex: 1, fontSize: 11, fontWeight: "600", color: colors.faint }}>
+      <Text style={{ flex: 1, fontSize: 11, fontWeight: "600", color: token("faint") }}>
         {props.label}
       </Text>
       <If when={props.note}>
-        <Text style={{ fontSize: 11, color: colors.faint }}>{props.note}</Text>
+        <Text style={{ fontSize: 11, color: token("faint") }}>{props.note}</Text>
       </If>
     </View>
   );
@@ -172,8 +176,8 @@ function ProviderName(props: { row: ProviderRow; selected: boolean; onPress: () 
   const label = () =>
     props.row.account ? t("providers.account") : credentialLabel(props.row.credential);
   const tone = () => {
-    if (props.row.account) return colors.muted;
-    return props.row.credential?.configured ? colors.up : colors.faint;
+    if (props.row.account) return token("muted-foreground");
+    return props.row.credential?.configured ? token("up") : token("faint");
   };
   return (
     <Press
@@ -196,7 +200,7 @@ function ProviderName(props: { row: ProviderRow; selected: boolean; onPress: () 
           width: 6,
           height: 6,
           borderRadius: 3,
-          backgroundColor: props.row.entry.active ? colors.up : colors.faint,
+          backgroundColor: props.row.entry.active ? token("up") : token("faint"),
         }}
       />
       <View style={{ flex: 1, gap: 1 }}>
@@ -204,7 +208,7 @@ function ProviderName(props: { row: ProviderRow; selected: boolean; onPress: () 
           style={{
             fontSize: 13,
             fontWeight: props.selected ? "600" : "400",
-            color: colors.text,
+            color: token("foreground"),
             numberOfLines: 1,
           }}
         >
@@ -281,19 +285,18 @@ function ProviderEditor(props: { row: ProviderRow }) {
     <Scroll style={{ flex: 1 }} contentStyle={{ padding: 20, gap: 16, maxWidth: 680 }}>
       <View style={{ gap: 4 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: colors.text }}>
+          <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: token("foreground") }}>
             {props.row.entry.displayName}
           </Text>
-          <Badge
-            label={props.row.entry.active ? t("providers.enabled") : t("providers.notEnabled")}
-            tone={props.row.entry.active ? "up" : "neutral"}
-          />
+          <Badge tone={props.row.entry.active ? "up" : "neutral"}>
+            {props.row.entry.active ? t("providers.enabled") : t("providers.notEnabled")}
+          </Badge>
         </View>
-        <Text style={{ fontSize: 12, color: colors.faint, fontFamily: mono }}>
+        <Text style={{ fontSize: 12, color: token("faint"), fontFamily: mono }}>
           {props.row.entry.provider}
         </Text>
         <If when={props.row.entry.error}>
-          <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>
+          <Text style={{ fontSize: 12, lineHeight: 18, color: token("destructive") }}>
             {props.row.entry.error}
           </Text>
         </If>
@@ -304,73 +307,64 @@ function ProviderEditor(props: { row: ProviderRow }) {
         else={
           <Card title="API Key">
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>
+              <Text style={{ flex: 1, fontSize: 13, color: token("muted-foreground") }}>
                 {t("providers.state")}
               </Text>
-              <Badge
-                label={credentialLabel(props.row.credential)}
-                tone={props.row.credential?.configured ? "up" : "neutral"}
-              />
+              <Badge tone={props.row.credential?.configured ? "up" : "neutral"}>
+                {credentialLabel(props.row.credential)}
+              </Badge>
             </View>
             <View style={{ gap: 6 }}>
-              <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
-                {t("providers.apiKey")}
-              </Text>
-              <Input
-                testID="settings-provider-key"
-                accessibilityLabel={t("providers.apiKeyLabel", {
-                  name: props.row.entry.displayName,
-                })}
-                masked
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="off"
-                value={key()}
-                placeholder={
-                  props.row.credential?.configured ? t("providers.apiKeyReplace") : "sk-…"
-                }
-                onChange={(event) => key.set(event.value)}
-                style={{
-                  height: 40,
-                  fontSize: 14,
-                  color: colors.text,
-                  backgroundColor: colors.field,
-                  borderWidth: 1,
-                  borderColor: colors.fieldBorder,
-                  borderRadius: radius.control,
-                  borderCurve: "continuous",
-                  paddingHorizontal: 12,
-                  placeholderColor: colors.faint,
-                }}
-              />
-              <Text style={{ fontSize: 11, lineHeight: 16, color: colors.faint }}>
+              <Field>
+                <FieldLabel>{t("providers.apiKey")}</FieldLabel>
+                <Input
+                  testID="settings-provider-key"
+                  accessibilityLabel={t("providers.apiKeyLabel", {
+                    name: props.row.entry.displayName,
+                  })}
+                  masked
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  value={key()}
+                  placeholder={
+                    props.row.credential?.configured ? t("providers.apiKeyReplace") : "sk-…"
+                  }
+                  onChange={(event) => key.set(event.value)}
+                />
+              </Field>
+              <Text style={{ fontSize: 11, lineHeight: 16, color: token("faint") }}>
                 {t("providers.keyRef", { ref: props.row.keyRef })}
               </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <Button
-                  label={t("providers.saveKey")}
-                  variant="accent"
-                  size="small"
+                  size="sm"
                   disabled={!canWriteKey() || busy() || !key().trim()}
                   onPress={() => {
                     void saveProviderKey(props.row.entry.provider, key()).then((saved) => {
                       if (saved) key.set("");
                     });
                   }}
-                />
+                  accessibilityLabel={t("providers.saveKey")}
+                >
+                  {t("providers.saveKey")}
+                </Button>
                 <Button
-                  label={t("providers.clearKey")}
-                  size="small"
+                  size="sm"
                   disabled={!canWriteKey() || busy() || !props.row.credential?.configured}
+                  variant="secondary"
                   onPress={() => void clearProviderKey(props.row.entry.provider)}
-                />
+                  accessibilityLabel={t("providers.clearKey")}
+                >
+                  {t("providers.clearKey")}
+                </Button>
               </View>
             </View>
           </Card>
         }
       >
         <Card title={t("providers.accountCard")}>
-          <Text style={{ fontSize: 13, lineHeight: 19, color: colors.muted }}>
+          <Text style={{ fontSize: 13, lineHeight: 19, color: token("muted-foreground") }}>
             {t("providers.accountNote")}
           </Text>
         </Card>
@@ -380,7 +374,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
         <If
           when={base()}
           else={
-            <Text style={{ fontSize: 12, lineHeight: 18, color: colors.faint }}>
+            <Text style={{ fontSize: 12, lineHeight: 18, color: token("faint") }}>
               {t("providers.noBaseUrl")}
             </Text>
           }
@@ -406,7 +400,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
               advanced() ? t("providers.collapseAdvanced") : t("providers.expandAdvanced")
             }
           >
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
               {advanced()
                 ? t("providers.collapseAdvanced")
                 : t("providers.expandAdvancedCount", { count: others().length })}
@@ -436,22 +430,27 @@ function ProviderEditor(props: { row: ProviderRow }) {
         </If>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <If when={localError()}>
-            <Text style={{ flex: 1, fontSize: 12, color: colors.danger }}>{localError()}</Text>
+            <Text style={{ flex: 1, fontSize: 12, color: token("destructive") }}>
+              {localError()}
+            </Text>
           </If>
           <If when={!localError()}>
             <View style={{ flex: 1 }} />
           </If>
           <Button
-            label={t("providers.saveFields")}
-            size="small"
+            size="sm"
             disabled={
               !canWriteSettings() || busy() || !Object.values(dirty()).some((isDirty) => isDirty)
             }
+            variant="secondary"
             onPress={() => void saveFields()}
-          />
+            accessibilityLabel={t("providers.saveFields")}
+          >
+            {t("providers.saveFields")}
+          </Button>
         </View>
         <If when={!state().writable}>
-          <Text style={{ fontSize: 12, lineHeight: 18, color: colors.warn }}>
+          <Text style={{ fontSize: 12, lineHeight: 18, color: token("warn") }}>
             {t("providers.readOnly")}
           </Text>
         </If>
@@ -481,33 +480,36 @@ function ProviderFieldInput(props: {
   if (props.field.kind === "boolean") {
     return (
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Text style={{ flex: 1, fontSize: 12, color: colors.muted }}>{props.field.key}</Text>
+        <Text style={{ flex: 1, fontSize: 12, color: token("muted-foreground") }}>
+          {props.field.key}
+        </Text>
         <Segmented
-          size="small"
-          options={[
-            { value: "false", label: t("common.off") },
-            { value: "true", label: t("common.on") },
-          ]}
           value={props.value === true ? "true" : "false"}
-          onChange={(value) => props.onChange(value === "true")}
-        />
+          onValueChange={(value) => props.onChange(value === "true")}
+        >
+          <SegmentedList>
+            <SegmentedItem value="false">{t("common.off")}</SegmentedItem>
+            <SegmentedItem value="true">{t("common.on")}</SegmentedItem>
+          </SegmentedList>
+        </Segmented>
       </View>
     );
   }
   if (props.field.kind === "choice" && props.field.choices) {
     return (
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {props.field.key}
         </Text>
-        <Segmented
-          size="small"
-          options={props.field.choices}
-          value={String(props.value)}
-          onChange={(value) => props.onChange(value)}
-        />
+        <Segmented value={String(props.value)} onValueChange={(value) => props.onChange(value)}>
+          <SegmentedList fill>
+            <Each of={props.field.choices}>
+              {(choice) => <SegmentedItem value={choice().value}>{choice().label}</SegmentedItem>}
+            </Each>
+          </SegmentedList>
+        </Segmented>
         <If when={props.field.description}>
-          <Text style={{ fontSize: 11, lineHeight: 16, color: colors.faint }}>
+          <Text style={{ fontSize: 11, lineHeight: 16, color: token("faint") }}>
             {props.field.description}
           </Text>
         </If>
@@ -516,7 +518,7 @@ function ProviderFieldInput(props: {
   }
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
         {props.field.key}
       </Text>
       <Input
@@ -531,18 +533,18 @@ function ProviderFieldInput(props: {
         style={{
           height: 38,
           fontSize: 13,
-          color: colors.text,
-          backgroundColor: colors.field,
+          color: token("foreground"),
+          backgroundColor: token("field"),
           borderWidth: 1,
-          borderColor: colors.fieldBorder,
+          borderColor: token("input"),
           borderRadius: radius.control,
           borderCurve: "continuous",
           paddingHorizontal: 10,
-          placeholderColor: colors.faint,
+          placeholderColor: token("faint"),
         }}
       />
       <If when={props.field.description}>
-        <Text style={{ fontSize: 11, lineHeight: 16, color: colors.faint }}>
+        <Text style={{ fontSize: 11, lineHeight: 16, color: token("faint") }}>
           {props.field.description}
         </Text>
       </If>
@@ -563,7 +565,7 @@ function DefaultModelCard() {
   const saving = () => state().busy === "default";
   return (
     <Card title={t("providers.defaultModel")}>
-      <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>
+      <Text style={{ fontSize: 12, lineHeight: 18, color: token("muted-foreground") }}>
         {current()
           ? t("providers.currentModel", {
               provider: current()!.provider,
@@ -574,7 +576,7 @@ function DefaultModelCard() {
       <If
         when={options().length > 0}
         else={
-          <Text style={{ fontSize: 12, lineHeight: 18, color: colors.faint }}>
+          <Text style={{ fontSize: 12, lineHeight: 18, color: token("faint") }}>
             {t("providers.noModels")}
           </Text>
         }
@@ -607,11 +609,13 @@ function DefaultModelCard() {
                       width: 6,
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: chosen() ? colors.accentFill : colors.faint,
+                      backgroundColor: chosen() ? token("brand-fill") : token("faint"),
                     }}
                   />
-                  <Text style={{ flex: 1, fontSize: 13, color: colors.text }}>{option().name}</Text>
-                  <Text style={{ fontSize: 11, color: colors.faint }}>
+                  <Text style={{ flex: 1, fontSize: 13, color: token("foreground") }}>
+                    {option().name}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: token("faint") }}>
                     {`${option().providerName} / ${option().model}`}
                   </Text>
                 </Press>
@@ -629,12 +633,15 @@ function StatusLine() {
   return (
     <>
       <If when={state().message}>
-        <Text testID="settings-providers-message" style={{ fontSize: 12, color: colors.up }}>
+        <Text testID="settings-providers-message" style={{ fontSize: 12, color: token("up") }}>
           {state().message}
         </Text>
       </If>
       <If when={state().actionError}>
-        <Text testID="settings-providers-error" style={{ fontSize: 12, color: colors.danger }}>
+        <Text
+          testID="settings-providers-error"
+          style={{ fontSize: 12, color: token("destructive") }}
+        >
           {state().actionError}
         </Text>
       </If>
@@ -644,20 +651,11 @@ function StatusLine() {
 
 function Card(props: { title: string; children: JSX.Element }) {
   return (
-    <View
-      style={{
-        gap: 10,
-        padding: 14,
-        borderRadius: radius.card,
-        borderCurve: "continuous",
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
-        ...finish.card,
-      }}
-    >
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>{props.title}</Text>
-      {props.children}
-    </View>
+    <CardFrame>
+      <CardHeader>
+        <CardTitle>{props.title}</CardTitle>
+      </CardHeader>
+      <CardContent>{props.children}</CardContent>
+    </CardFrame>
   );
 }

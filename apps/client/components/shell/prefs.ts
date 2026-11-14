@@ -19,15 +19,13 @@ import { platform, signal } from "nsh";
 import { Storage } from "nsh";
 import type { DockAreaLayout, DockNode } from "nsh/base";
 
-import {
-  ACCENTS,
-  APPEARANCE_SCHEMES,
-  appearanceNow,
-  applyAppearance,
-  type AccentChoice,
-  type AppearanceScheme,
-} from "../../components/ui/appearance";
 import type { BotRegistry } from "../../features/bots/model";
+import {
+  APPEARANCE_SCHEMES,
+  applyScheme,
+  appearanceScheme,
+  type AppearanceScheme,
+} from "../../lib/appearance";
 import { prefsPath, usesTestStorage } from "../../lib/data-root";
 import { LANGUAGES, languagePref, setLanguagePref, type LanguagePref } from "../../lib/i18n";
 import {
@@ -57,7 +55,6 @@ export type ShellPrefs = {
   /** The General page's appearance and language, never dsh's settings. */
   appearance: {
     scheme: AppearanceScheme;
-    accent: AccentChoice;
     language: LanguagePref;
   };
   workbench: {
@@ -77,7 +74,7 @@ export function emptyShellPrefs(): ShellPrefs {
     version: SHELL_PREFS_VERSION,
     nav: { width: NAV_DEFAULT_WIDTH, open: true },
     pins: [],
-    appearance: { scheme: "system", accent: "default", language: "system" },
+    appearance: { scheme: "system", language: "system" },
     workbench: {
       layout: emptyLayout("panel-1"),
       contents: { "panel-1": null },
@@ -95,7 +92,7 @@ export function collectShellPrefs(): ShellPrefs {
       open: navOpen(),
     },
     pins: [...pins()],
-    appearance: { ...appearanceNow(), language: languagePref() },
+    appearance: { scheme: appearanceScheme(), language: languagePref() },
     workbench: {
       layout: dockLayout(),
       contents: Object.fromEntries(
@@ -117,7 +114,7 @@ export function collectShellPrefs(): ShellPrefs {
 export function applyShellPrefs(prefs: ShellPrefs, registry: BotRegistry): void {
   setNavWidth(clampWidth(prefs.nav.width));
   setNavOpen(prefs.nav.open);
-  applyAppearance({ scheme: prefs.appearance.scheme, accent: prefs.appearance.accent });
+  applyScheme(prefs.appearance.scheme);
   setLanguagePref(prefs.appearance.language);
   const known = new Set(registry.bots.map((bot) => bot.id));
   setPins(prefs.pins.filter((id) => known.has(id)));
@@ -351,20 +348,19 @@ function parsePins(value: unknown): string[] {
 /**
  * The appearance section, or the defaults: a file written before the section
  * existed, or a value this build does not offer, keeps the default rather
- * than putting the palette in a state no control can leave.
+ * than putting the palette in a state no control can leave. A file written
+ * when the client still had an accent colour keeps loading: the field is
+ * ignored.
  */
 function parseAppearance(value: unknown): ShellPrefs["appearance"] {
   const record = isRecord(value) ? value : {};
   const scheme = APPEARANCE_SCHEMES.some((entry) => entry.id === record.scheme)
     ? (record.scheme as AppearanceScheme)
     : "system";
-  const accent = ACCENTS.some((entry) => entry.id === record.accent)
-    ? (record.accent as AccentChoice)
-    : "default";
   const language = LANGUAGES.some((entry) => entry.id === record.language)
     ? (record.language as LanguagePref)
     : "system";
-  return { scheme, accent, language };
+  return { scheme, language };
 }
 
 /**
