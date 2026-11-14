@@ -24,7 +24,8 @@
     "package:gpui": "bun run prepare:sdk && nsh package --target gpui",
     "package:ios": "bun run prepare:sdk && nsh package --target ios",
     "package:android": "bun run prepare:sdk && nsh package --target android",
-    "test": "bun run prepare:sdk && nsh test"
+    "test": "bun run prepare:sdk && nsh test",
+    "ui:diff": "bun ./scripts/ui-diff.mjs"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
@@ -45,6 +46,7 @@
     "@myaid/dsh-web-protocol": "workspace:*",
     "dsh-bot-presets": "workspace:*",
     "immer": "^10.1.1",
+    "lucide": "1.66.0",
     "zustand": "~4.5.7"
   }
 }
