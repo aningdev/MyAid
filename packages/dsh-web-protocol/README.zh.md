@@ -6,7 +6,7 @@
 
 - **消费者：** 仅 [`apps/client`](../../apps/client/README.zh.md)。
 - **插件（`myaid-plugin-*`）：** **不要**依赖本包。按官方 `@deepseek-ai/dsh-*` 的 Host / Cordis 形态直接依赖。
-- **真源：** 已发布 npm `@deepseek-ai/dsh-*`，版本钉与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 一致（当前 `0.2.2-rc.1`）。勿用 npm `latest`（常是很旧的 RC）。勿从 `references/deepseek-harness` 抄类型。
+- **真源：** 已发布 npm `@deepseek-ai/dsh-*`，版本钉与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 一致（该文件是版本的唯一真源）。勿用 npm `latest`（常是很旧的 RC）。勿从 `references/deepseek-harness` 抄类型。
 
 本包**无运行时**。入口是对官方 `./types` 的 `export type`，以及对 `.../remote` 的 `export type {}`（供 declaration merge）。
 

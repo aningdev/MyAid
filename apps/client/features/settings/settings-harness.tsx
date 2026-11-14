@@ -11,7 +11,12 @@ import { AppShell } from "../../components/AppShell";
 import { backgroundAvailability, type RegistrationPhase } from "../../lib/background/protocol";
 import { setHostRegistrationTransport } from "../../lib/host/registration";
 import { setRelayRegistrationTransport } from "../../lib/relay/registration";
-import { createHostFactsFixture, createSettingsFixture } from "../../test/settings-fixtures";
+import {
+  createHostFactsFixture,
+  createSettingsFixture,
+  mismatchReason,
+  UNSUPPORTED_DSH,
+} from "../../test/settings-fixtures";
 import { setHostFactsSource } from "./hostFacts";
 import { setProvidersSource } from "./providers";
 
@@ -60,9 +65,9 @@ setHostFactsSource(
   createHostFactsFixture(
     host.params.mismatch === true
       ? {
-          dshVersion: "0.2.2-rc.1",
+          dshVersion: UNSUPPORTED_DSH,
           phase: "failed",
-          reason: "官方 dsh 版本不兼容：实际 0.2.2-rc.1，需要 0.2.2-rc.2",
+          reason: mismatchReason(UNSUPPORTED_DSH),
         }
       : {},
   ),

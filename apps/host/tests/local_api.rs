@@ -38,18 +38,29 @@ impl Drop for Host {
     }
 }
 
+/// The dsh version the Host pins (`apps/host/supported-dsh.json`), the one a real dsh must
+/// answer on `--version`. Read rather than repeated, so a version move touches no test literal.
+fn pinned_dsh() -> String {
+    let pin: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/supported-dsh.json"))
+            .expect("read supported-dsh.json"),
+    )
+    .expect("supported-dsh.json json");
+    pin["version"].as_str().expect("pinned version").to_owned()
+}
+
 fn fake_dsh(root: &Path) -> std::path::PathBuf {
     let path = root.join("fake-dsh");
     // `--version` answers the pinned version; a start reports itself ready and stays up.
-    std::fs::write(
-        &path,
+    let script = format!(
         "#!/bin/sh\n\
-         if [ \"$1\" = \"--version\" ]; then echo '0.2.2-rc.2'; exit 0; fi\n\
+         if [ \"$1\" = \"--version\" ]; then echo '{}'; exit 0; fi\n\
          echo 'dsh-host-pid: 4242'\n\
          echo 'dsh web: http://127.0.0.1:9876/?token=secret'\n\
          sleep 60\n",
-    )
-    .expect("write fake dsh");
+        pinned_dsh()
+    );
+    std::fs::write(&path, script).expect("write fake dsh");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -241,8 +252,8 @@ fn starting_dsh_reports_the_lifecycle_and_its_ready_url() {
     let reported: serde_json::Value = serde_json::from_str(&body).expect("status json");
     assert_eq!(reported["phase"], "ready");
     assert_eq!(reported["pid"], 4242);
-    assert_eq!(reported["version"], "0.2.2-rc.2");
-    assert_eq!(reported["dshVersion"], "0.2.2-rc.2");
+    assert_eq!(reported["version"], pinned_dsh());
+    assert_eq!(reported["dshVersion"], pinned_dsh());
     assert_eq!(reported["hostVersion"], env!("CARGO_PKG_VERSION"));
     assert!(reported.get("url").is_none());
 

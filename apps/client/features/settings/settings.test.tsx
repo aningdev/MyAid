@@ -7,6 +7,7 @@ import { expect, test } from "nsh/test";
 
 import { t } from "../../lib/i18n";
 import { open } from "../../test/open";
+import { SUPPORTED_DSH, UNSUPPORTED_DSH } from "../../test/settings-fixtures";
 
 const desktop = { platform: "macos" as const, width: 1100, height: 800 };
 
@@ -155,12 +156,12 @@ test("About shows the versions and copies diagnostics without secrets", async ()
   await app.press("id:settings-nav-about");
   await app.waitFor("id:settings-about");
   expect(app.texts()).toContain("0.1.0");
-  expect(app.texts()).toContain("0.2.2-rc.2");
+  expect(app.texts()).toContain(SUPPORTED_DSH);
   await app.press(`label:${t("settings.about.copy")}`);
   const copied = app.clipboard() ?? "";
   expect(copied).toContain("MyAid: 0.1.0");
   expect(copied).toContain("Host: 0.1.0");
-  expect(copied).toContain("dsh: 0.2.2-rc.2");
+  expect(copied).toContain(`dsh: ${SUPPORTED_DSH}`);
   expect(copied).toContain(t("diagnostics.hostState", { state: t("background.connected") }));
 });
 
@@ -171,7 +172,7 @@ test("Background shows the Host and dsh versions and starts, stops and restarts 
   await app.waitFor("id:settings-host-version");
   expect(app.shows("id:settings-host-version")).toBe(true);
   expect(app.texts()).toContain("0.1.0");
-  expect(app.texts().filter((text) => text === "0.2.2-rc.2").length).toBeGreaterThanOrEqual(2);
+  expect(app.texts().filter((text) => text === SUPPORTED_DSH).length).toBeGreaterThanOrEqual(2);
   expect(app.texts()).toContain(t("lifecycle.ready"));
 
   await app.press(`label:${t("settings.background.stopDsh")}`);
@@ -184,10 +185,10 @@ test("a dsh version mismatch names both versions and why the Host refuses", asyn
   const app = await openSettings({ ...desktop, host: { params: { mismatch: true } } });
   await app.press("id:settings-nav-background");
   await app.waitFor("id:settings-dsh-mismatch");
-  expect(app.texts()).toContain("0.2.2-rc.1");
-  expect(app.texts()).toContain("0.2.2-rc.2");
+  expect(app.texts()).toContain(UNSUPPORTED_DSH);
+  expect(app.texts()).toContain(SUPPORTED_DSH);
   expect(app.texts().join(" ")).toContain(
-    t("background.mismatch", { actual: "0.2.2-rc.1", supported: "0.2.2-rc.2" }),
+    t("background.mismatch", { actual: UNSUPPORTED_DSH, supported: SUPPORTED_DSH }),
   );
 });
 

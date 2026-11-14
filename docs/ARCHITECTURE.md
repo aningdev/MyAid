@@ -85,14 +85,15 @@ apps/host/src/
 
 已知缺口与候选插件：
 
-| 缺口                                     | 候选                                                   | 影响                                                                                       |
-| ---------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| Bot identity 只在本机                    | `myaid-plugin-bot-identity`（或 session metadata）     | identity 不能跨设备同步                                                                    |
-| 审批没有 “Always allow”                  | approval-policy 插件                                   | 每次审批都要人点                                                                           |
-| prompt receipt 不带 queue item id        | 向 dsh 提需求                                          | Withdraw 依赖 `inbox` 投影回报 item id                                                     |
-| 无凭据时 Session 模型目录为空            | 无（dsh 的凭据门控）                                   | 设置页的默认模型退回供应商设置里公布的 `models` 与当前值                                   |
-| 默认模型没有专用 Remote                  | 用 `settings.update` 写 `agent-default-model` 命名空间 | 命名空间 id 是 profile 条目 id，设置页按 schema 发现                                       |
-| 凭据文件在 `$DSH_HOME/.credentials.yaml` | dsh `credentials-local` 的设计                         | Key 只在该文件内（数据根即 dsh home）；MyAid 注册表 / prefs / 日志与 Client 内存都不含 Key |
+| 缺口                                     | 候选                                                          | 影响                                                                                       |
+| ---------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Bot identity 只在本机                    | `myaid-plugin-bot-identity`（或 session metadata）            | identity 不能跨设备同步                                                                    |
+| 审批没有 “Always allow”                  | approval-policy 插件                                          | 每次审批都要人点                                                                           |
+| prompt receipt 不带 queue item id        | 向 dsh 提需求                                                 | Withdraw 依赖 `inbox` 投影回报 item id                                                     |
+| 无凭据时 Session 模型目录为空            | 无（dsh 的凭据门控）                                          | 设置页的默认模型退回供应商设置里公布的 `models` 与当前值                                   |
+| 默认模型没有专用 Remote                  | 用 `settings.update` 写 `agent-default-model` 命名空间        | 命名空间 id 是 profile 条目 id，设置页按 schema 发现                                       |
+| 凭据文件在 `$DSH_HOME/.credentials.yaml` | dsh `credentials-local` 的设计                                | Key 只在该文件内（数据根即 dsh home）；MyAid 注册表 / prefs / 日志与 Client 内存都不含 Key |
+| 历史会话没有导入入口（rc.3 起）          | 官方 `dsh-deepseek-chat-import`（实验性，默认关闭，仅 owner） | 从 deepseek_data ZIP 导入的会话只能落在 Workspace 里；Client 既没有按钮也没有对应 UI       |
 
 Known limitations：NSH 标准 websocket 在 8 条未读消息时暂停读取；dsh mux 连续 2 次未收到 pong（2 s 心跳）即断开。重连已全部归官方 client model（每代 generation 原子替换窗口），产品侧不再自建退避重跟。实测与细节在 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。
 

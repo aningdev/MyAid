@@ -10,11 +10,26 @@ import type {
   SettingsNamespaceView,
 } from "@myaid/dsh-web-protocol/settings";
 
+import dshPin from "../../host/supported-dsh.json";
 import type { HostFactsSource } from "../features/settings/hostFacts";
 import type { ProvidersSource } from "../features/settings/providers";
 import type { FlatModelCatalog } from "../lib/dsh/connection";
 import type { ModelProviderEntry } from "../lib/dsh/providers";
 import type { LauncherStatus } from "../lib/host/launcher";
+
+/**
+ * The dsh version the Host pins, read from `apps/host/supported-dsh.json` rather
+ * than repeated: a version move must not touch a test literal.
+ */
+export const SUPPORTED_DSH: string = dshPin.version;
+
+/** A dsh the Host refuses, for the mismatch paths. */
+export const UNSUPPORTED_DSH = "0.2.2-rc.1";
+
+/** The reason a Host reports when the installed dsh is not the pinned one. */
+export function mismatchReason(actual: string): string {
+  return `官方 dsh 版本不兼容：实际 ${actual}，需要 ${SUPPORTED_DSH}`;
+}
 
 /** One serialized Schemastery object schema, built by hand. */
 export function schema(object: Record<string, object>): unknown {
@@ -217,13 +232,13 @@ export function createHostFactsFixture(
   } = {},
 ): HostFactsSource & { phase: string } {
   let phase = options.phase ?? "ready";
-  let dshVersion = options.dshVersion === undefined ? "0.2.2-rc.2" : options.dshVersion;
+  let dshVersion = options.dshVersion === undefined ? SUPPORTED_DSH : options.dshVersion;
   let reason = options.reason ?? null;
   const status = () => ({
     phase,
     generation: phase === "ready" ? "gen" : null,
     pid: phase === "ready" ? 4242 : null,
-    version: options.supported ?? "0.2.2-rc.2",
+    version: options.supported ?? SUPPORTED_DSH,
     hostVersion: "0.1.0",
     dshVersion,
     reason,
@@ -249,7 +264,7 @@ export function createHostFactsFixture(
     restart: async () => {
       phase = "ready";
       reason = null;
-      dshVersion = options.dshVersion === undefined ? "0.2.2-rc.2" : options.dshVersion;
+      dshVersion = options.dshVersion === undefined ? SUPPORTED_DSH : options.dshVersion;
       return status() as never;
     },
     launcher: () => launcher,

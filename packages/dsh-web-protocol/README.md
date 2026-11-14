@@ -6,7 +6,7 @@ English | [中文](README.zh.md)
 
 - **Consumer:** [`apps/client`](../../apps/client) only.
 - **Plugins (`myaid-plugin-*`):** do **not** depend on this package. Use official `@deepseek-ai/dsh-*` Host / Cordis forms directly.
-- **Source of truth:** published npm `@deepseek-ai/dsh-*`, pinned to the same version as [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) (currently `0.2.2-rc.1`). Never use npm `latest` (often an ancient RC). Never copy types from `references/deepseek-harness`.
+- **Source of truth:** published npm `@deepseek-ai/dsh-*`, pinned to the same version as [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json), the single source of that version. Never use npm `latest` (often an ancient RC). Never copy types from `references/deepseek-harness`.
 
 This package has **no runtime**. Entries are `export type` over official `./types` plus `export type {} from '.../remote'` for declaration merges.
 

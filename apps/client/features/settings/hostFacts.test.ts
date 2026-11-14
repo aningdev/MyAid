@@ -1,6 +1,11 @@
 import { afterEach, expect, test } from "nsh/test";
 
-import { createHostFactsFixture } from "../../test/settings-fixtures";
+import {
+  createHostFactsFixture,
+  mismatchReason,
+  SUPPORTED_DSH,
+  UNSUPPORTED_DSH,
+} from "../../test/settings-fixtures";
 import {
   hostFacts,
   loadHostFacts,
@@ -20,24 +25,24 @@ test("the Host's public status carries both versions and the phase", async () =>
   const facts = await loadHostFacts();
   expect(facts.phase).toBe("ready");
   expect(facts.hostVersion).toBe("0.1.0");
-  expect(facts.actualDsh).toBe("0.2.2-rc.2");
-  expect(facts.supportedDsh).toBe("0.2.2-rc.2");
+  expect(facts.actualDsh).toBe(SUPPORTED_DSH);
+  expect(facts.supportedDsh).toBe(SUPPORTED_DSH);
   expect(facts.mismatch).toBe(null);
 });
 
 test("a version mismatch names the actual and supported dsh", async () => {
   setHostFactsSource(
     createHostFactsFixture({
-      dshVersion: "0.2.2-rc.1",
+      dshVersion: UNSUPPORTED_DSH,
       phase: "failed",
-      reason: "官方 dsh 版本不兼容：实际 0.2.2-rc.1，需要 0.2.2-rc.2",
+      reason: mismatchReason(UNSUPPORTED_DSH),
     }),
   );
   const facts = await loadHostFacts();
-  expect(facts.actualDsh).toBe("0.2.2-rc.1");
-  expect(facts.supportedDsh).toBe("0.2.2-rc.2");
-  expect(facts.mismatch).toContain("0.2.2-rc.1");
-  expect(facts.mismatch).toContain("0.2.2-rc.2");
+  expect(facts.actualDsh).toBe(UNSUPPORTED_DSH);
+  expect(facts.supportedDsh).toBe(SUPPORTED_DSH);
+  expect(facts.mismatch).toContain(UNSUPPORTED_DSH);
+  expect(facts.mismatch).toContain(SUPPORTED_DSH);
   expect(facts.errors.join(" ")).toContain("版本不兼容");
 });
 

@@ -72,6 +72,10 @@ The other real-Host smokes (`real-turn`, `new-bot-real-host`, `bot-app`,
 `session-restart` still expects
 `screens/host-restart-watch.mjs --after-turns 1` to stop the Host mid-turn.
 
+`settings-real-host` writes a provider base URL into the scratch root's dsh
+settings (the profile's `cordis.patch.yml`), which a later smoke on that same
+root would then call models through: give it a scratch root of its own.
+
 Then stop the Host and delete the scratch root: it holds a copy of the dsh
 credentials. A headless run stops at the picture probe.
 
