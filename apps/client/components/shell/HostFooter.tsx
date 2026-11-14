@@ -83,6 +83,7 @@ export function HostFooter() {
         <If when={!up()}>
           <Button
             size="sm"
+            variant="secondary"
             disabled={!hasHost || busy()}
             onPress={() => void retry()}
             accessibilityLabel={t("common.retry")}
