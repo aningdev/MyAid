@@ -13,7 +13,7 @@
 ## 布局（NSH TSX）
 
 - 本目录是纯 TSX 应用：`App.tsx` 入口，`nsh.json` 无 `"rust"` 键，没有 `Cargo.toml` / `src/`（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。原生层是 `lib/host` / `lib/relay` 里的回环 HTTP / WebSocket 客户端与启动器。
-- `components/` 是壳与样式：壳在 `components/shell/`（UI 与状态同目录），样式层在 `components/ui/`；`features/` 放产品域，由 Pane 按 Bot id 挂；`lib/` 放协议、宿主与产品后台适配。
+- `components/` 是壳与样式：壳在 `components/shell/`（UI 与状态同目录），组件层 `components/ui/`（只放 shadcn-nsh 复制件）与 `components/app/`（产品组合）；`features/` 放产品域，由 Pane 按 Bot id 挂；`lib/` 放协议、宿主与产品后台适配。
 - 不另起平行 `frontend/{ui,application,infrastructure}` 树。新增文件先落现有目录；线框不混入产品路径。
 
 ## TSX 与运行时
@@ -27,6 +27,7 @@
 
 - **UI 文案只有 `lib/i18n/messages.ts`**：组件不持有字面界面文案，一律经 `lib/i18n` 的 `t(key, values)`；新增文案先加 zh + en 两栏（键为类型，缺键 `nsh check` 失败）。语言偏好（跟随系统 / 简体中文 / English）与 `locale()` 的读取同在 `lib/i18n`，`跟随系统` 把 `zh*` 读作简体中文、其余读作 English。用户内容、产品与专名、dsh 自己返回的正文与文件路径不进目录、不翻译（细则见 [ARCHITECTURE §5](../../docs/ARCHITECTURE.md)）。
 - **组件来自 [shadcn-nsh](https://github.com/aningdev/shadcn-nsh)**（本地 `~/Code/shadcn-nsh`）：`components/ui` 只放经它的 CLI `add` 复制进来的文件，主题、外观、状态都归它。选型顺序：shadcn-nsh 组件 → 用 shadcn-nsh 组件拼的产品组合（`components/app/`）→ 已核实缺口的最小自定义；功能模块不直连 `nsh/base` 的有样式控件。
+- **复制件的出入只走 CLI**：`bun run ui:diff` 核对 `components/ui` 与 `~/Code/shadcn-nsh` 是否一致（不一致就 `add --overwrite` 拉回，不在本仓打补丁）；`vp fmt` 不碰这些复制件与 `theme.json`（见 `vite.config.ts` 的 fmt ignore）。图标一律 `import { X } from "lucide"`，经 `lib/icons` 的 `Icon` 画。
 - **只调间距与布局**：复制进来的文件不改；MyAid 只在调用处用 `class` / `style` 定间距、尺寸与排布，不写颜色字面量、不覆盖组件外观。组件缺功能或有缺陷，到 shadcn-nsh 提 [issue](https://github.com/aningdev/shadcn-nsh/issues)，修好后 `add --overwrite` 拉回，不在本仓打补丁。
 - **主题与配色只经 shadcn-nsh 主题**：浅色 / 深色 / 跟随系统是客户端偏好；颜色方案选的是 shadcn-nsh 发布的主题，本仓不另造调色板或强调色覆盖。
 - 布局原语与运行时（`View` / `Text` / `signal` / `mount` / `token`…）从 `nsh` 引入。
@@ -60,6 +61,7 @@
 ## 验证
 
 - 应用生命周期走官方 `nsh check` / `nsh test`；工作区编排用 `vp run @myaid/client#…`。命令清单在 README。
+- 组件层改动：`nsh check` → 相关 `nsh test <file>` → 收尾跑 `nsh test --target macos`（截图落在 `.handoff/shots`，不进 `/tmp`）→ `bun run ui:diff` 必须是 `No differences.`。
 - Bun 单测不能证明 NSH 权限或原生绑定；触及这些能力时用 `nsh test` / 集成入口。
 - 真 Host 冒烟是 opt-in（`MYAID_SMOKE_HOST`）；默认 `nsh test` 不得需要活 Host。测试应用（`test/open.ts` 的标记）**不得**探本机控制面端口、不得 spawn `myaid-host`：判据在 `lib/data-root.ts` 的 `hostControlAllowed`，护栏测试 `test/host-control.test.tsx`。
 - 测试隔离：所有打开 app 的测试经 [`test/open`](test/open.ts)（`nsh test` 的 host 参数 `myaidTest`），注册表与 prefs 落到该 app 的 Storage，绝不用真实 `~/.myaid`；`test/data-root.test.tsx` 是这条 seam 的 guard。没有 Host 的 app 测试用 [`test/workspaces`](test/workspaces.ts) 预置 Workspace baseline（与 dsh 发出的帧同形），生产路径只读 `workspace.follow`。

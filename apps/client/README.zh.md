@@ -11,7 +11,8 @@ apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
 │   ├── shell/                  # Navigator（扁平 Bot 列表）、Pane 分屏、设置覆盖层、命令表、偏好、注意
-│   └── ui/                     # 样式化基础层（唯一包装 nsh/base）
+│   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Press、Appear、IconTile）
+│   └── ui/                     # shadcn-nsh 复制件（只经其 CLI add）；theme.json 即主题
 ├── features/                   # bots（注册表、Pane、详情弹窗）、dialogue（chat、段）、workspace、settings
 ├── lib/                        # dsh、host、relay、background
 ├── screens/                    # open(…) 入口、截图、真 Host 冒烟（opt-in）
