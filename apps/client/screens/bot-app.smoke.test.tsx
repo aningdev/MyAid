@@ -21,6 +21,7 @@ import { homedir } from "os";
 import { expect, test } from "nsh/test";
 
 import { SHELL_PREFS_STORAGE } from "../components/shell/prefs";
+import { t } from "../lib/i18n";
 import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_L1 } from "./shots";
 
@@ -86,9 +87,9 @@ test("two Bots in two Panes, a Pin, a drag-in, a restart and a details edit", as
   await send(app, SLOW("L1-B"), 0);
   // Two Stop buttons, two working rows: the overlap itself.
   await app.waitFor("label:Stop generating >> nth=1", { timeout: 120000 });
-  expect(app.count("text:Working…")).toBe(2);
+  expect(app.count(`text:${t("chat.working")}`)).toBe(2);
   await shoot(app, "02-list-pin-working.png", SHOTS_L1);
-  await app.waitFor("text:Working…", { state: "gone", timeout: 600000 });
+  await app.waitFor(`text:${t("chat.working")}`, { state: "gone", timeout: 600000 });
   await app.waitFor("label:Stop generating", { state: "gone", timeout: 120000 });
 
   // Bot details: a rename saves in the registry, and the list and Pane follow.

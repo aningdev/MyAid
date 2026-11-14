@@ -84,6 +84,9 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
         },
         { when: "always", passThrough: true },
       ),
+      // The rail's Return jumps the transcript; a text input keeps its own
+      // Return (the composer sends on it), so this must not claim it while one
+      // is editing.
       keymap.bind(
         "return",
         () => {
@@ -91,7 +94,7 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
           const index = cursor();
           if (index >= 0) choose(index);
         },
-        { when: "always" },
+        { when: "notEditing" },
       ),
     ];
     cleanup(() => {
