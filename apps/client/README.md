@@ -24,17 +24,18 @@ apps/client/
 From the repo root with `vp run` (do not use `bun --cwd`):
 
 ```sh
-vp run @myaid/client#check
-vp run @myaid/client#dev              # = dev:macos
-vp run @myaid/client#dev:macos
+vp run @myaid/client#check            # nsh check + nsh build
+vp run @myaid/client#dev              # desktop, starts the Host
+vp run @myaid/client#dev:macos        # also dev:windows / dev:linux / dev:gpui
 vp run @myaid/client#dev:web
+vp run @myaid/client#dev:mobile       # Mac Catalyst
 vp run @myaid/client#dev:ios
 vp run @myaid/client#dev:android
 vp run @myaid/client#dev:server       # nsh dev --server-only
 vp run @myaid/client#test
 vp run @myaid/client#build            # bytecode (nsh build)
-vp run @myaid/client#package:macos    # .nsh/out/MyAid.app
-vp run @myaid/client#package:web
+vp run @myaid/client#package:macos    # .nsh/out/MyAid.app, then runs it
+vp run @myaid/client#package:web      # also package:windows / linux / gpui / ios / android
 ```
 
 - Day-to-day UI: `nsh run --target …` via the `dev*` scripts above.
@@ -97,10 +98,10 @@ Not translated, by design: what a person typed and what a Bot is called (Bot nam
 
 There is no Rust in this app ([ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)). The Host is loopback HTTP + one WebSocket on `127.0.0.1:4872` (`MYAID_HOST_PORT`), authenticated by `<data root>/host/serve-token`; the Relay has its own at `127.0.0.1:8787` with `relay/serve-token`.
 
-- `lib/host/launcher.ts` starts the Host when none answers (`myaid-host serve-app`), reuses one that does, and starts it again after an exit (1 s doubling to 15 s). It needs `myaid-host` on `PATH`; `cargo build -p myaid-host` puts it in `target/debug`, and `scripts/run-with-host-path.mjs` puts that folder first for `dev` / `dev:macos`. Prefer repo-root `bun run dev`, which builds the Host first.
+- `lib/host/launcher.ts` starts the Host when none answers (`myaid-host serve-app`), reuses one that does, and starts it again after an exit (1 s doubling to 15 s). It needs `myaid-host` on `PATH`; `cargo build -p myaid-host` puts it in `target/debug`, and `scripts/run-with-host-path.mjs` puts that folder first for the desktop `dev*` scripts (`dev`, `dev:macos`, `dev:windows`, `dev:linux`, `dev:gpui`). Prefer repo-root `bun run dev`, which builds the Host first.
 - `lib/host/client.ts` is the transport (`fetch` + standard `WebSocket`); `lib/host/control.ts` is the product surface (`ensureBackendReady`, `resolveDshLoginUrl`, `watchHostStatus`). The Host's public status also carries `hostVersion` and the `dshVersion` its guardian found, which Background and About show.
 - The sidebar footer is the Host empty state when the launcher cannot run one: its reason plus the manual `myaid-host serve-app`.
-- `dev:ios` / `dev:android` / `dev:web` / `dev:server` / `package:*` start no Host — mobile goes through the Relay, not the local Host.
+- `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` start no Host — mobile goes through the Relay, not the local Host.
 
 ## Related
 
