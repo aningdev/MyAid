@@ -4,7 +4,7 @@
  * (Return allows, Escape denies, unless a text input has the keyboard).
  * Answered, it folds into a one-line record of what was decided.
  */
-import { TriangleAlert } from "lucide";
+import { Check, TriangleAlert, X } from "lucide";
 import { cleanup, effect, keymap, signal, Text, View, token } from "nsh";
 
 import { Button } from "../../../components/ui/button";
@@ -13,7 +13,6 @@ import { Icon } from "../../../lib/icons";
 import { alpha, radius, toneTint } from "../../../lib/theme";
 import type { ApprovalRequest } from "../session/claimed";
 import type { SessionController } from "../session/controller";
-import { Glyph } from "./glyphs";
 
 type Answered = { tool: string; allowed: boolean };
 
@@ -95,10 +94,7 @@ function Card(props: {
         </Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Button
-          onPress={() => props.onAnswer(true)}
-          accessibilityLabel={t("chat.allowOnce")}
-        >
+        <Button onPress={() => props.onAnswer(true)} accessibilityLabel={t("chat.allowOnce")}>
           {t("chat.allowOnce")}
         </Button>
         <Button
@@ -133,8 +129,8 @@ function AnsweredLine(props: { record: () => Answered | null }) {
           backgroundColor: token("inset"),
         }}
       >
-        <Glyph
-          name={props.record()?.allowed ? "check" : "close"}
+        <Icon
+          icon={props.record()?.allowed ? Check : X}
           size={12}
           tint={props.record()?.allowed ? token("up") : token("muted-foreground")}
         />

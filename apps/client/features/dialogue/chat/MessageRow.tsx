@@ -15,7 +15,6 @@ import { Icon } from "../../../lib/icons";
 import { finish } from "../../../lib/theme";
 import type { Bot } from "../../bots/model";
 import { ImageViewer } from "../ImageViewer";
-import { Glyph } from "./glyphs";
 import { Markdown } from "./markdown";
 import { ActionButton, Avatar, Caret, ErrorRow, FileChip, Photo, Spinner } from "./parts";
 import { assistantParts, groupsSteps, type Assistant, type Row } from "./rows";

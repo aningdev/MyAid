@@ -11,7 +11,6 @@ import { Press } from "../../../components/app";
 import { t, type MessageKey } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, isDark, mono, radius, toneTint } from "../../../lib/theme";
-import { Glyph } from "./glyphs";
 import { Spinner } from "./parts";
 import { stepsLabel, toolDisplayState, toolSummary, type ToolDisplayState } from "./rows";
 import type { Tool } from "./scripts";
