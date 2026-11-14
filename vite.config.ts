@@ -17,7 +17,6 @@ const ignoreCopied = [
   "apps/client/lib/icon-canvas.ts",
   "apps/client/lib/open-state.ts",
   "apps/client/lib/overlay.ts",
-  "apps/client/lib/switch-geometry.ts",
 ];
 // NSH client is type-checked by `nsh check` (QuickJS / nsh globals like If/Each).
 // Host/relay are Cargo.
