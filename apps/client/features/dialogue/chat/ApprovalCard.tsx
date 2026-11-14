@@ -7,10 +7,10 @@
 import { TriangleAlert } from "lucide";
 import { cleanup, effect, keymap, signal, Text, View, token } from "nsh";
 
-import { Press } from "../../../components/app";
+import { Button } from "../../../components/ui/button";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
-import { alpha, finish, radius, toneTint } from "../../../lib/theme";
+import { alpha, radius, toneTint } from "../../../lib/theme";
 import type { ApprovalRequest } from "../session/claimed";
 import type { SessionController } from "../session/controller";
 import { Glyph } from "./glyphs";
@@ -95,50 +95,19 @@ function Card(props: {
         </Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Press
+        <Button
           onPress={() => props.onAnswer(true)}
           accessibilityLabel={t("chat.allowOnce")}
-          scale={0.97}
         >
-          <View
-            style={{
-              height: 30,
-              paddingHorizontal: 12,
-              borderRadius: 15,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: token("primary"),
-              ...finish.light,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: token("primary-foreground") }}>
-              {t("chat.allowOnce")}
-            </Text>
-          </View>
-        </Press>
-        <Press
+          {t("chat.allowOnce")}
+        </Button>
+        <Button
+          variant="secondary"
           onPress={() => props.onAnswer(false)}
           accessibilityLabel={t("chat.deny")}
-          scale={0.97}
         >
-          <View
-            style={{
-              height: 30,
-              paddingHorizontal: 12,
-              borderRadius: 15,
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 1,
-              borderColor: token("border"),
-              backgroundColor: token("raised"),
-              ...finish.raised,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: token("foreground") }}>
-              {t("chat.deny")}
-            </Text>
-          </View>
-        </Press>
+          {t("chat.deny")}
+        </Button>
         <View style={{ flex: 1 }} />
         <Text style={{ fontSize: 11, color: token("faint") }}>{t("chat.approvalKeys")}</Text>
       </View>
