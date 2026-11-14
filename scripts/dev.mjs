@@ -1,53 +1,244 @@
 /**
- * Dev launcher: build the Host, then start the NSH client. The client starts the Host itself
- * (`lib/host/launcher`), so this script only makes sure the binary exists and that `myaid-host`
- * resolves on PATH for the app it starts. Closing the client stops the Host it started.
+ * The one dev entry: verify the workspace, then start one NSH target.
+ *
+ * `bun run dev` starts the desktop app; `bun run dev <target>` starts the target
+ * named on the command line. Only desktop targets get a Host: the app starts it
+ * itself (`lib/host/launcher`), so those targets need `myaid-host` on PATH and
+ * the Bot preset plugin overlay (`MYAID_DSH_PATCH`). `web`, `mobile`, `ios` and
+ * `android` do not run a local Host, so they get neither.
+ *
+ * Before starting, the launcher makes the tree match what the repository says:
+ * `node_modules` is reinstalled when the catalog's `@deepseek-ai/*` pins, the
+ * lockfile or a manifest moved on, and `myaid-host` is rebuilt when it is older
+ * than its sources or `apps/host/supported-dsh.json`. That is what turns a stale
+ * checkout into a run of the version this branch pins, instead of silently
+ * running last week's build.
  */
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const bin = join(root, "target", "debug");
+import { installedDrift, manifests, root } from "./dsh-pin.mjs";
+
+/** Targets the app can start, and whether they run a local Host. */
+const TARGETS = {
+  macos: { script: "dev:macos", host: true },
+  windows: { script: "dev:windows", host: true },
+  linux: { script: "dev:linux", host: true },
+  gpui: { script: "dev:gpui", host: true },
+  web: { script: "dev:web", host: false },
+  mobile: { script: "dev:mobile", host: false },
+  ios: { script: "dev:ios", host: false },
+  android: { script: "dev:android", host: false },
+};
+
+/** What `bun run dev` starts when no target is named. */
+const DESKTOP = { name: "desktop", script: "dev", host: true };
+
+/** The binary the app looks up on PATH, and where cargo puts it. */
+const HOST_BIN = join(
+  root,
+  "target",
+  "debug",
+  process.platform === "win32" ? "myaid-host.exe" : "myaid-host",
+);
+
+/** Directories and files a Host build depends on. */
+const HOST_INPUTS = ["Cargo.toml", "Cargo.lock", "apps/host", "crates"];
+
+/** File types in those directories that can change the binary. */
+const HOST_INPUT_TYPES = [".rs", ".toml", ".json", ".lock"];
+
+/** Dev-only overlay the app passes to the Host; gitignored and removed on exit. */
+const DEV_DIR = join(root, ".dev");
+
+/** Marks the install result the freshness step last accepted. */
+const INSTALL_STAMP = join(root, "node_modules", ".myaid-install-stamp.json");
+
 const delimiter = process.platform === "win32" ? ";" : ":";
 /** @type {import('node:child_process').ChildProcess | undefined} */
-let client;
+let child;
 let stopping = false;
-/** Temp directory holding the dev-only overlay that loads the Bot preset plugin. */
-let devPluginDir;
 
-function run(program, args, options = {}) {
-  return spawn(program, args, {
-    cwd: options.cwd ?? root,
-    env: options.env ?? process.env,
-    stdio: "inherit",
-  });
+/**
+ * Run a command to completion, inheriting stdio.
+ * @param program - executable to run.
+ * @param args - its arguments.
+ */
+function run(program, args) {
+  return spawn(program, args, { cwd: root, stdio: "inherit" });
 }
 
-function completed(child) {
+/**
+ * Wait for a child and fail loudly when it does.
+ * @param spawned - spawned child.
+ * @param failure - message to raise on a non-zero exit; omit to accept any code.
+ * @returns the child's exit code.
+ */
+function completed(spawned, failure) {
   return new Promise((resolveExit) => {
-    child.once("error", (error) => {
+    spawned.once("error", (error) => {
       console.error(error.message);
       resolveExit(1);
     });
-    child.once("exit", (code) => resolveExit(code ?? 1));
+    spawned.once("exit", (code) => resolveExit(code ?? 1));
+  }).then((code) => {
+    if (code !== 0 && failure !== undefined) throw new Error(failure);
+    return code;
   });
 }
 
-/** Build the Host the client launches, and the Bot preset plugin's dev overlay. */
-async function prepare() {
-  const host = await completed(run("cargo", ["build", "-p", "myaid-host"]));
-  if (host !== 0) throw new Error("构建 myaid-host 失败");
-  const pluginDir = join(root, "packages/myaid-plugin-bot-presets");
-  const built = await completed(
+/**
+ * Modification time of a path.
+ * @param path - file or directory.
+ * @returns milliseconds since the epoch, or 0 when missing.
+ */
+function mtime(path) {
+  return existsSync(path) ? statSync(path).mtimeMs : 0;
+}
+
+/**
+ * Newest input of an install: the lockfile and every workspace manifest.
+ * @returns milliseconds since the epoch.
+ */
+function installInputs() {
+  return Math.max(mtime(join(root, "bun.lock")), ...manifests().map(({ path }) => mtime(path)));
+}
+
+/**
+ * The install result the last freshness step accepted.
+ * @returns its recorded input time, or null when there is no stamp.
+ */
+function installStamp() {
+  if (!existsSync(INSTALL_STAMP)) return null;
+  try {
+    return JSON.parse(readFileSync(INSTALL_STAMP, "utf8")).inputs ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Why `node_modules` cannot be trusted as it stands.
+ * @returns one reason per disagreeing fact; empty when it is fresh.
+ */
+function installReasons() {
+  if (!existsSync(join(root, "node_modules"))) return ["node_modules 不存在"];
+  const reasons = [];
+  const drift = installedDrift();
+  if (drift.length > 0) {
+    const names = drift.map(({ name, want, got }) => `${name}@${got ?? "缺失"}≠${want}`);
+    reasons.push(`已安装的 dsh 包与 catalog 不一致（${names.join("，")}）`);
+  }
+  const stamp = installStamp();
+  if (stamp === null) reasons.push("没有安装戳记");
+  else if (stamp < installInputs())
+    reasons.push("bun.lock 或 workspace 的 package.json 比安装结果新");
+  return reasons;
+}
+
+/**
+ * Reinstall, repairing any package that drifted away from the catalog first.
+ *
+ * Bun keeps a package it believes it already installed, so a package whose
+ * contents were replaced behind its back has to go before `bun install` can put
+ * the published one back.
+ */
+async function ensureInstalled() {
+  const reasons = installReasons();
+  if (reasons.length === 0) return;
+  console.log(`依赖需要更新（${reasons.join("；")}），正在 bun install …`);
+  for (const { name } of installedDrift()) {
+    rmSync(join(root, "node_modules", name), { recursive: true, force: true });
+  }
+  await completed(run("bun", ["install"]), "bun install 失败");
+  const left = installedDrift();
+  if (left.length > 0) {
+    const names = left.map(({ name, want, got }) => `${name}@${got ?? "缺失"}≠${want}`).join("，");
+    throw new Error(
+      `bun install 之后仍有 dsh 包与 catalog 不一致（${names}）。` +
+        "删除 node_modules 再 bun install 可强制解包。",
+    );
+  }
+  writeFileSync(INSTALL_STAMP, `${JSON.stringify({ inputs: installInputs() }, null, 2)}\n`);
+}
+
+/**
+ * Newest Host source file, and when it changed.
+ * @returns the file and its modification time.
+ */
+function newestHostInput() {
+  let newest = { path: join(root, "Cargo.toml"), time: mtime(join(root, "Cargo.toml")) };
+  const walk = (path) => {
+    let entries;
+    try {
+      entries = readdirSync(path, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const child = join(path, entry.name);
+      if (entry.isDirectory()) {
+        walk(child);
+        continue;
+      }
+      if (!HOST_INPUT_TYPES.some((type) => entry.name.endsWith(type))) continue;
+      const time = mtime(child);
+      if (time > newest.time) newest = { path: child, time };
+    }
+  };
+  for (const input of HOST_INPUTS) {
+    const path = join(root, input);
+    if (!existsSync(path)) continue;
+    if (statSync(path).isDirectory()) walk(path);
+  }
+  return newest;
+}
+
+/**
+ * Why `myaid-host` has to be rebuilt.
+ * @returns the reason, or null when the binary is up to date.
+ */
+function hostStaleness() {
+  if (!existsSync(HOST_BIN)) return "myaid-host 还没有构建";
+  const newest = newestHostInput();
+  if (newest.time > mtime(HOST_BIN)) return `${relative(root, newest.path)} 比 myaid-host 新`;
+  return null;
+}
+
+/**
+ * Build the Host the app launches.
+ */
+async function ensureHost() {
+  const stale = hostStaleness();
+  if (stale !== null) {
+    console.log(`重建 Host（${stale}）…`);
+    await completed(run("cargo", ["build", "-p", "myaid-host"]), "构建 myaid-host 失败");
+  }
+  console.log("Host 已构建；客户端会自己启动它。");
+}
+
+/**
+ * Build the Bot preset plugin and point the app at it through an overlay patch.
+ * @returns the patch file inside the worktree.
+ */
+async function prepareOverlay() {
+  await completed(
     run("bun", ["x", "vp", "run", "@myaid/myaid-plugin-bot-presets#build"]),
+    "构建 myaid-plugin-bot-presets 失败",
   );
-  if (built !== 0) throw new Error("构建 myaid-plugin-bot-presets 失败");
-  devPluginDir = mkdtempSync(join(tmpdir(), "myaid-dev-"));
-  const patch = join(devPluginDir, "bot-presets.patch.yml");
-  const entry = pathToFileURL(join(pluginDir, "lib", "index.js")).href;
+  mkdirSync(DEV_DIR, { recursive: true });
+  const patch = join(DEV_DIR, "bot-presets.patch.yml");
+  const entry = pathToFileURL(join(root, "packages/myaid-plugin-bot-presets/lib/index.js")).href;
   writeFileSync(
     patch,
     `- insert:\n    - id: myaid-bot-presets\n      name: ${JSON.stringify(entry)}\n`,
@@ -55,38 +246,97 @@ async function prepare() {
   return patch;
 }
 
-async function main() {
-  const patch = await prepare();
-  if (stopping) return;
-  console.log("Host 已构建；客户端会自己启动它。");
-  client = run("bun", ["run", "--cwd", "apps/client", "dev"], {
-    env: {
-      ...process.env,
-      PATH: [bin, process.env.PATH].filter(Boolean).join(delimiter),
-      MYAID_DSH_PATCH: [process.env.MYAID_DSH_PATCH, patch].filter(Boolean).join(delimiter),
-    },
+/**
+ * Print what a run would do, without touching the tree.
+ * @param target - the resolved target.
+ */
+function report(target) {
+  const reasons = installReasons();
+  console.log(`目标：${target.name} → @myaid/client#${target.script}`);
+  console.log(
+    reasons.length === 0 ? "依赖：已是最新" : `依赖：需要 bun install（${reasons.join("；")}）`,
+  );
+  if (!target.host) {
+    console.log("Host：该目标不启动本地 Host，跳过");
+    return;
+  }
+  console.log(`Host：${hostStaleness() ?? "已是最新"}`);
+}
+
+/**
+ * Start the client, and stop the Host it started when this process stops.
+ * @param target - the resolved target.
+ * @param patch - dev overlay for desktop targets.
+ */
+async function startClient(target, patch) {
+  const env = { ...process.env };
+  if (target.host) {
+    env.PATH = [join(root, "target", "debug"), process.env.PATH].filter(Boolean).join(delimiter);
+    env.MYAID_DSH_PATCH = [process.env.MYAID_DSH_PATCH, patch].filter(Boolean).join(delimiter);
+  }
+  child = spawn("bun", ["x", "vp", "run", `@myaid/client#${target.script}`], {
+    cwd: root,
+    env,
+    stdio: "inherit",
+    // Its own process group, so one signal reaches the app and the Host it started.
+    detached: process.platform !== "win32",
   });
-  const result = await completed(client);
-  client = undefined;
-  if (result !== 0 && !stopping) process.exitCode = result;
+  const code = await completed(child, undefined);
+  child = undefined;
+  if (code !== 0 && !stopping) process.exitCode = code;
+}
+
+/**
+ * Signal the client and everything it started.
+ * @param signal - POSIX signal name.
+ */
+function stopClient(signal) {
+  if (child === undefined) return;
+  if (process.platform === "win32") child.kill(signal);
+  else process.kill(-child.pid, signal);
+}
+
+/**
+ * Resolve the target, check the tree, then start it.
+ * @param argv - command-line arguments after the script name.
+ */
+async function main(argv) {
+  const dryRun = argv.includes("--dry-run");
+  const named = argv.filter((argument) => argument !== "--dry-run");
+  if (named.length > 1) throw new Error("用法：bun run dev [target]");
+  const name = named[0];
+  if (name !== undefined && !Object.hasOwn(TARGETS, name)) {
+    throw new Error(`未知目标 ${name}；可选：${Object.keys(TARGETS).join("、")}`);
+  }
+  const target = name === undefined ? DESKTOP : { name, ...TARGETS[name] };
+  if (dryRun) {
+    report(target);
+    return;
+  }
+  await ensureInstalled();
+  let patch;
+  if (target.host) {
+    await ensureHost();
+    patch = await prepareOverlay();
+  }
+  if (stopping) return;
+  await startClient(target, patch);
 }
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     stopping = true;
-    client?.kill(signal);
+    stopClient(signal);
   });
 }
 
 try {
-  await main();
+  await main(process.argv.slice(2));
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
   stopping = true;
-  if (devPluginDir) {
-    rmSync(devPluginDir, { recursive: true, force: true });
-    devPluginDir = undefined;
-  }
+  stopClient("SIGTERM");
+  rmSync(DEV_DIR, { recursive: true, force: true });
 }

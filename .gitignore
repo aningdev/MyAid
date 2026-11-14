@@ -19,6 +19,8 @@ apps/client/launch.json
 apps/client/lib/dsh/sdk.js
 # Scratch Host root the real-Host smokes run against (`screens/*.smoke.test.tsx`).
 .myaid-smoke/
+# Dev-only overlay `scripts/dev.mjs` writes for the Bot preset plugin.
+.dev/
 
 # Runtime data
 pids
