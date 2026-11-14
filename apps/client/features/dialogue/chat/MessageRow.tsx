@@ -5,13 +5,16 @@
  * reads its message through `row()` and keeps no state of its own; the
  * expansion the person chose lives in the Pane.
  */
-import { signal, Text, View } from "nsh";
+import { Check, Copy, RotateCw, Square, ThumbsDown, ThumbsUp } from "lucide";
+import { signal, Text, View, token } from "nsh";
 
-import { Badge, colors, finish, Press } from "../../../components/ui";
+import { Press } from "../../../components/app";
+import { Badge } from "../../../components/ui/badge";
 import { t } from "../../../lib/i18n";
+import { Icon } from "../../../lib/icons";
+import { finish } from "../../../lib/theme";
 import type { Bot } from "../../bots/model";
 import { ImageViewer } from "../ImageViewer";
-import { Glyph } from "./glyphs";
 import { Markdown } from "./markdown";
 import { ActionButton, Avatar, Caret, ErrorRow, FileChip, Photo, Spinner } from "./parts";
 import { assistantParts, groupsSteps, type Assistant, type Row } from "./rows";
@@ -91,7 +94,7 @@ function Person(props: { message: () => UserRow }) {
       <If when={!!m().text}>
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6, maxWidth: "88%" }}>
           <View class={hoverTime} style={{ paddingBottom: 4 }}>
-            <Text style={{ fontSize: 11, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+            <Text style={{ fontSize: 11, color: token("faint"), fontVariant: ["tabular-nums"] }}>
               {timeText(m().at)}
             </Text>
           </View>
@@ -103,13 +106,20 @@ function Person(props: { message: () => UserRow }) {
               borderRadius: 16,
               borderBottomRightRadius: 5,
               borderCurve: "continuous",
-              backgroundColor: colors.raised,
+              backgroundColor: token("raised"),
               ...finish.raised,
               borderWidth: 1,
-              borderColor: colors.border,
+              borderColor: token("border"),
             }}
           >
-            <Text style={{ userSelect: "text", fontSize: 15, lineHeight: 21, color: colors.text }}>
+            <Text
+              style={{
+                userSelect: "text",
+                fontSize: 15,
+                lineHeight: 21,
+                color: token("foreground"),
+              }}
+            >
               {m().text}
             </Text>
           </View>
@@ -153,16 +163,23 @@ function Reply(props: {
     <View style={{ paddingVertical: 8, gap: 6 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, height: 24 }}>
         <Avatar identity={props.bot()?.identity ?? null} working={streaming()} />
-        <Text style={{ numberOfLines: 1, fontSize: 13, fontWeight: "600", color: colors.muted }}>
+        <Text
+          style={{
+            numberOfLines: 1,
+            fontSize: 13,
+            fontWeight: "600",
+            color: token("muted-foreground"),
+          }}
+        >
           {props.botName()}
         </Text>
         <If when={message().status === "stopped" && !streaming()}>
-          <Badge label={t("chat.stopped")} tone="warn" />
+          <Badge tone="warn">{t("chat.stopped")}</Badge>
         </If>
         <View style={{ flex: 1 }} />
         <Text
           class={hoverTime}
-          style={{ fontSize: 11, color: colors.faint, fontVariant: ["tabular-nums"] }}
+          style={{ fontSize: 11, color: token("faint"), fontVariant: ["tabular-nums"] }}
         >
           {timeText(message().at)}
         </Text>
@@ -212,25 +229,25 @@ function Reply(props: {
       </If>
       <If when={!streaming() && message().status === "stopped"}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Glyph name="stop" size={11} tint={colors.faint} />
-          <Text style={{ fontSize: 12, color: colors.faint }}>{t("chat.stoppedNote")}</Text>
+          <Icon icon={Square} size={11} tint={token("faint")} />
+          <Text style={{ fontSize: 12, color: token("faint") }}>{t("chat.stoppedNote")}</Text>
         </View>
       </If>
       <If when={!streaming() && message().status !== "error"}>
         <View style={{ flexDirection: "row", alignItems: "center", marginLeft: -8 }}>
           <ActionButton
-            glyph={props.handlers.copied() === message().id ? "check" : "copy"}
+            glyph={props.handlers.copied() === message().id ? Check : Copy}
             label={t("common.copy")}
             active={props.handlers.copied() === message().id}
             onPress={() => props.handlers.onCopy(message().id, message().md)}
           />
           <ActionButton
-            glyph="regenerate"
+            glyph={RotateCw}
             label={t("chat.regenerate")}
             onPress={() => props.handlers.onRegenerate(message())}
           />
           <ActionButton
-            glyph="thumb-up"
+            glyph={ThumbsUp}
             label={t("chat.goodReply")}
             active={message().rating === "up"}
             onPress={() =>
@@ -238,7 +255,7 @@ function Reply(props: {
             }
           />
           <ActionButton
-            glyph="thumb-down"
+            glyph={ThumbsDown}
             label={t("chat.badReply")}
             active={message().rating === "down"}
             tone="danger"
@@ -261,9 +278,11 @@ function timeText(at: number | undefined): string {
 function Working(props: { message: () => WorkingRow; now: () => number }) {
   return (
     <View style={{ paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Spinner size={13} tint={colors.accent} />
-      <Text style={{ flex: 1, fontSize: 13, color: colors.muted }}>{t("chat.working")}</Text>
-      <Text style={{ fontSize: 12, color: colors.faint, fontVariant: ["tabular-nums"] }}>
+      <Spinner size={13} tint={token("brand")} />
+      <Text style={{ flex: 1, fontSize: 13, color: token("muted-foreground") }}>
+        {t("chat.working")}
+      </Text>
+      <Text style={{ fontSize: 12, color: token("faint"), fontVariant: ["tabular-nums"] }}>
         {elapsedLabel(elapsedSeconds(props.message().since, props.now()))}
       </Text>
     </View>

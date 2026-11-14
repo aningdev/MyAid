@@ -4,7 +4,7 @@
  * it, and a failed command. Each is a refusal the person can act on, so each
  * carries its own retry or dismissal instead of a sentence in a Pane.
  */
-import { Text, View } from "nsh";
+import { Text, View, token } from "nsh";
 
 import {
   actionError,
@@ -14,7 +14,7 @@ import {
 } from "../../features/bots/state";
 import { workspaceError } from "../../features/workspace/state";
 import { t } from "../../lib/i18n";
-import { Button, colors } from "../ui";
+import { Button } from "../ui/button";
 import { retryHost } from "./host";
 
 export function ShellNotices() {
@@ -68,27 +68,32 @@ function Notice(props: {
         padding: 8,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: props.tone === "danger" ? colors.danger : colors.line,
-        backgroundColor: colors.inset,
+        borderColor: props.tone === "danger" ? token("destructive") : token("line"),
+        backgroundColor: token("inset"),
       }}
     >
-      <Text style={{ fontSize: 11, lineHeight: 16, color: colors.muted }}>{props.text}</Text>
+      <Text style={{ fontSize: 11, lineHeight: 16, color: token("muted-foreground") }}>
+        {props.text}
+      </Text>
       <View style={{ flexDirection: "row", gap: 6 }}>
         <If when={!!props.action}>
           <Button
-            label={props.action ?? ""}
-            size="small"
-            variant="accent"
+            size="sm"
             onPress={() => props.onAction?.()}
-          />
+            accessibilityLabel={props.action ?? ""}
+          >
+            {props.action ?? ""}
+          </Button>
         </If>
         <If when={!!props.onDismiss}>
           <Button
-            label={t("common.cancel")}
-            size="small"
+            size="sm"
             variant="ghost"
             onPress={() => props.onDismiss?.()}
-          />
+            accessibilityLabel={t("common.cancel")}
+          >
+            {t("common.cancel")}
+          </Button>
         </If>
       </View>
     </View>

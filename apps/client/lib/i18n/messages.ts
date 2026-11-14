@@ -156,8 +156,8 @@ export const messages = {
   // --- Settings › General ---------------------------------------------------
   "settings.general.title": { zh: "通用", en: "General" },
   "settings.general.note": {
-    zh: "语言、外观与强调色保存在本机偏好里，重启后保留。",
-    en: "Language, appearance and accent are client preferences; they survive a restart.",
+    zh: "语言与外观保存在本机偏好里，重启后保留。",
+    en: "Language and appearance are client preferences; they survive a restart.",
   },
   "settings.general.language": { zh: "语言", en: "Language" },
   "settings.general.languageNote": {
@@ -165,22 +165,12 @@ export const messages = {
     en: "Switching the interface language applies at once; following the system uses the system language.",
   },
   "settings.general.appearance": { zh: "外观", en: "Appearance" },
-  "settings.general.accent": { zh: "强调色", en: "Accent" },
-  "settings.accent.pick": { zh: "强调色 {label}", en: "Accent {label}" },
-  "settings.accent.preview": { zh: "强调色预览", en: "Accent preview" },
-  "settings.accent.text": { zh: "强调色文字", en: "Accent text" },
   "language.followSystem": { zh: "跟随系统", en: "Follow system" },
   "language.zh": { zh: "简体中文", en: "简体中文" },
   "language.en": { zh: "English", en: "English" },
   "appearance.system": { zh: "跟随系统", en: "Follow system" },
   "appearance.light": { zh: "浅色", en: "Light" },
   "appearance.dark": { zh: "深色", en: "Dark" },
-  "accent.default": { zh: "默认", en: "Default" },
-  "accent.blue": { zh: "蓝", en: "Blue" },
-  "accent.violet": { zh: "紫", en: "Violet" },
-  "accent.emerald": { zh: "绿", en: "Green" },
-  "accent.amber": { zh: "琥珀", en: "Amber" },
-  "accent.rose": { zh: "玫红", en: "Rose" },
 
   // --- Settings › Model providers ------------------------------------------
   "providers.title": { zh: "模型供应商", en: "Model providers" },

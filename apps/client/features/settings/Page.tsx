@@ -4,10 +4,11 @@
  * the overlay keeps the Panes underneath untouched. Each section owns its own
  * read, so one slow Host call never holds the others blank.
  */
-import { Scroll, signal, Text, View } from "nsh";
+import { Scroll, signal, Text, View, token } from "nsh";
 
-import { colors, Press, radius, toneTint } from "../../components/ui";
+import { Press } from "../../components/app";
 import { t, type MessageKey } from "../../lib/i18n";
+import { radius, toneTint } from "../../lib/theme";
 import { AboutSection } from "./About";
 import { BackgroundSection } from "./Background";
 import { GeneralSection } from "./General";
@@ -36,9 +37,9 @@ export function SettingsPage() {
         style={{
           width: 176,
           flexShrink: 0,
-          backgroundColor: colors.inset,
+          backgroundColor: token("inset"),
           borderRightWidth: 1,
-          borderRightColor: colors.line,
+          borderRightColor: token("line"),
         }}
       >
         <Scroll contentStyle={{ padding: 10, gap: 2 }}>
@@ -62,7 +63,7 @@ export function SettingsPage() {
                   style={{
                     fontSize: 13,
                     fontWeight: group() === entry().id ? "600" : "400",
-                    color: group() === entry().id ? colors.text : colors.muted,
+                    color: group() === entry().id ? token("foreground") : token("muted-foreground"),
                   }}
                 >
                   {t(entry().label)}

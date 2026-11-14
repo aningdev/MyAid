@@ -122,33 +122,29 @@ test("the default model is stored in dsh's default-model namespace", async () =>
   );
 });
 
-test("the language is saved and the appearance and accent apply and persist", async () => {
+test("the language is saved and the scheme applies and persists", async () => {
   const app = await openSettings();
   await app.press("id:settings-nav-general");
   await app.waitFor("id:settings-general");
+  await app.press(`text:${t("appearance.light")}`);
+  const light = app.spanStyle(`text:${t("settings.general.note")}`).color;
   await app.press(`text:${t("appearance.dark")}`);
-  await app.press(`label:${t("settings.accent.pick", { label: t("accent.violet") })}`);
   await app.press("text:English");
 
   await app.waitUntil(() => {
     const prefs = app.storage()["myaid.prefs.shell"] ?? "";
-    return (
-      prefs.includes('"language": "en"') &&
-      prefs.includes('"scheme": "dark"') &&
-      prefs.includes('"accent": "violet"')
-    );
+    return prefs.includes('"language": "en"') && prefs.includes('"scheme": "dark"');
   });
-  const accent = app.spanStyle(`text:${t("settings.accent.text")}`).color;
-  expect(String(accent).toLowerCase()).toContain("a78bfa");
+  // The palette followed the scheme: the page's text is the dark one now.
+  const dark = app.spanStyle(`text:${t("settings.general.note")}`).color;
+  expect(dark).not.toBe(light);
 
-  // Relaunch on the preferences it wrote: the dark scheme and accent come back.
+  // Relaunch on the preferences it wrote: the dark scheme comes back.
   const again = await open("./settings-harness.tsx", { ...desktop, storage: app.storage() });
   await again.press("label:Settings");
   await again.press("id:settings-nav-general");
   await again.waitFor("id:settings-general");
-  expect(
-    String(again.spanStyle(`text:${t("settings.accent.text")}`).color).toLowerCase(),
-  ).toContain("a78bfa");
+  expect(again.spanStyle(`text:${t("settings.general.note")}`).color).toBe(dark);
 });
 
 test("About shows the versions and copies diagnostics without secrets", async () => {

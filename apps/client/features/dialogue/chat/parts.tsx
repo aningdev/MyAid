@@ -3,24 +3,16 @@
  * caret, a reply's action buttons, a day separator, a file chip, a photo,
  * the error row and the bot's avatar.
  */
-import { Image, type JSX, Text, View } from "nsh";
+import { File, type IconNode, RotateCw, Sparkles, TriangleAlert, X } from "lucide";
+import { Image, type JSX, Text, View, token } from "nsh";
 
-import { Icon } from "../../../components/ui";
-import {
-  alpha,
-  colors,
-  finish,
-  mono,
-  Press,
-  radius,
-  type Tone,
-  toneColor,
-  toneTint,
-} from "../../../components/ui";
+import { Press } from "../../../components/app";
+import { Button } from "../../../components/ui/button";
 import { t } from "../../../lib/i18n";
+import { Icon } from "../../../lib/icons";
+import { alpha, finish, mono, radius, toneColor, toneTint, type Tone } from "../../../lib/theme";
 import { BotMark } from "../../bots/BotMark";
 import type { BotIdentity } from "../../bots/identity";
-import { Glyph, type GlyphName } from "./glyphs";
 import type { FileRef } from "./scripts";
 
 /** A ring that spins natively (the built-in `spin` keyframes). */
@@ -33,8 +25,8 @@ export function Spinner(props: { size?: number; tint?: string }) {
         height: size,
         borderRadius: size / 2,
         borderWidth: 2,
-        borderColor: colors.border,
-        borderTopColor: props.tint ?? colors.accent,
+        borderColor: token("border"),
+        borderTopColor: props.tint ?? token("brand"),
         animationName: "spin",
         animationDuration: 800,
         animationTimingFunction: "linear",
@@ -53,7 +45,7 @@ export function Caret() {
         height: 16,
         marginLeft: 2,
         borderRadius: 2,
-        backgroundColor: colors.accent,
+        backgroundColor: token("brand"),
         animationName: "pulse",
         animationDuration: 900,
         animationIterationCount: "infinite",
@@ -64,7 +56,7 @@ export function Caret() {
 
 /** A small icon button under a reply (44 pt touch target). */
 export function ActionButton(props: {
-  glyph: GlyphName;
+  glyph: IconNode;
   label: string;
   active?: boolean;
   tone?: Tone;
@@ -98,10 +90,10 @@ export function ActionButton(props: {
             transitionDuration: 180,
           }}
         />
-        <Glyph
-          name={props.glyph}
+        <Icon
+          icon={props.glyph}
           size={17}
-          tint={props.active ? toneColor(props.tone ?? "accent") : colors.muted}
+          tint={props.active ? toneColor(props.tone ?? "accent") : token("muted-foreground")}
         />
       </View>
     </Press>
@@ -120,9 +112,9 @@ export function DateSeparator(props: { label: string }) {
         paddingVertical: 10,
       }}
     >
-      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
-      <Text style={{ fontSize: 11, fontWeight: "500", color: colors.faint }}>{props.label}</Text>
-      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
+      <Text style={{ fontSize: 11, fontWeight: "500", color: token("faint") }}>{props.label}</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
     </View>
   );
 }
@@ -158,16 +150,18 @@ export function SegmentDivider(props: {
         paddingBottom: 8,
       }}
     >
-      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "78%" }}>
-        <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>{row().label}</Text>
+        <Text style={{ fontSize: 11, fontWeight: "600", color: token("muted-foreground") }}>
+          {row().label}
+        </Text>
         <If when={!!row().path}>
           <Text
             testID={`segment-path-${row().sessionId}`}
             style={{
               flexShrink: 1,
               fontSize: 11,
-              color: colors.faint,
+              color: token("faint"),
               fontFamily: mono,
               numberOfLines: 1,
             }}
@@ -181,12 +175,12 @@ export function SegmentDivider(props: {
               width: 5,
               height: 5,
               borderRadius: 3,
-              backgroundColor: colors.accent,
+              backgroundColor: token("brand"),
             }}
           />
         </If>
       </View>
-      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
     </View>
   );
 }
@@ -204,10 +198,10 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         paddingEnd: props.onRemove ? 2 : 12,
         borderRadius: radius.control,
         borderCurve: "continuous",
-        backgroundColor: colors.raised,
+        backgroundColor: token("raised"),
         ...finish.raised,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: token("border"),
       }}
     >
       <View
@@ -220,20 +214,22 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
           justifyContent: "center",
         }}
       >
-        <Glyph name="file" size={15} tint={colors.danger} />
+        <Icon icon={File} size={15} tint={token("destructive")} />
       </View>
       <View style={{ gap: 1 }}>
-        <Text style={{ numberOfLines: 1, maxWidth: 170, fontSize: 13, color: colors.text }}>
+        <Text style={{ numberOfLines: 1, maxWidth: 170, fontSize: 13, color: token("foreground") }}>
           {props.file.name}
         </Text>
-        <Text style={{ fontSize: 11, color: colors.muted, fontVariant: ["tabular-nums"] }}>
+        <Text
+          style={{ fontSize: 11, color: token("muted-foreground"), fontVariant: ["tabular-nums"] }}
+        >
           {(props.file.name.split(".").pop() ?? "file").toUpperCase()} · {props.file.size}
         </Text>
       </View>
       <If when={props.onRemove}>
         <Press onPress={props.onRemove} accessibilityLabel={t("chat.removeFile")} scale={0.85}>
           <View style={{ width: 36, height: 40, alignItems: "center", justifyContent: "center" }}>
-            <Glyph name="close" size={13} tint={colors.muted} />
+            <Icon icon={X} size={13} tint={token("muted-foreground")} />
           </View>
         </Press>
       </If>
@@ -256,9 +252,9 @@ export function Photo(props: {
         borderRadius: radius.inset,
         borderCurve: "continuous",
         overflow: "hidden",
-        backgroundColor: colors.raised,
+        backgroundColor: token("raised"),
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: token("border"),
       }}
     >
       <Image src={props.src} style={{ width: props.width, height: props.height }} />
@@ -280,32 +276,17 @@ export function ErrorRow(props: { message: string; onRetry: () => void }) {
         borderCurve: "continuous",
         backgroundColor: toneTint("danger"),
         borderWidth: 1,
-        borderColor: alpha(colors.danger, 0.32),
+        borderColor: alpha(token("destructive"), 0.32),
       }}
     >
-      <Glyph name="alert" size={16} tint={colors.danger} />
-      <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: colors.text }}>
+      <Icon icon={TriangleAlert} size={16} tint={token("destructive")} />
+      <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: token("foreground") }}>
         {props.message}
       </Text>
-      <Press onPress={props.onRetry} accessibilityLabel={t("chat.retry")}>
-        <View
-          style={{
-            height: 30,
-            paddingHorizontal: 12,
-            borderRadius: 15,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            backgroundColor: colors.light,
-            ...finish.light,
-          }}
-        >
-          <Glyph name="regenerate" size={13} tint={colors.onLight} />
-          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.onLight }}>
-            {t("common.retry")}
-          </Text>
-        </View>
-      </Press>
+      <Button onPress={props.onRetry} accessibilityLabel={t("chat.retry")}>
+        <Icon icon={RotateCw} size={13} tint={token("primary-foreground")} />
+        {t("common.retry")}
+      </Button>
     </View>
   );
 }
@@ -322,13 +303,13 @@ export function Avatar(props: { identity?: BotIdentity | null; working?: boolean
         borderRadius: 7,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: colors.raised,
+        backgroundColor: token("raised"),
         ...finish.raised,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: token("border"),
       }}
     >
-      <Icon name="spark" size={12} tint={colors.accent} />
+      <Icon icon={Sparkles} size={12} tint={token("brand")} />
     </View>
   );
 }

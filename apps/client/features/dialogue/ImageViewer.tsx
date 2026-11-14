@@ -1,10 +1,11 @@
-import { effect, Image, signal, Text, View } from "nsh";
+import { effect, Image, signal, Text, View, token } from "nsh";
 import { createAnimatedValue } from "nsh";
 import { safeArea } from "nsh";
 import { Dialog, type TextViewImage } from "nsh/base";
 
-import { colors, motion, Press } from "../../components/ui";
+import { Press } from "../../components/app";
 import { t } from "../../lib/i18n";
+import { motion } from "../../lib/theme";
 
 /** The deepest zoom, and where a double tap zooms in to. */
 const MAX_ZOOM = 4;
@@ -128,7 +129,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: colors.viewer,
+          backgroundColor: token("scrim"),
         }}
       >
         <View
@@ -168,7 +169,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
               paddingBottom: safeArea().bottom + 20,
             }}
           >
-            <Text class="text-sm" style={{ textAlign: "center", color: colors.viewerForeground }}>
+            <Text class="text-sm" style={{ textAlign: "center", color: token("background") }}>
               {shown()?.alt}
             </Text>
           </View>
@@ -189,7 +190,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
                 borderRadius: 22,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: colors.overlay,
+                backgroundColor: token("scrim"),
               }}
             >
               <View
@@ -198,7 +199,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
                   width: 16,
                   height: 2,
                   borderRadius: 1,
-                  backgroundColor: colors.viewerForeground,
+                  backgroundColor: token("background"),
                   transform: [{ rotate: "45deg" }],
                 }}
               />
@@ -208,7 +209,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
                   width: 16,
                   height: 2,
                   borderRadius: 1,
-                  backgroundColor: colors.viewerForeground,
+                  backgroundColor: token("background"),
                   transform: [{ rotate: "-45deg" }],
                 }}
               />

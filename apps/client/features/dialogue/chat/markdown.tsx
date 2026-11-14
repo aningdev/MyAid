@@ -1,7 +1,6 @@
-import { type JSX, signal } from "nsh";
+import { type JSX, signal, token } from "nsh";
 import { TextView, type TextViewImage } from "nsh/base";
 
-import { colors } from "../../../components/ui";
 import { t } from "../../../lib/i18n";
 import { ImageViewer } from "../ImageViewer";
 import { orderedListIndent } from "./markdownLists";
@@ -48,13 +47,13 @@ export function Markdown(props: {
         streamingCaret={props.caret}
         styles={{
           // A chat's scale: tighter than a document's. (gallery Chat demo)
-          root: { gap: 12, fontSize: 15, lineHeight: 22, color: colors.text },
+          root: { gap: 12, fontSize: 15, lineHeight: 22, color: token("foreground") },
           heading1: { fontSize: 20, lineHeight: 26 },
           heading2: { fontSize: 17, lineHeight: 22 },
           heading3: { fontSize: 15, lineHeight: 22 },
-          code: { color: colors.code },
-          codeBlockCode: { color: colors.code },
-          link: { color: colors.accent },
+          code: { color: token("code") },
+          codeBlockCode: { color: token("code") },
+          link: { color: token("brand") },
           // Measured, not fixed: a list that reaches 10 needs a wider marker
           // column than one that stops at 9.
           ...listStyle(),

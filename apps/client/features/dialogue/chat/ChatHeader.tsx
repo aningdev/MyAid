@@ -5,12 +5,15 @@
  * double click on the title renames the segment; a press on the directory edits
  * it, and a different directory starts a new segment.
  */
-import { Text, View } from "nsh";
+import { Check, Sparkles } from "lucide";
+import { Text, View, token } from "nsh";
 import { signal } from "nsh";
 import { Input } from "nsh/base";
 
-import { colors, Icon, mono, Press } from "../../../components/ui";
+import { Press } from "../../../components/app";
 import { t } from "../../../lib/i18n";
+import { Icon } from "../../../lib/icons";
+import { mono } from "../../../lib/theme";
 import { BotMark } from "../../bots/BotMark";
 import type { Bot } from "../../bots/model";
 
@@ -53,8 +56,8 @@ export function ChatHeader(props: {
         paddingBottom: 8,
         gap: 2,
         borderBottomWidth: 1,
-        borderBottomColor: props.scrolled() ? colors.line : "transparent",
-        backgroundColor: colors.background,
+        borderBottomColor: props.scrolled() ? token("line") : "transparent",
+        backgroundColor: token("background"),
         transitionProperty: "colors",
         transitionDuration: 150,
         zIndex: 1,
@@ -77,7 +80,12 @@ export function ChatHeader(props: {
               style={{ flex: 1 }}
             >
               <Text
-                style={{ numberOfLines: 1, fontSize: 15, fontWeight: "600", color: colors.text }}
+                style={{
+                  numberOfLines: 1,
+                  fontSize: 15,
+                  fontWeight: "600",
+                  color: token("foreground"),
+                }}
               >
                 {props.title()}
               </Text>
@@ -96,7 +104,7 @@ export function ChatHeader(props: {
               height: 26,
               fontSize: 15,
               fontWeight: "600",
-              color: colors.text,
+              color: token("foreground"),
               paddingHorizontal: 6,
             }}
           />
@@ -109,11 +117,11 @@ export function ChatHeader(props: {
             height: 22,
             paddingHorizontal: 8,
             borderRadius: 11,
-            backgroundColor: colors.inset,
+            backgroundColor: token("inset"),
           }}
         >
-          <Icon name="spark" size={11} tint={colors.faint} />
-          <Text style={{ numberOfLines: 1, fontSize: 11, color: colors.muted }}>
+          <Icon icon={Sparkles} size={11} tint={token("faint")} />
+          <Text style={{ numberOfLines: 1, fontSize: 11, color: token("muted-foreground") }}>
             {props.modelLabel()}
           </Text>
         </View>
@@ -131,7 +139,9 @@ export function ChatHeader(props: {
               props.onWorkspace ? (
                 <View style={{ gap: 3, maxWidth: 460 }}>
                   <Text style={{ fontSize: 12 }}>{t("chat.workspaceHint")}</Text>
-                  <Text style={{ fontSize: 11, color: colors.muted, fontFamily: mono }}>
+                  <Text
+                    style={{ fontSize: 11, color: token("muted-foreground"), fontFamily: mono }}
+                  >
                     {props.fullPath?.() || props.subtitle()}
                   </Text>
                 </View>
@@ -140,7 +150,7 @@ export function ChatHeader(props: {
             style={{ flexDirection: "row", alignItems: "center", gap: 4, minHeight: 18 }}
           >
             <Text
-              style={{ numberOfLines: 1, fontSize: 11, color: colors.faint }}
+              style={{ numberOfLines: 1, fontSize: 11, color: token("faint") }}
               testID="session-workspace"
             >
               {props.subtitle() || t("chat.chooseWorkspace")}
@@ -161,7 +171,7 @@ export function ChatHeader(props: {
               flex: 1,
               height: 24,
               fontSize: 11,
-              color: colors.text,
+              color: token("foreground"),
               paddingHorizontal: 4,
             }}
           />
@@ -171,7 +181,7 @@ export function ChatHeader(props: {
             scale={0.9}
             style={{ width: 22, height: 22 }}
           >
-            <Icon name="check" size={12} tint={colors.accent} />
+            <Icon icon={Check} size={12} tint={token("brand")} />
           </Press>
         </View>
       </If>

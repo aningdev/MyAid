@@ -5,11 +5,15 @@
  * keyboard in the composer. The first launch's welcome state leads here, as do
  * ⌘N, the list's "New Bot" row and the palette.
  */
-import { effect, signal, Text, View, windowSize } from "nsh";
+import { effect, signal, Text, View, windowSize, token } from "nsh";
 
 import { openBot } from "../../components/shell/state";
-import { Button, colors, Field, radius, Sheet } from "../../components/ui";
+import { Button } from "../../components/ui/button";
+import { Field, FieldLabel } from "../../components/ui/field";
+import { Input } from "../../components/ui/input";
+import { Sheet, SheetContent } from "../../components/ui/sheet";
 import { t } from "../../lib/i18n";
+import { radius } from "../../lib/theme";
 import { requestComposerFocus } from "../dialogue/chat/focus";
 import { startSegment } from "../workspace/conversation";
 import { BotIdentityPicker, BotMark } from "./BotMark";
@@ -33,17 +37,22 @@ export function NewBotSheet() {
   return (
     <Sheet
       open={newBotOpen()}
-      side="top"
-      onClose={closeNewBot}
-      popupStyle={{
-        width: SHEET_WIDTH,
-        marginLeft: Math.max(0, (windowSize().width - SHEET_WIDTH) / 2),
-        gap: 14,
+      onOpenChange={({ open: next }) => {
+        if (!next) closeNewBot();
       }}
     >
-      <If when={newBotOpen()}>
-        <Body />
-      </If>
+      <SheetContent
+        side="top"
+        popupStyle={{
+          width: SHEET_WIDTH,
+          marginLeft: Math.max(0, (windowSize().width - SHEET_WIDTH) / 2),
+          gap: 14,
+        }}
+      >
+        <If when={newBotOpen()}>
+          <Body />
+        </If>
+      </SheetContent>
     </Sheet>
   );
 }
@@ -154,41 +163,49 @@ function Body() {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <BotMark identity={identity()} size={38} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+          <Text style={{ fontSize: 17, fontWeight: "600", color: token("foreground") }}>
             {t("newBot.title")}
           </Text>
-          <Text style={{ fontSize: 12, color: colors.muted }}>{t("newBot.note")}</Text>
+          <Text style={{ fontSize: 12, color: token("muted-foreground") }}>{t("newBot.note")}</Text>
         </View>
       </View>
 
-      <Field
-        label={t("common.name")}
-        testID="new-bot-name"
-        value={name()}
-        placeholder="Ada"
-        onChange={(value) => {
-          localError.set(null);
-          name.set(value);
-        }}
-      />
+      <Field>
+        <FieldLabel>{t("common.name")}</FieldLabel>
+        <Input
+          testID="new-bot-name"
+          accessibilityLabel={t("common.name")}
+          value={name()}
+          placeholder="Ada"
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChange={(event) => {
+            localError.set(null);
+            name.set(event.value);
+          }}
+        />
+      </Field>
 
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {t("newBot.template")}
         </Text>
         <If
           when={templates().length > 0}
           else={
             <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 12, lineHeight: 18, color: colors.muted }}>
+              <Text style={{ fontSize: 12, lineHeight: 18, color: token("muted-foreground") }}>
                 {saving() ? t("newBot.readingPresets") : t("newBot.noTemplates")}
               </Text>
               <Button
-                label={t("newBot.import")}
-                size="small"
+                size="sm"
                 disabled={writeBlocked()}
+                variant="secondary"
                 onPress={() => void importDshTemplates()}
-              />
+                accessibilityLabel={t("newBot.import")}
+              >
+                {t("newBot.import")}
+              </Button>
             </View>
           }
         >
@@ -210,20 +227,21 @@ function Body() {
                     borderRadius: radius.control,
                     borderCurve: "continuous",
                     borderWidth: 1,
-                    borderColor: chosen()?.id === template().id ? colors.accent : colors.border,
-                    backgroundColor: chosen()?.id === template().id ? colors.inset : "transparent",
+                    borderColor: chosen()?.id === template().id ? token("brand") : token("border"),
+                    backgroundColor:
+                      chosen()?.id === template().id ? token("inset") : "transparent",
                   }}
                 >
                   <View style={{ flex: 1, gap: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: token("foreground") }}>
                       {template().name}
                     </Text>
-                    <Text style={{ fontSize: 11, color: colors.muted }}>
+                    <Text style={{ fontSize: 11, color: token("muted-foreground") }}>
                       {t("newBot.templateMeta", { preset: template().presetId })}
                     </Text>
                   </View>
                   <If when={chosen()?.id === template().id}>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: colors.accent }}>
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: token("brand") }}>
                       {t("common.selected")}
                     </Text>
                   </If>
@@ -237,44 +255,60 @@ function Body() {
       <BotIdentityPicker identity={identity} onChange={identity.set} />
 
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {t("newBot.firstDir")}
         </Text>
-        <Field
-          label={t("common.path")}
-          testID="new-bot-workspace"
-          value={workspace()}
-          placeholder="/Users/you/Work/project"
-          onChange={(value) => {
-            localError.set(null);
-            workspace.set(value);
-          }}
-        />
+        <Field>
+          <FieldLabel>{t("common.path")}</FieldLabel>
+          <Input
+            testID="new-bot-workspace"
+            accessibilityLabel={t("common.path")}
+            value={workspace()}
+            placeholder="/Users/you/Work/project"
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChange={(event) => {
+              localError.set(null);
+              workspace.set(event.value);
+            }}
+          />
+        </Field>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Button
-            label={t("newBot.chooseFolder")}
-            size="small"
+            size="sm"
             disabled={writeBlocked()}
+            variant="secondary"
             onPress={() => void chooseWorkspace()}
-          />
+            accessibilityLabel={t("newBot.chooseFolder")}
+          >
+            {t("newBot.chooseFolder")}
+          </Button>
         </View>
       </View>
 
       <If when={!!(localError() ?? actionError())}>
-        <Text style={{ fontSize: 12, lineHeight: 18, color: colors.danger }}>
+        <Text style={{ fontSize: 12, lineHeight: 18, color: token("destructive") }}>
           {localError() ?? actionError()}
         </Text>
       </If>
 
       <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-        <Button label={t("common.cancel")} size="small" variant="ghost" onPress={closeNewBot} />
         <Button
-          label={creating() ? t("newBot.creating") : t("newBot.create")}
-          size="small"
-          variant="accent"
+          size="sm"
+          variant="ghost"
+          onPress={closeNewBot}
+          accessibilityLabel={t("common.cancel")}
+        >
+          {t("common.cancel")}
+        </Button>
+        <Button
+          size="sm"
           disabled={!canCreate()}
           onPress={() => void create()}
-        />
+          accessibilityLabel={creating() ? t("newBot.creating") : t("newBot.create")}
+        >
+          {creating() ? t("newBot.creating") : t("newBot.create")}
+        </Button>
       </View>
     </View>
   );

@@ -3,14 +3,16 @@
  * has the focus). A secondary click opens it where the pointer is and does not
  * open the row.
  */
-import { Text, View, type JSX } from "nsh";
+import { Archive, SlidersHorizontal, Sparkles, Star, Type } from "lucide";
+import { type IconNode } from "lucide";
+import { Text, View, type JSX, token } from "nsh";
 import { ContextMenu, MenuItem, MenuSeparator } from "nsh/base";
 
 import { openBotDetails } from "../../features/bots/details";
 import { archiveBot, type Bot, unarchiveBot } from "../../features/bots/model";
 import { changeRegistry } from "../../features/bots/state";
 import { t, type MessageKey } from "../../lib/i18n";
-import { colors, Icon, type IconName } from "../ui";
+import { Icon } from "../../lib/icons";
 import { openRename } from "./navSheets";
 import { isPinned, togglePin } from "./pins";
 
@@ -20,7 +22,7 @@ type Entry =
       kind: "item";
       id: string;
       label: MessageKey;
-      icon?: IconName;
+      icon?: IconNode;
       disabled?: boolean;
       onSelect: () => void;
     };
@@ -33,21 +35,21 @@ export function contextEntries(bot: Bot | null, options: { pinned: boolean }): E
       kind: "item",
       id: "bot-pin",
       label: options.pinned ? "menu.unpin" : "menu.pin",
-      icon: "star",
+      icon: Star,
       onSelect: () => togglePin(bot.id),
     },
     {
       kind: "item",
       id: "bot-details",
       label: "menu.botDetails",
-      icon: "sliders",
+      icon: SlidersHorizontal,
       onSelect: () => openBotDetails(bot.id),
     },
     {
       kind: "item",
       id: "bot-rename",
       label: "menu.rename",
-      icon: "text",
+      icon: Type,
       onSelect: () => openRename({ botId: bot.id, value: bot.name }),
     },
     { kind: "separator", id: "bot-separator" },
@@ -56,14 +58,14 @@ export function contextEntries(bot: Bot | null, options: { pinned: boolean }): E
           kind: "item",
           id: "bot-unarchive",
           label: "menu.unarchive",
-          icon: "storage",
+          icon: Archive,
           onSelect: () => void setArchived(bot.id, false),
         }
       : {
           kind: "item",
           id: "bot-archive",
           label: "menu.archive",
-          icon: "storage",
+          icon: Archive,
           onSelect: () => void setArchived(bot.id, true),
         },
   ];
@@ -104,9 +106,9 @@ function EntryItem(props: { entry: Entry }) {
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <If when={!!item.icon}>
-          <Icon name={item.icon ?? "spark"} size={14} tint={colors.muted} />
+          <Icon icon={item.icon ?? Sparkles} size={14} tint={token("muted-foreground")} />
         </If>
-        <Text style={{ fontSize: 13, color: colors.text }}>{t(item.label)}</Text>
+        <Text style={{ fontSize: 13, color: token("foreground") }}>{t(item.label)}</Text>
       </View>
     </MenuItem>
   );

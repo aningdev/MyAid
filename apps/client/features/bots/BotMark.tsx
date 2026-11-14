@@ -4,10 +4,10 @@
  * in the accent; no character art. A Bot with a running turn breathes a
  * quiet halo around it (`animate-pulse`, still when reduced motion is on).
  */
-import { Canvas, type CanvasRenderingContext2D, Text, View } from "nsh";
+import { Canvas, type CanvasRenderingContext2D, Text, View, token } from "nsh";
 
-import { alpha, colors } from "../../components/ui";
 import { t } from "../../lib/i18n";
+import { alpha } from "../../lib/theme";
 import {
   BOT_COLOR_HEX,
   BOT_COLOR_LABELS,
@@ -110,7 +110,7 @@ export function BotIdentityPicker(props: {
   return (
     <View style={{ gap: 10 }}>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {t("bot.identity.color")}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -133,7 +133,7 @@ export function BotIdentityPicker(props: {
                     justifyContent: "center",
                     alignItems: "center",
                     borderWidth: 2,
-                    borderColor: selected() ? colors.text : "transparent",
+                    borderColor: selected() ? token("foreground") : "transparent",
                   }}
                 >
                   <View
@@ -151,7 +151,7 @@ export function BotIdentityPicker(props: {
         </View>
       </View>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {t("bot.identity.glyph")}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -173,8 +173,10 @@ export function BotIdentityPicker(props: {
                     justifyContent: "center",
                     alignItems: "center",
                     borderWidth: 1,
-                    borderColor: selected() ? botColor(current()) : colors.border,
-                    backgroundColor: selected() ? alpha(botColor(current()), 0.14) : colors.raised,
+                    borderColor: selected() ? botColor(current()) : token("border"),
+                    backgroundColor: selected()
+                      ? alpha(botColor(current()), 0.14)
+                      : token("raised"),
                   }}
                 >
                   <BotGlyph identity={{ ...current(), glyph: glyph() }} size={17} />

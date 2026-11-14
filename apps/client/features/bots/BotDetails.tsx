@@ -30,6 +30,7 @@ import type {
   BotPresetRecord,
   BotPresetSkill,
 } from "@myaid/dsh-web-protocol/bot-presets";
+import { X } from "lucide";
 import {
   Clipboard,
   cleanup,
@@ -41,23 +42,20 @@ import {
   untracked,
   View,
   type Signal,
+  token,
 } from "nsh";
 import { Dialog } from "nsh/base";
 
-import {
-  Button,
-  colors,
-  Field,
-  hovered,
-  Icon,
-  Meter,
-  mono,
-  Press,
-  radius,
-  Segmented,
-} from "../../components/ui";
+import { Press } from "../../components/app";
+import { Button } from "../../components/ui/button";
+import { Field, FieldLabel } from "../../components/ui/field";
+import { Input } from "../../components/ui/input";
+import { Meter } from "../../components/ui/meter";
+import { Segmented, SegmentedItem, SegmentedList } from "../../components/ui/segmented";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t, type MessageKey } from "../../lib/i18n";
+import { Icon } from "../../lib/icons";
+import { hovered, mono, radius } from "../../lib/theme";
 import { catalogModelKey, modelCatalog, sessionList } from "../dialogue/session/runtime";
 import { workspacePath, workspaces } from "../workspace/state";
 import { BotIdentityPicker, BotMark } from "./BotMark";
@@ -124,7 +122,7 @@ export function BotDetails() {
       onOpenChange={({ open }) => {
         if (!open) closeBotDetails();
       }}
-      backdropStyle={{ backgroundColor: "rgba(0,0,0,0.32)" }}
+      backdropStyle={{ backgroundColor: token("scrim") }}
       style={{ margin: "auto", width: 660, maxWidth: "94%", maxHeight: "92%" }}
     >
       <If when={botId()}>{(id) => <Body botId={id()} onClose={closeBotDetails} />}</If>
@@ -391,8 +389,8 @@ function Body(props: { botId: string; onClose: () => void }) {
         borderRadius: radius.card,
         borderCurve: "continuous",
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
+        borderColor: token("border"),
+        backgroundColor: token("card"),
         flexDirection: "column",
         maxHeight: "100%",
       }}
@@ -400,10 +398,10 @@ function Body(props: { botId: string; onClose: () => void }) {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <If when={bot()}>{(current) => <BotMark identity={current().identity} size={28} />}</If>
         <View style={{ flex: 1, gap: 1 }}>
-          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+          <Text style={{ fontSize: 17, fontWeight: "600", color: token("foreground") }}>
             {bot()?.name ?? t("bot.details")}
           </Text>
-          <Text style={{ fontSize: 11, color: colors.faint }}>
+          <Text style={{ fontSize: 11, color: token("faint") }}>
             {bot()?.archived ? t("bot.detailsArchived") : t("bot.details")}
           </Text>
         </View>
@@ -413,15 +411,16 @@ function Body(props: { botId: string; onClose: () => void }) {
           scale={0.96}
           style={{ padding: 6 }}
         >
-          <Icon name="close" size={14} tint={colors.muted} />
+          <Icon icon={X} size={14} tint={token("muted-foreground")} />
         </Press>
       </View>
-      <Segmented
-        options={TABS.map((entry) => ({ value: entry.value, label: t(entry.label) }))}
-        value={tab()}
-        onChange={tab.set}
-        size="small"
-      />
+      <Segmented value={tab()} onValueChange={(value) => tab.set(value as Tab)}>
+        <SegmentedList fill>
+          <Each of={TABS}>
+            {(entry) => <SegmentedItem value={entry().value}>{t(entry().label)}</SegmentedItem>}
+          </Each>
+        </SegmentedList>
+      </Segmented>
       <Scroll
         testID="bot-details-scroll"
         style={{ flexShrink: 1, minHeight: 0 }}
@@ -475,39 +474,48 @@ function Body(props: { botId: string; onClose: () => void }) {
         <SegmentSection botId={props.botId} onFailure={failure.set} />
       </Scroll>
       <If when={!!failure()}>
-        <Text style={{ fontSize: 12, lineHeight: 17, color: colors.danger }}>{failure()}</Text>
+        <Text style={{ fontSize: 12, lineHeight: 17, color: token("destructive") }}>
+          {failure()}
+        </Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <If when={!!bot()}>
           <Button
-            label={t("common.delete")}
             variant="ghost"
-            size="small"
+            size="sm"
             disabled={saving() || savingNow() || !!bot()?.hadDialogue}
             onPress={() => void remove()}
-          />
+            accessibilityLabel={t("common.delete")}
+          >
+            {t("common.delete")}
+          </Button>
           <Button
-            label={bot()?.archived ? t("common.unarchive") : t("common.archive")}
             variant="ghost"
-            size="small"
+            size="sm"
             disabled={saving() || savingNow()}
             onPress={() => void setArchived(!bot()?.archived)}
-          />
+            accessibilityLabel={bot()?.archived ? t("common.unarchive") : t("common.archive")}
+          >
+            {bot()?.archived ? t("common.unarchive") : t("common.archive")}
+          </Button>
         </If>
         <View style={{ flex: 1 }} />
         <Button
-          label={t("common.cancel")}
           variant="secondary"
-          size="small"
+          size="sm"
           onPress={props.onClose}
-        />
+          accessibilityLabel={t("common.cancel")}
+        >
+          {t("common.cancel")}
+        </Button>
         <Button
-          label={t("common.save")}
-          variant="accent"
-          size="small"
+          size="sm"
           disabled={saving() || savingNow()}
           onPress={() => void save()}
-        />
+          accessibilityLabel={t("common.save")}
+        >
+          {t("common.save")}
+        </Button>
       </View>
     </View>
   );
@@ -581,14 +589,14 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
 
   return (
     <View style={{ gap: 10 }} testID="bot-details-segment">
-      <View style={{ height: 1, backgroundColor: colors.line }} />
-      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+      <View style={{ height: 1, backgroundColor: token("line") }} />
+      <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
         {t("bot.segment.current")}
       </Text>
       <If
         when={segmentId()}
         else={
-          <Text style={{ fontSize: 11, lineHeight: 16, color: colors.muted }}>
+          <Text style={{ fontSize: 11, lineHeight: 16, color: token("muted-foreground") }}>
             {t("bot.segment.none")}
           </Text>
         }
@@ -596,7 +604,7 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
         {(sessionId) => (
           <View style={{ gap: 8 }}>
             <View style={{ gap: 3 }}>
-              <Text style={{ fontSize: 11, color: colors.muted }}>
+              <Text style={{ fontSize: 11, color: token("muted-foreground") }}>
                 {t("bot.segment.workspace")}
               </Text>
               {/* dsh may not have reported the Workspace yet: the line stays
@@ -605,7 +613,7 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
                 testID="bot-details-path"
                 style={{
                   fontSize: 12,
-                  color: path() ? colors.text : colors.faint,
+                  color: path() ? token("foreground") : token("faint"),
                   fontFamily: mono,
                   userSelect: "text",
                   numberOfLines: 2,
@@ -626,10 +634,12 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
               </View>
             </If>
             <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-              <Text style={{ width: 72, fontSize: 11, color: colors.muted }}>{t("bot.model")}</Text>
+              <Text style={{ width: 72, fontSize: 11, color: token("muted-foreground") }}>
+                {t("bot.model")}
+              </Text>
               <Text
                 testID="bot-details-model"
-                style={{ flex: 1, fontSize: 12, color: colors.text, numberOfLines: 1 }}
+                style={{ flex: 1, fontSize: 12, color: token("foreground"), numberOfLines: 1 }}
               >
                 {model()}
               </Text>
@@ -673,18 +683,24 @@ function Usage(props: {
         <If
           when={context()}
           else={
-            <Text style={{ fontSize: 11, color: colors.muted }}>{t("bot.segment.noContext")}</Text>
+            <Text style={{ fontSize: 11, color: token("muted-foreground") }}>
+              {t("bot.segment.noContext")}
+            </Text>
           }
         >
           {(read) => (
             <View style={{ gap: 4 }}>
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-                <Text style={{ flex: 1, fontSize: 11, color: colors.muted }}>
+                <Text style={{ flex: 1, fontSize: 11, color: token("muted-foreground") }}>
                   {t("bot.segment.context")}
                 </Text>
                 <Text
                   testID="bot-details-context"
-                  style={{ fontSize: 11, color: colors.text, fontVariant: ["tabular-nums"] }}
+                  style={{
+                    fontSize: 11,
+                    color: token("foreground"),
+                    fontVariant: ["tabular-nums"],
+                  }}
                 >
                   {`${Math.round(read().ratio * 100)}% · ${compactCount(read().used)} / ${compactCount(read().window)}`}
                 </Text>
@@ -695,10 +711,12 @@ function Usage(props: {
         </If>
       </If>
       <If when={props.read().status === "failed"}>
-        <Text style={{ fontSize: 11, lineHeight: 16, color: colors.danger }}>{failure()}</Text>
+        <Text style={{ fontSize: 11, lineHeight: 16, color: token("destructive") }}>
+          {failure()}
+        </Text>
       </If>
       <If when={props.read().status === "idle" || props.read().status === "loading"}>
-        <Text style={{ fontSize: 11, color: colors.muted }}>
+        <Text style={{ fontSize: 11, color: token("muted-foreground") }}>
           {props.read().status === "loading"
             ? t("bot.segment.usageLoading")
             : t("bot.segment.usageIdle")}
@@ -706,16 +724,20 @@ function Usage(props: {
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Button
-          label={
+          variant="secondary"
+          size="sm"
+          disabled={props.compactRead().status === "running"}
+          onPress={props.onCompact}
+          accessibilityLabel={
             props.compactRead().status === "running"
               ? t("bot.segment.compacting")
               : t("bot.segment.compact")
           }
-          variant="secondary"
-          size="small"
-          disabled={props.compactRead().status === "running"}
-          onPress={props.onCompact}
-        />
+        >
+          {props.compactRead().status === "running"
+            ? t("bot.segment.compacting")
+            : t("bot.segment.compact")}
+        </Button>
         <If
           when={props.compactRead().status !== "idle" && props.compactRead().status !== "running"}
         >
@@ -724,7 +746,10 @@ function Usage(props: {
               flex: 1,
               fontSize: 11,
               lineHeight: 16,
-              color: props.compactRead().status === "failed" ? colors.danger : colors.muted,
+              color:
+                props.compactRead().status === "failed"
+                  ? token("destructive")
+                  : token("muted-foreground"),
             }}
           >
             {outcome()}
@@ -739,7 +764,7 @@ function Usage(props: {
 function Tiny(props: { label: string; onPress: () => void }) {
   return (
     <Press onPress={props.onPress} accessibilityLabel={props.label} scale={0.96}>
-      <Text style={{ fontSize: 11, fontWeight: "500", color: colors.accent }}>{props.label}</Text>
+      <Text style={{ fontSize: 11, fontWeight: "500", color: token("brand") }}>{props.label}</Text>
     </Press>
   );
 }
@@ -754,28 +779,42 @@ function ProfileTab(props: {
 }) {
   const binding = () => props.binding()?.binding ?? null;
   const tone = () =>
-    binding() === "bound" ? colors.accent : binding() === "custom" ? colors.info : colors.muted;
+    binding() === "bound"
+      ? token("brand")
+      : binding() === "custom"
+        ? token("info")
+        : token("muted-foreground");
   return (
     <View style={{ gap: 12 }}>
       <If when={props.ready()} else={<Hint text={t("bot.readingRegistry")} />}>
-        <Field
-          label={t("common.name")}
-          testID="bot-details-name"
-          value={props.name()}
-          placeholder="Ada"
-          onChange={props.name.set}
-        />
-        <Field
-          label={t("common.description")}
-          testID="bot-details-description"
-          value={props.description()}
-          placeholder={t("bot.field.descriptionPlaceholder")}
-          onChange={props.description.set}
-        />
+        <Field>
+          <FieldLabel>{t("common.name")}</FieldLabel>
+          <Input
+            testID="bot-details-name"
+            accessibilityLabel={t("common.name")}
+            value={props.name()}
+            placeholder="Ada"
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChange={(event) => props.name.set(event.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t("common.description")}</FieldLabel>
+          <Input
+            testID="bot-details-description"
+            accessibilityLabel={t("common.description")}
+            value={props.description()}
+            placeholder={t("bot.field.descriptionPlaceholder")}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChange={(event) => props.description.set(event.value)}
+          />
+        </Field>
         <View style={{ gap: 8 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <BotMark identity={props.identity()} size={22} />
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
               {t("bot.identity")}
             </Text>
           </View>
@@ -785,15 +824,20 @@ function ProfileTab(props: {
           />
         </View>
         <View style={{ gap: 6 }}>
-          <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+          <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
             {t("bot.template")}
           </Text>
-          <Text style={{ fontSize: 14, color: colors.text }}>
+          <Text style={{ fontSize: 14, color: token("foreground") }}>
             {props.template()?.name ?? t("bot.templateGone")}
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text
-              style={{ fontSize: 12, color: colors.text, fontFamily: mono, userSelect: "text" }}
+              style={{
+                fontSize: 12,
+                color: token("foreground"),
+                fontFamily: mono,
+                userSelect: "text",
+              }}
             >
               {props.binding()?.presetId ?? "—"}
             </Text>
@@ -819,7 +863,7 @@ function RunsTab(props: {
   return (
     <View style={{ gap: 12 }}>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {t("bot.model")}
         </Text>
         <If when={props.models().length > 0} else={<Hint text={t("bot.modelNoCatalog")} />}>
@@ -841,30 +885,41 @@ function RunsTab(props: {
         </If>
       </View>
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {t("bot.thinking")}
         </Text>
         <If when={props.levels().length > 0} else={<Hint text={t("bot.thinkingNone")} />}>
-          <Segmented
-            size="small"
-            options={[
-              { value: "", label: t("common.default") },
-              ...props.levels().map((item) => ({ value: item.id, label: item.name })),
-            ]}
-            value={props.thinking()}
-            onChange={props.thinking.set}
-          />
+          <Segmented value={props.thinking()} onValueChange={(value) => props.thinking.set(value)}>
+            <SegmentedList fill>
+              <SegmentedItem value="">{t("common.default")}</SegmentedItem>
+              <Each of={props.levels()}>
+                {(item) => <SegmentedItem value={item().id}>{item().name}</SegmentedItem>}
+              </Each>
+            </SegmentedList>
+          </Segmented>
         </If>
       </View>
-      <Field
-        label={t("bot.defaultWorkspace")}
-        testID="bot-details-workspace"
-        value={props.workspace()}
-        placeholder="/path/to/project"
-        onChange={props.workspace.set}
-      />
+      <Field>
+        <FieldLabel>{t("bot.defaultWorkspace")}</FieldLabel>
+        <Input
+          testID="bot-details-workspace"
+          accessibilityLabel={t("bot.defaultWorkspace")}
+          value={props.workspace()}
+          placeholder="/path/to/project"
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChange={(event) => props.workspace.set(event.value)}
+        />
+      </Field>
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <Button label={t("bot.chooseDirectory")} size="small" onPress={props.onChooseWorkspace} />
+        <Button
+          size="sm"
+          variant="secondary"
+          onPress={props.onChooseWorkspace}
+          accessibilityLabel={t("bot.chooseDirectory")}
+        >
+          {t("bot.chooseDirectory")}
+        </Button>
       </View>
       <Hint text={t("bot.defaultWorkspaceHint")} />
     </View>
@@ -897,12 +952,14 @@ function SkillsTab(props: {
         <SectionTitle title={t("bot.skills.added")} />
         <View style={{ flex: 1 }} />
         <Button
-          label={t("bot.skills.add")}
-          size="small"
+          size="sm"
           variant="secondary"
           disabled={!props.writable()}
           onPress={props.onAdd}
-        />
+          accessibilityLabel={t("bot.skills.add")}
+        >
+          {t("bot.skills.add")}
+        </Button>
       </View>
       <If when={props.added().length > 0} else={<Hint text={t("bot.skills.none")} />}>
         <View style={{ gap: 1 }}>
@@ -916,14 +973,16 @@ function SkillsTab(props: {
                   paddingHorizontal: 8,
                   paddingVertical: 6,
                   borderBottomWidth: 1,
-                  borderBottomColor: colors.line,
+                  borderBottomColor: token("line"),
                 }}
               >
                 <View style={{ flex: 1, gap: 1 }}>
-                  <Text style={{ fontSize: 12, color: colors.text, fontFamily: mono }}>
+                  <Text style={{ fontSize: 12, color: token("foreground"), fontFamily: mono }}>
                     {`/${skill().name}`}
                   </Text>
-                  <Text style={{ fontSize: 11, color: colors.muted, numberOfLines: 1 }}>
+                  <Text
+                    style={{ fontSize: 11, color: token("muted-foreground"), numberOfLines: 1 }}
+                  >
                     {skill().path}
                   </Text>
                 </View>
@@ -934,7 +993,7 @@ function SkillsTab(props: {
                   disabled={!props.writable()}
                   scale={0.96}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: colors.danger }}>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: token("destructive") }}>
                     {t("common.remove")}
                   </Text>
                 </Press>
@@ -970,7 +1029,7 @@ function PluginsTab(props: {
   };
   return (
     <View style={{ gap: 10 }}>
-      <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
         {t("bot.plugins.heading", { preset: props.presetId() || "preset" })}
       </Text>
       <If
@@ -987,17 +1046,17 @@ function PluginsTab(props: {
                   gap: 8,
                   paddingVertical: 6,
                   borderBottomWidth: 1,
-                  borderBottomColor: colors.line,
+                  borderBottomColor: token("line"),
                 }}
               >
                 <View style={{ flex: 1, gap: 1 }}>
-                  <Text style={{ fontSize: 12, color: colors.text, numberOfLines: 1 }}>
+                  <Text style={{ fontSize: 12, color: token("foreground"), numberOfLines: 1 }}>
                     {row().name ?? row().moduleName}
                   </Text>
                   <Text
                     style={{
                       fontSize: 11,
-                      color: colors.muted,
+                      color: token("muted-foreground"),
                       fontFamily: mono,
                       numberOfLines: 1,
                     }}
@@ -1018,7 +1077,7 @@ function PluginsTab(props: {
                     style={{
                       fontSize: 11,
                       fontWeight: "600",
-                      color: enabledOf(row()) ? colors.accent : colors.muted,
+                      color: enabledOf(row()) ? token("brand") : token("muted-foreground"),
                     }}
                   >
                     {enabledOf(row()) ? t("common.enabled") : t("common.disabled")}
@@ -1056,16 +1115,27 @@ function Choice(props: { label: string; detail: string; selected: boolean; onPre
         paddingHorizontal: 8,
         paddingVertical: 6,
         borderRadius: 8,
-        backgroundColor: props.selected ? colors.raised : "transparent",
+        backgroundColor: props.selected ? token("raised") : "transparent",
         gap: 1,
       }}
     >
       <Text
-        style={{ fontSize: 12, fontWeight: props.selected ? "600" : "400", color: colors.text }}
+        style={{
+          fontSize: 12,
+          fontWeight: props.selected ? "600" : "400",
+          color: token("foreground"),
+        }}
       >
         {props.label}
       </Text>
-      <Text style={{ fontSize: 11, color: colors.muted, fontFamily: mono, numberOfLines: 1 }}>
+      <Text
+        style={{
+          fontSize: 11,
+          color: token("muted-foreground"),
+          fontFamily: mono,
+          numberOfLines: 1,
+        }}
+      >
         {props.detail}
       </Text>
     </View>
@@ -1080,21 +1150,31 @@ function Row(props: { label: string; detail: string }) {
         paddingVertical: 6,
         gap: 1,
         borderBottomWidth: 1,
-        borderBottomColor: colors.line,
+        borderBottomColor: token("line"),
       }}
     >
-      <Text style={{ fontSize: 12, color: colors.text, fontFamily: mono }}>{props.label}</Text>
-      <Text style={{ fontSize: 11, color: colors.muted, numberOfLines: 2 }}>{props.detail}</Text>
+      <Text style={{ fontSize: 12, color: token("foreground"), fontFamily: mono }}>
+        {props.label}
+      </Text>
+      <Text style={{ fontSize: 11, color: token("muted-foreground"), numberOfLines: 2 }}>
+        {props.detail}
+      </Text>
     </View>
   );
 }
 
 function SectionTitle(props: { title: string }) {
   return (
-    <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted }}>{props.title}</Text>
+    <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
+      {props.title}
+    </Text>
   );
 }
 
 function Hint(props: { text: string }) {
-  return <Text style={{ fontSize: 11, lineHeight: 16, color: colors.muted }}>{props.text}</Text>;
+  return (
+    <Text style={{ fontSize: 11, lineHeight: 16, color: token("muted-foreground") }}>
+      {props.text}
+    </Text>
+  );
 }

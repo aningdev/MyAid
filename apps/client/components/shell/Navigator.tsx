@@ -1,3 +1,4 @@
+import { Plus, Search, X } from "lucide";
 /**
  * Navigator: the flat Bot list under its search field.
  *
@@ -6,15 +7,18 @@
  * (or brings it to the front), a secondary click offers its verbs, and a drag
  * to the right drops it into the Workbench as a new Pane.
  */
-import { keymap, platform, Scroll, Text, View, type InputRef } from "nsh";
-import { Button, Input } from "nsh/base";
+import { keymap, platform, Scroll, Text, token, View, type InputRef } from "nsh";
+import { Input } from "nsh/base";
 
 import { BotMark } from "../../features/bots/BotMark";
 import { unarchiveBot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
 import { changeRegistry, registry } from "../../features/bots/state";
 import { t, tCount } from "../../lib/i18n";
-import { colors, hovered, Icon, Press, radius } from "../ui";
+import { Icon } from "../../lib/icons";
+import { hovered, radius } from "../../lib/theme";
+import { Press } from "../app";
+import { IconButton, iconButtonGlyph } from "../ui/button";
 import { type BotRow, botRows } from "./botList";
 import { navSearchFocusRequest, navQuery, setNavQuery, takeNavSearchFocus } from "./navFilter";
 import { NavContextMenu } from "./navMenu";
@@ -39,7 +43,7 @@ export function Navigator() {
   };
 
   return (
-    <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: colors.inset }}>
+    <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: token("inset") }}>
       <View style={{ paddingHorizontal: 6, paddingTop: 6, paddingBottom: 2, gap: 4 }}>
         <View
           style={{
@@ -49,12 +53,12 @@ export function Navigator() {
             height: 30,
             paddingHorizontal: 8,
             borderRadius: 8,
-            backgroundColor: colors.raised,
+            backgroundColor: token("raised"),
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: token("border"),
           }}
         >
-          <Icon name="search" size={13} tint={colors.muted} />
+          <Icon icon={Search} size={13} tint={token("muted-foreground")} />
           <Input
             ref={(node) => (search = node ?? undefined)}
             testID="nav-search"
@@ -68,19 +72,19 @@ export function Navigator() {
               flex: 1,
               height: 28,
               fontSize: 13,
-              color: colors.text,
+              color: token("foreground"),
               paddingHorizontal: 0,
-              placeholderColor: colors.faint,
+              placeholderColor: token("faint"),
             }}
           />
           <If when={!!navQuery()}>
-            <Button
+            <IconButton
+              size="sm"
               onPress={() => setNavQuery("")}
               accessibilityLabel={t("nav.clearSearch")}
-              class="hover:bg-accent size-5 items-center justify-center rounded"
             >
-              <Icon name="close" size={11} tint={colors.muted} />
-            </Button>
+              <Icon icon={X} {...iconButtonGlyph({ size: "sm" })} />
+            </IconButton>
           </If>
         </View>
       </View>
@@ -98,7 +102,7 @@ export function Navigator() {
               marginTop: 6,
               marginBottom: 5,
               marginHorizontal: 6,
-              backgroundColor: colors.line,
+              backgroundColor: token("line"),
             }}
           />
         </If>
@@ -116,14 +120,24 @@ export function Navigator() {
         </If>
         <If when={empty() && !!navQuery().trim()}>
           <Text
-            style={{ paddingHorizontal: 6, paddingVertical: 8, fontSize: 12, color: colors.muted }}
+            style={{
+              paddingHorizontal: 6,
+              paddingVertical: 8,
+              fontSize: 12,
+              color: token("muted-foreground"),
+            }}
           >
             {t("nav.noMatch")}
           </Text>
         </If>
         <If when={empty() && !navQuery().trim()}>
           <Text
-            style={{ paddingHorizontal: 6, paddingVertical: 8, fontSize: 12, color: colors.muted }}
+            style={{
+              paddingHorizontal: 6,
+              paddingVertical: 8,
+              fontSize: 12,
+              color: token("muted-foreground"),
+            }}
           >
             {registry().bots.length > 0 ? t("nav.allArchived") : t("nav.noBots")}
           </Text>
@@ -181,7 +195,7 @@ function Row(props: { row: BotRow }) {
         onPress={open}
         accessibilityLabel={bot().name}
         accessibilityState={{ selected: selected() }}
-        activeStyle={{ backgroundColor: colors.raised }}
+        activeStyle={{ backgroundColor: token("raised") }}
         hoverStyle={hovered()}
         onPressDown={() => {
           // A press after a drop starts a fresh gesture: the drop is done.
@@ -204,7 +218,7 @@ function Row(props: { row: BotRow }) {
           paddingHorizontal: 6,
           paddingVertical: 3,
           borderRadius: radius.control,
-          backgroundColor: selected() ? colors.raised : "transparent",
+          backgroundColor: selected() ? token("raised") : "transparent",
         }}
       >
         <BotMark identity={bot().identity} size={18} working={row().working} />
@@ -213,7 +227,7 @@ function Row(props: { row: BotRow }) {
             flex: 1,
             minWidth: 0,
             fontSize: platform.idiom === "desktop" ? 13 : 15,
-            color: bot().archived ? colors.muted : colors.text,
+            color: bot().archived ? token("muted-foreground") : token("foreground"),
             numberOfLines: 1,
           }}
         >
@@ -233,10 +247,10 @@ function StatusMarks(props: { row: BotRow }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
       <If when={props.row.attention}>
-        <Dot testID="nav-status-attention" label={t("nav.waitingApproval")} color={colors.warn} />
+        <Dot testID="nav-status-attention" label={t("nav.waitingApproval")} color={token("warn")} />
       </If>
       <If when={props.row.working}>
-        <Dot testID="nav-status-working" label={t("nav.working")} color={colors.up} />
+        <Dot testID="nav-status-working" label={t("nav.working")} color={token("up")} />
       </If>
       <If when={props.row.unread > 0}>
         <View
@@ -249,10 +263,10 @@ function StatusMarks(props: { row: BotRow }) {
             borderRadius: 8,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: colors.accentFill,
+            backgroundColor: token("brand-fill"),
           }}
         >
-          <Text style={{ fontSize: 10, fontWeight: "600", color: colors.onAccent }}>
+          <Text style={{ fontSize: 10, fontWeight: "600", color: token("on-brand") }}>
             {String(props.row.unread)}
           </Text>
         </View>
@@ -279,7 +293,7 @@ function Unarchive(props: { botId: string; name: string }) {
       scale={0.96}
       style={{ paddingHorizontal: 6, paddingVertical: 2 }}
     >
-      <Text style={{ fontSize: 11, fontWeight: "600", color: colors.accent }}>
+      <Text style={{ fontSize: 11, fontWeight: "600", color: token("brand") }}>
         {t("common.unarchive")}
       </Text>
     </Press>
@@ -298,7 +312,7 @@ function NewBotRow() {
       onPress={openNewBot}
       accessibilityLabel={t("nav.newBot")}
       hoverStyle={hovered()}
-      activeStyle={{ backgroundColor: colors.raised }}
+      activeStyle={{ backgroundColor: token("raised") }}
       style={{
         minHeight: platform.idiom === "desktop" ? 30 : 44,
         flexDirection: "row",
@@ -311,14 +325,18 @@ function NewBotRow() {
       }}
     >
       <View style={{ width: 18, height: 18, alignItems: "center", justifyContent: "center" }}>
-        <Icon name="plus" size={13} tint={colors.muted} />
+        <Icon icon={Plus} size={13} tint={token("muted-foreground")} />
       </View>
       <Text
-        style={{ flex: 1, fontSize: platform.idiom === "desktop" ? 13 : 15, color: colors.muted }}
+        style={{
+          flex: 1,
+          fontSize: platform.idiom === "desktop" ? 13 : 15,
+          color: token("muted-foreground"),
+        }}
       >
         {t("nav.newBot")}
       </Text>
-      <Text style={{ fontSize: 11, color: colors.faint }}>{keymap.label("mod+n") ?? ""}</Text>
+      <Text style={{ fontSize: 11, color: token("faint") }}>{keymap.label("mod+n") ?? ""}</Text>
     </View>
   );
 }

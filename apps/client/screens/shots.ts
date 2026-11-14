@@ -4,10 +4,13 @@
  * before the UI steps. `nsh test --target macos` (or any graphical target)
  * saves the pictures.
  */
+import { homedir } from "os";
+import { join } from "path";
+
 import type { App } from "nsh/test";
 
-const SCRATCHPAD =
-  "/private/tmp/claude-501/-Users-zhuxining-Code-MyAid/fcf60928-6235-47f5-bea3-690051a88ab8/scratchpad";
+/** Pictures land beside the isolated dev roots, never in the real `~/.myaid`. */
+const SCRATCHPAD = join(homedir(), ".myaid-dev", "shots");
 
 /** The shell's pictures: welcome, marks, New Bot, palette, context menu. */
 export const SHOTS_SHELL = `${SCRATCHPAD}/pi-shots-shell`;

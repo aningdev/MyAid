@@ -4,13 +4,15 @@
  * (Return allows, Escape denies, unless a text input has the keyboard).
  * Answered, it folds into a one-line record of what was decided.
  */
-import { cleanup, effect, keymap, signal, Text, View } from "nsh";
+import { Check, TriangleAlert, X } from "lucide";
+import { cleanup, effect, keymap, signal, Text, View, token } from "nsh";
 
-import { alpha, colors, finish, Press, radius, toneTint } from "../../../components/ui";
+import { Button } from "../../../components/ui/button";
 import { t } from "../../../lib/i18n";
+import { Icon } from "../../../lib/icons";
+import { alpha, radius, toneTint } from "../../../lib/theme";
 import type { ApprovalRequest } from "../session/claimed";
 import type { SessionController } from "../session/controller";
-import { Glyph } from "./glyphs";
 
 type Answered = { tool: string; allowed: boolean };
 
@@ -61,10 +63,9 @@ function Card(props: {
         gap: 8,
         borderRadius: radius.card,
         borderCurve: "continuous",
-        backgroundColor: colors.surface,
-        ...finish.card,
+        backgroundColor: token("card"),
         borderWidth: 1,
-        borderColor: alpha(colors.warn, 0.45),
+        borderColor: alpha(token("warn"), 0.45),
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -78,65 +79,33 @@ function Card(props: {
             backgroundColor: toneTint("warn"),
           }}
         >
-          <Glyph name="alert" size={13} tint={colors.warn} />
+          <Icon icon={TriangleAlert} size={13} tint={token("warn")} />
         </View>
-        <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.text }}>
+        <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: token("foreground") }}>
           {t("chat.allowTool", { tool: req()?.toolName || t("dsh.error.tool") })}
         </Text>
       </View>
-      <Text style={{ fontSize: 13, lineHeight: 18, color: colors.muted }}>
+      <Text style={{ fontSize: 13, lineHeight: 18, color: token("muted-foreground") }}>
         {req()?.reason || t("chat.permission")}
       </Text>
       <If when={!!req()?.details}>
-        <Text style={{ fontSize: 12, lineHeight: 17, color: colors.faint }}>{req()?.details}</Text>
+        <Text style={{ fontSize: 12, lineHeight: 17, color: token("faint") }}>
+          {req()?.details}
+        </Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Press
-          onPress={() => props.onAnswer(true)}
-          accessibilityLabel={t("chat.allowOnce")}
-          scale={0.97}
-        >
-          <View
-            style={{
-              height: 30,
-              paddingHorizontal: 12,
-              borderRadius: 15,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: colors.light,
-              ...finish.light,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.onLight }}>
-              {t("chat.allowOnce")}
-            </Text>
-          </View>
-        </Press>
-        <Press
+        <Button onPress={() => props.onAnswer(true)} accessibilityLabel={t("chat.allowOnce")}>
+          {t("chat.allowOnce")}
+        </Button>
+        <Button
+          variant="secondary"
           onPress={() => props.onAnswer(false)}
           accessibilityLabel={t("chat.deny")}
-          scale={0.97}
         >
-          <View
-            style={{
-              height: 30,
-              paddingHorizontal: 12,
-              borderRadius: 15,
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.raised,
-              ...finish.raised,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>
-              {t("chat.deny")}
-            </Text>
-          </View>
-        </Press>
+          {t("chat.deny")}
+        </Button>
         <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 11, color: colors.faint }}>{t("chat.approvalKeys")}</Text>
+        <Text style={{ fontSize: 11, color: token("faint") }}>{t("chat.approvalKeys")}</Text>
       </View>
     </View>
   );
@@ -157,15 +126,15 @@ function AnsweredLine(props: { record: () => Answered | null }) {
           paddingVertical: 6,
           borderRadius: radius.control,
           borderCurve: "continuous",
-          backgroundColor: colors.inset,
+          backgroundColor: token("inset"),
         }}
       >
-        <Glyph
-          name={props.record()?.allowed ? "check" : "close"}
+        <Icon
+          icon={props.record()?.allowed ? Check : X}
           size={12}
-          tint={props.record()?.allowed ? colors.up : colors.muted}
+          tint={props.record()?.allowed ? token("up") : token("muted-foreground")}
         />
-        <Text style={{ flex: 1, fontSize: 12, color: colors.muted }}>
+        <Text style={{ flex: 1, fontSize: 12, color: token("muted-foreground") }}>
           {props.record()?.allowed
             ? `Allowed ${props.record()?.tool}`
             : `Denied ${props.record()?.tool}`}

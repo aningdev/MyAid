@@ -14,7 +14,7 @@
  */
 import { mount, signal, Text, View } from "nsh";
 
-import { Press } from "../../../components/ui";
+import { Press } from "../../../components/app";
 import {
   assistantMessage,
   durable,

@@ -10,8 +10,9 @@ Bundle id: `com.aningdev.myaid` (see `nsh.json`). The tree keeps its `nsh init` 
 apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
+│   ├── app/                    # product compositions over shadcn-nsh parts (Press, Appear, IconTile)
 │   ├── shell/                  # Navigator (flat Bot list), Panes, settings overlay, commands, prefs, attention
-│   └── ui/                     # styled foundation (the only wrapper of nsh/base)
+│   └── ui/                     # shadcn-nsh copies, added with its CLI; theme.json is the theme
 ├── features/                   # bots (registry, Pane, details), dialogue (chat, segments), workspace, settings
 ├── lib/                        # dsh, host, relay, background
 ├── screens/                    # open(…) entries, screenshots, opt-in real-Host smokes
@@ -36,6 +37,7 @@ vp run @myaid/client#dev:android
 vp run @myaid/client#dev:server       # nsh dev --server-only
 vp run @myaid/client#test
 vp run @myaid/client#build            # bytecode (nsh build)
+bun run ui:diff                       # components/ui vs ~/Code/shadcn-nsh (must say "No differences.")
 vp run @myaid/client#package:macos    # .nsh/out/MyAid.app, then runs it
 vp run @myaid/client#package:web      # also package:windows / linux / gpui / ios / android
 ```
