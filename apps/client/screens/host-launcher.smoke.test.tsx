@@ -18,6 +18,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../lib/i18n";
 import { open } from "../test/open";
 import { graphical, hostSmokeMode, shoot, SHOTS_N1 } from "./shots";
 
@@ -37,20 +38,22 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
   if (mode === "empty") {
     // Nothing answers on the port and the binary is not on PATH: the footer says how to start
     // one by hand instead of pretending a Host is there.
-    await app.waitFor("text:手动启动：myaid-host serve-app", { timeout: 60000 });
+    await app.waitFor(`text:${t("host.manual", { command: "myaid-host serve-app" })}`, {
+      timeout: 60000,
+    });
     await shoot(app, "03-host-empty-state.png", SHOTS_N1);
     return;
   }
 
   // Cold start: no Host is running, and the launcher starts one.
-  await app.waitFor("text:Host connected", { timeout: 120000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 120000 });
   await shoot(app, "01-host-running.png", SHOTS_N1);
 
   await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", "Launcher Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
-  await app.press("label:Create Bot");
+  await app.press(`label:${t("newBot.create")}`);
   await app.waitFor("id:chat", { timeout: 120000 });
   await app.waitFor("id:composer", { timeout: 30000 });
 
@@ -61,7 +64,7 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
   await app.waitUntil(() => app.texts().filter((text) => text.includes(REPLY_1)).length >= 2, {
     timeout: 300000,
   });
-  await app.waitFor("label:Send", { timeout: 120000 });
+  await app.waitFor(`label:${t("chat.send")}`, { timeout: 120000 });
 
   // A second turn is the one the watcher stops the Host in: the launcher starts it again, the
   // transcript is still here, and the Session the registry claims is the same one.
@@ -70,8 +73,8 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
     `${ECHO}-TURN2: answer with three short sentences, and end with ${REPLY_2}.`,
   );
   await app.keyboard.press("enter");
-  await app.waitFor("text:Host disconnected", { timeout: 180000 });
-  await app.waitFor("text:Host connected", { timeout: 240000 });
+  await app.waitFor(`text:${t("host.disconnected")}`, { timeout: 180000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 240000 });
   // "Host connected" is the new generation's probe answering, not its Session window: the Pane
   // re-subscribes on that generation and reads the log back a moment later. Wait for the window
   // rather than the probe.
@@ -86,6 +89,6 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
   await app.waitUntil(() => app.texts().filter((text) => text.includes(REPLY_3)).length >= 2, {
     timeout: 300000,
   });
-  await app.waitFor("label:Send", { timeout: 120000 });
+  await app.waitFor(`label:${t("chat.send")}`, { timeout: 120000 });
   await shoot(app, "02-restarted-and-resumed.png", SHOTS_N1);
 }, 900000);

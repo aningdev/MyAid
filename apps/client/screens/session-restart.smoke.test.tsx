@@ -22,6 +22,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../lib/i18n";
 import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_SESSION } from "./shots";
 
@@ -43,8 +44,8 @@ async function botToChat(app: App, name: string) {
   await app.type("id:new-bot-name", name);
   await app.type("id:new-bot-workspace", WORKSPACE);
   // Create stays disabled until the sheet has read dsh's agent presets.
-  await app.waitFor("text:Reading dsh presets…", { state: "gone", timeout: 120000 });
-  await app.press("label:Create Bot");
+  await app.waitFor(`text:${t("newBot.readingPresets")}`, { state: "gone", timeout: 120000 });
+  await app.press(`label:${t("newBot.create")}`);
   await app.waitFor("id:chat", { timeout: 180000 });
   await app.waitFor("id:composer", { timeout: 60000 });
 }
@@ -59,22 +60,22 @@ test("the Host restarted mid-turn restores the window without duplicates", async
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
-  await app.waitFor("text:Host connected", { timeout: 60000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 60000 });
 
   await botToChat(app, "D2 Restart");
   const tag = `RESTART-D2-${NONCE}`;
   await send(app, LONG(tag, 4000));
-  await app.waitFor("label:Stop generating", { timeout: 180000 });
+  await app.waitFor(`label:${t("chat.stopGenerating")}`, { timeout: 180000 });
 
   // The kill comes from the outside, as soon as this turn is on the wire:
   // `screens/host-restart-watch.mjs` (see this file's header). The turn can never
   // finish, so its closing marker must not appear, and the prompt must be in
   // the window exactly once when a new Host generation restores it.
-  await app.waitFor("text:Working…", { state: "gone", timeout: 480000 });
+  await app.waitFor(`text:${t("chat.working")}`, { state: "gone", timeout: 480000 });
   // The product reconnects by itself once the restarted Host answers; the loss
   // notice goes with the frame that proves it.
-  await app.waitFor("text:后台连接已断开。", { state: "gone", timeout: 300000 });
-  await app.waitFor("text:Return to send", { timeout: 120000 });
+  await app.waitFor(`text:${t("session.connectionLost")}`, { state: "gone", timeout: 300000 });
+  await app.waitFor(`text:${t("chat.sendKeyToSend", { label: "Return" })}`, { timeout: 120000 });
   await app.waitUntil(
     // The transcript message, not the Panel header's short Session title.
     () =>

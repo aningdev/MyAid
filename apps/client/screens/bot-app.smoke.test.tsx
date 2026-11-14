@@ -46,8 +46,8 @@ async function botToChat(app: App, name: string, path: string) {
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", name);
   await app.type("id:new-bot-workspace", path);
-  await app.waitFor("text:Reading dsh presets…", { state: "gone", timeout: 120000 });
-  await app.press("label:Create Bot");
+  await app.waitFor(`text:${t("newBot.readingPresets")}`, { state: "gone", timeout: 120000 });
+  await app.press(`label:${t("newBot.create")}`);
   await app.waitFor("id:chat", { timeout: 180000 });
   await app.waitFor("id:composer", { timeout: 60000 });
 }
@@ -62,7 +62,7 @@ test("two Bots in two Panes, a Pin, a drag-in, a restart and a details edit", as
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
-  await app.waitFor("text:Host connected", { timeout: 60000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 60000 });
 
   // Alpha first, then Beta: a new Bot opens in the active Pane, so the drag
   // below is what gives Alpha its own Pane beside Beta.
@@ -75,30 +75,30 @@ test("two Bots in two Panes, a Pin, a drag-in, a restart and a details edit", as
 
   // Pin Alpha from its row's menu: the Pin group stands above the rest.
   await app.rightClick("label:L1 Alpha");
-  await app.press("text:Pin");
-  await app.waitFor("text:Pin");
+  await app.press(`text:${t("nav.pin")}`);
+  await app.waitFor(`text:${t("nav.pin")}`);
   const pinned = app.texts();
   expect(pinned.indexOf("Pin")).toBeLessThan(pinned.indexOf("L1 Alpha"));
 
   // Both stream at once: the second send starts while the first still runs,
   // and the list shows both Bots' working dots beside the Pin group.
   await send(app, LONG("L1-A"), 1);
-  await app.waitFor("label:Stop generating", { timeout: 240000 });
+  await app.waitFor(`label:${t("chat.stopGenerating")}`, { timeout: 240000 });
   await send(app, SLOW("L1-B"), 0);
   // Two Stop buttons, two working rows: the overlap itself.
-  await app.waitFor("label:Stop generating >> nth=1", { timeout: 120000 });
+  await app.waitFor(`label:${t("chat.stopGenerating")} >> nth=1`, { timeout: 120000 });
   expect(app.count(`text:${t("chat.working")}`)).toBe(2);
   await shoot(app, "02-list-pin-working.png", SHOTS_L1);
   await app.waitFor(`text:${t("chat.working")}`, { state: "gone", timeout: 600000 });
-  await app.waitFor("label:Stop generating", { state: "gone", timeout: 120000 });
+  await app.waitFor(`label:${t("chat.stopGenerating")}`, { state: "gone", timeout: 120000 });
 
   // Bot details: a rename saves in the registry, and the list and Pane follow.
-  await app.press("label:Bot details: L1 Beta");
+  await app.press(`label:${t("panel.botDetails", { name: "L1 Beta" })}`);
   await app.waitFor("id:bot-details", { timeout: 30000 });
   await shoot(app, "04-bot-details-modal.png", SHOTS_L1);
   await app.clear("id:bot-details-name");
   await app.type("id:bot-details-name", "L1 Beta Renamed");
-  await app.press("id:bot-details >> Save");
+  await app.press(`id:bot-details >> ${t("common.save")}`);
   await app.waitUntil(() => !app.shows("id:bot-details"), { timeout: 30000 });
   await app.waitFor("label:L1 Beta Renamed", { timeout: 30000 });
   await shoot(app, "03-details-saved.png", SHOTS_L1);
@@ -119,7 +119,7 @@ test("two Bots in two Panes, a Pin, a drag-in, a restart and a details edit", as
     storage,
   });
   if (!(await graphical(relaunched))) return;
-  await relaunched.waitFor("text:Host connected", { timeout: 60000 });
+  await relaunched.waitFor(`text:${t("host.connected")}`, { timeout: 60000 });
   await relaunched.waitUntil(() => relaunched.count("id:chat") === 2, { timeout: 120000 });
   // Each Pane's transcript comes back from dsh: nothing was lost with the Panes.
   await relaunched.waitUntil(

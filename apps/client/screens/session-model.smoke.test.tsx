@@ -30,6 +30,7 @@ import { dirname, join } from "path";
 
 import { expect, test } from "nsh/test";
 
+import { t } from "../lib/i18n";
 import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_SESSION } from "./shots";
 
@@ -82,8 +83,8 @@ async function botToChat(app: App, name: string, path = WORKSPACE) {
   await app.type("id:new-bot-name", name);
   await app.type("id:new-bot-workspace", path);
   // Create stays disabled until the sheet has read dsh's agent presets.
-  await app.waitFor("text:Reading dsh presets…", { state: "gone", timeout: 120000 });
-  await app.press("label:Create Bot");
+  await app.waitFor(`text:${t("newBot.readingPresets")}`, { state: "gone", timeout: 120000 });
+  await app.press(`label:${t("newBot.create")}`);
   await app.waitFor("id:chat", { timeout: 180000 });
   await app.waitFor("id:composer", { timeout: 60000 });
 }
@@ -96,15 +97,15 @@ async function send(app: App, prompt: string, nth = 0) {
 
 /** Wait until no Session runs: the working rows and the Stop buttons are gone. */
 async function settled(app: App, timeout = 180000) {
-  await app.waitFor("text:Working…", { state: "gone", timeout });
-  await app.waitFor("label:Stop generating", { state: "gone", timeout: 60000 });
+  await app.waitFor(`text:${t("chat.working")}`, { state: "gone", timeout });
+  await app.waitFor(`label:${t("chat.stopGenerating")}`, { state: "gone", timeout: 60000 });
 }
 
 test("two Panes stream at once, a queued prompt is withdrawn, an approval round-trips", async () => {
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
-  await app.waitFor("text:Host connected", { timeout: 60000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 60000 });
 
   // Two Bots over two directories, so both Sessions may run at once.
   await botToChat(app, "D2 Alpha");
@@ -124,13 +125,13 @@ test("two Panes stream at once, a queued prompt is withdrawn, an approval round-
   // The first turn is long enough that the second certainly starts while it
   // runs; the read below is the claim itself, taken the instant it is sent.
   await send(app, ENDLESS("PANEL-C"), 0);
-  await app.waitFor("label:Stop generating >> nth=0", { timeout: 240000 });
+  await app.waitFor(`label:${t("chat.stopGenerating")} >> nth=0`, { timeout: 240000 });
   await send(app, STREAMING("PANEL-D"), 1);
   // Proof of overlap: the second Pane is running (its Stop button is up) and
   // the first Pane is still streaming at the same instant.
-  await app.waitFor("label:Stop generating >> nth=1", { timeout: 60000 });
-  expect(app.count("text:Working…")).toBe(2);
-  expect(app.count("label:Stop generating")).toBe(2);
+  await app.waitFor(`label:${t("chat.stopGenerating")} >> nth=1`, { timeout: 60000 });
+  expect(app.count(`text:${t("chat.working")}`)).toBe(2);
+  expect(app.count(`label:${t("chat.stopGenerating")}`)).toBe(2);
   // Each Pane is streaming its own prompt: both are on screen right now (the
   // transcript follows the newest row; a long settled reply scrolls the prompt
   // out of the rendered window, so this is the moment that proves it).
@@ -139,8 +140,8 @@ test("two Panes stream at once, a queued prompt is withdrawn, an approval round-
   await shoot(app, "02-two-working.png", SHOTS_SESSION);
   await settled(app, 600000);
   // Both transcripts stayed whole: neither Pane fell back to its empty state.
-  expect(app.shows("text:Message D2 Beta")).toBe(false);
-  expect(app.shows("text:Message D2 Alpha")).toBe(false);
+  expect(app.shows(`text:${t("chat.messageBot", { name: "D2 Beta" })}`)).toBe(false);
+  expect(app.shows(`text:${t("chat.messageBot", { name: "D2 Alpha" })}`)).toBe(false);
   await shoot(app, "03-both-settled.png", SHOTS_SESSION);
 
   // A prompt sent while a turn still runs is queued in dsh, and withdrawn by
@@ -149,13 +150,13 @@ test("two Panes stream at once, a queued prompt is withdrawn, an approval round-
   // it twice.
   await send(app, "QUEUE-DROP say one word.", 0);
   const queued = await app
-    .waitFor("text:QUEUED", { timeout: 20000 })
+    .waitFor(`text:${t("chat.queued")}`, { timeout: 20000 })
     .then(() => true)
     .catch(() => false);
   if (queued) {
     await shoot(app, "04-queued.png", SHOTS_SESSION);
-    await app.press("label:Withdraw the queued message");
-    await app.waitUntil(() => !app.shows("text:QUEUED"), { timeout: 60000 });
+    await app.press(`label:${t("chat.withdraw")}`);
+    await app.waitUntil(() => !app.shows(`text:${t("chat.queued")}`), { timeout: 60000 });
     expect(app.shows("text:QUEUE-DROP say one word.")).toBe(false);
     await settled(app, 420000);
     // Withdrawn means withdrawn: it never became a turn of its own.
@@ -171,9 +172,9 @@ test("two Panes stream at once, a queued prompt is withdrawn, an approval round-
   // The Beta Pane's workspace is the scratch home, so the marker above is
   // outside its sandbox: the Host asks, this Pane answers.
   await send(app, APPROVAL, 0);
-  await app.waitFor("label:Allow once", { timeout: 300000 });
+  await app.waitFor(`label:${t("chat.allowOnce")}`, { timeout: 300000 });
   await shoot(app, "05-approval.png", SHOTS_SESSION);
-  await app.press("label:Allow once");
+  await app.press(`label:${t("chat.allowOnce")}`);
   await app.waitUntil(() => app.texts().some((text) => text.includes("D2-APPROVAL-OK")), {
     timeout: 300000,
   });
@@ -185,7 +186,7 @@ test("a long reply renders to its last line, and older pages load above it", asy
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
-  await app.waitFor("text:Host connected", { timeout: 60000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 60000 });
 
   await botToChat(app, "D2 Long");
   await send(app, LONG("LONG-D2"));
@@ -200,7 +201,7 @@ test("a long reply renders to its last line, and older pages load above it", asy
   // turns), then page backwards: the first prompt comes back into view.
   for (let index = 1; index <= 28; index++) {
     await send(app, `PAGE-${String(index).padStart(2, "0")} ok. Reply with the single word ok.`);
-    await app.waitFor("label:Send", { timeout: 300000 });
+    await app.waitFor(`label:${t("chat.send")}`, { timeout: 300000 });
   }
   for (let step = 0; step < 6; step++) {
     await app.scroll("id:transcript", -2000);

@@ -17,6 +17,7 @@ import { homedir } from "os";
 
 import { expect, test } from "nsh/test";
 
+import { t } from "../lib/i18n";
 import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_L2 } from "./shots";
 
@@ -34,24 +35,24 @@ async function botToChat(app: App, name: string, path: string) {
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", name);
   await app.type("id:new-bot-workspace", path);
-  await app.waitFor("text:Reading dsh presets…", { state: "gone", timeout: 120000 });
-  await app.press("label:Create Bot");
+  await app.waitFor(`text:${t("newBot.readingPresets")}`, { state: "gone", timeout: 120000 });
+  await app.press(`label:${t("newBot.create")}`);
   await app.waitFor("id:chat", { timeout: 180000 });
   await app.waitFor("id:composer", { timeout: 60000 });
 }
 
 async function send(app: App, prompt: string) {
   await app.type("id:composer", prompt);
-  await app.press("label:Send");
+  await app.press(`label:${t("chat.send")}`);
   await app.waitFor(`text:${prompt}`, { timeout: 60000 });
-  await app.waitFor("label:Stop generating", { state: "gone", timeout: 600000 });
+  await app.waitFor(`label:${t("chat.stopGenerating")}`, { state: "gone", timeout: 600000 });
 }
 
 test("two segments in two directories, /new, the rail and a restart", async () => {
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
-  await app.waitFor("text:Host connected", { timeout: 60000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 60000 });
 
   await botToChat(app, "L2 Ada", A);
   await send(app, "L2-A: first segment message");
@@ -62,7 +63,7 @@ test("two segments in two directories, /new, the rail and a restart", async () =
   await app.waitFor("id:session-workspace-input");
   await app.clear("id:session-workspace-input");
   await app.type("id:session-workspace-input", B);
-  await app.press("label:Use this working directory");
+  await app.press(`label:${t("chat.useWorkspace")}`);
   await app.waitFor("id:history-mark-1", { timeout: 120000 });
   await app.waitFor(`text:· ${B_LABEL}`, { timeout: 120000 });
   await shoot(app, "04-directory-change.png", SHOTS_L2);
@@ -70,7 +71,7 @@ test("two segments in two directories, /new, the rail and a restart", async () =
 
   // `/new` opens a third segment in the same directory.
   await app.type("id:composer", "/new");
-  await app.press("label:Send");
+  await app.press(`label:${t("chat.send")}`);
   await app.waitFor("id:history-mark-2", { timeout: 120000 });
   await send(app, "L2-B: new topic message");
 
@@ -106,9 +107,9 @@ test("two segments in two directories, /new, the rail and a restart", async () =
   // creates no new segment.
   expect(app.shows("id:history-mark-3")).toBe(false);
   await app.type("id:composer", "L2-B: sent from the older segment");
-  await app.press("label:Send");
+  await app.press(`label:${t("chat.send")}`);
   await app.waitFor("text:L2-B: sent from the older segment", { timeout: 60000 });
-  await app.waitFor("label:Stop generating", { state: "gone", timeout: 600000 });
+  await app.waitFor(`label:${t("chat.stopGenerating")}`, { state: "gone", timeout: 600000 });
 
   // The registry now has three segments; a second launch restores them.
   const storage = app.storage();
@@ -119,7 +120,7 @@ test("two segments in two directories, /new, the rail and a restart", async () =
     storage,
   });
   if (!(await graphical(relaunched))) return;
-  await relaunched.waitFor("text:Host connected", { timeout: 60000 });
+  await relaunched.waitFor(`text:${t("host.connected")}`, { timeout: 60000 });
   await relaunched.waitUntil(() => relaunched.count("id:chat") === 1, { timeout: 120000 });
   await relaunched.waitFor("id:history-mark-2", { timeout: 120000 });
   await relaunched.waitFor("text:L2-B: new topic message", { timeout: 120000 });

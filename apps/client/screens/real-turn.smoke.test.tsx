@@ -12,6 +12,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { t } from "../lib/i18n";
 import { open } from "../test/open";
 import { graphical, hostSmokeRequested, shoot, SHOTS_CHAT } from "./shots";
 
@@ -25,29 +26,29 @@ test("a real turn ends with Send back and the working dot gone", async () => {
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
 
-  await app.waitFor("text:Host connected", { timeout: 30000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 30000 });
   await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-sheet");
   await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
-  await app.press("label:Create Bot");
+  await app.press(`label:${t("newBot.create")}`);
   await app.waitFor("id:chat", { timeout: 120000 });
   await app.waitFor("id:composer", { timeout: 30000 });
 
   await app.type("id:composer", PROMPT);
   await app.keyboard.press("enter");
   // The turn runs: the working row, the Bot's mark, the Navigator dot.
-  await app.waitFor("text:Working…", { timeout: 60000 });
+  await app.waitFor(`text:${t("chat.working")}`, { timeout: 60000 });
   await app.waitFor("id:nav-status-working", { timeout: 30000 });
-  expect(app.shows("label:Stop generating")).toBe(true);
+  expect(app.shows(`label:${t("chat.stopGenerating")}`)).toBe(true);
   await shoot(app, "01-working.png", SHOTS_CHAT);
 
   // The turn ends: the reply holds 22 numbered items, and every running
   // state is gone — the composer offers Send and the Navigator dot with it.
-  await app.waitFor("text:Working…", { state: "gone", timeout: 300000 });
+  await app.waitFor(`text:${t("chat.working")}`, { state: "gone", timeout: 300000 });
   await app.waitUntil(() => app.texts().includes(`${COUNT}.`), { timeout: 60000 });
-  await app.waitFor("label:Send", { timeout: 30000 });
-  expect(app.shows("label:Stop generating")).toBe(false);
+  await app.waitFor(`label:${t("chat.send")}`, { timeout: 30000 });
+  expect(app.shows(`label:${t("chat.stopGenerating")}`)).toBe(false);
   // No row of the Navigator carries a status dot: the Session is idle, the
   // Panel shows it, nothing waits on approval.
   expect(app.count("id:nav-status-working")).toBe(0);

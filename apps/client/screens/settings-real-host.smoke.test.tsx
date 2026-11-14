@@ -35,7 +35,7 @@ async function waitForProviders(app: Awaited<ReturnType<typeof open>>): Promise<
 test("a fake key round-trips, fields and the default model read back, appearance persists", async () => {
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
-  await app.waitFor("text:Host connected", { timeout: 180000 });
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 180000 });
   await app.press(`label:${t("host.settings")}`);
   await app.waitFor("id:settings-overlay", { timeout: 30000 });
   await waitForProviders(app);
