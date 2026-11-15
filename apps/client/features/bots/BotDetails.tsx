@@ -60,6 +60,7 @@ import { Input } from "../../components/ui/input";
 import { Meter } from "../../components/ui/meter";
 import { Pressable } from "../../components/ui/pressable";
 import { Separator } from "../../components/ui/separator";
+import { Skeleton } from "../../components/ui/skeleton";
 import { Switch } from "../../components/ui/switch";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t, type MessageKey } from "../../lib/i18n";
@@ -910,7 +911,14 @@ function SkillsTab(props: {
     <View style={{ gap: 10 }}>
       <SectionTitle title={t("bot.skills.base")} />
       <If when={props.skills() === null} else={null}>
-        <Hint text={t("common.reading")} />
+        <View
+          role="progressbar"
+          accessibilityLabel={t("common.reading")}
+          style={{ gap: 6 }}
+        >
+          <Skeleton style={{ width: 180, height: 14 }} />
+          <Skeleton style={{ width: 140, height: 14 }} />
+        </View>
       </If>
       <If when={base().length > 0} else={<Hint text={t("bot.skills.baseEmpty")} />}>
         <View style={{ gap: 1 }}>

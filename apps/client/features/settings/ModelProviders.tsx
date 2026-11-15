@@ -13,6 +13,7 @@ import { Card as CardFrame, CardContent, CardHeader, CardTitle } from "../../com
 import { Field, FieldLabel } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
 import { Pressable } from "../../components/ui/pressable";
+import { Skeleton } from "../../components/ui/skeleton";
 import { t } from "../../lib/i18n";
 import { finish, mono, radius, toneTint } from "../../lib/theme";
 import type { ProviderField } from "./providerModel";
@@ -97,9 +98,23 @@ export function ProvidersSection() {
         </View>
       </If>
       <If when={state().phase === "loading"}>
-        <Text style={{ paddingHorizontal: 20, fontSize: 13, color: token("muted-foreground") }}>
-          {t("providers.loading")}
-        </Text>
+        <View
+          testID="settings-providers-loading"
+          role="progressbar"
+          accessibilityLabel={t("providers.loading")}
+          style={{ flex: 1, minHeight: 0, flexDirection: "row" }}
+        >
+          <View style={{ width: 248, flexShrink: 0, padding: 10, gap: 8 }}>
+            <Skeleton style={{ height: 28 }} />
+            <Skeleton style={{ height: 28 }} />
+            <Skeleton style={{ height: 28 }} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0, padding: 20, gap: 10 }}>
+            <Skeleton style={{ width: 220, height: 18 }} />
+            <Skeleton style={{ width: 320, height: 14 }} />
+            <Skeleton style={{ width: 280, height: 14 }} />
+          </View>
+        </View>
       </If>
       <If when={state().phase === "ready"}>
         <View style={{ flex: 1, minHeight: 0, flexDirection: "row" }}>
