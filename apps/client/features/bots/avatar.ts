@@ -22,7 +22,7 @@ export const AVATAR_SAMPLES = 64;
 export const AVATAR_RIM = 0.11;
 
 /** The eye weight at a mark's usual sizes, in body radii. */
-const EYE_WEIGHT = 0.09;
+const EYE_WEIGHT = 0.126;
 
 type Pt = { x: number; y: number };
 
@@ -217,38 +217,43 @@ function dome(): Pt[] {
 }
 
 /**
- * A drop: a softly rounded point at the top, tangent sides, and a round belly.
- * The tip is its own small arc — a needle would read as a balloon — joined to
- * the belly's circle by the two tangents those circles share.
+ * A drop: a wide round belly, a smaller round crown above it, and the two
+ * outer tangents the circles share. The crown is the drop's point, and it is
+ * round on purpose: a thinner one is a needle, and 64 samples read a needle as
+ * a spike — the crown's arc has to be wide enough for the samples to carry.
  */
 function drop(): Pt[] {
-  const tip = { x: 0, y: -1 };
   const belly = { x: 0, y: 0.3 };
-  const radius = 0.62;
-  const cap = 0.1;
-  const span = distance(tip, belly);
-  const half = Math.asin(radius / span);
-  const axis = unit(subtract(tip, belly));
-  const right = add(belly, times(rotate(axis, half), radius));
-  const left = add(belly, times(rotate(axis, -half), radius));
-  const centre = add(tip, times(axis, -cap / Math.sin(half)));
-  const reach = cap / Math.tan(half);
-  const rightCap = add(tip, times(unit(subtract(right, tip)), reach));
-  const leftCap = add(tip, times(unit(subtract(left, tip)), reach));
-  const points: Pt[] = [
-    rightCap,
-    ...arcBetween(belly, radius, angleAt(left, belly), angleAt(right, belly), Math.PI / 2, 72),
-    leftCap,
+  const bellyRadius = 0.66;
+  const crown = { x: 0, y: -0.74 };
+  const crownRadius = 0.26;
+  // The two circles' outer tangents: one radius turned the same way on each.
+  const axis = unit(subtract(crown, belly));
+  const turn = Math.acos((bellyRadius - crownRadius) / distance(belly, crown));
+  const right = add(belly, times(rotate(axis, turn), bellyRadius));
+  const rightCrown = add(crown, times(rotate(axis, turn), crownRadius));
+  const left = add(belly, times(rotate(axis, -turn), bellyRadius));
+  const leftCrown = add(crown, times(rotate(axis, -turn), crownRadius));
+  return [
+    rightCrown,
     ...arcBetween(
-      centre,
-      cap,
-      angleAt(leftCap, centre),
-      angleAt(rightCap, centre),
+      crown,
+      crownRadius,
+      angleAt(rightCrown, crown),
+      angleAt(leftCrown, crown),
       -Math.PI / 2,
-      24,
+      40,
+    ).slice(1),
+    left,
+    ...arcBetween(
+      belly,
+      bellyRadius,
+      angleAt(left, belly),
+      angleAt(right, belly),
+      Math.PI / 2,
+      72,
     ).slice(1),
   ];
-  return points;
 }
 
 /** The four discs whose union is the flower, and the edge that union gives at an angle. */
@@ -300,14 +305,14 @@ function rayHit(points: readonly Pt[], ux: number, uy: number): number {
 
 /** Where each shape carries its face: the eyes' height and half-gap, in body radii. */
 const FACE_FRAMES: Record<BotShape, { y: number; gap: number }> = {
-  round: { y: 0.02, gap: 0.29 },
-  square: { y: 0.02, gap: 0.29 },
-  pebble: { y: 0.02, gap: 0.29 },
-  triangle: { y: 0.25, gap: 0.26 },
-  dome: { y: 0.02, gap: 0.28 },
-  drop: { y: 0.16, gap: 0.25 },
-  flower: { y: 0.02, gap: 0.27 },
-  star: { y: 0.04, gap: 0.27 },
+  round: { y: 0.02, gap: 0.4 },
+  square: { y: 0.02, gap: 0.4 },
+  pebble: { y: 0.02, gap: 0.4 },
+  triangle: { y: 0.25, gap: 0.36 },
+  dome: { y: 0.02, gap: 0.39 },
+  drop: { y: 0.16, gap: 0.35 },
+  flower: { y: 0.02, gap: 0.38 },
+  star: { y: 0.04, gap: 0.38 },
 };
 
 /** The character at `shape` and `face`, its eyes shrunk until they clear the rim. */
@@ -339,22 +344,22 @@ function eyesOf(face: BotFace, frame: { y: number; gap: number; grow: number }):
   const mirrored = (build: (side: -1 | 1) => AvatarEye) => [build(-1), build(1)];
   switch (face) {
     case "calm":
-      return mirrored((side) => dot(side * gap, y, 0.105, 0.14, grow));
+      return mirrored((side) => dot(side * gap, y, 0.147, 0.196, grow));
     case "happy":
-      return mirrored((side) => arch(side * gap, y + 0.02, 0.115, grow));
+      return mirrored((side) => arch(side * gap, y + 0.028, 0.161, grow));
     case "wink":
-      return [dot(-gap, y, 0.09, 0.125, grow), arch(gap, y + 0.02, 0.115, grow)];
+      return [dot(-gap, y, 0.126, 0.175, grow), arch(gap, y + 0.028, 0.161, grow)];
     case "sleepy":
       return mirrored((side) => ({
         kind: "line",
         x: side * gap,
-        y: y + 0.01,
-        length: 0.2 * grow,
+        y: y + 0.014,
+        length: 0.28 * grow,
       }));
     case "curious":
-      return [dot(-gap, y, 0.11, 0.115, grow), dot(gap, y + 0.05, 0.062, 0.068, grow)];
+      return [dot(-gap, y, 0.154, 0.161, grow), dot(gap, y + 0.07, 0.087, 0.095, grow)];
     case "focus":
-      return mirrored((side) => dot(side * gap * 0.74, y + 0.03, 0.062, 0.072, grow));
+      return mirrored((side) => dot(side * gap * 0.74, y + 0.042, 0.087, 0.101, grow));
   }
 }
 

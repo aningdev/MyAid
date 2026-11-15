@@ -34,6 +34,48 @@ test("every body is the same 64 radii, its longest normalized to 1", () => {
   }
 });
 
+test("no body jumps between two neighbouring samples", () => {
+  // The samples are 5.6° apart, so a smooth outline changes its radius by a
+  // little at each step. The star's notch is the sharpest turn the eight make;
+  // anything well past it is a shape the samples cannot carry — the drop's
+  // first crown was, and it drew as a spike.
+  const jumps = BOT_SHAPES.map((shape) => {
+    const profile = shapeProfile(shape);
+    let worst = 0;
+    for (let i = 0; i < profile.length; i++) {
+      const step = Math.abs((profile[(i + 1) % profile.length] ?? 0) - (profile[i] ?? 0));
+      worst = Math.max(worst, step);
+    }
+    return { shape, worst: Math.round(worst * 1000) / 1000 };
+  });
+  // Named, so a failure reads as the body that jumped.
+  expect(jumps.filter((jump) => jump.worst >= 0.13)).toEqual([]);
+});
+
+test("the drop's crown is round, not a needle", () => {
+  // Read the drop's silhouette as the samples describe it, and measure its
+  // width where a drop is narrowest. A needle stays a sliver there; a crown
+  // this size is a third of the body.
+  const profile = shapeProfile("drop");
+  const points = profile.map((radius, index) => {
+    const angle = (index / profile.length) * Math.PI * 2;
+    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+  });
+  const top = Math.min(...points.map((point) => point.y));
+  const bottom = Math.max(...points.map((point) => point.y));
+  const widest = Math.max(...points.map((point) => Math.abs(point.x)));
+  const at = top + (bottom - top) * 0.1;
+  const halfWidth = Math.max(
+    ...points.map((point, index) => {
+      const next = points[(index + 1) % points.length]!;
+      if ((point.y - at) * (next.y - at) > 0) return 0;
+      const between = (at - point.y) / (next.y - point.y);
+      return Math.abs(point.x + (next.x - point.x) * between);
+    }),
+  );
+  expect(halfWidth / widest).toBeGreaterThan(0.25);
+});
+
 test("the eight shapes are eight different bodies", () => {
   const seen = BOT_SHAPES.map((shape) =>
     shapeProfile(shape)
