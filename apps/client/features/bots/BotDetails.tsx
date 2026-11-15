@@ -911,11 +911,7 @@ function SkillsTab(props: {
     <View style={{ gap: 10 }}>
       <SectionTitle title={t("bot.skills.base")} />
       <If when={props.skills() === null} else={null}>
-        <View
-          role="progressbar"
-          accessibilityLabel={t("common.reading")}
-          style={{ gap: 6 }}
-        >
+        <View role="progressbar" accessibilityLabel={t("common.reading")} style={{ gap: 6 }}>
           <Skeleton style={{ width: 180, height: 14 }} />
           <Skeleton style={{ width: 140, height: 14 }} />
         </View>
