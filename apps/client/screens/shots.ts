@@ -45,6 +45,9 @@ export const SHOTS_L4 = `${SCRATCHPAD}/pi-shots-l4`;
 /** Batch 2 of the shadcn-nsh controls: palette, Bot details, dialogs, menus and Markdown. */
 export const SHOTS_UI2 = `${SCRATCHPAD}/pi-shots-ui2`;
 
+/** Batch 4: input groups, the title field, plugin switches and the image viewer. */
+export const SHOTS_UI4 = `${SCRATCHPAD}/pi-shots-ui4`;
+
 export { graphical } from "../test/graphical";
 
 /**
