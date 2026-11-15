@@ -18,6 +18,7 @@ import {
   avatarMotion,
   drawAvatarFrame,
   eyePoints,
+  footOf,
   markSeed,
   radiusAtAngle,
   shapeProfile,
@@ -214,15 +215,21 @@ test("time 0 is the still pose: the picture batch A drew", () => {
   }
 });
 
-test("the breath is ±4% of the height, once every 1.6 s, and never lifts the foot", () => {
+test("the breath only sinks: 8% of the height, once every 1.6 s, foot on the ground", () => {
   const seen: number[] = [];
   for (let time = 2000; time < 5200; time += 10) {
     seen.push(avatarPose({ time, working: true, seed: 0.3 }).breathe);
   }
-  expect(Math.max(...seen)).toBeGreaterThan(1.03);
-  expect(Math.max(...seen)).toBeLessThan(1.041);
-  expect(Math.min(...seen)).toBeLessThan(0.97);
-  expect(Math.min(...seen)).toBeGreaterThan(0.959);
+  // Tallest is the rest height itself, and it never goes past it.
+  expect(Math.abs(Math.max(...seen) - 1)).toBeLessThan(1e-9);
+  expect(Math.abs(Math.min(...seen) - 0.92)).toBeLessThan(1e-9);
+  // One breath in 1.6 s: deepest at 800 ms of each turn of the cycle.
+  expect(Math.abs(avatarPose({ time: 2400, working: true, seed: 0.3 }).breathe - 0.92)).toBeLessThan(
+    1e-9,
+  );
+  expect(Math.abs(avatarPose({ time: 3200, working: true, seed: 0.3 }).breathe - 1)).toBeLessThan(
+    1e-9,
+  );
 
   // The body squashes as one piece about its own bottom: the canvas stores a
   // vertical scale of its own and no horizontal one, so nothing inside moves
@@ -244,10 +251,36 @@ test("the breath is ±4% of the height, once every 1.6 s, and never lifts the fo
   ]);
 });
 
-test("working squashes and stretches the body, and at rest it does not", () => {
+test("no moment of a breath draws the body out of its own square", () => {
+  // The outline is normalized so its longest radius is 1 — the mark's square is
+  // the unit box about its centre, and a body that grew would be cut off flat at
+  // the edge (which is what the first breath did at 200–600 ms).
+  for (const shape of BOT_SHAPES) {
+    for (let step = 0; step <= 40; step++) {
+      const time = 1600 + (step / 40) * 1600;
+      const look = avatarLook({ shape, face: "calm", size: 48, time, working: true, seed: 0.3 });
+      const foot = footOf(look.profile);
+      const drawn = look.profile.map((radius, index) => {
+        const angle = (index / look.profile.length) * Math.PI * 2;
+        return {
+          x: Math.cos(angle) * radius,
+          y: foot + (Math.sin(angle) * radius - foot) * look.breathe,
+        };
+      });
+      for (const point of drawn) {
+        expect(Math.abs(point.x)).toBeLessThanOrEqual(1 + 1e-9);
+        expect(Math.abs(point.y)).toBeLessThanOrEqual(1 + 1e-9);
+      }
+      // A breath that stretched would be the way out of the square.
+      expect(look.breathe).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
+test("working squashes the body and lets it back up, and at rest it keeps still", () => {
   const breath = (working: boolean) => {
     let low = 1;
-    let high = 1;
+    let high = 0;
     for (let time = 0; time < 2400; time += 20) {
       const value = avatarPose({ time, working, seed: 0.1 }).breathe;
       low = Math.min(low, value);
@@ -257,6 +290,8 @@ test("working squashes and stretches the body, and at rest it does not", () => {
   };
   const working = breath(true);
   expect(working.high - working.low).toBeGreaterThan(0.06);
+  // Squash only: the tallest it gets is the height it rests at.
+  expect(working.high).toBeLessThanOrEqual(1);
   const resting = breath(false);
   expect(resting.high - resting.low).toBeLessThan(1e-9);
 });

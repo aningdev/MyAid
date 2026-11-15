@@ -41,9 +41,13 @@ const REST_BLINK_SPREAD_MS = 4000;
 const WORK_BLINK_MS = 2200;
 const WORK_BLINK_SPREAD_MS = 1800;
 
-/** The body's breath: a little over 4% of its height, once every 1.6 s. */
+/**
+ * The body's breath: it sinks by up to 8% of its height once every 1.6 s and
+ * rises back to its rest height, never past it — a mark that stretched upwards
+ * would draw past the top of its own square.
+ */
 const BREATH_MS = 1600;
-const BREATH = 0.04;
+const BREATH = 0.08;
 
 /**
  * At rest the gaze glides now and then rather than panning: every few seconds
@@ -106,7 +110,7 @@ export type AvatarLook = {
   eyes: readonly DrawnEye[];
   /** The eyes' stroke, in body radii (dots are filled, so it is theirs alone). */
   weight: number;
-  /** The body's vertical scale, 1 at rest; it breathes about its own bottom. */
+  /** The body's vertical scale: 1 at its tallest, 0.92 at the deepest breath. */
   breathe: number;
 };
 
@@ -460,8 +464,11 @@ export function avatarPose(input: { time: number; working: boolean; seed: number
   return {
     shut: blink.shut * gain,
     gaze: { x: gaze.x * gain, y: gaze.y * gain },
-    // Only a working mark breathes: at rest the body itself keeps still.
-    breathe: working ? 1 + BREATH * gain * Math.sin((TAU * time) / BREATH_MS) : 1,
+    // Only a working mark breathes, and only downwards: at rest the body keeps
+    // still, and a breath never lifts the character past its own outline.
+    breathe: working
+      ? 1 - (BREATH * gain * (1 - Math.cos((TAU * time) / BREATH_MS))) / 2
+      : 1,
   };
 }
 
@@ -881,8 +888,9 @@ export function drawAvatarFrame(canvas: AvatarCanvas, frame: AvatarFrame): void 
   canvas.globalAlpha = 1;
   canvas.globalCompositeOperation = "source-over";
 
-  // The breath squashes the whole character about its own foot, so it stays
-  // sitting where it stands and its eyes keep their place on its face.
+  // The breath squashes the whole character about its own foot — downwards
+  // only — so it stays sitting where it stands, its eyes keep their place on
+  // its face, and no moment of it draws past the square the mark was given.
   if (look.breathe !== 1) {
     const foot = footOf(look.profile);
     canvas.translate(0, foot);
@@ -911,7 +919,8 @@ export function drawAvatarFrame(canvas: AvatarCanvas, frame: AvatarFrame): void 
 }
 
 /** How far down the body goes: the line its breath keeps to the ground. */
-function footOf(profile: readonly number[]): number {
+/** The body's lowest point, in body radii: the ground the breath squashes it to. */
+export function footOf(profile: readonly number[]): number {
   let foot = 0;
   for (let index = 0; index < profile.length; index++) {
     const angle = (index / profile.length) * TAU;
