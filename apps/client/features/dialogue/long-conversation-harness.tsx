@@ -4,7 +4,7 @@
  * when the transcript reaches the top or the history rail jumps to it. `nsh
  * test` opens it; nothing in the product imports it.
  */
-import { cleanup, effect, mount, signal, Text, View } from "nsh";
+import { cleanup, effect, mount, signal, Text, token, View } from "nsh";
 
 import {
   assistantMessage,
@@ -172,7 +172,7 @@ function Harness() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#ffffff" }}>
+    <View style={{ flex: 1, backgroundColor: token("background") }}>
       <View style={{ height: 26, justifyContent: "center", paddingHorizontal: 12 }}>
         <Text testID="last-prompt" style={{ fontSize: 12 }}>
           {lastPrompt()}
