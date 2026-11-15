@@ -8,6 +8,7 @@ import { Check, TriangleAlert, X } from "lucide";
 import { cleanup, effect, keymap, signal, Text, View, token } from "nsh";
 
 import { Button } from "../../../components/ui/button";
+import { Item, ItemContent, ItemDescription, ItemMedia } from "../../../components/ui/item";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, radius, toneTint } from "../../../lib/theme";
@@ -109,31 +110,22 @@ function Card(props: {
 function AnsweredLine(props: { record: () => Answered | null }) {
   return (
     <If when={!!props.record()}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          marginHorizontal: 16,
-          marginBottom: 8,
-          paddingHorizontal: 10,
-          paddingVertical: 6,
-          borderRadius: radius.control,
-          borderCurve: "continuous",
-          backgroundColor: token("inset"),
-        }}
-      >
-        <Icon
-          icon={props.record()?.allowed ? Check : X}
-          size={12}
-          tint={props.record()?.allowed ? token("up") : token("muted-foreground")}
-        />
-        <Text style={{ flex: 1, fontSize: 12, color: token("muted-foreground") }}>
-          {props.record()?.allowed
-            ? `Allowed ${props.record()?.tool}`
-            : `Denied ${props.record()?.tool}`}
-        </Text>
-      </View>
+      <Item variant="muted" size="sm" style={{ marginHorizontal: 16, marginBottom: 8 }}>
+        <ItemMedia>
+          <Icon
+            icon={props.record()?.allowed ? Check : X}
+            size={12}
+            tint={props.record()?.allowed ? token("up") : token("muted-foreground")}
+          />
+        </ItemMedia>
+        <ItemContent>
+          <ItemDescription>
+            {props.record()?.allowed
+              ? `Allowed ${props.record()?.tool}`
+              : `Denied ${props.record()?.tool}`}
+          </ItemDescription>
+        </ItemContent>
+      </Item>
     </If>
   );
 }

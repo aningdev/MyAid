@@ -12,6 +12,12 @@
  * - "picture …": a reply with one image;
  * - "replay …": a turn the client missed: a window with its finished
  *   exchange and no live chunks;
+ * - "running …": a tool call that never returns, so its row spins;
+ * - "older …": a long conversation with a page of older history on its way
+ *   (the list's header is the shape of what is coming);
+ * - "approve …": a tool call waiting on the person (the approval card);
+ * - "error …": a turn that failed (the reply's error row);
+ * - "fail …": a Session that lost its connection (the Pane's banner);
  * - anything else: a short reply, in three chunks.
  */
 import { mount, signal, Text, token, View } from "nsh";
@@ -112,6 +118,16 @@ function harnessRegistry(): BotRegistry {
     WORKSPACE,
   );
 }
+
+/**
+ * What a script reaches for once the Panes' controllers are made: an approval
+ * raised on a Session, and a Session that lost its connection. \`Harness\`
+ * installs it; until then a script that asks for one gets nothing.
+ */
+let scriptedPane: {
+  approve(sessionId: string): void;
+  fail(sessionId: string): void;
+} | null = null;
 
 /** A scripted Session model that answers a prompt with a script, and queues the rest. */
 function scriptedChat(): { sessions: ScriptedSessions; host: SessionHost } {
@@ -222,6 +238,56 @@ function scriptedChat(): { sessions: ScriptedSessions; host: SessionHost } {
       });
       running.delete(sessionId);
       sessions.running(sessionId, false);
+      return;
+    }
+    if (first === "running") {
+      // A tool call that never returns: its row spins, and so does the reply.
+      event(sessionId, "tool/call", {
+        callId: "t9",
+        name: "run",
+        arguments: JSON.stringify({ script: "bun test" }),
+      });
+      return;
+    }
+    if (first === "older") {
+      // A long history with a page of older messages on its way above it: the
+      // list's header draws the shape of what is coming.
+      sessions.update(sessionId, {
+        kind: "replace",
+        entries: Array.from({ length: 6 }, (_, index) =>
+          index % 2 === 0
+            ? userMessage(seqOf(sessionId), `earlier question ${index}`)
+            : assistantMessage(seqOf(sessionId), `earlier answer ${index}`),
+        ),
+        hasMore: true,
+      });
+      sessions.loadingOlder(sessionId, true);
+      event(sessionId, "turn/end", { reason: { kind: "completed" } });
+      running.delete(sessionId);
+      sessions.running(sessionId, false);
+      return;
+    }
+    if (first === "approve") {
+      // A tool call waiting on the person: the card above the composer.
+      scriptedPane?.approve(sessionId);
+      return;
+    }
+    if (first === "error") {
+      // The turn failed: the reply's error row, with its message and Retry.
+      sessions.update(sessionId, {
+        kind: "append",
+        entry: assistantMessage(seqOf(sessionId), "Reading the log…"),
+      });
+      event(sessionId, "turn/end", {
+        reason: { kind: "error", error: { message: "the tool call failed" } },
+      });
+      running.delete(sessionId);
+      sessions.running(sessionId, false);
+      return;
+    }
+    if (first === "fail") {
+      // The Session lost its connection: the Pane's banner and the reply's error.
+      scriptedPane?.fail(sessionId);
       return;
     }
     if (first === "huge") {
@@ -338,6 +404,25 @@ function Harness() {
   const second = controllers.controllerFor(SECOND);
   first.mount();
   second.mount();
+  // What the scripts reach for: a tool call waiting on the person, and a
+  // Session whose connection dropped.
+  scriptedPane = {
+    approve: (sessionId) => {
+      controllers.controllerFor(sessionId).requestApproval({
+        sessionId,
+        toolName: "Bash",
+        reason: "run a command in the workspace",
+        details: '{"command":"bun test"}',
+      });
+    },
+    fail: (sessionId) => {
+      const controller = controllers.controllerFor(sessionId);
+      // A turn that was under way, whose connection dropped: the reply's error
+      // row, and the Pane's banner above it.
+      controller.beginLocalTurn("local-error");
+      controller.applyError("dsh: the connection dropped");
+    },
+  };
 
   const which = signal(0);
   return (

@@ -206,20 +206,26 @@ export function InputGroup(props: InputGroupProps) {
 /**
  * A group's control: `nsh/base`'s `Input` with the field's text and none of its frame, the group
  * around it drawing the fill, the edge and the focus ring. Every base input prop passes through
- * but `ref` (the group holds it, to put the keys in the control from an addon); `style` goes over
- * the look's.
+ * through, `ref` too (`ref.focus()` puts the keys in it, as shadcn's forwards its ref; the group
+ * holds the input as well, to do the same from an addon); `style` goes over the look's.
  */
-export type InputGroupInputProps = Omit<BaseInputProps, "ref">;
+export type InputGroupInputProps = BaseInputProps;
+
+/** The group holds the control's input (an addon's press focuses it), and so does the app's ref. */
+function hold(group: InputGroupContextValue, ref: BaseInputProps["ref"], input: InputRef) {
+  group.input.set(input);
+  if (typeof ref === "function") ref(input);
+}
 
 /** One line in a group. */
 export function InputGroupInput(props: InputGroupInputProps) {
   const group = useInputGroup();
-  const [, rest] = split(props, ["style"]);
+  const [, rest] = split(props, ["style", "ref"]);
   const look = inputGroupControlLook({ multiline: !!props.multiline });
   return (
     <BaseInput
       {...rest}
-      ref={(input) => group.input.set(input)}
+      ref={(input) => hold(group, props.ref, input)}
       style={[look.style, props.style ?? null]}
     />
   );
@@ -227,21 +233,21 @@ export function InputGroupInput(props: InputGroupInputProps) {
 
 /**
  * A group's control over several lines: `nsh/base`'s `Input` with `multiline`, in the group's
- * text and none of its frame. Every base input prop passes through but `ref` and `multiline`;
+ * text and none of its frame. Every base input prop passes through but `multiline`, `ref` too;
  * `style` goes over the look's.
  */
-export type InputGroupTextareaProps = Omit<BaseInputProps, "ref" | "multiline">;
+export type InputGroupTextareaProps = Omit<BaseInputProps, "multiline">;
 
 /** Several lines in a group (a composer, a note). */
 export function InputGroupTextarea(props: InputGroupTextareaProps) {
   const group = useInputGroup();
-  const [, rest] = split(props, ["style"]);
+  const [, rest] = split(props, ["style", "ref"]);
   const look = inputGroupControlLook({ multiline: true });
   return (
     <BaseInput
       {...rest}
       multiline
-      ref={(input) => group.input.set(input)}
+      ref={(input) => hold(group, props.ref, input)}
       style={[look.style, props.style ?? null]}
     />
   );
@@ -287,7 +293,7 @@ export type InputGroupTextProps = Omit<ViewProps, "children"> & {
 /** A unit, a word, an icon beside a group's control. */
 export function InputGroupText(props: InputGroupTextProps) {
   const look = inputGroupTextLook();
-  const [, rest] = split(props, ["style"]);
+  const [, rest] = split(props, ["style", "ref"]);
   return (
     <View {...rest} style={[look.style, props.style ?? null]}>
       {typeof props.children === "string" ? (

@@ -22,9 +22,21 @@ import {
   token,
 } from "nsh";
 
-import { GroupTextarea } from "../../../components/app";
-import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
-import { InputGroup, InputGroupAddon } from "../../../components/ui/input-group";
+import { Button, RoundButton, roundButtonGlyph } from "../../../components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupTextarea,
+} from "../../../components/ui/input-group";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "../../../components/ui/item";
 import { Menu, MenuContent, MenuRadioItem, MenuTrigger } from "../../../components/ui/menu";
 import { Pressable } from "../../../components/ui/pressable";
 import { t } from "../../../lib/i18n";
@@ -155,7 +167,7 @@ export function Composer(props: {
       }}
     >
       <If when={queued().length > 0}>
-        <View style={{ gap: 4 }}>
+        <ItemGroup>
           <Each of={queued()} key={(item) => item.requestId}>
             {(item) => (
               <QueuedRow
@@ -164,7 +176,7 @@ export function Composer(props: {
               />
             )}
           </Each>
-        </View>
+        </ItemGroup>
       </If>
 
       <If when={attachments().length > 0}>
@@ -181,7 +193,7 @@ export function Composer(props: {
       </If>
 
       <InputGroup style={{ borderRadius: 22, padding: 6, gap: 2 }}>
-        <GroupTextarea
+        <InputGroupTextarea
           ref={(node) => (input = node ?? undefined)}
           testID="composer"
           value={draft()}
@@ -259,35 +271,25 @@ export function Composer(props: {
 /** A prompt waiting behind the running turn, with the way to take it back. */
 function QueuedRow(props: { text: string; onWithdraw: () => void }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: radius.control,
-        borderCurve: "continuous",
-        backgroundColor: token("inset"),
-        borderWidth: 1,
-        borderColor: token("border"),
-      }}
-    >
-      <Icon icon={ChevronDown} size={11} tint={token("faint")} />
-      <Text style={{ fontSize: 11, fontWeight: "600", color: token("muted-foreground") }}>
-        {t("chat.queued")}
-      </Text>
-      <Text style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: token("foreground") }}>
-        {props.text}
-      </Text>
-      <Pressable onPress={props.onWithdraw} accessibilityLabel={t("chat.withdraw")} hitSlop={8}>
-        <View style={{ paddingHorizontal: 8, height: 24, justifyContent: "center" }}>
-          <Text style={{ fontSize: 12, fontWeight: "600", color: token("brand") }}>
-            {t("chat.withdrawAction")}
-          </Text>
-        </View>
-      </Pressable>
-    </View>
+    <Item variant="muted" size="sm">
+      <ItemMedia>
+        <Icon icon={ChevronDown} size={11} tint={token("faint")} />
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle>{t("chat.queued")}</ItemTitle>
+        <ItemDescription>{props.text}</ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <Button
+          size="sm"
+          variant="ghost"
+          onPress={props.onWithdraw}
+          accessibilityLabel={t("chat.withdraw")}
+        >
+          {t("chat.withdrawAction")}
+        </Button>
+      </ItemActions>
+    </Item>
   );
 }
 

@@ -20,6 +20,7 @@ import {
 } from "nsh";
 
 import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, motion } from "../../../lib/theme";
@@ -95,10 +96,13 @@ export function Transcript(props: {
           loadMoreAtStartThreshold={1}
           header={() => (
             <If when={props.loadingOlder()}>
-              <View style={{ alignItems: "center", paddingVertical: 10 }}>
-                <Text style={{ fontSize: 12, color: token("faint") }}>
-                  {t("chat.loadingOlder")}
-                </Text>
+              <View
+                role="progressbar"
+                accessibilityLabel={t("chat.loadingOlder")}
+                style={{ alignItems: "center", paddingVertical: 10, gap: 6 }}
+              >
+                <Skeleton style={{ width: 220, height: 12 }} />
+                <Skeleton style={{ width: 180, height: 12 }} />
               </View>
             </If>
           )}

@@ -6,7 +6,7 @@
  * working row's clock — and the send / stop / retry actions.
  */
 import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
-import { Sparkles } from "lucide";
+import { Sparkles, TriangleAlert } from "lucide";
 import {
   batch,
   Clipboard,
@@ -23,8 +23,11 @@ import {
 import { LayoutAnimation } from "nsh";
 
 import { Appear, IconTile } from "../../components/app";
+import { Alert, AlertDescription, ALERT_ICON } from "../../components/ui/alert";
+import { Button } from "../../components/ui/button";
 import { Pressable } from "../../components/ui/pressable";
 import { t } from "../../lib/i18n";
+import { Icon } from "../../lib/icons";
 import { alpha, radius } from "../../lib/theme";
 import { BotMark } from "../bots/BotMark";
 import { segmentOwner } from "../bots/model";
@@ -926,33 +929,22 @@ export function ChatPane(props: {
         }}
       />
       <If when={!!banner()}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            marginHorizontal: 16,
-            marginTop: 8,
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-            borderRadius: radius.control,
-            borderCurve: "continuous",
-            backgroundColor: alpha(token("destructive"), 0.1),
-            borderWidth: 1,
-            borderColor: alpha(token("destructive"), 0.3),
-          }}
+        <Alert
+          testID="chat-banner"
+          variant="destructive"
+          style={{ marginHorizontal: 16, marginTop: 8 }}
         >
-          <Text style={{ flex: 1, fontSize: 12, color: token("foreground") }}>{banner()}</Text>
-          <Pressable
-            onPress={() => void connectSession()}
-            accessibilityLabel={t("chat.reconnect")}
-            hitSlop={8}
-          >
-            <Text style={{ fontSize: 12, fontWeight: "600", color: token("brand") }}>
-              {t("common.retry")}
-            </Text>
-          </Pressable>
-        </View>
+          <AlertDescription>
+            {/* The note as the app lays it out: the mark, the word and Retry on one line. */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Icon icon={TriangleAlert} size={ALERT_ICON} tint={token("destructive")} />
+              <Text style={{ flex: 1, fontSize: 12, color: token("foreground") }}>{banner()}</Text>
+              <Button size="sm" variant="ghost" onPress={() => void connectSession()}>
+                {t("common.retry")}
+              </Button>
+            </View>
+          </AlertDescription>
+        </Alert>
       </If>
       <If
         when={rows().length > 0}

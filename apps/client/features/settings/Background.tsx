@@ -7,6 +7,7 @@
  */
 import { effect, Scroll, Text, untracked, View, type JSX, token } from "nsh";
 
+import { Alert, AlertDescription } from "../../components/ui/alert";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card as CardFrame, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -250,7 +251,9 @@ export function BackgroundSection() {
               />
             </View>
             <If when={state().error}>
-              <Text style={{ fontSize: 13, color: token("destructive") }}>{state().error}</Text>
+              <Alert variant="destructive">
+                <AlertDescription>{state().error}</AlertDescription>
+              </Alert>
             </If>
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
               <Button onPress={() => void enableBackgroundFromState()}>

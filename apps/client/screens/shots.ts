@@ -51,6 +51,9 @@ export const SHOTS_UI4 = `${SCRATCHPAD}/pi-shots-ui4`;
 /** Batch 5a: the `Separator`, `Kbd` and `Empty` copies on the shell and the chat. */
 export const SHOTS_UI5A = `${SCRATCHPAD}/pi-shots-ui5a`;
 
+/** Batch 5b: the `Alert`, `Skeleton` and `Item` copies, and the group's fields with the keys. */
+export const SHOTS_UI5B = `${SCRATCHPAD}/pi-shots-ui5b`;
+
 export { graphical } from "../test/graphical";
 
 /**

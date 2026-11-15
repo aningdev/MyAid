@@ -6,7 +6,7 @@
  * it, and a different directory starts a new segment.
  */
 import { Check, Sparkles } from "lucide";
-import { Text, View, token } from "nsh";
+import { effect, Text, View, token, type InputRef } from "nsh";
 import { signal } from "nsh";
 
 import { buttonGlyph } from "../../../components/ui/button";
@@ -46,6 +46,16 @@ export function ChatHeader(props: {
   };
   const editingPath = signal(false);
   const pathDraft = signal("");
+  // The two fields of the header take the keys when they are made: a ref on the
+  // group's control is what focuses it from code (`InputGroupInput`'s).
+  let titleField: InputRef | undefined;
+  let pathField: InputRef | undefined;
+  effect(() => {
+    if (editing()) titleField?.focus();
+  });
+  effect(() => {
+    if (editingPath()) pathField?.focus();
+  });
 
   const commit = () => {
     const title = draft().trim();
@@ -106,11 +116,11 @@ export function ChatHeader(props: {
         >
           <InputGroup style={{ flex: 1 }}>
             <InputGroupInput
+              ref={(node) => (titleField = node ?? undefined)}
               value={draft()}
               onChange={(event) => draft.set(event.value)}
               onSubmit={commit}
               onBlur={commit}
-              autoFocus
               testID="session-title"
               style={{ flex: 1, height: 26, fontSize: 15, fontWeight: "600" }}
             />
@@ -165,11 +175,11 @@ export function ChatHeader(props: {
       >
         <InputGroup>
           <InputGroupInput
+            ref={(node) => (pathField = node ?? undefined)}
             value={pathDraft()}
             onChange={(event) => pathDraft.set(event.value)}
             onSubmit={commitPath}
             onBlur={commitPath}
-            autoFocus
             testID="session-workspace-input"
             accessibilityLabel={t("chat.workingDirectory")}
             style={{ flex: 1, height: 24, fontSize: 11 }}
