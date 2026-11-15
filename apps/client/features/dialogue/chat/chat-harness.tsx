@@ -158,6 +158,10 @@ function scriptedChat(): { sessions: ScriptedSessions; host: SessionHost } {
     });
 
   const finish = (sessionId: string, text: string) => {
+    // The reply is done: its script's timer stops with it, or it would keep
+    // appending the same message (and saying the turn had ended) every tick.
+    const timer = timers.get(sessionId);
+    if (timer !== undefined) clearInterval(timer);
     timers.delete(sessionId);
     running.delete(sessionId);
     sessions.update(sessionId, {
@@ -333,6 +337,11 @@ function scriptedChat(): { sessions: ScriptedSessions; host: SessionHost } {
     const timer = setInterval(
       () => {
         if (index >= words.length) {
+          // Every word has landed: the timer stops either way. A short reply
+          // ends its turn; the slow one keeps it open, which is what it is for
+          // — Stop takes it from there.
+          clearInterval(timer);
+          timers.delete(sessionId);
           if (!slow) finish(sessionId, words.join(" "));
           return;
         }

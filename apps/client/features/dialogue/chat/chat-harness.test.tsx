@@ -114,6 +114,37 @@ test("Stop keeps the words shown so far", async () => {
   await app.waitFor(send);
 });
 
+test("a reply that has finished stops its script, so the transcript settles", async () => {
+  const app = await chat();
+
+  await app.type(composer, "hello");
+  await app.press(send);
+  // Three words at 120 ms, then the turn ends and Send comes back.
+  await app.waitFor(send);
+  const settled = app.texts();
+  // Nothing appends after that: the script's timer stopped with its turn, so a
+  // reply is said once rather than once per tick of a timer left running.
+  await app.wait(1500);
+  expect(app.texts()).toEqual(settled);
+});
+
+test("a slow reply says all its words and then waits, never repeating them", async () => {
+  const app = await chat();
+
+  await app.type(composer, "slow reply");
+  await app.press(send);
+  // Sixteen words at 300 ms: "says so." is the last of them.
+  const reply = () => app.texts().find((text) => text.includes("says so."));
+  await app.waitUntil(() => reply() !== undefined);
+  const written = reply();
+  // The script has said everything it has: no word lands twice (the elapsed
+  // clock beside it may, which is what a running turn does).
+  await app.wait(1200);
+  expect(reply()).toBe(written);
+  // The turn is still open for Stop to take, which is what this script is for.
+  expect(app.shows("label:Stop generating")).toBe(true);
+});
+
 test("a prompt sent while the turn runs is queued, and can be withdrawn", async () => {
   const app = await chat();
 
