@@ -69,7 +69,10 @@ export function CommandPalette() {
             renderItem={(entry) => <CommandRow entry={entry} icon={paletteIcon(entry.id)} />}
             empty={<CommandEmpty label={t("palette.nothing")} />}
             footer={
-              <View class="flex-row items-center gap-4 border-t border-border px-3" style={{ height: 32 }}>
+              <View
+                class="border-border flex-row items-center gap-4 border-t px-3"
+                style={{ height: 32 }}
+              >
                 <Hint label={t("palette.hintMove")} />
                 <Hint label={t("palette.hintOpen")} />
                 <Hint label={t("palette.hintClose")} />
