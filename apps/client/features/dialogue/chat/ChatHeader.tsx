@@ -11,6 +11,7 @@ import { signal } from "nsh";
 
 import { Input } from "../../../components/ui/input";
 import { Pressable } from "../../../components/ui/pressable";
+import { TooltipContent, tooltipNote, tooltipText } from "../../../components/ui/tooltip";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { mono } from "../../../lib/theme";
@@ -76,7 +77,7 @@ export function ChatHeader(props: {
                 draft.set(props.title());
                 editing.set(true);
               }}
-              tooltip={<Text style={{ fontSize: 12 }}>{t("chat.renameHint")}</Text>}
+              tooltip={<TooltipContent>{t("chat.renameHint")}</TooltipContent>}
               style={{ flex: 1 }}
             >
               <Text
@@ -137,14 +138,12 @@ export function ChatHeader(props: {
             }}
             tooltip={
               props.onWorkspace ? (
-                <View style={{ gap: 3, maxWidth: 460 }}>
-                  <Text style={{ fontSize: 12 }}>{t("chat.workspaceHint")}</Text>
-                  <Text
-                    style={{ fontSize: 11, color: token("muted-foreground"), fontFamily: mono }}
-                  >
+                <TooltipContent rich>
+                  <Text class={tooltipText}>{t("chat.workspaceHint")}</Text>
+                  <Text class={tooltipNote} style={{ maxWidth: 460, fontFamily: mono }}>
                     {props.fullPath?.() || props.subtitle()}
                   </Text>
-                </View>
+                </TooltipContent>
               ) : undefined
             }
             style={{ flexDirection: "row", alignItems: "center", gap: 4, minHeight: 18 }}

@@ -8,6 +8,7 @@ import { Image, type JSX, Text, View, token } from "nsh";
 
 import { Button } from "../../../components/ui/button";
 import { Pressable } from "../../../components/ui/pressable";
+import { TooltipContent, tooltipText } from "../../../components/ui/tooltip";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, finish, mono, radius, toneColor, toneTint, type Tone } from "../../../lib/theme";
@@ -133,7 +134,11 @@ export function SegmentDivider(props: {
       }${row().current ? `, ${t("chat.current")}` : ""}`}
       tooltip={
         row().fullPath ? (
-          <Text style={{ fontSize: 12, userSelect: "text" }}>{row().fullPath}</Text>
+          <TooltipContent>
+            <Text class={tooltipText} style={{ userSelect: "text" }}>
+              {row().fullPath}
+            </Text>
+          </TooltipContent>
         ) : undefined
       }
       style={{

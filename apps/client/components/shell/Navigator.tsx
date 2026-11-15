@@ -19,6 +19,7 @@ import { hovered, radius } from "../../lib/theme";
 import { IconButton, iconButtonGlyph } from "../ui/button";
 import { Input } from "../ui/input";
 import { Pressable } from "../ui/pressable";
+import { TooltipContent } from "../ui/tooltip";
 import { type BotRow, botRows } from "./botList";
 import { navSearchFocusRequest, navQuery, setNavQuery, takeNavSearchFocus } from "./navFilter";
 import { NavContextMenu } from "./navMenu";
@@ -200,7 +201,7 @@ function Row(props: { row: BotRow }) {
           // A press after a drop starts a fresh gesture: the drop is done.
           if (dropped === bot().id) dropped = null;
         }}
-        tooltip={<Text style={{ fontSize: 11 }}>{t("nav.dragHint")}</Text>}
+        tooltip={<TooltipContent>{t("nav.dragHint")}</TooltipContent>}
         onPanEnd={(event) => {
           if (event.cancelled) return;
           // A drag to the right leaves the list and lands in the Pane area.
