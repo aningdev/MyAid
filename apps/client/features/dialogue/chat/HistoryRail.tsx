@@ -7,10 +7,10 @@
  * VoiceOver label with the full path.
  */
 import { cleanup, effect, keymap, signal, Text, View, token } from "nsh";
-import { HoverCard } from "nsh/base";
 
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "../../../components/ui/hover-card";
 import { t } from "../../../lib/i18n";
-import { alpha, mono, radius } from "../../../lib/theme";
+import { alpha, mono } from "../../../lib/theme";
 import { middleEllipsis } from "../../workspace/paths";
 
 export type RailMark = {
@@ -25,21 +25,6 @@ export type RailMark = {
   fullPath: string;
   current: boolean;
 };
-
-/** The card's surface: the app's popup family, not a bare text bubble. */
-function cardStyle() {
-  return {
-    backgroundColor: token("popover"),
-    borderColor: token("border"),
-    borderWidth: 1,
-    borderCurve: "continuous" as const,
-    borderRadius: radius.control,
-    padding: 10,
-    gap: 5,
-    minWidth: 180,
-    maxWidth: 300,
-  };
-}
 
 /** What a mark says to a screen reader: its title, time, path and whether it is current. */
 function markLabel(mark: RailMark): string {
@@ -131,14 +116,8 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
     >
       <Each of={props.marks()} key={(mark) => mark.sessionId}>
         {(mark, index) => (
-          <HoverCard
-            placement="left"
-            align="center"
-            offset={8}
-            openDelay={120}
-            closeDelay={180}
-            popupStyle={cardStyle()}
-            trigger={
+          <HoverCard>
+            <HoverCardTrigger>
               <View
                 testID={`history-mark-${index()}`}
                 role="option"
@@ -178,44 +157,53 @@ export function HistoryRail(props: { marks: () => RailMark[]; onJump: (index: nu
                   />
                 </View>
               </View>
-            }
-          >
-            <View testID="rail-card" accessibilityLabel={markLabel(mark())} style={{ gap: 4 }}>
-              <Text
-                testID="rail-card-title"
-                style={{
-                  numberOfLines: 1,
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: token("foreground"),
-                }}
-              >
-                {mark().label}
-              </Text>
-              <Text
-                testID="rail-card-time"
-                style={{
-                  fontSize: 11,
-                  color: token("muted-foreground"),
-                  fontVariant: ["tabular-nums"],
-                }}
-              >
-                {mark().time}
-              </Text>
-              <If when={!!mark().path}>
+            </HoverCardTrigger>
+            <HoverCardContent
+              placement="left"
+              align="center"
+              offset={8}
+              openDelay={120}
+              closeDelay={180}
+              width={240}
+              compact
+            >
+              <View testID="rail-card" accessibilityLabel={markLabel(mark())} style={{ gap: 4 }}>
                 <Text
-                  testID="rail-card-path"
+                  testID="rail-card-title"
                   style={{
-                    fontSize: 11,
-                    color: token("faint"),
-                    fontFamily: mono,
                     numberOfLines: 1,
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: token("foreground"),
                   }}
                 >
-                  {middleEllipsis(mark().path, 42)}
+                  {mark().label}
                 </Text>
-              </If>
-            </View>
+                <Text
+                  testID="rail-card-time"
+                  style={{
+                    fontSize: 11,
+                    color: token("muted-foreground"),
+                    fontVariant: ["tabular-nums"],
+                  }}
+                >
+                  {mark().time}
+                </Text>
+                <If when={!!mark().path}>
+                  <Text
+                    testID="rail-card-path"
+                    style={{
+                      fontSize: 11,
+                      color: token("faint"),
+                      fontFamily: mono,
+                      numberOfLines: 1,
+                    }}
+                  >
+                    {middleEllipsis(mark().path, 42)}
+                  </Text>
+                </If>
+              </View>
+            </HoverCardContent>
           </HoverCard>
         )}
       </Each>

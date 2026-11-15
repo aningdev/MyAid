@@ -6,13 +6,12 @@
  */
 import { effect, Scroll, signal, Text, untracked, View, type JSX, token } from "nsh";
 
-import { Press } from "../../components/app";
+import { OptionSegmented, Press } from "../../components/app";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card as CardFrame, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Field, FieldLabel } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
-import { Segmented, SegmentedItem, SegmentedList } from "../../components/ui/segmented";
 import { t } from "../../lib/i18n";
 import { finish, mono, radius, toneTint } from "../../lib/theme";
 import type { ProviderField } from "./providerModel";
@@ -483,15 +482,14 @@ function ProviderFieldInput(props: {
         <Text style={{ flex: 1, fontSize: 12, color: token("muted-foreground") }}>
           {props.field.key}
         </Text>
-        <Segmented
+        <OptionSegmented
+          options={[
+            { value: "false", label: t("common.off") },
+            { value: "true", label: t("common.on") },
+          ]}
           value={props.value === true ? "true" : "false"}
           onValueChange={(value) => props.onChange(value === "true")}
-        >
-          <SegmentedList>
-            <SegmentedItem value="false">{t("common.off")}</SegmentedItem>
-            <SegmentedItem value="true">{t("common.on")}</SegmentedItem>
-          </SegmentedList>
-        </Segmented>
+        />
       </View>
     );
   }
@@ -501,13 +499,15 @@ function ProviderFieldInput(props: {
         <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
           {props.field.key}
         </Text>
-        <Segmented value={String(props.value)} onValueChange={(value) => props.onChange(value)}>
-          <SegmentedList fill>
-            <Each of={props.field.choices}>
-              {(choice) => <SegmentedItem value={choice().value}>{choice().label}</SegmentedItem>}
-            </Each>
-          </SegmentedList>
-        </Segmented>
+        <OptionSegmented
+          options={props.field.choices.map((choice) => ({
+            value: choice.value,
+            label: choice.label,
+          }))}
+          value={String(props.value)}
+          onValueChange={(value) => props.onChange(value)}
+          fill
+        />
         <If when={props.field.description}>
           <Text style={{ fontSize: 11, lineHeight: 16, color: token("faint") }}>
             {props.field.description}

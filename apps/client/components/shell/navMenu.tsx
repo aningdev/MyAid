@@ -5,15 +5,22 @@
  */
 import { Archive, SlidersHorizontal, Sparkles, Star, Type } from "lucide";
 import { type IconNode } from "lucide";
-import { Text, View, type JSX, token } from "nsh";
-import { ContextMenu, MenuItem, MenuSeparator } from "nsh/base";
+import { Text, type JSX } from "nsh";
 
 import { openBotDetails } from "../../features/bots/details";
 import { archiveBot, type Bot, unarchiveBot } from "../../features/bots/model";
 import { changeRegistry } from "../../features/bots/state";
 import { t, type MessageKey } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
-import { openRename } from "./navSheets";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
+import { menuItemGlyph, menuItemLabel } from "../ui/menu";
+import { openRename } from "./navDialogs";
 import { isPinned, togglePin } from "./pins";
 
 type Entry =
@@ -81,35 +88,24 @@ async function setArchived(botId: string, archived: boolean): Promise<void> {
 export function NavContextMenu(props: { bot: Bot; children: JSX.Element }) {
   const entries = () => contextEntries(props.bot, { pinned: isPinned(props.bot.id) });
   return (
-    <ContextMenu
-      class="min-w-0 flex-1"
-      trigger={props.children}
-      popupClass="min-w-44 rounded-lg border border-border bg-popover p-1"
-    >
-      <Each of={entries()} key={(entry) => entry.id}>
-        {(entry) => <EntryItem entry={entry()} />}
-      </Each>
+    <ContextMenu>
+      <ContextMenuTrigger style={{ minWidth: 0, flex: 1 }}>{props.children}</ContextMenuTrigger>
+      <ContextMenuContent>
+        <Each of={entries()} key={(entry) => entry.id}>
+          {(entry) => <EntryItem entry={entry()} />}
+        </Each>
+      </ContextMenuContent>
     </ContextMenu>
   );
 }
 
 function EntryItem(props: { entry: Entry }) {
   const item = props.entry;
-  if (item.kind === "separator") {
-    return <MenuSeparator class="bg-border my-1 h-px" />;
-  }
+  if (item.kind === "separator") return <ContextMenuSeparator />;
   return (
-    <MenuItem
-      class="hover:bg-accent rounded px-2 py-1.5 disabled:opacity-40"
-      disabled={item.disabled === true}
-      onSelect={item.onSelect}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <If when={!!item.icon}>
-          <Icon icon={item.icon ?? Sparkles} size={14} tint={token("muted-foreground")} />
-        </If>
-        <Text style={{ fontSize: 13, color: token("foreground") }}>{t(item.label)}</Text>
-      </View>
-    </MenuItem>
+    <ContextMenuItem disabled={item.disabled === true} onSelect={item.onSelect}>
+      <Icon icon={item.icon ?? Sparkles} {...menuItemGlyph()} />
+      <Text style={menuItemLabel()}>{t(item.label)}</Text>
+    </ContextMenuItem>
   );
 }

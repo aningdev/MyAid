@@ -10,7 +10,7 @@ Bundle id: `com.aningdev.myaid` (see `nsh.json`). The tree keeps its `nsh init` 
 apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
-│   ├── app/                    # product compositions over shadcn-nsh parts (Press, Appear, IconTile)
+│   ├── app/                    # product compositions over shadcn-nsh parts (Press, Appear, IconTile, OptionSegmented)
 │   ├── shell/                  # Navigator (flat Bot list), Panes, settings overlay, commands, prefs, attention
 │   └── ui/                     # shadcn-nsh copies, added with its CLI; theme.json is the theme
 ├── features/                   # bots (registry, Pane, details), dialogue (chat, segments), workspace, settings
@@ -50,8 +50,8 @@ vp run @myaid/client#package:web      # also package:windows / linux / gpui / io
 
 ## Shell
 
-- **Navigator**: collapsible left `ResizablePanel` (232 default, 160–480) under the hidden title bar's drag region: a search field (`⌘F`), the **Pin** group, the rest of the Bots by recent activity (a Bot's Workspaces and Sessions; a working dot, an unread count, a waiting-approval dot), the **New Bot** row (`⌘N`) and, in the footer, the Host's state plus **⚙ Settings** (`⌘,`). No domain sections, no trees, no Session rows. A row's secondary click offers Pin / Bot details / Rename / Archive; an archived Bot leaves the list, and a search still finds it with **Unarchive**.
-- **Panes**: `nsh/base` DockArea (center). A Pane shows one Bot's conversation; a press opens the active Pane on it, a drag to the right drops it into a new Pane beside the active one, and a Bot that already has a Pane only moves the focus. Split (right / down), resize, zoom, close and the focus shortcuts come from the DockArea and the command table. The layout, each Pane's Bot and the active Pane are restored from client prefs; a Bot that is gone leaves its Pane empty. No tabs.
+- **Navigator**: collapsible left `ResizablePanel` of shadcn-nsh (232 default, 160–480) under the hidden title bar's drag region: a search field (`⌘F`), the **Pin** group, the rest of the Bots by recent activity (a Bot's Workspaces and Sessions; a working dot, an unread count, a waiting-approval dot), the **New Bot** row (`⌘N`) and, in the footer, the Host's state plus **⚙ Settings** (`⌘,`). No domain sections, no trees, no Session rows. A row's secondary click offers Pin / Bot details / Rename / Archive; an archived Bot leaves the list, and a search still finds it with **Unarchive**.
+- **Panes**: shadcn-nsh's `DockArea` (center). A Pane shows one Bot's conversation; a press opens the active Pane on it, a drag to the right drops it into a new Pane beside the active one, and a Bot that already has a Pane only moves the focus. Split (right / down), resize, zoom, close and the focus shortcuts come from the DockArea and the command table. The layout, each Pane's Bot and the active Pane are restored from client prefs; a Bot that is gone leaves its Pane empty. No tabs.
 - **Pane header**: the Bot's mark (breathing while it works), its name, the working directory (press it to edit; a different directory starts a new segment), then **Bot details** beside split / zoom / close. The Pane body is the conversation; the modal holds the segment's facts.
 - **Bot details** (`features/bots/BotDetails.tsx`): one modal over the Pane — Profile / Runs with / Skills / Plugins, the current segment's working directory, model, usage / context and dsh's **Compact**, and Delete / Archive. Profile and Runs with write registry preferences; Skills and Plugins read the Bot's preset composition and derive its own preset when the preset writer is available, else say why they cannot save.
 - **Settings**: a whole-page overlay over the Panes (the Panes keep their layout, scroll and drafts underneath). Its left rail holds **模型供应商 / 通用 / 后台 / 关于**; Back or Escape returns.

@@ -1,17 +1,17 @@
 /**
- * New Bot: a sheet with the Bot's name, its dsh preset, the mark it wears
+ * New Bot: a dialog with the Bot's name, its dsh preset, the mark it wears
  * and its first working directory. Creating it writes the Bot, opens its Pane,
- * then creates its first segment (when dsh answers), with the
- * keyboard in the composer. The first launch's welcome state leads here, as do
- * ⌘N, the list's "New Bot" row and the palette.
+ * then creates its first segment (when dsh answers), with the keyboard in the
+ * composer. The first launch's welcome state leads here, as do ⌘N, the list's
+ * "New Bot" row and the palette.
  */
-import { effect, signal, Text, View, windowSize, token } from "nsh";
+import { effect, signal, Text, View, token } from "nsh";
 
 import { openBot } from "../../components/shell/state";
 import { Button } from "../../components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "../../components/ui/dialog";
 import { Field, FieldLabel } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
-import { Sheet, SheetContent } from "../../components/ui/sheet";
 import { t } from "../../lib/i18n";
 import { radius } from "../../lib/theme";
 import { requestComposerFocus } from "../dialogue/chat/focus";
@@ -31,29 +31,23 @@ import {
   writeBlocked,
 } from "./state";
 
-const SHEET_WIDTH = 560;
+const DIALOG_WIDTH = 560;
 
-export function NewBotSheet() {
+/** The New Bot dialog, mounted once by the shell. */
+export function NewBotDialog() {
   return (
-    <Sheet
+    <Dialog
       open={newBotOpen()}
       onOpenChange={({ open: next }) => {
         if (!next) closeNewBot();
       }}
     >
-      <SheetContent
-        side="top"
-        popupStyle={{
-          width: SHEET_WIDTH,
-          marginLeft: Math.max(0, (windowSize().width - SHEET_WIDTH) / 2),
-          gap: 14,
-        }}
-      >
+      <DialogContent width={DIALOG_WIDTH} accessibilityLabel={t("newBot.title")}>
         <If when={newBotOpen()}>
           <Body />
         </If>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -69,7 +63,7 @@ function Body() {
   const chosen = () =>
     templates().find((item) => item.id === templateId()) ?? templates()[0] ?? null;
 
-  // A fresh sheet starts from the first template and an empty name.
+  // A fresh dialog starts from the first template and an empty name.
   let wasOpen = false;
   effect(() => {
     const open = newBotOpen();
@@ -163,9 +157,7 @@ function Body() {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <BotMark identity={identity()} size={38} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontSize: 17, fontWeight: "600", color: token("foreground") }}>
-            {t("newBot.title")}
-          </Text>
+          <DialogTitle>{t("newBot.title")}</DialogTitle>
           <Text style={{ fontSize: 12, color: token("muted-foreground") }}>{t("newBot.note")}</Text>
         </View>
       </View>

@@ -1,6 +1,7 @@
 import { type JSX, signal, token } from "nsh";
-import { TextView, type TextViewImage } from "nsh/base";
+import type { TextViewImage } from "nsh/base";
 
+import { TextView } from "../../../components/ui/text-view";
 import { t } from "../../../lib/i18n";
 import { ImageViewer } from "../ImageViewer";
 import { orderedListIndent } from "./markdownLists";
@@ -53,7 +54,6 @@ export function Markdown(props: {
           heading3: { fontSize: 15, lineHeight: 22 },
           code: { color: token("code") },
           codeBlockCode: { color: token("code") },
-          link: { color: token("brand") },
           // Measured, not fixed: a list that reaches 10 needs a wider marker
           // column than one that stops at 9.
           ...listStyle(),

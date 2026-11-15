@@ -1,27 +1,28 @@
-import { effect, signal, Text, View, windowSize, token } from "nsh";
+/**
+ * The Navigator's rename dialog, mounted once by the shell: it writes the
+ * Bot's name in the registry, and every Pane title and list row follows.
+ */
+import { effect, signal, Text, View, token } from "nsh";
 
 import { openBotDetails } from "../../features/bots/details";
 import { updateBot } from "../../features/bots/model";
 import { actionError, changeRegistry, registry } from "../../features/bots/state";
 import { t } from "../../lib/i18n";
 import { Button } from "../ui/button";
-/**
- * The Navigator's rename sheet, mounted once by the shell: it writes the
- * Bot's name in the registry, and every Pane title and list row follows.
- */
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
-import { Sheet, SheetContent } from "../ui/sheet";
-import { closeRename, renameTarget } from "./navSheets";
+import { closeRename, renameTarget } from "./navDialogs";
 
-const SHEET_WIDTH = 460;
+const DIALOG_WIDTH = 460;
 
-export function NavigatorSheets() {
+/** The Navigator's forms, each its own dialog. */
+export function NavigatorDialogs() {
   // Overlay components: an array keeps them from taking layout space.
-  return [<RenameSheet />];
+  return [<RenameDialog />];
 }
 
-function RenameSheet() {
+function RenameDialog() {
   const target = () => renameTarget();
   const value = signal("");
   const failure = signal<string | null>(null);
@@ -70,25 +71,17 @@ function RenameSheet() {
   };
 
   return (
-    <Sheet
+    <Dialog
       open={target() !== null}
       onOpenChange={({ open: next }) => {
         if (!next) closeRename();
       }}
     >
-      <SheetContent
-        side="top"
-        popupStyle={{
-          width: SHEET_WIDTH,
-          marginLeft: Math.max(0, (windowSize().width - SHEET_WIDTH) / 2),
-        }}
-      >
+      <DialogContent width={DIALOG_WIDTH} accessibilityLabel={t("rename.title")}>
         <If when={target()}>
           {(current) => (
             <View style={{ gap: 12 }} testID="rename-sheet">
-              <Text style={{ fontSize: 17, fontWeight: "600", color: token("foreground") }}>
-                {t("rename.title")}
-              </Text>
+              <DialogTitle>{t("rename.title")}</DialogTitle>
               <Field>
                 <FieldLabel>{t("rename.name")}</FieldLabel>
                 <Input
@@ -138,7 +131,7 @@ function RenameSheet() {
             </View>
           )}
         </If>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
