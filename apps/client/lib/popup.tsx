@@ -1,4 +1,4 @@
-import { finish, terminal } from "./theme";
+import { finish, radius, terminal } from "./theme";
 // The popup families' one surface and the motion they come in with.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import type { JSX, MotionSpec, ViewStyle } from "nsh";
@@ -11,15 +11,21 @@ export type PopupSide = "top" | "bottom" | "left" | "right";
 
 /**
  * The surface every anchored popup shares (menus, popovers, a select's
- * list): the floating tier, one edge, a soft shadow, 10-point corners and
- * 4 points around its rows (Design Guides, "Surfaces and elevation"). A
- * terminal shows it by its line alone: a box there is its line or its fill.
+ * list): the floating tier, one edge, a soft shadow, the theme's `radius`
+ * corners and 4 points around its rows (Design Guides, "Surfaces and
+ * elevation"). A terminal shows it by its line alone: a box there is its
+ * line or its fill.
  */
 export const popupSurface = (): ViewStyle =>
   // A terminal draws a popup as its line alone, over no fill of its own.
   terminal
-    ? { borderRadius: 10, borderWidth: 1, padding: 4, borderColor: finish.menu.borderColor }
-    : { borderRadius: 10, borderWidth: 1, padding: 4, ...finish.menu };
+    ? {
+        borderRadius: radius.inset,
+        borderWidth: 1,
+        padding: 4,
+        borderColor: finish.menu.borderColor,
+      }
+    : { borderRadius: radius.inset, borderWidth: 1, padding: 4, ...finish.menu };
 
 /** Where a popup grows from: the edge that faces its trigger. */
 const origins: Record<PopupSide, string> = {

@@ -16,7 +16,8 @@ export interface AlertLook {
   root(): ViewStyle;
   /** The title's line: the text column of the first row, and its type. */
   title(variant: AlertVariant): TextStyle;
-  /** The note's place under the title: the text column, one row down, its lines a gap apart. */
+  /** The note's place: the text column, the row after the title's (beside the icon when there is
+   * no title), its lines a gap apart. */
   descriptionFrame(): ViewStyle;
   /** The note's type, for the text of a string note. */
   descriptionText(variant: AlertVariant): TextStyle;
@@ -71,8 +72,9 @@ export function alertLook(): AlertLook {
       numberOfLines: 1,
     }),
     descriptionFrame: (): ViewStyle => ({
+      // No row of its own, as shadcn's `col-start-2`: under a title it takes the next row, and
+      // without one it sits beside the icon.
       gridColumnStart: 2,
-      gridRowStart: 2,
       display: "grid",
       rowGap: 4,
       justifyItems: "start",
@@ -131,7 +133,7 @@ export function AlertTitle(props: AlertTitleProps) {
 }
 
 /**
- * An alert's note under its title: a string is drawn in the note's type and ink; anything else (a
+ * An alert's note, under its title or, with none, beside the icon: a string is drawn in the note's type and ink; anything else (a
  * list of lines, a link) is laid out as given, a small gap apart, in the ink the app gives it.
  */
 export function AlertDescription(props: AlertDescriptionProps) {

@@ -45,6 +45,10 @@ export const menuItemSize: MenuItemDimensions = pointer
 /** A row's inset from the popup's sides: in a terminal the popup's own padding is its Cell from the frame. */
 const inset = terminal ? 0 : 8;
 
+/** The room a checkable row's mark takes before its label: the mark and the row's gap. An `inset`
+ * row starts its label that much further in, so it lines up with the checkable rows. */
+const markRoom = menuItemSize.icon + 8;
+
 /** A row under the pointer or the keyboard (`hoverStyle`, `focusStyle`): a
  * flat neutral fill, the theme's `accent`. */
 export const menuHighlight = (): ViewStyle => ({ backgroundColor: token("accent") });
@@ -58,6 +62,8 @@ export interface MenuItemLookOptions {
    * 6 points above and below with a pointer, 10 on a touch screen, its mark
    * at the top. */
   tall?: boolean;
+  /** The label starts where a checkable row's does, past the mark's room, as shadcn's `inset`. */
+  inset?: boolean;
   /** More style (a justification, a padding), over the look's. */
   style?: ViewStyle;
 }
@@ -80,6 +86,7 @@ export function menuItemLook(o?: MenuItemLookOptions) {
         gap: 8,
         ...(o?.tall ? { paddingVertical: pointer ? 6 : 10 } : { height: menuItemSize.height }),
         paddingHorizontal: inset,
+        ...(o?.inset ? { paddingStart: inset + markRoom } : {}),
         borderRadius: menuItemSize.radius,
         borderCurve: "continuous",
         ...o?.style,
@@ -180,8 +187,8 @@ export function menuPopup(o?: MenuPopupOptions) {
   };
 }
 
-/** A group's title in a menu: not an item, nothing to press; 11 points semibold with a pointer, 13 on a touch screen, faint. */
-export function MenuLabel(props: { text: string }) {
+/** A group's title in a menu: not an item, nothing to press; 11 points semibold with a pointer, 13 on a touch screen, faint. `inset` lines it up with checkable rows' labels. */
+export function MenuLabel(props: { text: string; inset?: boolean }) {
   return (
     <Text
       style={{
@@ -189,6 +196,7 @@ export function MenuLabel(props: { text: string }) {
         fontWeight: "600",
         color: colors.faint,
         paddingHorizontal: inset,
+        paddingStart: props.inset ? inset + markRoom : inset,
         paddingTop: 6,
         paddingBottom: 2,
       }}
@@ -215,8 +223,13 @@ export function menuSeparator(): ViewStyle {
  * row, `lead` (an icon) before the label and a faint chevron at its end;
  * disabled, 50%.
  */
-export function SubmenuRow(props: { label: string; lead?: JSX.Element; disabled?: boolean }) {
-  const look = menuItemLook();
+export function SubmenuRow(props: {
+  label: string;
+  lead?: JSX.Element;
+  disabled?: boolean;
+  inset?: boolean;
+}) {
+  const look = menuItemLook({ inset: props.inset });
   return (
     <View
       hoverStyle={props.disabled ? undefined : look.hoverStyle}
@@ -282,6 +295,9 @@ export type MenuItemProps = Omit<BaseMenuItemProps, "children"> & {
   /** A string is the label; anything else is drawn as given. A string label is also the
    * row's name for screen readers, unless `accessibilityLabel` says otherwise. */
   children?: string | JSX.Element;
+  /** The label starts where a checkable row's does, so a plain row lines up with the checkable
+   * rows of its menu (shadcn's `inset`). */
+  inset?: boolean;
 };
 
 /** Checkbox-shaped item — sets `checked` and shows a check. */
@@ -319,6 +335,8 @@ export type MenuSubProps = {
 export type MenuSubTriggerProps = {
   children?: string | JSX.Element;
   disabled?: boolean;
+  /** The label starts where a checkable row's does (shadcn's `inset`). */
+  inset?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -417,8 +435,11 @@ export function MenuContent(props: MenuContentProps) {
     "align",
     "offset",
   ]);
-  const side = (props.placement ?? "bottom") as PopupSide;
-  const chrome = menuPopup({ side });
+  const chrome = menuPopup({
+    get side() {
+      return (props.placement ?? "bottom") as PopupSide;
+    },
+  });
   return (
     <BaseMenu
       {...rest}
@@ -449,6 +470,7 @@ export function MenuItem(props: MenuItemProps) {
   const [, rest] = split(props, [
     "children",
     "variant",
+    "inset",
     "indicator",
     "style",
     "hoverStyle",
@@ -456,7 +478,7 @@ export function MenuItem(props: MenuItemProps) {
     "activeStyle",
     "disabledStyle",
   ]);
-  const look = menuItemLook();
+  const look = menuItemLook({ inset: props.inset });
   return (
     <BaseMenuItem
       {...rest}
@@ -557,9 +579,9 @@ export function MenuSubTrigger(props: MenuSubTriggerProps) {
     const disabled = Boolean(props.disabled ?? ctx.disabled);
     ctx.label.value = typeof children === "string" ? children : undefined;
     if (typeof children === "string") {
-      return <SubmenuRow label={children} disabled={disabled} />;
+      return <SubmenuRow label={children} disabled={disabled} inset={props.inset} />;
     }
-    const look = menuItemLook();
+    const look = menuItemLook({ inset: props.inset });
     return (
       <View
         hoverStyle={disabled ? undefined : look.hoverStyle}

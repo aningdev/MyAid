@@ -1,6 +1,6 @@
 // The theme's roles, finishes, radii, focus and motion, read from `theme.json` and `finishes.json`.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
-import type { AnimatedValue, Tokens, ViewStyle } from "nsh";
+import type { AnimatedValue, Theme, Tokens, ViewStyle } from "nsh";
 import {
   colorScheme,
   createAnimatedValue,
@@ -8,6 +8,8 @@ import {
   effect,
   platform,
   reduceMotion,
+  setTheme,
+  signal,
   token,
 } from "nsh";
 
@@ -41,17 +43,106 @@ export const wholeRows = (points: number) =>
 /** Whether the shared example UI shows its dark palette (reactive: reading it subscribes). */
 export const isDark = () => colorScheme() !== "light";
 
+/** A surface's finish: a gradient over its color and its shadows. */
+export interface Finish {
+  backgroundColor?: string;
+  backgroundImage?: string;
+  boxShadow: string;
+  borderColor?: string;
+  backdropFilter?: string;
+}
+
+/** The finishes' roles: the keys of `finishes.json`'s two appearances. */
+export type FinishRole =
+  | "card"
+  | "inset"
+  | "field"
+  | "raised"
+  | "hover"
+  | "pressed"
+  | "light"
+  | "accent"
+  | "track"
+  | "fill"
+  | "knob"
+  | "knobOn"
+  | "pill"
+  | "thumb"
+  | "on"
+  | "chip"
+  | "glass"
+  | "menu"
+  | "groove";
+
+/** What a theme's `finishes.json` holds: its finishes, one set per appearance. */
+export interface Finishes {
+  press: Press;
+  dark: Record<FinishRole, Finish>;
+  light: Record<FinishRole, Finish>;
+}
+
 /**
- * An object with `dark`'s keys whose getters read `dark` or `light` by the
- * appearance shown, for the finishes below: shadows and gradients are no
- * design tokens, so they stay here while every color is the theme's.
+ * One theme an app can switch to while it runs (`selectTheme`): the id an
+ * app stores to bring it back, the name a list of them shows, and the
+ * content of the two files a theme is.
  */
-function themed<T extends object>(dark: T, light: T): T {
-  const out = {} as T;
-  for (const key of Object.keys(dark) as (keyof T)[]) {
+export interface AppTheme {
+  /** The id an app stores and compares: `"shadcn"`. */
+  id: string;
+  /** The name a list of themes shows: `"shadcn neutral"`. */
+  label: string;
+  /** `theme.json`'s content: the tokens `setTheme` takes. */
+  theme: Theme;
+  /** `finishes.json`'s content. */
+  finishes: Finishes;
+}
+
+/** How far a press sinks a control in a theme, in both appearances. */
+export interface Press {
+  /**
+   * The scale a pressed control lands on: `0.97` for the default theme, where a press is a small
+   * sink; `1` for a theme whose surfaces are flat and draw no press of their own (shadcn's).
+   */
+  scale: number;
+}
+
+/** The build-time finishes: `finishes.json` beside this file (the app's `nsh-ui.json` names the theme they belong to). */
+const builtIn: Finishes = finishes;
+
+/** The theme `selectTheme` put in; `null` while the app shows its build-time one. */
+const selected = signal<AppTheme | null>(null);
+
+/** The finishes in use: the selected theme's, else the build-time ones. Reactive: reading it subscribes. */
+const finishesOf = (): Finishes => selected()?.finishes ?? builtIn;
+
+/**
+ * Finishes a role may hold beyond the build-time file's keys. `fill` is the one: a theme may draw
+ * its runs as a gradient (the build-time one) or as a single color with no gradient at all
+ * (shadcn's flat fills), and a reader has to see the color the second kind states.
+ */
+const FINISH_EXTRA: Partial<Record<FinishRole, (keyof Finish)[]>> = {
+  fill: ["backgroundColor"],
+};
+
+/**
+ * An object whose getters read one finish role of the finishes in use, in
+ * the appearance shown: shadows and gradients are no design tokens, so they
+ * stay here while every color is the theme's. Reading one subscribes to the
+ * appearance and to the theme `selectTheme` put in.
+ */
+function themed(role: FinishRole): Finish {
+  const out = {} as Finish;
+  const keys = [
+    ...(Object.keys(builtIn.dark[role]) as (keyof Finish)[]),
+    ...(FINISH_EXTRA[role] ?? []).filter((key) => !(key in builtIn.dark[role])),
+  ];
+  for (const key of keys) {
     Object.defineProperty(out, key, {
       enumerable: true,
-      get: () => (isDark() ? dark : light)[key],
+      get: () => {
+        const finishes = finishesOf();
+        return (isDark() ? finishes.dark : finishes.light)[role][key];
+      },
     });
   }
   return out;
@@ -199,15 +290,6 @@ export const tints = tokens({
   down: "down-tint",
 });
 
-/** A surface's finish: a gradient over its color and its shadows. */
-export interface Finish {
-  backgroundColor?: string;
-  backgroundImage?: string;
-  boxShadow: string;
-  borderColor?: string;
-  backdropFilter?: string;
-}
-
 /**
  * Light and depth, kept quiet: one-color edges (corners join cleanly), a
  * hard 1-point drop under what stands up and a 1-point inner shade in what
@@ -226,30 +308,64 @@ export interface Finish {
  * neutral with an edge. `groove` is a hairline's lip of light under it, a
  * menu's separator cut into the surface.
  */
-export const finish = themed<
-  Record<
-    | "card"
-    | "inset"
-    | "field"
-    | "raised"
-    | "hover"
-    | "pressed"
-    | "light"
-    | "accent"
-    | "track"
-    | "fill"
-    | "knob"
-    | "knobOn"
-    | "pill"
-    | "thumb"
-    | "on"
-    | "chip"
-    | "glass"
-    | "menu"
-    | "groove",
-    Finish
-  >
->(finishes.dark, finishes.light);
+export const finish: Record<FinishRole, Finish> = {
+  card: themed("card"),
+  inset: themed("inset"),
+  field: themed("field"),
+  raised: themed("raised"),
+  hover: themed("hover"),
+  pressed: themed("pressed"),
+  light: themed("light"),
+  accent: themed("accent"),
+  track: themed("track"),
+  fill: themed("fill"),
+  knob: themed("knob"),
+  knobOn: themed("knobOn"),
+  pill: themed("pill"),
+  thumb: themed("thumb"),
+  on: themed("on"),
+  chip: themed("chip"),
+  glass: themed("glass"),
+  menu: themed("menu"),
+  groove: themed("groove"),
+};
+
+/**
+ * How far a press sinks a control, as the theme in use says (`finishes.json`'s `press.scale`):
+ * `0.97` where a press is a small sink, `1` where the theme draws none. A control that sinks
+ * deeper than that names its own scale (`pressSink(0.9)`); a theme of `1` turns every sink off.
+ * Reactive: reading it follows `selectTheme`.
+ */
+export const press = {
+  get scale() {
+    return finishesOf().press.scale;
+  },
+};
+
+/**
+ * Switch the app to `theme` while it runs: the tokens first (`setTheme`),
+ * then its finishes, so every component on screen redraws with both on the
+ * next frame. `null` goes back to the theme the app was built with
+ * (`nsh.json`'s `theme.json`, and `finishes.json` beside this file).
+ *
+ * A theme NSH refuses to read (a color it does not know) throws
+ * `TypeError` and leaves the app as it was: the finishes follow the tokens
+ * only once they are in.
+ */
+export function selectTheme(theme: AppTheme | null): void {
+  setTheme(theme?.theme ?? null);
+  selected.set(theme);
+}
+
+/**
+ * The `id` of the theme the app shows (`selectTheme`), or `null` while it
+ * shows its build-time one — the runtime cannot read `nsh-ui.json`. Reactive:
+ * reading it subscribes.
+ */
+export function currentTheme(): string | null {
+  const theme = selected();
+  return theme === null ? null : theme.id;
+}
 
 export type Tone = "neutral" | "accent" | "info" | "warn" | "danger" | "up" | "down";
 
@@ -271,7 +387,7 @@ export const solidTint = (tone: Tone, base: string = colors.surface) =>
  * the system font with tabular numbers instead. */
 export const mono = "monospace";
 
-/** Corner radii (`theme.json`'s `radius-card`, `radius`, `radius-control`). */
+/** Corner radii (`theme.json`'s `radius-card`, `radius`, `radius-control`, `radius-popover`). */
 export const radius = {
   get card() {
     return token("radius-card");
@@ -281,6 +397,10 @@ export const radius = {
   },
   get control() {
     return token("radius-control");
+  },
+  /** A dialog's corners: the floating tier's own, bigger than a card's. */
+  get popover() {
+    return token("radius-popover");
   },
 };
 
@@ -357,3 +477,35 @@ export const focusRing = (offset = 0): ViewStyle => ({
   outlineColor: alpha(token("ring"), 0.14),
   outlineOffset: offset,
 });
+
+/*
+ * Below: this library's own, with no upstream origin.
+ */
+
+/**
+ * A theme's fill for a run, a bar or a slider's range: its gradient where it gives one, else its
+ * color. A theme may state both (a color under the gradient), as the build-time one does; the
+ * gradient is what draws then, so what a theme that states one color alone says is a fill too.
+ */
+export function fillStyle(): ViewStyle {
+  return finish.fill.backgroundImage === undefined
+    ? { backgroundColor: finish.fill.backgroundColor }
+    : { backgroundImage: finish.fill.backgroundImage };
+}
+
+/**
+ * A rail's edge: a `width`-point inset line of `borderColor` inside the theme's `boxShadow`,
+ * whichever of the two the theme gives. `finishes.json` may write `boxShadow: "none"` or leave
+ * the color out, and a rail that joined the absent one after a comma would void the whole
+ * declaration (`none, inset …` is not a shadow).
+ */
+export function insetEdge(
+  borderColor: string | undefined,
+  boxShadow: string | undefined,
+  width = 1,
+): string {
+  const line = borderColor ? `inset 0 0 0 ${width}px ${borderColor}` : undefined;
+  const shade = boxShadow && boxShadow !== "none" ? boxShadow : undefined;
+  const parts = [line, shade].filter((part) => part !== undefined);
+  return parts.length === 0 ? "none" : parts.join(", ");
+}
