@@ -21,10 +21,11 @@ import {
   type ViewStyle,
   token,
 } from "nsh";
-import { Input, Menu, MenuItem } from "nsh/base";
+import { Input } from "nsh/base";
 
 import { Press } from "../../../components/app";
 import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
+import { Menu, MenuContent, MenuRadioItem, MenuTrigger } from "../../../components/ui/menu";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, radius } from "../../../lib/theme";
@@ -362,11 +363,8 @@ function PhotoThumb(props: { url: string }) {
 function ModelChip(props: { model: () => ComposerModel; onPick: (value: string) => void }) {
   const model = () => props.model();
   return (
-    <Menu
-      placement="top"
-      align="start"
-      popupClass="rounded-lg border border-border bg-popover p-1 shadow-lg"
-      trigger={
+    <Menu>
+      <MenuTrigger>
         <View
           style={{
             flexDirection: "row",
@@ -383,19 +381,19 @@ function ModelChip(props: { model: () => ComposerModel; onPick: (value: string) 
           </Text>
           <Icon icon={ChevronDown} size={10} tint={token("faint")} />
         </View>
-      }
-    >
-      <Each of={model().options} key={(option) => option.value}>
-        {(option) => (
-          <MenuItem
-            checked={option().value === model().current}
-            role="menuitemradio"
-            onSelect={() => props.onPick(option().value)}
-          >
-            <Text style={{ fontSize: 13, color: token("foreground") }}>{option().label}</Text>
-          </MenuItem>
-        )}
-      </Each>
+      </MenuTrigger>
+      <MenuContent placement="top" align="start">
+        <Each of={model().options} key={(option) => option.value}>
+          {(option) => (
+            <MenuRadioItem
+              checked={option().value === model().current}
+              onSelect={() => props.onPick(option().value)}
+            >
+              {option().label}
+            </MenuRadioItem>
+          )}
+        </Each>
+      </MenuContent>
     </Menu>
   );
 }
@@ -407,29 +405,26 @@ function SendKeyMenu() {
     { value: "mod-enter", label: t("chat.sendKey.modEnter", { label: sendKeyLabel("mod-enter") }) },
   ];
   return (
-    <Menu
-      placement="top"
-      align="end"
-      popupClass="rounded-lg border border-border bg-popover p-1 shadow-lg"
-      trigger={
+    <Menu>
+      <MenuTrigger>
         <View style={{ paddingHorizontal: 8, height: 28, justifyContent: "center" }}>
           <Text style={{ fontSize: 11, color: token("faint") }}>
             {t("chat.sendKeyToSend", { label: sendKeyLabel(sendKey()) })}
           </Text>
         </View>
-      }
-    >
-      <Each of={options} key={(option) => option.value}>
-        {(option) => (
-          <MenuItem
-            checked={sendKey() === option().value}
-            role="menuitemradio"
-            onSelect={() => setSendKey(option().value)}
-          >
-            <Text style={{ fontSize: 13, color: token("foreground") }}>{option().label}</Text>
-          </MenuItem>
-        )}
-      </Each>
+      </MenuTrigger>
+      <MenuContent placement="top" align="end">
+        <Each of={options} key={(option) => option.value}>
+          {(option) => (
+            <MenuRadioItem
+              checked={sendKey() === option().value}
+              onSelect={() => setSendKey(option().value)}
+            >
+              {option().label}
+            </MenuRadioItem>
+          )}
+        </Each>
+      </MenuContent>
     </Menu>
   );
 }
