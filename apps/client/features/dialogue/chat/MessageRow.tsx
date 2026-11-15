@@ -8,13 +8,13 @@
 import { Check, Copy, RotateCw, Square, ThumbsDown, ThumbsUp } from "lucide";
 import { signal, Text, View, token } from "nsh";
 
+import { ImageViewer } from "../../../components/app";
 import { Badge } from "../../../components/ui/badge";
 import { Pressable } from "../../../components/ui/pressable";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { finish } from "../../../lib/theme";
 import type { Bot } from "../../bots/model";
-import { ImageViewer } from "../ImageViewer";
 import { Markdown } from "./markdown";
 import { ActionButton, Avatar, Caret, ErrorRow, FileChip, Photo, Spinner } from "./parts";
 import { assistantParts, groupsSteps, type Assistant, type Row } from "./rows";

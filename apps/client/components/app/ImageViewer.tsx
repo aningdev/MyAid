@@ -1,12 +1,14 @@
-import { effect, Image, signal, Text, View, token } from "nsh";
+import { X } from "lucide";
+import { effect, Image, signal, Text, View, token, type ViewRef } from "nsh";
 import { createAnimatedValue } from "nsh";
 import { safeArea } from "nsh";
 import { Dialog } from "nsh/base";
 
-import { Pressable } from "../../components/ui/pressable";
-import type { TextViewImage } from "../../components/ui/text-view";
 import { t } from "../../lib/i18n";
+import { Icon } from "../../lib/icons";
 import { motion } from "../../lib/theme";
+import { RoundButton, roundButtonGlyph } from "../ui/button";
+import type { TextViewImage } from "../ui/text-view";
 
 /** The deepest zoom, and where a double tap zooms in to. */
 const MAX_ZOOM = 4;
@@ -29,6 +31,11 @@ const clamp = (value: number, bound: number) => Math.max(-bound, Math.min(bound,
  *
  * The gestures run natively (`pinch` / `pan` drive animated values on the
  * UI thread); JS only settles the result into bounds when one ends.
+ *
+ * A product composition: the lightbox is `nsh/base`'s `Dialog` over the
+ * theme's scrim — the one documented minimal custom, since shadcn has no
+ * image viewer and a full-bleed surface takes no card — and its close is
+ * the library's `RoundButton`.
  */
 export function ImageViewer(props: { image: TextViewImage | null; onClose: () => void }) {
   // The image stays while the dialog fades out.
@@ -44,6 +51,9 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
   let lastTap = 0;
   let tap = { x: 0, y: 0 };
   let src = "";
+  // The close button takes the keyboard as the viewer appears, so Escape closes
+  // it (a dialog's cancel) rather than reaching the draft behind it.
+  let closer: ViewRef | undefined;
 
   effect(() => {
     const image = props.image;
@@ -83,6 +93,8 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
     y.spring(at.y, motion.settle);
   };
 
+  const focusCloser = () => closer?.focus();
+
   /** A tap on the image: the second of two zooms in at the point, or out. */
   const pressImage = () => {
     const now = Date.now();
@@ -109,7 +121,9 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
       animation="fade"
       style={{ flex: 1 }}
       statusBar={{ foreground: "light" }}
-      onOpenChange={(open) => !open && props.onClose()}
+      onOpen={focusCloser}
+      onCancel={props.onClose}
+      onOpenChange={({ open }) => !open && props.onClose()}
     >
       <View
         testID="image-viewer"
@@ -170,7 +184,9 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
               paddingBottom: safeArea().bottom + 20,
             }}
           >
-            <Text class="text-sm" style={{ textAlign: "center", color: token("background") }}>
+            {/* Light ink over the scrim in either appearance: the page's own
+                colour would be the scrim's in the dark. */}
+            <Text class="text-sm" style={{ textAlign: "center", color: token("knob") }}>
               {shown()?.alt}
             </Text>
           </View>
@@ -178,39 +194,14 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
         <View
           style={{ position: "absolute", top: safeArea().top + 12, right: safeArea().right + 12 }}
         >
-          <Pressable onPress={props.onClose} accessibilityLabel={t("chat.closeImage")} hitSlop={8}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: token("scrim"),
-              }}
-            >
-              <View
-                style={{
-                  position: "absolute",
-                  width: 16,
-                  height: 2,
-                  borderRadius: 1,
-                  backgroundColor: token("background"),
-                  transform: [{ rotate: "45deg" }],
-                }}
-              />
-              <View
-                style={{
-                  position: "absolute",
-                  width: 16,
-                  height: 2,
-                  borderRadius: 1,
-                  backgroundColor: token("background"),
-                  transform: [{ rotate: "-45deg" }],
-                }}
-              />
-            </View>
-          </Pressable>
+          <RoundButton
+            ref={(node) => (closer = node ?? undefined)}
+            side={44}
+            onPress={props.onClose}
+            accessibilityLabel={t("chat.closeImage")}
+          >
+            <Icon icon={X} {...roundButtonGlyph("default", { side: 44 })} />
+          </RoundButton>
         </View>
       </View>
     </Dialog>

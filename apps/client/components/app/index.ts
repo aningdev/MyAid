@@ -10,4 +10,5 @@ export {
   type GroupTextareaProps,
 } from "./GroupField";
 export { IconTile } from "./IconTile";
+export { ImageViewer } from "./ImageViewer";
 export { OptionSegmented, type SegmentedOption } from "./OptionSegmented";
