@@ -65,7 +65,7 @@ test("an empty workbench leads to the first Bot", async () => {
   await app.waitFor("text:Welcome to MyAid");
   expect(app.shows("label:Create your first Bot")).toBe(true);
   await app.press("label:Create your first Bot");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
 });
 
 test("⌘, opens Settings, and Escape comes back", async () => {

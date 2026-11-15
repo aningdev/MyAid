@@ -1,5 +1,5 @@
 /**
- * Real-Host smoke: a Bot created through the New Bot sheet on a running Host,
+ * Real-Host smoke: a Bot created through the New Bot dialog on a running Host,
  * one prompt answered with a 22-item numbered list (markers past one digit),
  * and the turn settling — Send back, no working dot — when dsh is done.
  *
@@ -28,7 +28,7 @@ test("a real turn ends with Send back and the working dot gone", async () => {
 
   await app.waitFor(`text:${t("host.connected")}`, { timeout: 30000 });
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press(`label:${t("newBot.create")}`);

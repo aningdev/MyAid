@@ -102,10 +102,10 @@ test("palette, Bot details, dialogs, context menu and three Panes", async () => 
 
   // The New Bot dialog.
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await both(app, "03-new-bot.png");
   await app.press("label:Cancel");
-  await app.waitUntil(() => !app.shows("id:new-bot-sheet"));
+  await app.waitUntil(() => !app.shows("id:new-bot-dialog"));
 
   // ⌘K filters as it opens.
   await app.keyboard.press("mod+k");
@@ -133,10 +133,10 @@ test("palette, Bot details, dialogs, context menu and three Panes", async () => 
   await app.waitFor("text:Bot details…");
   await both(app, "05-context-menu.png");
   await app.press("text:Rename…");
-  await app.waitFor("id:rename-sheet", { timeout: 30000 });
+  await app.waitFor("id:rename-dialog", { timeout: 30000 });
   await both(app, "06-rename.png");
   await app.press("label:Cancel");
-  await app.waitUntil(() => !app.shows("id:rename-sheet"));
+  await app.waitUntil(() => !app.shows("id:rename-dialog"));
 
   // Bot details from the same menu, then the rail's hover card.
   await app.rightClick("label:Bob");

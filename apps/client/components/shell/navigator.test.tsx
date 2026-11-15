@@ -216,7 +216,7 @@ test("a renamed Bot retitles its list row and its Pane", async () => {
 
   await app.rightClick("label:Ada");
   await app.press("text:Rename…");
-  await app.waitFor("id:rename-sheet");
+  await app.waitFor("id:rename-dialog");
   await app.clear("id:rename-name");
   await app.type("id:rename-name", "Ada L");
   await app.press("label:Save");
@@ -267,9 +267,9 @@ test("Settings covers the area, and Back returns to the same Panes", async () =>
   expect(app.shows("id:tab-panel-1 >> text:Ada")).toBe(true);
 });
 
-test("the New Bot row opens the sheet", async () => {
+test("the New Bot row opens the dialog", async () => {
   const app = await start();
   await app.press("label:New Bot");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   expect(app.shows("id:new-bot-name")).toBe(true);
 });

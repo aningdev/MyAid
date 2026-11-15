@@ -2,7 +2,7 @@
  * What Bot Settings reads from the Host, behind one seam: the skills dsh
  * reports for a Session of this Bot (`skills.list`) and the plugin rows of the
  * Bot's preset (`pluginInventory.list`). `nsh test` substitutes a source so the
- * sheet's tabs can be driven without a Host; nothing in the product does.
+ * dialog's tabs can be driven without a Host; nothing in the product does.
  */
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t } from "../../lib/i18n";

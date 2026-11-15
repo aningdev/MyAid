@@ -43,7 +43,7 @@ type App = Awaited<ReturnType<typeof open>>;
 /** Create a Bot on the scratch Host; its Pane opens with the first Session. */
 async function botToChat(app: App, name: string, path: string) {
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", name);
   await app.type("id:new-bot-workspace", path);
   await app.waitFor(`text:${t("newBot.readingPresets")}`, { state: "gone", timeout: 120000 });

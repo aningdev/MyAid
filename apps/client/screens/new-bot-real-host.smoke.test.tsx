@@ -1,5 +1,5 @@
 /**
- * Real-Host smoke: create a Bot through the New Bot sheet on the Host the app
+ * Real-Host smoke: create a Bot through the New Bot dialog on the Host the app
  * starts, send a prompt, and get the reply back. Screenshots the working mark
  * and the reply. A headless run stops at the picture probe.
  *
@@ -22,22 +22,22 @@ const ECHO = "SMOKE-8173";
 const PROMPT = `${ECHO}: write 20 numbered lines about release notes, one short sentence each. Begin your reply with ${ECHO}.`;
 const WORKSPACE = "/tmp";
 
-test("a new Bot created through the sheet replies", async () => {
+test("a new Bot created through the dialog replies", async () => {
   if (!hostSmokeRequested()) return;
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
 
   await app.waitFor(`text:${t("host.connected")}`, { timeout: 30000 });
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press(`label:${t("newBot.create")}`);
 
-  // The sheet closes, the first Session is created and its chat opens.
+  // The dialog closes, the first Session is created and its chat opens.
   await app.waitFor("id:chat", { timeout: 120000 });
   await app.waitFor("id:composer", { timeout: 30000 });
-  expect(app.shows("id:new-bot-sheet")).toBe(false);
+  expect(app.shows("id:new-bot-dialog")).toBe(false);
 
   await app.type("id:composer", PROMPT);
   await app.keyboard.press("enter");

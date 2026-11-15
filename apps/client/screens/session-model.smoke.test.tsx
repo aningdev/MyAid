@@ -79,10 +79,10 @@ type App = Awaited<ReturnType<typeof open>>;
 /** Create a Bot on the scratch Host and open its first Session. */
 async function botToChat(app: App, name: string, path = WORKSPACE) {
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", name);
   await app.type("id:new-bot-workspace", path);
-  // Create stays disabled until the sheet has read dsh's agent presets.
+  // Create stays disabled until the dialog has read dsh's agent presets.
   await app.waitFor(`text:${t("newBot.readingPresets")}`, { state: "gone", timeout: 120000 });
   await app.press(`label:${t("newBot.create")}`);
   await app.waitFor("id:chat", { timeout: 180000 });

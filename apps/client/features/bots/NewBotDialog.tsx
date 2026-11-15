@@ -153,7 +153,7 @@ function Body() {
   };
 
   return (
-    <View style={{ gap: 14 }} testID="new-bot-sheet">
+    <View style={{ gap: 14 }} testID="new-bot-dialog">
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <BotMark identity={identity()} size={38} />
         <View style={{ flex: 1, gap: 2 }}>

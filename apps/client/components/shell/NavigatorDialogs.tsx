@@ -80,7 +80,7 @@ function RenameDialog() {
       <DialogContent width={DIALOG_WIDTH} accessibilityLabel={t("rename.title")}>
         <If when={target()}>
           {(current) => (
-            <View style={{ gap: 12 }} testID="rename-sheet">
+            <View style={{ gap: 12 }} testID="rename-dialog">
               <DialogTitle>{t("rename.title")}</DialogTitle>
               <Field>
                 <FieldLabel>{t("rename.name")}</FieldLabel>
