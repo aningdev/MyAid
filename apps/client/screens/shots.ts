@@ -57,6 +57,9 @@ export const SHOTS_UI5B = `${SCRATCHPAD}/pi-shots-ui5b`;
 /** Batch 6: the `Alert` back in the doc's shape, and Settings › General's Colour choice. */
 export const SHOTS_UI6 = `${SCRATCHPAD}/pi-shots-ui6`;
 
+/** Batch A of the Bot's avatar: contact sheets, the picker, and the screens that carry the mark. */
+export const SHOTS_AVATAR_A = `${SCRATCHPAD}/pi-shots-avatar-a`;
+
 export { graphical } from "../test/graphical";
 
 /**
