@@ -12,3 +12,4 @@ export {
 export { IconTile } from "./IconTile";
 export { ImageViewer } from "./ImageViewer";
 export { OptionSegmented, type SegmentedOption } from "./OptionSegmented";
+export { Shortcut } from "./Shortcut";

@@ -103,7 +103,7 @@ Known limitations：NSH 标准 websocket 在 8 条未读消息时暂停读取；
 apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
-│   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Appear、GroupInput、IconTile、ImageViewer、OptionSegmented）
+│   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Appear、GroupInput、IconTile、ImageViewer、OptionSegmented、Shortcut）
 │   ├── shell/                  # Workspace Shell：Navigator（扁平 Bot 列表）+ Pane 分屏 + 设置覆盖层、命令表、偏好、注意
 │   └── ui/                     # shadcn-nsh 复制件（只经其 CLI add）：组件外观、状态与主题的唯一所有者
 ├── features/

@@ -59,6 +59,7 @@ import {
 import { Input } from "../../components/ui/input";
 import { Meter } from "../../components/ui/meter";
 import { Pressable } from "../../components/ui/pressable";
+import { Separator } from "../../components/ui/separator";
 import { Switch } from "../../components/ui/switch";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t, type MessageKey } from "../../lib/i18n";
@@ -568,7 +569,7 @@ function SegmentSection(props: { botId: string; onFailure: (message: string) => 
 
   return (
     <View style={{ gap: 10 }} testID="bot-details-segment">
-      <View style={{ height: 1, backgroundColor: token("line") }} />
+      <Separator />
       <Text style={{ fontSize: 12, fontWeight: "600", color: token("muted-foreground") }}>
         {t("bot.segment.current")}
       </Text>

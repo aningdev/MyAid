@@ -8,6 +8,7 @@ import { Image, type JSX, Text, View, token } from "nsh";
 
 import { Button } from "../../../components/ui/button";
 import { Pressable } from "../../../components/ui/pressable";
+import { Separator } from "../../../components/ui/separator";
 import { TooltipContent, tooltipText } from "../../../components/ui/tooltip";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
@@ -108,9 +109,9 @@ export function DateSeparator(props: { label: string }) {
         paddingVertical: 10,
       }}
     >
-      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
+      <Separator style={{ flex: 1, width: "auto" }} />
       <Text style={{ fontSize: 11, fontWeight: "500", color: token("faint") }}>{props.label}</Text>
-      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
+      <Separator style={{ flex: 1, width: "auto" }} />
     </View>
   );
 }
@@ -150,7 +151,7 @@ export function SegmentDivider(props: {
         paddingBottom: 8,
       }}
     >
-      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
+      <Separator style={{ flex: 1, width: "auto" }} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "78%" }}>
         <Text style={{ fontSize: 11, fontWeight: "600", color: token("muted-foreground") }}>
           {row().label}
@@ -180,7 +181,7 @@ export function SegmentDivider(props: {
           />
         </If>
       </View>
-      <View style={{ flex: 1, height: 1, backgroundColor: token("line") }} />
+      <Separator style={{ flex: 1, width: "auto" }} />
     </View>
   );
 }

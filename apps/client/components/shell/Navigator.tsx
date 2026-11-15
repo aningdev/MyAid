@@ -7,9 +7,9 @@ import { Plus, Search, X } from "lucide";
  * (or brings it to the front), a secondary click offers its verbs, and a drag
  * to the right drops it into the Workbench as a new Pane.
  */
-import { keymap, platform, Scroll, Text, token, View, type InputRef } from "nsh";
+import { platform, Scroll, Text, token, View, type InputRef } from "nsh";
 
-import { GroupInput } from "../../components/app";
+import { GroupInput, Shortcut } from "../../components/app";
 import { BotMark } from "../../features/bots/BotMark";
 import { unarchiveBot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
@@ -20,6 +20,7 @@ import { hovered, radius } from "../../lib/theme";
 import { buttonGlyph } from "../ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText } from "../ui/input-group";
 import { Pressable } from "../ui/pressable";
+import { Separator } from "../ui/separator";
 import { TooltipContent } from "../ui/tooltip";
 import { type BotRow, botRows } from "./botList";
 import { navSearchFocusRequest, navQuery, setNavQuery, takeNavSearchFocus } from "./navFilter";
@@ -85,13 +86,12 @@ export function Navigator() {
           </Each>
         </If>
         <If when={botRows().pinned.length > 0 && botRows().others.length > 0}>
-          <View
+          <Separator
             style={{
-              height: 1,
+              width: "auto",
               marginTop: 6,
               marginBottom: 5,
               marginHorizontal: 6,
-              backgroundColor: token("line"),
             }}
           />
         </If>
@@ -325,7 +325,7 @@ function NewBotRow() {
       >
         {t("nav.newBot")}
       </Text>
-      <Text style={{ fontSize: 11, color: token("faint") }}>{keymap.label("mod+n") ?? ""}</Text>
+      <Shortcut keystroke="mod+n" />
     </View>
   );
 }

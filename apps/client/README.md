@@ -10,7 +10,7 @@ Bundle id: `com.aningdev.myaid` (see `nsh.json`). The tree keeps its `nsh init` 
 apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
-│   ├── app/                    # product compositions over shadcn-nsh parts (Appear, GroupInput, IconTile, ImageViewer, OptionSegmented)
+│   ├── app/                    # product compositions over shadcn-nsh parts (Appear, GroupInput, IconTile, ImageViewer, OptionSegmented, Shortcut)
 │   ├── shell/                  # Navigator (flat Bot list), Panes, settings overlay, commands, prefs, attention
 │   └── ui/                     # shadcn-nsh copies, added with its CLI; theme.json is the theme
 ├── features/                   # bots (registry, Pane, details), dialogue (chat, segments), workspace, settings
