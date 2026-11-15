@@ -42,7 +42,7 @@ export type PopoverProps = {
   open?: boolean | null;
   defaultOpen?: boolean;
   children?: JSX.Element;
-  onOpenChange?: (event: { open: boolean; reason: OpenChangeReason }) => void;
+  onOpenChange?: (event: { open: boolean; reason: PopoverOpenChangeReason }) => void;
   onOpen?: () => void;
   onClose?: () => void;
   onCancel?: () => void;
@@ -231,3 +231,6 @@ export function PopoverDescription(props: PopoverDescriptionProps) {
     </Text>
   );
 }
+
+/** Why a popover closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type PopoverOpenChangeReason = OpenChangeReason;

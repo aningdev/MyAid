@@ -1,5 +1,5 @@
 {
-  "registry": "https://raw.githubusercontent.com/aningdev/shadcn-nsh/cli-v0.3.0/public/r/{name}.json",
+  "registry": "https://raw.githubusercontent.com/aningdev/shadcn-nsh/cli-v0.4.0/public/r/{name}.json",
   "theme": "theme-shadcn",
   "aliases": {
     "components": "./components",

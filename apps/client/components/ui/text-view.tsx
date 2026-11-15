@@ -5,7 +5,9 @@ import {
   TextView as BaseTextView,
   type TextViewClasses,
   type TextViewDocument,
+  type TextViewImage,
   type TextViewProps as BaseTextViewProps,
+  type TextViewRef,
 } from "nsh/base";
 
 /** A `TextView`'s links (its `classes`): the brand color over a faint
@@ -56,3 +58,12 @@ export const TextView = Object.assign(View, {
 });
 
 export type { TextViewDocument };
+
+/** The classes of a text view's parts, from `nsh/base`. */
+export type { TextViewClasses };
+
+/** An image of a document (`renderImage`, `onImagePress`), from `nsh/base`. */
+export type { TextViewImage };
+
+/** A text view's ref, from `nsh/base`. */
+export type { TextViewRef };

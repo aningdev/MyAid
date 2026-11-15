@@ -37,7 +37,7 @@ const origins: Record<PopupSide, string> = {
  */
 /** Where a popup goes, in words for its trigger: "Bottom, centered", "Top, at the end". */
 export function placementWords(side: PopupSide, align: "start" | "center" | "end"): string {
-  return `${side[0].toUpperCase()}${side.slice(1)}, ${align === "center" ? "centered" : `at the ${align}`}`;
+  return `${side[0].toLocaleUpperCase()}${side.slice(1)}, ${align === "center" ? "centered" : `at the ${align}`}`;
 }
 
 export function popIn(side: PopupSide = "bottom", distance = 4): MotionSpec {
