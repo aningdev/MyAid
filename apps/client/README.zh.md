@@ -11,7 +11,7 @@ apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
 │   ├── shell/                  # Navigator（扁平 Bot 列表）、Pane 分屏、设置覆盖层、命令表、偏好、注意
-│   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Press、Appear、IconTile）
+│   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Press、Appear、IconTile、OptionSegmented）
 │   └── ui/                     # shadcn-nsh 复制件（只经其 CLI add）；theme.json 即主题
 ├── features/                   # bots（注册表、Pane、详情弹窗）、dialogue（chat、段）、workspace、settings
 ├── lib/                        # dsh、host、relay、background
@@ -49,8 +49,8 @@ vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / 
 
 ## 壳
 
-- **Navigator**：左侧可收缩 `ResizablePanel`（默认 232，最小 160，最大 480），顶行承接隐藏标题栏的拖拽；下面是搜索框（`⌘F`）、**Pin** 组、其余 Bot 按最近活动排序（工作中的点、未读数、待审批点）、**新建 Bot**（`⌘N`）；底部是 Host 状态与 **⚙ 设置**（`⌘,`）。没有域分区、没有树、不在 Bot 下展开会话。右键给该 Bot 的动词：Pin / Bot 详情 / 重命名 / 归档；归档的 Bot 退出列表，搜索仍能找到并 **Unarchive**。
-- **Pane**：`nsh/base` DockArea（center）。一个 Pane 显示一个 Bot 的对话；点行把内容开到活动 Pane，向右拖入在工作 Pane 右侧开新 Pane，已有 Pane 的 Bot 只切焦点。拆分（向右 / 向下）、拖动分隔线、放大、关闭与焦点快捷键来自 DockArea 与命令表。布局、每个 Pane 的 Bot 与活动 Pane 从客户端偏好恢复；Bot 不在则该 Pane 为空。没有标签页。
+- **Navigator**：左侧可收缩的 shadcn-nsh `ResizablePanel`（默认 232，最小 160，最大 480），顶行承接隐藏标题栏的拖拽；下面是搜索框（`⌘F`）、**Pin** 组、其余 Bot 按最近活动排序（工作中的点、未读数、待审批点）、**新建 Bot**（`⌘N`）；底部是 Host 状态与 **⚙ 设置**（`⌘,`）。没有域分区、没有树、不在 Bot 下展开会话。右键给该 Bot 的动词：Pin / Bot 详情 / 重命名 / 归档；归档的 Bot 退出列表，搜索仍能找到并 **Unarchive**。
+- **Pane**：shadcn-nsh 的 `DockArea`（center）。一个 Pane 显示一个 Bot 的对话；点行把内容开到活动 Pane，向右拖入在工作 Pane 右侧开新 Pane，已有 Pane 的 Bot 只切焦点。拆分（向右 / 向下）、拖动分隔线、放大、关闭与焦点快捷键来自 DockArea 与命令表。布局、每个 Pane 的 Bot 与活动 Pane 从客户端偏好恢复；Bot 不在则该 Pane 为空。没有标签页。
 - **Pane 标题**：Bot 标记（工作中呼吸）、名字、工作目录（点一下可改，换成别的目录会开新段），然后是 **Bot 详情** 与拆分 / 放大 / 关闭并排。Pane 主体是对话，段的事实收在弹窗里。
 - **Bot 详情**（`features/bots/BotDetails.tsx`）：盖在 Pane 上的一个弹窗——Profile / Runs with / Skills / Plugins、当前段的工作目录、模型、用量 / 上下文与 dsh 的 **Compact**，以及删除 / 归档。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成，preset writer 可用时派生它自己的 preset，否则如实说明写不了。
 - **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。左栏是 **模型供应商 / 通用 / 后台 / 关于**；Back 或 Esc 返回。

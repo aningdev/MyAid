@@ -103,8 +103,9 @@ Known limitations：NSH 标准 websocket 在 8 条未读消息时暂停读取；
 apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
+│   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Press、OptionSegmented）
 │   ├── shell/                  # Workspace Shell：Navigator（扁平 Bot 列表）+ Pane 分屏 + 设置覆盖层、命令表、偏好、注意
-│   └── ui/                     # 样式化基础层（唯一包装 nsh/base）
+│   └── ui/                     # shadcn-nsh 复制件（只经其 CLI add）：组件外观、状态与主题的唯一所有者
 ├── features/
 │   ├── bots/                   # 注册表模型 / store / identity / Bot Pane 与 Bot 详情弹窗
 │   ├── dialogue/               # chat、段（Session）运行时与其控件
@@ -128,7 +129,7 @@ apps/client/
 - `nsh.json` 的 `network` 只授予回环 `/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`、Relay 的 `/v1/health` 与 dsh 的 `/connect`、`/api/*`；`process.execute` 只授予 `myaid-host`。
 
 - **界面语言**：用户可见文案只有一个归宿——`lib/i18n/messages.ts` 的目录（简体中文 + English，键为类型，缺键即 `nsh check` 失败）；视图不持有字面 UI 文案，只经 `lib/i18n` 的 `t(key, values)` 读取，因此切换语言在原地重绘。语言偏好（跟随系统 / 简体中文 / English）与 `locale()` 的读取也在 `lib/i18n`；`跟随系统` 把 `zh*` 读作简体中文，其余读作 English，并跟随系统变化。不翻译：用户内容（Bot 名、消息、模型回复）、产品与专名（MyAid、Host、dsh、Relay、DeepSeek、模型 id、`/new`）、dsh 自己返回的文本（provider 名、dsh 错误正文，放在已翻译的框里原样显示）与文件路径。
-- **壳**：`AppShell` 挂 `components/shell`。左 Navigator 是注册表投影的**扁平 Bot 列表**——搜索框、**Pin** 区、其余 Bot 按最近活动排序（工作中的点、未读数）、「＋ New Bot」——底部是 Host 状态与设置入口；右 Workbench 是 `DockArea` 的 **Pane** 分屏（横 / 纵再拆、拖动分隔线、关闭、⌘ 切换焦点、从列表拖入），一个 Pane 显示一个 Bot 的长对话，**一个 Bot 同时只在一个 Pane 里**。⚙ / ⌘, 打开整页设置覆盖层，Esc 或「返回」回到原布局。Pane 只持 `botId` 与布局，内容由 `features/*` 提供。长对话是一条连续 transcript：段之间是「日期 · 工作目录」分隔线，右侧历史轨逐段定位；向上滚动经官方 Session 模型加载更早的页与段。
+- **壳**：`AppShell` 挂 `components/shell`。左 Navigator 是注册表投影的**扁平 Bot 列表**——搜索框、**Pin** 区、其余 Bot 按最近活动排序（工作中的点、未读数）、「＋ New Bot」——底部是 Host 状态与设置入口；右 Workbench 是 shadcn-nsh `DockArea` 的 **Pane** 分屏（横 / 纵再拆、拖动分隔线、关闭、⌘ 切换焦点、从列表拖入），一个 Pane 显示一个 Bot 的长对话，**一个 Bot 同时只在一个 Pane 里**。⚙ / ⌘, 打开整页设置覆盖层，Esc 或「返回」回到原布局。Pane 只持 `botId` 与布局，内容由 `features/*` 提供。长对话是一条连续 transcript：段之间是「日期 · 工作目录」分隔线，右侧历史轨逐段定位；向上滚动经官方 Session 模型加载更早的页与段。
 - **数据归属**：注册表（Bot、它的段与归档位）与客户端偏好（Pin 顺序、Pane 布局）是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。dsh 的真源经官方 client model 到达 Client：Workspace 的 path / title / Session 顺序 / 置顶 / 归档由 `ctx.workspaces`（`ClientWorkspaceModel`）拥有，Session 列表、事件窗口、follow、分页、prompt/queue/control 与投影由 `ctx.sessions`（`ClientSessions → SessionManager → Session`）拥有；产品只投影它们的 snapshot（[`features/workspace`](../apps/client/features/workspace/state.ts)、[`features/dialogue/session`](../apps/client/features/dialogue/session/controller.ts)）。Bot identity 与「哪条 Session 属于哪个 Bot、跑在哪个 Workspace」归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)），段的路径 / 名字 / 顺序 / 归档归 dsh 的 Workspace（[ADR 0006](adr/0006-lorca-style-bot-app.md)）。
 - **三层分工**：官方 client model（本地真相镜像：对象 identity、流与一元竞态、重连）→ 产品投影（`TurnProjection` / `rows.ts` / `WorkspaceProjection` / `botList`：把官方窗口与 snapshot 变成对话消息、列表行、状态）→ NSH 视图（`features/*` 的 Pane，控件取自 `components/ui` 的 shadcn-nsh 复制件与 `components/app` 的产品组合）。视图不读 transport，投影不重算官方 model 已拥有的状态。
 - **命令与注意**：`components/shell/commands.ts` 是唯一命令表，同时喂应用菜单、`⌘K` 与快捷键；`components/shell/attention.ts` 比较 roster 两帧，决定系统通知与 Dock badge，点通知把那个 Bot 开进 Pane。

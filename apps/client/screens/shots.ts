@@ -42,6 +42,9 @@ export const SHOTS_L3 = `${SCRATCHPAD}/pi-shots-l3`;
 /** L4 i18n: the list and Panes, Bot details, Settings › General and the footer, in both languages. */
 export const SHOTS_L4 = `${SCRATCHPAD}/pi-shots-l4`;
 
+/** Batch 2 of the shadcn-nsh controls: palette, Bot details, dialogs, menus and Markdown. */
+export const SHOTS_UI2 = `${SCRATCHPAD}/pi-shots-ui2`;
+
 export { graphical } from "../test/graphical";
 
 /**

@@ -8,6 +8,8 @@
  * - "tools …": a reply with three tool calls and their results;
  * - "long …": eighteen finished exchanges, to scroll a transcript;
  * - "numbered …": a reply that is one 22-item ordered list (marker width);
+ * - "rich …": a reply with a heading, a link, a code block and a table;
+ * - "picture …": a reply with one image;
  * - "replay …": a turn the client missed: a window with its finished
  *   exchange and no live chunks;
  * - anything else: a short reply, in three chunks.
@@ -50,6 +52,26 @@ const NUMBERED = Array.from({ length: NUMBERED_COUNT }, (_, index) => {
   const number = index + 1;
   return `${number}. Item ${number} of ${NUMBERED_COUNT} in this numbered list.`;
 }).join("\n");
+
+/** A reply with the Markdown a chat shows: a heading, links, a code block, a table and an image. */
+const RICH = [
+  "## A short answer",
+  "",
+  "Markdown arrives **bold**, *italic*, `inline code` and a [link](https://nsh.dev).",
+  "",
+  "```ts",
+  "const answer = 42;",
+  "console.log(answer);",
+  "```",
+  "",
+  "| Step | What it does |",
+  "| ---- | ------------ |",
+  "| 1    | Read the file |",
+  "| 2    | Write it back |",
+].join("\n");
+
+/** A reply with one image: a press on it opens the viewer (`ImageViewer`). */
+const PICTURE = "![MyAid](asset:/assets/icon.png)";
 
 const SLOW_WORDS = [
   "This",
@@ -171,6 +193,16 @@ function scriptedChat(): { sessions: ScriptedSessions; host: SessionHost } {
       sessions.update(sessionId, {
         kind: "append",
         entry: assistantMessage(seqOf(sessionId), NUMBERED),
+      });
+      event(sessionId, "turn/end", { reason: { kind: "completed" } });
+      running.delete(sessionId);
+      sessions.running(sessionId, false);
+      return;
+    }
+    if (first === "rich" || first === "picture") {
+      sessions.update(sessionId, {
+        kind: "append",
+        entry: assistantMessage(seqOf(sessionId), first === "rich" ? RICH : PICTURE),
       });
       event(sessionId, "turn/end", { reason: { kind: "completed" } });
       running.delete(sessionId);
