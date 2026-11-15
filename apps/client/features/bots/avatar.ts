@@ -417,7 +417,7 @@ const FACE_FRAMES: Record<BotShape, { y: number; gap: number }> = {
 /** The character at `shape` and `face`, its eyes shrunk until they clear the rim. */
 export function avatarFor(shape: BotShape, face: BotFace, size = 22): AvatarGeometry {
   const placed = placeForm(shape, face, size);
-  const scale = fitToBody(placed.profile, placed.eyes, placed.weight);
+  const scale = fitToBody(placed.profile, placed.eyes, placed.weight) * placed.spare;
   return {
     profile: placed.profile,
     eyes: placed.eyes.map((eye) => shrink(eye, scale)),
@@ -430,6 +430,8 @@ type PlacedForm = {
   profile: readonly number[];
   eyes: AvatarEye[];
   weight: number;
+  /** How much of the fitted face it draws: 1 unless the form needs room kept. */
+  spare: number;
 };
 
 function placeForm(shape: BotShape, face: BotFace, size: number): PlacedForm {
@@ -439,10 +441,18 @@ function placeForm(shape: BotShape, face: BotFace, size: number): PlacedForm {
   const grow = 1 + 0.3 * small;
   const gather = 1 + 0.02 * small;
   const frame = FACE_FRAMES[shape];
+  // A fitted face touches the rim by construction, and by the star's notches
+  // the room a fit measures runs out while a flank is still beside the eye. At
+  // the two sizes the mark is smallest its face therefore stops a little inside
+  // the rim, so a body still shows around the eyes; from 20 px up the star is
+  // the same geometry every other shape is.
+  const tight = shape === "star" ? clamp((20 - size) / 4, 0, 1) : 0;
+  const spare = 1 - 0.32 * tight;
   return {
     profile: shapeProfile(shape),
     eyes: eyesOf(face, { y: frame.y, gap: frame.gap * gather, grow }),
     weight: EYE_WEIGHT + 0.06 * small,
+    spare,
   };
 }
 
@@ -466,9 +476,7 @@ export function avatarPose(input: { time: number; working: boolean; seed: number
     gaze: { x: gaze.x * gain, y: gaze.y * gain },
     // Only a working mark breathes, and only downwards: at rest the body keeps
     // still, and a breath never lifts the character past its own outline.
-    breathe: working
-      ? 1 - (BREATH * gain * (1 - Math.cos((TAU * time) / BREATH_MS))) / 2
-      : 1,
+    breathe: working ? 1 - (BREATH * gain * (1 - Math.cos((TAU * time) / BREATH_MS))) / 2 : 1,
   };
 }
 
@@ -622,11 +630,14 @@ export function avatarLook(input: AvatarInput): AvatarLook {
     : looking(to).map((eye) => ({ shape: eye, alpha: 1 }));
   const weight = change ? from.weight + (to.weight - from.weight) * progress : to.weight;
   const profile = change ? blendProfile(from.profile, to.profile, progress) : to.profile;
-  const scale = fitToBody(
+  const fitted = fitToBody(
     profile,
     eyes.map((eye) => eye.shape),
     weight,
   );
+  // A form that needs a little room kept between its eyes and the rim says how
+  // much of the fit it takes; a change of form carries that with it.
+  const scale = fitted * (change ? from.spare + (to.spare - from.spare) * progress : to.spare);
   return {
     profile,
     eyes: eyes.map((eye) => ({

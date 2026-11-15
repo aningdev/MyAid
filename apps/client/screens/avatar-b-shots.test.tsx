@@ -131,6 +131,13 @@ test("the puzzle: a breath, a blink and a change of form, at the moments agreed"
   await app.wait(250);
   await both(app, "13-morph");
   expect(app.count("id:morph-shape-0")).toBe(1);
+
+  // Every body with every face at 16 px: the smallest the mark is drawn, and
+  // the size where a rim of a tenth of a body is a single point.
+  await app.press("id:sheet-tiny");
+  await app.wait(250);
+  expect(app.count("id:tiny-star-focus")).toBe(1);
+  await both(app, "14-tiny-16px");
 }, 180000);
 
 test("the marks at work: the list, the Pane's title and a message row, frozen mid-turn", async () => {

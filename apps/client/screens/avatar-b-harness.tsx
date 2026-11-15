@@ -5,7 +5,9 @@
  * - **working**: four bodies at the eight moments of one breath;
  * - **idle**: a blink's beginning, its middle and its end, on a dot, an arch
  *   and a line face, plus the gaze's drift;
- * - **morph**: a body changing into another and a face into a different kind.
+ * - **morph**: a body changing into another and a face into a different kind;
+ * - **tiny**: every body with every face at 16 px, the size the mark is
+ *   smallest and the one where a rim can vanish.
  *
  * Every cell draws a mark at a stated moment (`BotAvatar`'s `time`): no clock is
  * involved, so a sheet is the same picture however often it is taken. Nothing
@@ -17,15 +19,17 @@ import { Pressable } from "../components/ui/pressable";
 import { avatarPose, markSeed } from "../features/bots/avatar";
 import { BotAvatar } from "../features/bots/BotMark";
 import {
+  BOT_FACES,
   BOT_FACE_LABELS,
   BOT_SHAPE_LABELS,
+  BOT_SHAPES,
   type BotFace,
   type BotShape,
 } from "../features/bots/identity";
 import { t } from "../lib/i18n";
 
 /** The sheets the test walks. */
-const SHEETS = ["working", "idle", "morph"] as const;
+const SHEETS = ["working", "idle", "morph", "tiny"] as const;
 type Sheet = (typeof SHEETS)[number];
 
 /** The bodies the working sheet draws: one round, three that pinch the face. */
@@ -96,6 +100,7 @@ function Harness() {
       <If when={sheet() === "working"}>{() => <WorkingSheet />}</If>
       <If when={sheet() === "idle"}>{() => <IdleSheet />}</If>
       <If when={sheet() === "morph"}>{() => <MorphSheet />}</If>
+      <If when={sheet() === "tiny"}>{() => <TinySheet />}</If>
     </View>
   );
 }
@@ -256,6 +261,51 @@ function MorphSheet() {
           )}
         </Each>
       </View>
+    </View>
+  );
+}
+
+/** Every body with every face at 16 px: the size where the rim is a pixel or two. */
+function TinySheet() {
+  const cell = 44;
+  return (
+    <View style={{ gap: 4 }}>
+      <View style={{ flexDirection: "row", gap: 4 }}>
+        <View style={{ width: 60 }} />
+        <Each of={BOT_FACES}>
+          {(face) => (
+            <View style={{ width: cell, alignItems: "center" }}>
+              <Text style={{ fontSize: 9, color: token("muted-foreground") }}>
+                {t(BOT_FACE_LABELS[face()])}
+              </Text>
+            </View>
+          )}
+        </Each>
+      </View>
+      <Each of={BOT_SHAPES}>
+        {(shape) => (
+          <View style={{ flexDirection: "row", gap: 4, alignItems: "center" }}>
+            <Text style={{ width: 60, fontSize: 9, color: token("muted-foreground") }}>
+              {t(BOT_SHAPE_LABELS[shape()])}
+            </Text>
+            <Each of={BOT_FACES}>
+              {(face) => (
+                <View
+                  testID={`tiny-${shape()}-${face()}`}
+                  style={{
+                    width: cell,
+                    height: cell,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <BotAvatar identity={identityOf(shape(), face())} size={16} time={0} />
+                </View>
+              )}
+            </Each>
+          </View>
+        )}
+      </Each>
     </View>
   );
 }

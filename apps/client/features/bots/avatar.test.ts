@@ -203,15 +203,64 @@ test("a moment is its time: the same frame drawn twice is the same picture", () 
 });
 
 test("time 0 is the still pose: the picture batch A drew", () => {
+  // Every size the app draws, except the star's two smallest: there the face is
+  // kept a little smaller so a body still shows around its eyes (see below).
   for (const shape of BOT_SHAPES) {
     for (const face of BOT_FACES) {
-      const still = avatarFor(shape, face, 22);
-      const look = avatarLook({ shape, face, size: 22, time: 0, working: true, seed: 0.6 });
-      expect(look.profile).toEqual(still.profile);
-      expect(look.eyes.map((eye) => eye.shape)).toEqual(still.eyes);
-      expect(look.breathe).toBe(1);
-      expect(look.eyes.every((eye) => eye.shut === 0)).toBe(true);
+      for (const size of [22, 28, 48]) {
+        const still = avatarFor(shape, face, size);
+        const look = avatarLook({ shape, face, size, time: 0, working: true, seed: 0.6 });
+        expect(look.profile).toEqual(still.profile);
+        expect(look.eyes.map((eye) => eye.shape)).toEqual(still.eyes);
+        expect(look.breathe).toBe(1);
+        expect(look.eyes.every((eye) => eye.shut === 0)).toBe(true);
+      }
     }
+  }
+});
+
+test("the star at 16 px keeps a body around its eyes, where its notches come closest", () => {
+  // Every other body leaves the eyes far more room than the rim itself. The
+  // star's notches cut in beside the eyes, so its face is drawn a little inside
+  // the rim at the smallest sizes — a rim of body, not a hole that touches the
+  // edge. Measured as the nearest distance from an eye's edge to the outline.
+  const nearest = (profile: readonly number[], x: number, y: number) => {
+    let best = Infinity;
+    const count = profile.length;
+    for (let index = 0; index < count; index++) {
+      const from = (index / count) * Math.PI * 2;
+      const to = ((index + 1) / count) * Math.PI * 2;
+      const ax = Math.cos(from) * (profile[index] ?? 0);
+      const ay = Math.sin(from) * (profile[index] ?? 0);
+      const dx = Math.cos(to) * (profile[(index + 1) % count] ?? 0) - ax;
+      const dy = Math.sin(to) * (profile[(index + 1) % count] ?? 0) - ay;
+      const along = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+      best = Math.min(best, Math.hypot(x - (ax + dx * along), y - (ay + dy * along)));
+    }
+    return best;
+  };
+  const room = (
+    shape: (typeof BOT_SHAPES)[number],
+    face: (typeof BOT_FACES)[number],
+    size: number,
+  ) =>
+    Math.min(
+      ...avatarFor(shape, face, size).eyes.map((eye) => {
+        const reach =
+          eye.kind === "dot"
+            ? Math.max(eye.rx, eye.ry)
+            : eye.kind === "arc"
+              ? eye.radius
+              : eye.length / 2;
+        return nearest(shapeProfile(shape), eye.x, eye.y) - reach;
+      }),
+    );
+  for (const face of BOT_FACES) {
+    // A tenth of the body is the rim the design asks for; a 16 px star keeps a
+    // fifth around its eyes, all the way round them.
+    expect(room("star", face, 16)).toBeGreaterThanOrEqual(0.2);
+    // It keeps the least of the eight, which is what this is measuring.
+    expect(room("star", face, 16)).toBeLessThan(room("round", face, 16));
   }
 });
 
@@ -224,9 +273,9 @@ test("the breath only sinks: 8% of the height, once every 1.6 s, foot on the gro
   expect(Math.abs(Math.max(...seen) - 1)).toBeLessThan(1e-9);
   expect(Math.abs(Math.min(...seen) - 0.92)).toBeLessThan(1e-9);
   // One breath in 1.6 s: deepest at 800 ms of each turn of the cycle.
-  expect(Math.abs(avatarPose({ time: 2400, working: true, seed: 0.3 }).breathe - 0.92)).toBeLessThan(
-    1e-9,
-  );
+  expect(
+    Math.abs(avatarPose({ time: 2400, working: true, seed: 0.3 }).breathe - 0.92),
+  ).toBeLessThan(1e-9);
   expect(Math.abs(avatarPose({ time: 3200, working: true, seed: 0.3 }).breathe - 1)).toBeLessThan(
     1e-9,
   );
