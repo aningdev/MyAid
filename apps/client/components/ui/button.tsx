@@ -17,6 +17,7 @@ import type { JSX, StyleProp, TextStyle, ViewStyle } from "nsh";
 import { context, platform, split, Text, token, View } from "nsh";
 import { Button as BaseButton, type ButtonProps as BaseButtonProps } from "nsh/base";
 
+import { labelOf } from "../../lib/label";
 import { pressSink, pressTransition } from "../../lib/press";
 import { Spinner } from "./spinner";
 
@@ -488,7 +489,11 @@ export type ButtonProps = Omit<BaseButtonProps, "children"> & {
   size?: ButtonSize;
   /** Work started by it is going on: a spinner before the label, no presses, not dimmed. */
   busy?: boolean;
-  /** A string is the label, in `buttonLabel`'s type; anything else is drawn as given. */
+  /**
+   * A string is the label, in `buttonLabel`'s type; anything else is drawn as given. A string
+   * label is also the button's name for screen readers, unless `accessibilityLabel` says
+   * otherwise (a test's `label:Retry` finds it); children drawn as given derive nothing.
+   */
   children?: string | JSX.Element;
 };
 
@@ -518,6 +523,7 @@ export function Button(props: ButtonProps) {
   return (
     <BaseButton
       {...rest}
+      accessibilityLabel={labelOf(props.accessibilityLabel, props.children)}
       // Busy, it keeps its focus and its look and takes no second press.
       onPress={() => !props.busy && props.onPress?.()}
       hitSlop={props.hitSlop ?? look.hitSlop}
@@ -543,11 +549,16 @@ export function Button(props: ButtonProps) {
  * An icon-only button in the look of `iconButtonLook`. Every base prop passes through; the style
  * props go over the look's. Pass an icon (or any content) as `children`; `iconButtonGlyph` sizes it.
  */
-export type IconButtonProps = Omit<BaseButtonProps, "children"> & {
+export type IconButtonProps = Omit<BaseButtonProps, "children" | "accessibilityLabel"> & {
   /** Default `ghost`: bare until the pointer is over it; `secondary`: raised; `destructive`: a dangerous action's. */
   variant?: IconButtonVariant;
   /** Default `default`: a square as high as a button of that size. */
   size?: ButtonSize;
+  /**
+   * What screen readers say. Required: an icon alone has no text to name it, so there is no
+   * name to derive.
+   */
+  accessibilityLabel: string;
   children?: JSX.Element;
 };
 
@@ -590,13 +601,18 @@ export function IconButton(props: IconButtonProps) {
  * A round icon button in the look of `roundButtonLook`. Every base prop passes through; the style
  * props go over the look's. Pass an icon as `children`; `roundButtonGlyph` sizes and tints it.
  */
-export type RoundButtonProps = Omit<BaseButtonProps, "children"> & {
+export type RoundButtonProps = Omit<BaseButtonProps, "children" | "accessibilityLabel"> & {
   /** Default `default`, the citrus fill; `secondary` raised. */
   variant?: RoundButtonVariant;
   /** Default `default`: the diameter is a button's height at that size (28 with a pointer, 40 on a touch screen). */
   size?: ButtonSize;
   /** The diameter in points, over the scale. */
   side?: number;
+  /**
+   * What screen readers say. Required: an icon alone has no text to name it, so there is no
+   * name to derive.
+   */
+  accessibilityLabel: string;
   children?: JSX.Element;
 };
 
@@ -708,6 +724,7 @@ export function SplitButtonSegment(props: SplitButtonSegmentProps) {
   return (
     <BaseButton
       {...rest}
+      accessibilityLabel={labelOf(props.accessibilityLabel, props.children)}
       hitSlop={props.hitSlop ?? segment.hitSlop}
       style={[segment.style, props.style ?? null]}
       hoverStyle={[segment.hoverStyle ?? null, props.hoverStyle ?? null]}

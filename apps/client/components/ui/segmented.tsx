@@ -10,6 +10,7 @@ import {
   type TabsProps as BaseTabsProps,
 } from "nsh/base";
 
+import { labelOf } from "../../lib/label";
 import type { TabLook, TabState } from "./tabs";
 
 /** Shared with `look/tabs.tsx` (routed to `tabs.tsx`); needed by the ported `segmentedLook`. */
@@ -251,13 +252,7 @@ export function SegmentedItem(props: SegmentedItemProps) {
     <BaseTab
       {...rest}
       selected={selected()}
-      accessibilityLabel={
-        props.accessibilityLabel !== undefined
-          ? props.accessibilityLabel
-          : typeof props.children === "string"
-            ? props.children
-            : undefined
-      }
+      accessibilityLabel={labelOf(props.accessibilityLabel, props.children)}
       onPress={() => {
         ctx.onValueChange(props.value);
         props.onPress?.();

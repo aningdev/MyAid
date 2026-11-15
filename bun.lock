@@ -35,6 +35,9 @@
         "lucide": "1.66.0",
         "zustand": "~4.5.7",
       },
+      "devDependencies": {
+        "shadcn-nsh": "catalog:",
+      },
     },
     "packages/bot-presets": {
       "name": "dsh-bot-presets",
@@ -131,6 +134,7 @@
     "@deepseek-ai/dsh-workspace": "0.2.2-rc.3",
     "@deepseek-ai/schemastery": "~3.19.0",
     "@types/node": "26.6.6",
+    "shadcn-nsh": "0.3.0",
     "typescript": "7.1.0-beta",
     "zod": "4.6.6",
   },
@@ -613,6 +617,8 @@
 
     "chai": ["chai@6.3.0", "", {}, "sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg=="],
 
+    "commander": ["commander@15.1.0", "", {}, "sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ=="],
+
     "convert-source-map": ["convert-source-map@2.0.0", "", {}, "sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg=="],
 
     "dequal": ["dequal@2.0.3", "", {}, "sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA=="],
@@ -772,6 +778,8 @@
     "rrule": ["rrule@2.8.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-hM3dHSBMeaJ0Ktp7W38BJZ7O1zOgaFEsn41PDk+yHoEtfLV+PoJt9E9xAlZiWgf/iqEqionN0ebHFZIDAp+iGw=="],
 
     "semver": ["semver@7.8.6", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw=="],
+
+    "shadcn-nsh": ["shadcn-nsh@0.3.0", "", { "dependencies": { "commander": "^15.0.0" }, "bin": { "shadcn-nsh": "dist/index.js" } }, "sha512-6vofThNVy/ZH8g+VJp/EGlkcu1dvoYyVuVuepoarc1NO07dcdiPJo5Mz6toFpEN82+Lx0GIJ9MndH9gbbTIZ4w=="],
 
     "signal-exit": ["signal-exit@4.1.0", "", {}, "sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw=="],
 
