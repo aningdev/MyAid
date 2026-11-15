@@ -1,8 +1,10 @@
 /**
- * The batch-2 controls of shadcn-nsh in both appearances: the ⌘K palette, Bot
- * details, the New Bot and rename dialogs, a row's context menu, three Panes,
- * the composer's menu and a Markdown reply. The registry and the client
- * prefs live in the app's isolated test storage, never the real `~/.myaid`:
+ * The batch-2 and batch-3 controls of shadcn-nsh in both appearances: the ⌘K
+ * palette, Bot details, the New Bot and rename dialogs, a row's context menu,
+ * three Panes, the composer's menu and a Markdown reply; then the Navigator's
+ * search, a hovered row, a row's hint, the composer with a draft and the Pane
+ * header's field. The registry and the client prefs live in the app's isolated
+ * test storage, never the real `~/.myaid`:
  *
  *   nsh test screens/ui2-shots.test.tsx --target macos
  *
@@ -158,6 +160,55 @@ test("palette, Bot details, dialogs, context menu and three Panes", async () => 
     timeout: 10000,
   });
   expect(app.storage()[SHELL_PREFS_STORAGE] ?? "").not.toBe(before);
+}, 180000);
+
+test("the Navigator's search, a hovered row, a hint, the composer and the header's field", async () => {
+  const app = await open("../App.tsx", {
+    platform: "macos" as const,
+    width: 1440,
+    height: 900,
+    storage: {
+      [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+      [SHELL_PREFS_STORAGE]: serializeShellPrefs(emptyShellPrefs()),
+      ...workspaceStorage({
+        rows: ["ada", "bob", "cleo"].map((id, index) =>
+          workspaceRow({
+            id: `ws-${id}`,
+            path: `/work/${id}`,
+            title: id,
+            sessionIds: [`s-${id}`],
+            updatedAt: `2026-02-0${3 - index}T00:00:00.000Z`,
+          }),
+        ),
+      }),
+    },
+  });
+  if (!(await graphical(app))) return;
+  await app.waitFor("label:Cleo");
+
+  // A row under the pointer.
+  await app.hover("label:New Bot");
+  await both(app, "11-hovered-row.png");
+
+  // The Navigator's search field, with a query in it.
+  await app.keyboard.press("mod+f");
+  await app.type("id:nav-search", "cle");
+  await both(app, "12-navigator-search.png");
+  await app.press("label:Clear search");
+
+  // A Pane's composer with a draft, then the header's directory as a field.
+  await app.press("label:Ada");
+  await app.waitFor("id:chat", { timeout: 30000 });
+  await app.type("id:composer", "A draft the composer grows with");
+  await both(app, "13-composer.png");
+  await app.press("id:session-workspace");
+  await app.waitFor("id:session-workspace-input", { timeout: 10000 });
+  await both(app, "14-header-field.png");
+
+  // The hint a row's tooltip shows, last so it cannot hang over a later shot.
+  await app.hover("label:Bob");
+  await app.waitFor("text:Drag right to open beside the active Pane", { timeout: 10000 });
+  await both(app, "15-tooltip.png");
 }, 180000);
 
 test("the composer's menu and a Markdown reply", async () => {
