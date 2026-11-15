@@ -934,12 +934,15 @@ export function ChatPane(props: {
           variant="destructive"
           style={{ marginHorizontal: 16, marginTop: 8 }}
         >
-          <Icon icon={TriangleAlert} size={ALERT_ICON} tint={token("destructive")} />
           <AlertDescription>
-            <Text style={{ fontSize: 12, color: token("foreground") }}>{banner()}</Text>
-            <Button size="sm" variant="ghost" onPress={() => void connectSession()}>
-              {t("common.retry")}
-            </Button>
+            {/* The note as the app lays it out: the mark, the word and Retry on one line. */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Icon icon={TriangleAlert} size={ALERT_ICON} tint={token("destructive")} />
+              <Text style={{ flex: 1, fontSize: 12, color: token("foreground") }}>{banner()}</Text>
+              <Button size="sm" variant="ghost" onPress={() => void connectSession()}>
+                {t("common.retry")}
+              </Button>
+            </View>
           </AlertDescription>
         </Alert>
       </If>
