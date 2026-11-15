@@ -8,9 +8,9 @@
 import { Check, Sparkles } from "lucide";
 import { Text, View, token } from "nsh";
 import { signal } from "nsh";
-import { Input } from "nsh/base";
 
 import { Press } from "../../../components/app";
+import { Input } from "../../../components/ui/input";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { mono } from "../../../lib/theme";
@@ -93,6 +93,7 @@ export function ChatHeader(props: {
           }
         >
           <Input
+            variant="ghost"
             value={draft()}
             onChange={(event) => draft.set(event.value)}
             onSubmit={commit}
@@ -104,7 +105,6 @@ export function ChatHeader(props: {
               height: 26,
               fontSize: 15,
               fontWeight: "600",
-              color: token("foreground"),
               paddingHorizontal: 6,
             }}
           />
@@ -160,6 +160,7 @@ export function ChatHeader(props: {
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
           <Input
+            variant="ghost"
             value={pathDraft()}
             onChange={(event) => pathDraft.set(event.value)}
             onSubmit={commitPath}
@@ -171,7 +172,6 @@ export function ChatHeader(props: {
               flex: 1,
               height: 24,
               fontSize: 11,
-              color: token("foreground"),
               paddingHorizontal: 4,
             }}
           />

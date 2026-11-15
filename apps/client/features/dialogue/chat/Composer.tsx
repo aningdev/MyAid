@@ -21,10 +21,10 @@ import {
   type ViewStyle,
   token,
 } from "nsh";
-import { Input } from "nsh/base";
 
 import { Press } from "../../../components/app";
 import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
 import { Menu, MenuContent, MenuRadioItem, MenuTrigger } from "../../../components/ui/menu";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
@@ -191,6 +191,7 @@ export function Composer(props: {
         }}
       >
         <Input
+          variant="ghost"
           ref={(node) => (input = node ?? undefined)}
           testID="composer"
           value={draft()}
@@ -217,13 +218,12 @@ export function Composer(props: {
             )
           }
           style={{
-            placeholderColor: token("faint"),
-            caretColor: token("brand"),
-            selectionColor: token("brand"),
             height: textHeight() + 20,
             fontSize: 15,
             lineHeight: LINE_HEIGHT,
-            color: token("foreground"),
+            // Concentric with the pill: its radius less its padding, so the focus edge stays
+            // an inset of the pill rather than a second box across its corners.
+            borderRadius: 16,
             paddingHorizontal: 10,
             paddingVertical: 10,
           }}
