@@ -20,7 +20,7 @@ export type HoverCardProps = {
   open?: boolean | null;
   defaultOpen?: boolean;
   children?: JSX.Element;
-  onOpenChange?: (event: { open: boolean; reason: OpenChangeReason }) => void;
+  onOpenChange?: (event: { open: boolean; reason: HoverCardOpenChangeReason }) => void;
   onOpen?: () => void;
   onClose?: () => void;
 };
@@ -163,3 +163,6 @@ export function HoverCardContent(props: HoverCardContentProps) {
     </BaseHoverCard>
   );
 }
+
+/** Why a hover card closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type HoverCardOpenChangeReason = OpenChangeReason;

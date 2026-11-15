@@ -39,7 +39,7 @@ export type ContextMenuProps = {
   defaultOpen?: boolean;
   disabled?: boolean;
   children?: JSX.Element;
-  onOpenChange?: (event: { open: boolean; reason: OpenChangeReason }) => void;
+  onOpenChange?: (event: { open: boolean; reason: ContextMenuOpenChangeReason }) => void;
   onOpen?: () => void;
   onClose?: () => void;
   onCancel?: () => void;
@@ -154,3 +154,6 @@ export function ContextMenuContent(props: ContextMenuContentProps) {
     </BaseContextMenu>
   );
 }
+
+/** Why a context menu closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type ContextMenuOpenChangeReason = OpenChangeReason;

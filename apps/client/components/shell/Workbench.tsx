@@ -1,9 +1,8 @@
 import { Text, View, token } from "nsh";
-import type { DockAreaRef, DockPanel } from "nsh/base";
 
 import { t } from "../../lib/i18n";
 import { alpha } from "../../lib/theme";
-import { DockArea } from "../ui/dock-area";
+import { DockArea, type DockAreaRef, type DockPanel } from "../ui/dock-area";
 import { PanelChrome } from "./PanelChrome";
 import { PanelView } from "./PanelView";
 import { settingsOpen } from "./settings";

@@ -8,7 +8,6 @@ import {
   type IconNode,
 } from "lucide";
 import { Text, View, token } from "nsh";
-import { type DockAreaRef, type DockTab } from "nsh/base";
 
 import { BotMark } from "../../features/bots/BotMark";
 import { openBotDetails } from "../../features/bots/details";
@@ -17,6 +16,7 @@ import { sessionList } from "../../features/dialogue/session/runtime";
 import { t } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { IconButton, iconButtonGlyph } from "../ui/button";
+import type { DockAreaRef, DockTabValue } from "../ui/dock-area";
 import { activePanelId, panelBotId, panelTitle, splitPanel } from "./state";
 
 /**
@@ -25,7 +25,7 @@ import { activePanelId, panelBotId, panelTitle, splitPanel } from "./state";
  * show; the others show while the header is hovered or one of them has the
  * keyboard focus (each also has a shortcut, bound in `Shell`). No tabs.
  */
-export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined }) {
+export function PanelChrome(props: { tab: DockTabValue; area: DockAreaRef | undefined }) {
   const tab = props.tab;
   const bot = () => {
     const id = panelBotId(tab.panel);

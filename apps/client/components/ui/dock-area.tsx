@@ -5,8 +5,18 @@ import type { JSX } from "nsh";
 import { platform, split, Text, View } from "nsh";
 import {
   DockArea as BaseDockArea,
+  type DockAreaLayout,
   type DockAreaProps as BaseDockAreaProps,
-  type DockTab as DockTabInfo,
+  type DockAreaRef,
+  type DockDropIndicator,
+  type DockInfo,
+  type DockNode,
+  type DockPanel,
+  type DockPanelOptions,
+  type DockPlacement,
+  type DockRegion,
+  type DockTab as DockTabData,
+  type DockTarget,
 } from "nsh/base";
 
 import { handleThumb } from "./resizable";
@@ -94,11 +104,47 @@ function mergeClass(base: string, consumer?: string | null): string {
 
 export type DockAreaProps = BaseDockAreaProps;
 
-function defaultTab(tab: DockTabInfo) {
+/** The layout of a whole dock area (`layout`, `defaultLayout`, `onLayoutChange`), from `nsh/base`. */
+export type { DockAreaLayout };
+
+/** One node of a layout: a split of nodes, or a tab group of panels, from `nsh/base`. */
+export type { DockNode };
+
+/** A dock on an edge (`left`, `right`, `bottom`): its layout, size and state, from `nsh/base`. */
+export type { DockRegion };
+
+/** Where a dock is: `center` (the area itself), `left`, `right` or `bottom`, from `nsh/base`. */
+export type { DockPlacement };
+
+/** A panel as `renderPanel` draws it (its key, `id`), from `nsh/base`. */
+export type { DockPanel };
+
+/** What each panel allows (`panels`: closable, zoomable, visible), from `nsh/base`. */
+export type { DockPanelOptions };
+
+/** Where a drag would land, as `renderDropIndicator` draws it, from `nsh/base`. */
+export type { DockDropIndicator };
+
+/** A dock as `renderDock` draws its chrome, from `nsh/base`. */
+export type { DockInfo };
+
+/** Where `movePanel` puts a panel, from `nsh/base`. */
+export type { DockTarget };
+
+/** The area's ref: its methods (`addPanel`, `splitAt`, `toggleZoom`…), from `nsh/base`. */
+export type { DockAreaRef };
+
+/**
+ * A tab as `renderTab` and `renderDragPreview` draw it: `nsh/base`'s `DockTab`, under another name
+ * because the tab this library draws is the `DockTab` component.
+ */
+export type DockTabValue = DockTabData;
+
+function defaultTab(tab: DockTabData) {
   return <DockTab title={tab.panel} active={tab.active} />;
 }
 
-function defaultPreview(tab: DockTabInfo) {
+function defaultPreview(tab: DockTabData) {
   return <DockDragPreview title={tab.panel} />;
 }
 

@@ -2,7 +2,7 @@
  * Center-only DockAreaLayout helpers (Workbench).
  * Center root is always a split per nsh/base DockAreaLayout.
  */
-import type { DockAreaLayout, DockNode } from "nsh/base";
+import type { DockAreaLayout, DockNode } from "../ui/dock-area";
 
 export type { DockNode };
 

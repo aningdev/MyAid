@@ -134,7 +134,7 @@
     "@deepseek-ai/dsh-workspace": "0.2.2-rc.3",
     "@deepseek-ai/schemastery": "~3.19.0",
     "@types/node": "26.6.6",
-    "shadcn-nsh": "0.3.0",
+    "shadcn-nsh": "0.4.0",
     "typescript": "7.1.0-beta",
     "zod": "4.6.6",
   },
@@ -779,7 +779,7 @@
 
     "semver": ["semver@7.8.6", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw=="],
 
-    "shadcn-nsh": ["shadcn-nsh@0.3.0", "", { "dependencies": { "commander": "^15.0.0" }, "bin": { "shadcn-nsh": "dist/index.js" } }, "sha512-6vofThNVy/ZH8g+VJp/EGlkcu1dvoYyVuVuepoarc1NO07dcdiPJo5Mz6toFpEN82+Lx0GIJ9MndH9gbbTIZ4w=="],
+    "shadcn-nsh": ["shadcn-nsh@0.4.0", "", { "dependencies": { "commander": "^15.0.0" }, "bin": { "shadcn-nsh": "dist/index.js" } }, "sha512-DuULEO5njooYJ2efphauZtrDPOde/8mFgTq+Dvy8oF7UINvikeJJP2YwU2vufAuwpfKUKwe/vuFtHPtuaY13ww=="],
 
     "signal-exit": ["signal-exit@4.1.0", "", {}, "sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw=="],
 

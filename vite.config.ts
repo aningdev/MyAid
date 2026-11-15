@@ -12,6 +12,7 @@ const ignoreCopied = [
   "apps/client/lib/finishes.json",
   "apps/client/lib/theme.ts",
   "apps/client/lib/surface.tsx",
+  "apps/client/lib/switch-geometry.ts",
   "apps/client/lib/press.ts",
   "apps/client/lib/icons.tsx",
   "apps/client/lib/icon-canvas.ts",

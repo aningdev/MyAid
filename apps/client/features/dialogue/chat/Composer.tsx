@@ -22,8 +22,9 @@ import {
   token,
 } from "nsh";
 
+import { GroupTextarea } from "../../../components/app";
 import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { InputGroup, InputGroupAddon } from "../../../components/ui/input-group";
 import { Menu, MenuContent, MenuRadioItem, MenuTrigger } from "../../../components/ui/menu";
 import { Pressable } from "../../../components/ui/pressable";
 import { t } from "../../../lib/i18n";
@@ -179,24 +180,12 @@ export function Composer(props: {
         </View>
       </If>
 
-      <View
-        style={{
-          borderRadius: 22,
-          borderCurve: "continuous",
-          backgroundColor: token("popover"),
-          borderWidth: 1,
-          borderColor: focused() ? token("input") : token("border"),
-          padding: 6,
-          gap: 2,
-        }}
-      >
-        <Input
-          variant="ghost"
+      <InputGroup style={{ borderRadius: 22, padding: 6, gap: 2 }}>
+        <GroupTextarea
           ref={(node) => (input = node ?? undefined)}
           testID="composer"
           value={draft()}
           onChange={(event) => controller().setDraft(event.value)}
-          multiline
           // Desktops send on Return (Shift+Return adds a line), or on the
           // command key when the preference says so; phones keep Return.
           submitBehavior={platform.idiom === "desktop" && sendOnReturn() ? "submit" : "newline"}
@@ -221,14 +210,11 @@ export function Composer(props: {
             height: textHeight() + 20,
             fontSize: 15,
             lineHeight: LINE_HEIGHT,
-            // Concentric with the pill: its radius less its padding, so the focus edge stays
-            // an inset of the pill rather than a second box across its corners.
-            borderRadius: 16,
             paddingHorizontal: 10,
             paddingVertical: 10,
           }}
         />
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+        <InputGroupAddon align="block-end">
           <MiniGlyphButton
             icon={Paperclip}
             label={t("chat.attach")}
@@ -260,8 +246,8 @@ export function Composer(props: {
               <Icon icon={Square} {...roundButtonGlyph("default", { side: 36 })} />
             </RoundButton>
           </If>
-        </View>
-      </View>
+        </InputGroupAddon>
+      </InputGroup>
 
       <If when={trouble()}>
         <Text style={{ fontSize: 12, color: token("destructive") }}>{trouble()}</Text>

@@ -17,7 +17,6 @@ import { dirname } from "path";
  */
 import { platform, signal } from "nsh";
 import { Storage } from "nsh";
-import type { DockAreaLayout, DockNode } from "nsh/base";
 
 import type { BotRegistry } from "../../features/bots/model";
 import {
@@ -28,6 +27,7 @@ import {
 } from "../../lib/appearance";
 import { prefsPath, usesTestStorage } from "../../lib/data-root";
 import { LANGUAGES, languagePref, setLanguagePref, type LanguagePref } from "../../lib/i18n";
+import type { DockAreaLayout, DockNode } from "../ui/dock-area";
 import {
   NAV_DEFAULT_WIDTH,
   NAV_MAX_WIDTH,

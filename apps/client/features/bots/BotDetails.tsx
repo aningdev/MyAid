@@ -48,10 +48,18 @@ import {
 import { OptionSegmented } from "../../components/app";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent } from "../../components/ui/dialog";
-import { Field, FieldLabel } from "../../components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
 import { Meter } from "../../components/ui/meter";
 import { Pressable } from "../../components/ui/pressable";
+import { Switch } from "../../components/ui/switch";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t, type MessageKey } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
@@ -991,56 +999,33 @@ function PluginsTab(props: {
         when={(props.preset()?.rows ?? []).length > 0}
         else={<Hint text={t("bot.plugins.none")} />}
       >
-        <View style={{ gap: 1 }}>
+        <FieldGroup>
           <Each of={props.preset()?.rows ?? []}>
-            {(row) => (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  paddingVertical: 6,
-                  borderBottomWidth: 1,
-                  borderBottomColor: token("line"),
-                }}
-              >
-                <View style={{ flex: 1, gap: 1 }}>
-                  <Text style={{ fontSize: 12, color: token("foreground"), numberOfLines: 1 }}>
-                    {row().name ?? row().moduleName}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: token("muted-foreground"),
-                      fontFamily: mono,
-                      numberOfLines: 1,
-                    }}
-                  >
-                    {row().moduleName}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => props.onToggle(row())}
-                  accessibilityLabel={t("bot.plugins.toggle", {
-                    name: row().name ?? row().moduleName,
-                  })}
-                  disabled={!props.writable()}
-                  hitSlop={8}
-                >
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "600",
-                      color: enabledOf(row()) ? token("brand") : token("muted-foreground"),
-                    }}
-                  >
-                    {enabledOf(row()) ? t("common.enabled") : t("common.disabled")}
-                  </Text>
-                </Pressable>
-              </View>
+            {(row, index) => (
+              <>
+                <If when={index() > 0}>
+                  <FieldSeparator />
+                </If>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldLabel>{row().name ?? row().moduleName}</FieldLabel>
+                    <FieldDescription style={{ fontFamily: mono, numberOfLines: 1 }}>
+                      {row().moduleName}
+                    </FieldDescription>
+                  </FieldContent>
+                  <Switch
+                    accessibilityLabel={t("bot.plugins.toggle", {
+                      name: row().name ?? row().moduleName,
+                    })}
+                    checked={enabledOf(row())}
+                    disabled={!props.writable()}
+                    onChange={() => props.onToggle(row())}
+                  />
+                </Field>
+              </>
             )}
           </Each>
-        </View>
+        </FieldGroup>
       </If>
       <If when={!!props.preset()?.broken}>
         <Hint text={props.preset()?.broken ?? ""} />

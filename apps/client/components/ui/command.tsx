@@ -8,7 +8,9 @@ import {
   Command as BaseCommand,
   type CommandEntry,
   type CommandGroup,
+  type CommandItem,
   type CommandProps as BaseCommandProps,
+  type CommandRef,
 } from "nsh/base";
 
 import { Icon } from "../../lib/icons";
@@ -89,7 +91,7 @@ export function CommandKeys(props: { label: string }) {
 export function CommandHeading(props: { group: CommandGroup }) {
   return (
     <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.6, color: colors.faint }}>
-      {props.group.heading.toUpperCase()}
+      {props.group.heading.toLocaleUpperCase()}
     </Text>
   );
 }
@@ -150,6 +152,18 @@ function mergeClass(base: string, extra?: string | null): string {
 
 /** `nsh/base` Command with `commandClasses` and default row chrome. */
 export type CommandProps = BaseCommandProps;
+
+/** A command of the palette (`items`), from `nsh/base`. */
+export type { CommandItem };
+
+/** A row as `renderItem` draws it: what it is, never its state, from `nsh/base`. */
+export type { CommandEntry };
+
+/** A section's header as `renderGroup` draws it, from `nsh/base`. */
+export type { CommandGroup };
+
+/** The palette's ref (`focus`, `highlight`, `matchedCount`), from `nsh/base`. */
+export type { CommandRef };
 
 /** A command palette: search field over virtualized, natively filtered rows. */
 export function Command(props: CommandProps) {

@@ -65,6 +65,10 @@ export interface Palette {
   surface: string;
   /** A surface inside a card. */
   inset: string;
+  /** A muted fill: a quiet block, the well a section's content sits in, on a page or on a card
+   * (shadcn's `bg-muted`; `inset` is the surface's own shade, which in a dark appearance is all but
+   * the card's). */
+  mutedFill: string;
   /** A control on a card (buttons, fields, tracks). */
   raised: string;
   /** An input's well: below the card and the insets it sits on. */
@@ -127,6 +131,7 @@ export const colors: Palette = tokens<keyof Palette>({
   background: "background",
   surface: "card",
   inset: "inset",
+  mutedFill: "muted",
   raised: "raised",
   field: "field",
   fieldBorder: "input",
