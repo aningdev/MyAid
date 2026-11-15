@@ -16,6 +16,7 @@ apps/client/
 ├── features/                   # bots（注册表、Pane、详情弹窗）、dialogue（chat、段）、workspace、settings
 ├── lib/                        # dsh、host、relay、background
 ├── screens/                    # open(…) 入口、截图、真 Host 冒烟（opt-in）
+├── themes/                     # shadcn-nsh CLI 再装进的另一套主题（`default/`：其自带配色）
 ├── nsh.json                    # plain TSX: no "rust" key
 └── assets/
 ```
@@ -55,7 +56,7 @@ vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / 
 - **Bot 详情**（`features/bots/BotDetails.tsx`）：盖在 Pane 上的一个弹窗——Profile / Runs with / Skills / Plugins、当前段的工作目录、模型、用量 / 上下文与 dsh 的 **Compact**，以及删除 / 归档。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成，preset writer 可用时派生它自己的 preset，否则如实说明写不了。
 - **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。左栏是 **模型供应商 / 通用 / 后台 / 关于**；Back 或 Esc 返回。
   - **模型供应商**（`features/settings/ModelProviders.tsx`）：列出 dsh 报告的每个供应商（`llm.listProviders` 合并 `llm.listConfigurableProviders`）与它的 Key 状态。Key 只经 `credentials.describe/set/unset` 写入供应商设置命名空间指定的引用（没有时用 dsh 的 `<ROUTE>_API_KEY` 推导）；页面不保存 Key。供应商字段（base URL 起）与默认模型经 `settings.describe/update` 写入——默认模型在 dsh 描述的 `agent-default-model` 命名空间里，不是写死的清单。没有 Host 时说明原因、不提供输入。
-  - **通用**：语言行（跟随系统 / 简体中文 / English）、外观（跟随系统 / 浅色 / 深色）与强调色。全部立即生效，并保存在客户端偏好里；跟随系统时把 `zh*` 读作简体中文、其余读作 English，并跟随系统变化。
+  - **通用**：语言行（跟随系统 / 简体中文 / English）、外观（跟随系统 / 浅色 / 深色）与颜色（中性 / 柑橘 — 即 shadcn-nsh 随应用携带的主题；选一个即刻重绘所有面，不需重启）。全部立即生效，并保存在客户端偏好里；跟随系统时把 `zh*` 读作简体中文、其余读作 English，并跟随系统变化。
   - **后台**：Host 与 dsh web 的相位、Host 自身版本、dsh 实际版本与要求版本（不一致时两者并列并说明 Host 拒绝启动）、最近错误、启动 / 停止 / 重启 dsh，以及 Background Services 登记面板。
   - **关于**：MyAid / Host / dsh 版本与 **复制诊断信息**（只有版本与连接状态，没有 Key、令牌或会话内容）。
 - **对话**：一个 Bot 的 Pane 就是它的那条长对话，按时间把段（Session）连成一条连续 transcript。段与段之间的分隔线写日期与工作目录（在主目录下显示为 `~/…`，完整路径留在 tooltip）；滚到顶部时，更早的段与段内更早的页都经官方 Session 模型加载。右侧历史轨每段一个刻度（当前段高亮）：悬停打开带背景的卡片，显示名称、时间与中间截断的目录，点击跳到该段开头；整条轨道是一个键盘停点，↑ / ↓ / Return 可用，并带 VoiceOver 标签。只有最新段接受输入，旧段可复制、可定位。命令面板的 **新话题** 或 `/new` 在当前目录开新段；在标题处改工作目录就在新目录开新段。接近上下文上限时 **Compact** 留在同一段内。没有段的 Bot 可以在默认工作目录开始第一段。
@@ -80,7 +81,7 @@ vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / 
 
 - 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 6 存 templates 与 Bots；每个 Bot 用 `segments`（`sessionId` + `workspaceId` + 人对它的称呼）按时间从旧到新持有它的一条长对话。v3 / v4 / v5 文件在连上 Host 前只读：迁移把该 Bot 的旧 Dialogue 按认领顺序并成一条长对话，每段保留自己的 Workspace id，并在 dsh 里**取消归档旧 Session**，让历史完整；写新文件前先备份旧文件为 `bots.json.v<旧版本>.bak`。Identity、归档位与段的认领在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Workspace 路径、名字、Session 顺序与归档归 dsh（[ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）。
 - Workspace 与 Session：官方 `ClientWorkspaceModel` / `ClientSessions` 装在 Connection 的 Cordis Context 上（`lib/dsh/connection.ts`），每个 Host generation 原子替换它们的 snapshot。`features/workspace` 与 `features/dialogue/session` 只把 snapshot 投影成 NSH signal；Remote 的返回不写这份状态。它们的浏览器 `__ModuleLoader__` 产物由 `prepare:sdk` 展开成静态 ESM（`lib/dsh/generated/`），因为 NSH 不运行字符串代码。
-- 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。版本 2 覆盖 Navigator 的宽度与开合、Pin 的 Bot 顺序、Pane（布局、每个 Pane 的 Bot、活动 Pane）与通用页的外观和语言（旧文件读默认值）。版本 1 文件只读一次：Bot pin 保留，Dialogue / Session pin 变成它所属 Bot 的 Pane，Session pin 本身丢弃。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
+- 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。版本 2 覆盖 Navigator 的宽度与开合、Pin 的 Bot 顺序、Pane（布局、每个 Pane 的 Bot、活动 Pane）与通用页的外观、语言和颜色（旧文件读默认值；本版本不带的主题 id 读作构建时主题）。版本 1 文件只读一次：Bot pin 保留，Dialogue / Session pin 变成它所属 Bot 的 Pane，Session pin 本身丢弃。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
 - `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md)。
 
 ## 语言
