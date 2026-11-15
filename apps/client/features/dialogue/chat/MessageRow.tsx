@@ -8,8 +8,8 @@
 import { Check, Copy, RotateCw, Square, ThumbsDown, ThumbsUp } from "lucide";
 import { signal, Text, View, token } from "nsh";
 
-import { Press } from "../../../components/app";
 import { Badge } from "../../../components/ui/badge";
+import { Pressable } from "../../../components/ui/pressable";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { finish } from "../../../lib/theme";
@@ -84,9 +84,9 @@ function Person(props: { message: () => UserRow }) {
       }}
     >
       <If when={!!m().image}>
-        <Press onPress={() => viewing.set(true)} accessibilityLabel={t("chat.openImage")}>
+        <Pressable onPress={() => viewing.set(true)} accessibilityLabel={t("chat.openImage")}>
           <Photo src={m().image!} width={200} height={150} />
-        </Press>
+        </Pressable>
       </If>
       <If when={!!m().file}>
         <FileChip file={m().file!} />

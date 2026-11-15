@@ -9,8 +9,8 @@ import { Check, Sparkles } from "lucide";
 import { Text, View, token } from "nsh";
 import { signal } from "nsh";
 
-import { Press } from "../../../components/app";
 import { Input } from "../../../components/ui/input";
+import { Pressable } from "../../../components/ui/pressable";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { mono } from "../../../lib/theme";
@@ -175,14 +175,14 @@ export function ChatHeader(props: {
               paddingHorizontal: 4,
             }}
           />
-          <Press
+          <Pressable
             onPress={commitPath}
             accessibilityLabel={t("chat.useWorkspace")}
-            scale={0.9}
+            hitSlop={10}
             style={{ width: 22, height: 22 }}
           >
             <Icon icon={Check} size={12} tint={token("brand")} />
-          </Press>
+          </Pressable>
         </View>
       </If>
     </View>

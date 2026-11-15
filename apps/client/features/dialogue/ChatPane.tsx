@@ -22,7 +22,8 @@ import {
 } from "nsh";
 import { LayoutAnimation } from "nsh";
 
-import { Appear, IconTile, Press } from "../../components/app";
+import { Appear, IconTile } from "../../components/app";
+import { Pressable } from "../../components/ui/pressable";
 import { t } from "../../lib/i18n";
 import { alpha, radius } from "../../lib/theme";
 import { BotMark } from "../bots/BotMark";
@@ -942,15 +943,15 @@ export function ChatPane(props: {
           }}
         >
           <Text style={{ flex: 1, fontSize: 12, color: token("foreground") }}>{banner()}</Text>
-          <Press
+          <Pressable
             onPress={() => void connectSession()}
             accessibilityLabel={t("chat.reconnect")}
-            scale={0.96}
+            hitSlop={8}
           >
             <Text style={{ fontSize: 12, fontWeight: "600", color: token("brand") }}>
               {t("common.retry")}
             </Text>
-          </Press>
+          </Pressable>
         </View>
       </If>
       <If
