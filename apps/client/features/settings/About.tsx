@@ -82,11 +82,7 @@ export function AboutSection() {
           {t("settings.about.diagnosticsNote")}
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Button
-            size="sm"
-            onPress={copy}
-            accessibilityLabel={copied() ? t("common.copied") : t("settings.about.copy")}
-          >
+          <Button size="sm" onPress={copy}>
             {copied() ? t("common.copied") : t("settings.about.copy")}
           </Button>
           <Text testID="settings-about-copied" style={{ fontSize: 12, color: token("faint") }}>

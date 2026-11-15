@@ -192,12 +192,7 @@ export function BackgroundSection() {
           </View>
         </If>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <Button
-            size="sm"
-            disabled={!facts().reachable}
-            onPress={() => void startBackground()}
-            accessibilityLabel={t("settings.background.startDsh")}
-          >
+          <Button size="sm" disabled={!facts().reachable} onPress={() => void startBackground()}>
             {t("settings.background.startDsh")}
           </Button>
           <Button
@@ -205,7 +200,6 @@ export function BackgroundSection() {
             disabled={!facts().reachable}
             variant="secondary"
             onPress={() => void stopBackground()}
-            accessibilityLabel={t("settings.background.stopDsh")}
           >
             {t("settings.background.stopDsh")}
           </Button>
@@ -214,16 +208,10 @@ export function BackgroundSection() {
             disabled={!facts().reachable}
             variant="secondary"
             onPress={() => void restartBackground()}
-            accessibilityLabel={t("settings.background.restartDsh")}
           >
             {t("settings.background.restartDsh")}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onPress={() => void loadHostFacts()}
-            accessibilityLabel={t("common.refresh")}
-          >
+          <Button size="sm" variant="ghost" onPress={() => void loadHostFacts()}>
             {t("common.refresh")}
           </Button>
         </View>
@@ -265,24 +253,13 @@ export function BackgroundSection() {
               <Text style={{ fontSize: 13, color: token("destructive") }}>{state().error}</Text>
             </If>
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-              <Button
-                onPress={() => void enableBackgroundFromState()}
-                accessibilityLabel={t("background.enable")}
-              >
+              <Button onPress={() => void enableBackgroundFromState()}>
                 {t("background.enable")}
               </Button>
-              <Button
-                variant="secondary"
-                onPress={() => void stopBackgroundFromState()}
-                accessibilityLabel={t("background.stop")}
-              >
+              <Button variant="secondary" onPress={() => void stopBackgroundFromState()}>
                 {t("background.stop")}
               </Button>
-              <Button
-                variant="ghost"
-                onPress={() => void refreshProductBackgroundState()}
-                accessibilityLabel={t("common.refresh")}
-              >
+              <Button variant="ghost" onPress={() => void refreshProductBackgroundState()}>
                 {t("common.refresh")}
               </Button>
             </View>

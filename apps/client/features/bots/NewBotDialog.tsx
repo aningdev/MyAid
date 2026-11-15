@@ -194,7 +194,6 @@ function Body() {
                 disabled={writeBlocked()}
                 variant="secondary"
                 onPress={() => void importDshTemplates()}
-                accessibilityLabel={t("newBot.import")}
               >
                 {t("newBot.import")}
               </Button>
@@ -271,7 +270,6 @@ function Body() {
             disabled={writeBlocked()}
             variant="secondary"
             onPress={() => void chooseWorkspace()}
-            accessibilityLabel={t("newBot.chooseFolder")}
           >
             {t("newBot.chooseFolder")}
           </Button>
@@ -285,20 +283,10 @@ function Body() {
       </If>
 
       <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-        <Button
-          size="sm"
-          variant="ghost"
-          onPress={closeNewBot}
-          accessibilityLabel={t("common.cancel")}
-        >
+        <Button size="sm" variant="ghost" onPress={closeNewBot}>
           {t("common.cancel")}
         </Button>
-        <Button
-          size="sm"
-          disabled={!canCreate()}
-          onPress={() => void create()}
-          accessibilityLabel={creating() ? t("newBot.creating") : t("newBot.create")}
-        >
+        <Button size="sm" disabled={!canCreate()} onPress={() => void create()}>
           {creating() ? t("newBot.creating") : t("newBot.create")}
         </Button>
       </View>

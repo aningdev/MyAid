@@ -94,14 +94,8 @@ function Card(props: {
         </Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Button onPress={() => props.onAnswer(true)} accessibilityLabel={t("chat.allowOnce")}>
-          {t("chat.allowOnce")}
-        </Button>
-        <Button
-          variant="secondary"
-          onPress={() => props.onAnswer(false)}
-          accessibilityLabel={t("chat.deny")}
-        >
+        <Button onPress={() => props.onAnswer(true)}>{t("chat.allowOnce")}</Button>
+        <Button variant="secondary" onPress={() => props.onAnswer(false)}>
           {t("chat.deny")}
         </Button>
         <View style={{ flex: 1 }} />

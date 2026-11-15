@@ -86,7 +86,6 @@ export function HostFooter() {
             variant="secondary"
             disabled={!hasHost || busy()}
             onPress={() => void retry()}
-            accessibilityLabel={t("common.retry")}
           >
             {t("common.retry")}
           </Button>

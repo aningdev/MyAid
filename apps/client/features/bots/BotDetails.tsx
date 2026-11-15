@@ -467,7 +467,6 @@ function Body(props: { botId: string; onClose: () => void }) {
             size="sm"
             disabled={saving() || savingNow() || !!bot()?.hadDialogue}
             onPress={() => void remove()}
-            accessibilityLabel={t("common.delete")}
           >
             {t("common.delete")}
           </Button>
@@ -476,26 +475,15 @@ function Body(props: { botId: string; onClose: () => void }) {
             size="sm"
             disabled={saving() || savingNow()}
             onPress={() => void setArchived(!bot()?.archived)}
-            accessibilityLabel={bot()?.archived ? t("common.unarchive") : t("common.archive")}
           >
             {bot()?.archived ? t("common.unarchive") : t("common.archive")}
           </Button>
         </If>
         <View style={{ flex: 1 }} />
-        <Button
-          variant="secondary"
-          size="sm"
-          onPress={props.onClose}
-          accessibilityLabel={t("common.cancel")}
-        >
+        <Button variant="secondary" size="sm" onPress={props.onClose}>
           {t("common.cancel")}
         </Button>
-        <Button
-          size="sm"
-          disabled={saving() || savingNow()}
-          onPress={() => void save()}
-          accessibilityLabel={t("common.save")}
-        >
+        <Button size="sm" disabled={saving() || savingNow()} onPress={() => void save()}>
           {t("common.save")}
         </Button>
       </View>
@@ -710,11 +698,6 @@ function Usage(props: {
           size="sm"
           disabled={props.compactRead().status === "running"}
           onPress={props.onCompact}
-          accessibilityLabel={
-            props.compactRead().status === "running"
-              ? t("bot.segment.compacting")
-              : t("bot.segment.compact")
-          }
         >
           {props.compactRead().status === "running"
             ? t("bot.segment.compacting")
@@ -895,12 +878,7 @@ function RunsTab(props: {
         />
       </Field>
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <Button
-          size="sm"
-          variant="secondary"
-          onPress={props.onChooseWorkspace}
-          accessibilityLabel={t("bot.chooseDirectory")}
-        >
+        <Button size="sm" variant="secondary" onPress={props.onChooseWorkspace}>
           {t("bot.chooseDirectory")}
         </Button>
       </View>
@@ -934,13 +912,7 @@ function SkillsTab(props: {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <SectionTitle title={t("bot.skills.added")} />
         <View style={{ flex: 1 }} />
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={!props.writable()}
-          onPress={props.onAdd}
-          accessibilityLabel={t("bot.skills.add")}
-        >
+        <Button size="sm" variant="secondary" disabled={!props.writable()} onPress={props.onAdd}>
           {t("bot.skills.add")}
         </Button>
       </View>

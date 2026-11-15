@@ -88,12 +88,7 @@ export function ProvidersSection() {
               {state().error ?? t("providers.hostDown")}
             </Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button
-                size="sm"
-                variant="secondary"
-                onPress={() => void loadProviders()}
-                accessibilityLabel={t("common.retry")}
-              >
+              <Button size="sm" variant="secondary" onPress={() => void loadProviders()}>
                 {t("common.retry")}
               </Button>
             </View>
@@ -344,7 +339,6 @@ function ProviderEditor(props: { row: ProviderRow }) {
                       if (saved) key.set("");
                     });
                   }}
-                  accessibilityLabel={t("providers.saveKey")}
                 >
                   {t("providers.saveKey")}
                 </Button>
@@ -353,7 +347,6 @@ function ProviderEditor(props: { row: ProviderRow }) {
                   disabled={!canWriteKey() || busy() || !props.row.credential?.configured}
                   variant="secondary"
                   onPress={() => void clearProviderKey(props.row.entry.provider)}
-                  accessibilityLabel={t("providers.clearKey")}
                 >
                   {t("providers.clearKey")}
                 </Button>
@@ -443,7 +436,6 @@ function ProviderEditor(props: { row: ProviderRow }) {
             }
             variant="secondary"
             onPress={() => void saveFields()}
-            accessibilityLabel={t("providers.saveFields")}
           >
             {t("providers.saveFields")}
           </Button>

@@ -103,28 +103,13 @@ function RenameDialog() {
                 <Text style={{ fontSize: 12, color: token("destructive") }}>{failure()}</Text>
               </If>
               <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={details}
-                  accessibilityLabel={t("menu.botDetails")}
-                >
+                <Button size="sm" variant="ghost" onPress={details}>
                   {t("menu.botDetails")}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={closeRename}
-                  accessibilityLabel={t("common.cancel")}
-                >
+                <Button size="sm" variant="ghost" onPress={closeRename}>
                   {t("common.cancel")}
                 </Button>
-                <Button
-                  size="sm"
-                  disabled={busy()}
-                  onPress={() => void save()}
-                  accessibilityLabel={busy() ? t("common.saving") : t("common.save")}
-                >
+                <Button size="sm" disabled={busy()} onPress={() => void save()}>
                   {busy() ? t("common.saving") : t("common.save")}
                 </Button>
               </View>
