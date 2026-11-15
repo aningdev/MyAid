@@ -12,7 +12,7 @@ import { cleanup, effect, keymap, Text, View, token } from "nsh";
 import { SettingsPage } from "../../features/settings/Page";
 import { t } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
-import { Press } from "../app";
+import { Pressable } from "../ui/pressable";
 import { closeSettings, settingsOpen } from "./settings";
 
 /** Escape closes the overlay while it is the top thing on screen. */
@@ -42,17 +42,17 @@ export function SettingsOverlay() {
           borderBottomColor: token("line"),
         }}
       >
-        <Press
+        <Pressable
           onPress={closeSettings}
           accessibilityLabel={t("settings.backLabel")}
-          scale={0.96}
+          hitSlop={8}
           style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
         >
           <Icon icon={ChevronLeft} size={14} tint={token("muted-foreground")} />
           <Text style={{ fontSize: 13, color: token("muted-foreground") }}>
             {t("settings.back")}
           </Text>
-        </Press>
+        </Pressable>
         <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: token("foreground") }}>
           {t("settings.title")}
         </Text>

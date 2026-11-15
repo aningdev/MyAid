@@ -4,8 +4,8 @@
  * bodies live in the profile's YAML. `packages/bot-presets` owns the missing
  * writer and exposes it as the `botPresets` Remote.
  *
- * The seam stays here rather than in the sheet: the Client keeps the
- * registry's derived-preset rule (BOT_SESSION_MAP "身份与能力"), and the sheet
+ * The seam stays here rather than in the dialog: the Client keeps the
+ * registry's derived-preset rule (BOT_SESSION_MAP "身份与能力"), and the dialog
  * never invents a preset id. A Host without the plugin keeps today's honest
  * read-only note.
  */
@@ -19,7 +19,7 @@ import type {
 import { t } from "../../lib/i18n";
 import { sessionTransport } from "../dialogue/session/runtime";
 
-/** One capability change the sheet asks the plugin to save. */
+/** One capability change the dialog asks the plugin to save. */
 export type DeriveRequest = BotPresetDeriveRequest;
 export type DeriveResult = { presetId: string } | { unavailable: string };
 export type UpdateResult = BotPresetRecord | { unavailable: string };
@@ -38,7 +38,7 @@ export type BotPresetWriter = {
   remove(presetId: string): Promise<BotPresetRemoveResult>;
 };
 
-/** Why capability edits cannot be saved, in the sheet and in the docs. */
+/** Why capability edits cannot be saved, in the dialog and in the docs. */
 export function presetWriteGap(): string {
   return t("presets.writeGap");
 }

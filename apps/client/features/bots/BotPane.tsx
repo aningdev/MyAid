@@ -119,17 +119,9 @@ function NoSegment(props: { botId: string; onOpenDetails: () => void }) {
         <View style={{ flexDirection: "row", gap: 8 }}>
           <If
             when={bot()?.status === "ready"}
-            else={
-              <Button onPress={props.onOpenDetails} accessibilityLabel={t("menu.botDetails")}>
-                {t("menu.botDetails")}
-              </Button>
-            }
+            else={<Button onPress={props.onOpenDetails}>{t("menu.botDetails")}</Button>}
           >
-            <Button
-              disabled={!canStart()}
-              onPress={() => void start()}
-              accessibilityLabel={busy() ? t("bot.starting") : t("bot.startConversation")}
-            >
+            <Button disabled={!canStart()} onPress={() => void start()}>
               {busy() ? t("bot.starting") : t("bot.startConversation")}
             </Button>
           </If>

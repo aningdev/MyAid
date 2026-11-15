@@ -18,6 +18,7 @@ import {
 
 import { Button, type ButtonVariant } from "./button";
 import { Icon } from "../../lib/icons";
+import { labelOf } from "../../lib/label";
 import { createOpenState, createSlot, type OpenState, type Slot } from "../../lib/open-state";
 import { backdrop } from "../../lib/overlay";
 import { MenuMark, menuIndicator, popInStyles, type PopupSide, popupSurface } from "../../lib/popup";
@@ -278,6 +279,8 @@ export type MenuTriggerProps = {
 export type MenuItemProps = Omit<BaseMenuItemProps, "children"> & {
   /** `default`, the row as it is; `destructive`, its label in the danger tone. */
   variant?: MenuItemVariant;
+  /** A string is the label; anything else is drawn as given. A string label is also the
+   * row's name for screen readers, unless `accessibilityLabel` says otherwise. */
   children?: string | JSX.Element;
 };
 
@@ -457,6 +460,7 @@ export function MenuItem(props: MenuItemProps) {
   return (
     <BaseMenuItem
       {...rest}
+      accessibilityLabel={labelOf(props.accessibilityLabel, props.children)}
       // Read where the item is made: an item can become checkable, and its mark follows the value.
       indicatorClass={props.indicatorClass ?? (props.checked != null ? menuIndicator : undefined)}
       indicator={

@@ -29,6 +29,12 @@ export const fieldSize = terminal
 
 /** Options of `fieldLook` and `inputLook`. */
 export interface FieldLookOptions {
+  /**
+   * `default`: the field's fill and edge. `ghost`: nothing at rest — no fill, no edge — with
+   * the text and the placeholder as they are and the focus ring kept (a search field, a title
+   * that turns into a field); disabled and invalid still show.
+   */
+  variant?: Live<InputVariant | undefined>;
   /** Edged in the danger tone, its focus edge too. */
   invalid?: Live<boolean>;
   /** Read-only: lies flat (no recess) on a quieter edge. */
@@ -79,25 +85,35 @@ export function edgeClass(o: EdgeOptions): string {
     .join(" ");
 }
 
-/** A field's edge: the danger tone while invalid, the line (no hover) while read-only or disabled. */
+/** A field's variants: `default` the field's fill and edge, `ghost` neither until the keys are in it. */
+export type InputVariant = "default" | "ghost";
+
+/**
+ * A field's edge: the danger tone while invalid, the line (no hover) while read-only or disabled,
+ * and nothing at rest while `ghost` (its focus edge, from `edgeClass`, stays).
+ */
 function fieldEdge(o: FieldLookOptions | undefined): string {
   const invalid = !!read(o?.invalid);
+  const ghost = (read(o?.variant) ?? "default") === "ghost";
   const flat = !!read(o?.readonly) || !!read(o?.disabled);
   if (invalid) return edgeClass({ rest: "border-destructive", invalid });
+  if (ghost) return edgeClass({ rest: "border-transparent" });
   return flat
     ? edgeClass({ rest: "border-line" })
     : edgeClass({ rest: "border-input", hover: "border-faint" });
 }
 
 function frame(o: FieldLookOptions | undefined): ViewStyle {
+  const ghost = (read(o?.variant) ?? "default") === "ghost";
   const flat = !!read(o?.readonly) || !!read(o?.disabled);
   return {
     borderRadius: radius.control,
     borderCurve: "continuous",
     borderWidth: 1,
-    backgroundColor: colors.field,
-    // Recessed while editable; a read-only or disabled field lies flat. Its edge is `fieldEdge`'s classes.
-    ...(flat ? {} : finish.field),
+    backgroundColor: ghost ? "transparent" : colors.field,
+    // Recessed while editable; a read-only, disabled or ghost field lies flat. Its edge is
+    // `fieldEdge`'s classes.
+    ...(flat || ghost ? {} : finish.field),
   };
 }
 
@@ -212,14 +228,17 @@ export const timeFieldClass = [
  * and `disabledStyle` go over the look's. Focus and hover edges are classes on the look.
  */
 export type InputProps = BaseInputProps & {
+  /** Default `default`: the field's fill and edge. `ghost`: nothing at rest, the focus ring kept. */
+  variant?: InputVariant;
   /** Edged in the danger tone, its focus edge too. */
   invalid?: boolean;
 };
 
 /** A text field. The well and the text are `inputLook`. */
 export function Input(props: InputProps) {
-  const [, rest] = split(props, ["invalid", "class", "style", "disabledStyle"]);
+  const [, rest] = split(props, ["variant", "invalid", "class", "style", "disabledStyle"]);
   const look = inputLook({
+    variant: () => props.variant,
     invalid: () => !!props.invalid,
     readonly: () => !!props.readonly,
     disabled: () => !!props.disabled,

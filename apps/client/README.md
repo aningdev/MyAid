@@ -10,7 +10,7 @@ Bundle id: `com.aningdev.myaid` (see `nsh.json`). The tree keeps its `nsh init` 
 apps/client/
 ├── App.tsx / App.test.tsx      # mount AppShell
 ├── components/
-│   ├── app/                    # product compositions over shadcn-nsh parts (Press, Appear, IconTile, OptionSegmented)
+│   ├── app/                    # product compositions over shadcn-nsh parts (Appear, IconTile, OptionSegmented)
 │   ├── shell/                  # Navigator (flat Bot list), Panes, settings overlay, commands, prefs, attention
 │   └── ui/                     # shadcn-nsh copies, added with its CLI; theme.json is the theme
 ├── features/                   # bots (registry, Pane, details), dialogue (chat, segments), workspace, settings
@@ -27,7 +27,7 @@ Day-to-day: root `bun run dev [target]` — it checks `node_modules` and rebuild
 From the repo root with `vp run` (do not use `bun --cwd`):
 
 ```sh
-vp run @myaid/client#check            # nsh check + nsh build
+vp run @myaid/client#check            # nsh check + nsh build + ui:diff
 vp run @myaid/client#dev              # desktop, starts the Host
 vp run @myaid/client#dev:macos        # also dev:windows / dev:linux / dev:gpui
 vp run @myaid/client#dev:web
@@ -37,7 +37,7 @@ vp run @myaid/client#dev:android
 vp run @myaid/client#dev:server       # nsh dev --server-only
 vp run @myaid/client#test
 vp run @myaid/client#build            # bytecode (nsh build)
-bun run ui:diff                       # components/ui vs ~/Code/shadcn-nsh (must say "No differences.")
+bun run ui:diff                       # components/ui vs the shadcn-nsh registry (see check)
 vp run @myaid/client#package:macos    # .nsh/out/MyAid.app, then runs it
 vp run @myaid/client#package:web      # also package:windows / linux / gpui / ios / android
 ```

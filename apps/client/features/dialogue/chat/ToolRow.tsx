@@ -7,7 +7,7 @@
 import { Brain, ChevronDown, Terminal } from "lucide";
 import { Text, View, token } from "nsh";
 
-import { Press } from "../../../components/app";
+import { Pressable } from "../../../components/ui/pressable";
 import { t, type MessageKey } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, isDark, mono, radius, toneTint } from "../../../lib/theme";
@@ -42,11 +42,10 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
   const summary = () => toolSummary(props.tool());
   return (
     <View style={{ gap: 4 }}>
-      <Press
+      <Pressable
         onPress={props.onToggle}
-        scale={0.995}
         accessibilityLabel={t("chat.tool", { name: props.tool().name })}
-        accessibilityState={{ selected: props.open() }}
+        selected={props.open()}
         style={{ borderRadius: radius.control }}
         hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
       >
@@ -99,7 +98,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
             <Icon icon={ChevronDown} size={12} tint={token("faint")} />
           </View>
         </View>
-      </Press>
+      </Pressable>
       <If when={props.open()}>
         <View
           style={{
@@ -165,13 +164,12 @@ export function StepGroup(props: {
     });
   return (
     <View style={{ gap: 2 }}>
-      <Press
+      <Pressable
         onPress={props.onToggle}
-        scale={0.995}
         accessibilityLabel={`${stepsLabel(props.tools())}, ${
           props.open() ? t("chat.stepsCollapse") : t("chat.stepsExpand")
         }`}
-        accessibilityState={{ selected: props.open() }}
+        selected={props.open()}
         style={{ borderRadius: radius.control }}
         hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
       >
@@ -217,7 +215,7 @@ export function StepGroup(props: {
             <Icon icon={ChevronDown} size={12} tint={token("faint")} />
           </View>
         </View>
-      </Press>
+      </Pressable>
       <If when={props.open()}>
         <View
           style={{
@@ -263,11 +261,10 @@ export function ThinkingRow(props: {
   };
   return (
     <View style={{ gap: 6 }}>
-      <Press
+      <Pressable
         onPress={props.onToggle}
-        scale={0.995}
         accessibilityLabel={t("chat.reasoning")}
-        accessibilityState={{ selected: props.open() }}
+        selected={props.open()}
         style={{ borderRadius: radius.control }}
         hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
       >
@@ -309,7 +306,7 @@ export function ThinkingRow(props: {
             <Icon icon={ChevronDown} size={12} tint={token("faint")} />
           </View>
         </View>
-      </Press>
+      </Pressable>
       <If when={props.open()}>
         <View
           style={{

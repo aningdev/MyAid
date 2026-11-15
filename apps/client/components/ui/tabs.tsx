@@ -21,6 +21,7 @@ import {
 } from "nsh/base";
 
 import { Icon } from "../../lib/icons";
+import { labelOf } from "../../lib/label";
 import { controlSize } from "../../lib/surface";
 
 /** A value, or a function reading it where the look is applied (a signal). */
@@ -399,13 +400,7 @@ export function TabsTrigger(props: TabsTriggerProps) {
     <BaseTab
       {...rest}
       selected={selected()}
-      accessibilityLabel={
-        props.accessibilityLabel !== undefined
-          ? props.accessibilityLabel
-          : typeof props.children === "string"
-            ? props.children
-            : undefined
-      }
+      accessibilityLabel={labelOf(props.accessibilityLabel, props.children)}
       onPress={() => {
         ctx?.onValueChange(props.value);
         props.onPress?.();
@@ -452,13 +447,7 @@ export function Tab(props: TabProps) {
     <BaseTab
       {...rest}
       selected={props.selected}
-      accessibilityLabel={
-        props.accessibilityLabel !== undefined
-          ? props.accessibilityLabel
-          : typeof props.children === "string"
-            ? props.children
-            : undefined
-      }
+      accessibilityLabel={labelOf(props.accessibilityLabel, props.children)}
       style={[tab().style, props.style ?? null]}
       hoverStyle={[tab().hoverStyle ?? null, props.hoverStyle ?? null]}
       activeStyle={[tab().activeStyle ?? null, props.activeStyle ?? null]}

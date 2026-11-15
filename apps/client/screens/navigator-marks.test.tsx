@@ -1,6 +1,6 @@
 /**
  * Screenshots over a seeded registry: the Bot marks in the sidebar, the
- * New Bot sheet, the ⌘K palette and a row's context menu. The fixture lives in
+ * New Bot dialog, the ⌘K palette and a row's context menu. The fixture lives in
  * the app's isolated test storage, never the real `~/.myaid`:
  *
  *   nsh test screens/navigator-marks.test.tsx --target macos
@@ -74,8 +74,8 @@ test("marks, New Bot, palette and context menu", async () => {
   expect(app.texts()).toContain("Iota");
 
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
-  await shoot(app, "03-new-bot-sheet.png");
+  await app.waitFor("id:new-bot-dialog");
+  await shoot(app, "03-new-bot-dialog.png");
   await app.press("label:Cancel");
 
   await app.keyboard.press("mod+k");

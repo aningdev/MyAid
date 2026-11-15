@@ -464,7 +464,7 @@ export const messages = {
     en: "A test app does not reach the local control plane",
   },
 
-  // --- Bot list, details and the New Bot sheet -----------------------------
+  // --- Bot list, details and the New Bot dialog ----------------------------
   "menu.pin": { zh: "Pin", en: "Pin" },
   "menu.unpin": { zh: "取消 Pin", en: "Unpin" },
   "menu.botDetails": { zh: "Bot 详情…", en: "Bot details…" },

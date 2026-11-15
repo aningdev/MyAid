@@ -77,21 +77,12 @@ function Notice(props: {
       </Text>
       <View style={{ flexDirection: "row", gap: 6 }}>
         <If when={!!props.action}>
-          <Button
-            size="sm"
-            onPress={() => props.onAction?.()}
-            accessibilityLabel={props.action ?? ""}
-          >
+          <Button size="sm" onPress={() => props.onAction?.()}>
             {props.action ?? ""}
           </Button>
         </If>
         <If when={!!props.onDismiss}>
-          <Button
-            size="sm"
-            variant="ghost"
-            onPress={() => props.onDismiss?.()}
-            accessibilityLabel={t("common.cancel")}
-          >
+          <Button size="sm" variant="ghost" onPress={() => props.onDismiss?.()}>
             {t("common.cancel")}
           </Button>
         </If>

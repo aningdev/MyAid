@@ -21,11 +21,11 @@ import {
   type ViewStyle,
   token,
 } from "nsh";
-import { Input } from "nsh/base";
 
-import { Press } from "../../../components/app";
 import { RoundButton, roundButtonGlyph } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
 import { Menu, MenuContent, MenuRadioItem, MenuTrigger } from "../../../components/ui/menu";
+import { Pressable } from "../../../components/ui/pressable";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, radius } from "../../../lib/theme";
@@ -191,6 +191,7 @@ export function Composer(props: {
         }}
       >
         <Input
+          variant="ghost"
           ref={(node) => (input = node ?? undefined)}
           testID="composer"
           value={draft()}
@@ -217,13 +218,12 @@ export function Composer(props: {
             )
           }
           style={{
-            placeholderColor: token("faint"),
-            caretColor: token("brand"),
-            selectionColor: token("brand"),
             height: textHeight() + 20,
             fontSize: 15,
             lineHeight: LINE_HEIGHT,
-            color: token("foreground"),
+            // Concentric with the pill: its radius less its padding, so the focus edge stays
+            // an inset of the pill rather than a second box across its corners.
+            borderRadius: 16,
             paddingHorizontal: 10,
             paddingVertical: 10,
           }}
@@ -294,13 +294,13 @@ function QueuedRow(props: { text: string; onWithdraw: () => void }) {
       <Text style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: token("foreground") }}>
         {props.text}
       </Text>
-      <Press onPress={props.onWithdraw} accessibilityLabel={t("chat.withdraw")} scale={0.94}>
+      <Pressable onPress={props.onWithdraw} accessibilityLabel={t("chat.withdraw")} hitSlop={8}>
         <View style={{ paddingHorizontal: 8, height: 24, justifyContent: "center" }}>
           <Text style={{ fontSize: 12, fontWeight: "600", color: token("brand") }}>
             {t("chat.withdrawAction")}
           </Text>
         </View>
-      </Press>
+      </Pressable>
     </View>
   );
 }
@@ -330,15 +330,15 @@ function AttachmentChip(props: { attachment: Attachment; onRemove: () => void })
         {props.attachment.name}
       </Text>
       <Text style={{ fontSize: 11, color: token("faint") }}>{props.attachment.size}</Text>
-      <Press
+      <Pressable
         onPress={props.onRemove}
         accessibilityLabel={t("chat.removeAttachment", { name: props.attachment.name })}
-        scale={0.85}
+        hitSlop={8}
       >
         <View style={{ width: 26, height: 28, alignItems: "center", justifyContent: "center" }}>
           <Icon icon={X} size={12} tint={token("muted-foreground")} />
         </View>
-      </Press>
+      </Pressable>
     </View>
   );
 }
@@ -431,17 +431,17 @@ function SendKeyMenu() {
 
 function MiniGlyphButton(props: { icon: IconNode; label: string; onPress: () => void }) {
   return (
-    <Press
+    <Pressable
       onPress={props.onPress}
       accessibilityLabel={props.label}
-      scale={0.9}
-      style={{ borderRadius: 14, outlineStyle: "none" }}
+      hitSlop={8}
+      style={{ borderRadius: 14 }}
       hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.06) }}
     >
       <View style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
         <Icon icon={props.icon} size={16} tint={token("muted-foreground")} />
       </View>
-    </Press>
+    </Pressable>
   );
 }
 

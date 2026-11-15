@@ -74,9 +74,7 @@ function Welcome() {
             {t("welcome.body")}
           </Text>
         </View>
-        <Button onPress={openNewBot} accessibilityLabel={t("welcome.create")}>
-          {t("welcome.create")}
-        </Button>
+        <Button onPress={openNewBot}>{t("welcome.create")}</Button>
         <Text style={{ fontSize: 11, color: token("faint") }}>
           {t("welcome.shortcut", { shortcut: keymap.label("mod+n") ?? "" })}
         </Text>

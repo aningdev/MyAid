@@ -1,5 +1,5 @@
 /**
- * The New Bot sheet: one signal for who is showing it. The sheet itself is
+ * The New Bot dialog: one signal for who is showing it. The dialog itself is
  * mounted once by the shell, so the menu, the palette, the Bots section's
  * `+` and the welcome state open the same surface.
  */

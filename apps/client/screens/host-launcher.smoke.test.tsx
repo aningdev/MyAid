@@ -50,7 +50,7 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
   await shoot(app, "01-host-running.png", SHOTS_N1);
 
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", "Launcher Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press(`label:${t("newBot.create")}`);

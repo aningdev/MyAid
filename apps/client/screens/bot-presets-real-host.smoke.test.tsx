@@ -31,7 +31,7 @@ test("a Bot saves a derived preset and reads it back", async () => {
 
   await app.waitFor(`text:${t("host.connected")}`, { timeout: 30000 });
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", "Preset Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press(`label:${t("newBot.create")}`);

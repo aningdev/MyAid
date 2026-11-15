@@ -15,7 +15,7 @@
     "dev:ios": "bun run prepare:sdk && nsh run App.tsx --target ios",
     "dev:android": "bun run prepare:sdk && nsh run App.tsx --target android",
     "dev:server": "bun run prepare:sdk && nsh dev App.tsx --server-only",
-    "check": "bun run prepare:sdk && nsh check && nsh build",
+    "check": "bun run prepare:sdk && nsh check && nsh build && bun run ui:diff",
     "build": "bun run prepare:sdk && nsh build App.tsx --release",
     "package:macos": "bun run prepare:sdk && nsh package --target macos --run",
     "package:windows": "bun run prepare:sdk && nsh package --target windows",
@@ -48,5 +48,8 @@
     "immer": "^10.1.1",
     "lucide": "1.66.0",
     "zustand": "~4.5.7"
+  },
+  "devDependencies": {
+    "shadcn-nsh": "catalog:"
   }
 }

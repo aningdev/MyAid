@@ -97,12 +97,12 @@ test("the Bot details button sits in the Pane header with split and close", asyn
   expect(app.texts()).toContain("Runs with");
 });
 
-test("the New Bot row opens the sheet", async () => {
+test("the New Bot row opens the dialog", async () => {
   const app = await start(sampleRegistry());
   await app.waitFor("label:Ada");
 
   await app.press("label:New Bot");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.waitFor("id:new-bot-name");
   expect(app.shows("label:Ada")).toBe(true);
 });

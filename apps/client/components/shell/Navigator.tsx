@@ -8,7 +8,6 @@ import { Plus, Search, X } from "lucide";
  * to the right drops it into the Workbench as a new Pane.
  */
 import { keymap, platform, Scroll, Text, token, View, type InputRef } from "nsh";
-import { Input } from "nsh/base";
 
 import { BotMark } from "../../features/bots/BotMark";
 import { unarchiveBot } from "../../features/bots/model";
@@ -17,8 +16,10 @@ import { changeRegistry, registry } from "../../features/bots/state";
 import { t, tCount } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { hovered, radius } from "../../lib/theme";
-import { Press } from "../app";
 import { IconButton, iconButtonGlyph } from "../ui/button";
+import { Input } from "../ui/input";
+import { Pressable } from "../ui/pressable";
+import { TooltipContent } from "../ui/tooltip";
 import { type BotRow, botRows } from "./botList";
 import { navSearchFocusRequest, navQuery, setNavQuery, takeNavSearchFocus } from "./navFilter";
 import { NavContextMenu } from "./navMenu";
@@ -60,6 +61,7 @@ export function Navigator() {
         >
           <Icon icon={Search} size={13} tint={token("muted-foreground")} />
           <Input
+            variant="ghost"
             ref={(node) => (search = node ?? undefined)}
             testID="nav-search"
             accessibilityLabel={t("nav.searchLabel")}
@@ -72,9 +74,7 @@ export function Navigator() {
               flex: 1,
               height: 28,
               fontSize: 13,
-              color: token("foreground"),
               paddingHorizontal: 0,
-              placeholderColor: token("faint"),
             }}
           />
           <If when={!!navQuery()}>
@@ -201,7 +201,7 @@ function Row(props: { row: BotRow }) {
           // A press after a drop starts a fresh gesture: the drop is done.
           if (dropped === bot().id) dropped = null;
         }}
-        tooltip={<Text style={{ fontSize: 11 }}>{t("nav.dragHint")}</Text>}
+        tooltip={<TooltipContent>{t("nav.dragHint")}</TooltipContent>}
         onPanEnd={(event) => {
           if (event.cancelled) return;
           // A drag to the right leaves the list and lands in the Pane area.
@@ -287,16 +287,16 @@ function Dot(props: { testID: string; label: string; color: string }) {
 
 function Unarchive(props: { botId: string; name: string }) {
   return (
-    <Press
+    <Pressable
       onPress={() => void unarchive(props.botId)}
       accessibilityLabel={t("nav.unarchiveBot", { name: props.name })}
-      scale={0.96}
+      hitSlop={10}
       style={{ paddingHorizontal: 6, paddingVertical: 2 }}
     >
       <Text style={{ fontSize: 11, fontWeight: "600", color: token("brand") }}>
         {t("common.unarchive")}
       </Text>
-    </Press>
+    </Pressable>
   );
 }
 

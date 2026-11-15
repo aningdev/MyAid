@@ -5,4 +5,3 @@
 export { Appear } from "./Appear";
 export { IconTile } from "./IconTile";
 export { OptionSegmented, type SegmentedOption } from "./OptionSegmented";
-export { Press, type PressProps } from "./Press";

@@ -14,9 +14,9 @@
  *   exchange and no live chunks;
  * - anything else: a short reply, in three chunks.
  */
-import { mount, signal, Text, View } from "nsh";
+import { mount, signal, Text, token, View } from "nsh";
 
-import { Press } from "../../../components/app";
+import { Pressable } from "../../../components/ui/pressable";
 import {
   assistantMessage,
   durable,
@@ -341,12 +341,12 @@ function Harness() {
 
   const which = signal(0);
   return (
-    <View style={{ flex: 1, backgroundColor: "#ffffff" }}>
-      <Press onPress={() => which.set(which() === 0 ? 1 : 0)} accessibilityLabel="Switch panel">
+    <View style={{ flex: 1, backgroundColor: token("background") }}>
+      <Pressable onPress={() => which.set(which() === 0 ? 1 : 0)} accessibilityLabel="Switch panel">
         <View style={{ height: 28, paddingHorizontal: 12, justifyContent: "center" }}>
           <Text style={{ fontSize: 12 }}>Switch panel</Text>
         </View>
-      </Press>
+      </Pressable>
       <View style={{ flex: 1 }}>
         <If when={which() === 0} else={<ChatPane controller={second} />}>
           <ChatPane controller={first} />

@@ -36,7 +36,7 @@ test("English creates a Bot, takes a turn, opens details and switches language",
 
   await app.waitFor(`label:${messages["nav.newBot"].en}`, { timeout: 30000 });
   await app.keyboard.press("mod+n");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", "Smoke Bot");
   await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press(`label:${messages["newBot.create"].en}`);

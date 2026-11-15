@@ -28,7 +28,7 @@ test("a test app keeps registry and prefs in its isolated storage", async () => 
 
   await app.waitFor("label:New Bot");
   await app.press("label:New Bot");
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", "Hermetic");
   await app.type("id:new-bot-workspace", "/tmp");
   await app.press("label:Create Bot");

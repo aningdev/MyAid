@@ -6,7 +6,7 @@
  */
 import { Scroll, signal, Text, View, token } from "nsh";
 
-import { Press } from "../../components/app";
+import { Pressable } from "../../components/ui/pressable";
 import { t, type MessageKey } from "../../lib/i18n";
 import { radius, toneTint } from "../../lib/theme";
 import { AboutSection } from "./About";
@@ -45,12 +45,11 @@ export function SettingsPage() {
         <Scroll contentStyle={{ padding: 10, gap: 2 }}>
           <Each of={GROUPS}>
             {(entry) => (
-              <Press
+              <Pressable
                 testID={`settings-nav-${entry().id}`}
                 onPress={() => group.set(entry().id)}
                 accessibilityLabel={t(entry().label)}
-                accessibilityState={{ selected: group() === entry().id }}
-                scale={0.99}
+                selected={group() === entry().id}
                 style={{
                   minHeight: 38,
                   justifyContent: "center",
@@ -68,7 +67,7 @@ export function SettingsPage() {
                 >
                   {t(entry().label)}
                 </Text>
-              </Press>
+              </Pressable>
             )}
           </Each>
         </Scroll>

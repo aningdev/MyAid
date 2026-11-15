@@ -6,8 +6,9 @@
 import { File, type IconNode, RotateCw, Sparkles, TriangleAlert, X } from "lucide";
 import { Image, type JSX, Text, View, token } from "nsh";
 
-import { Press } from "../../../components/app";
 import { Button } from "../../../components/ui/button";
+import { Pressable } from "../../../components/ui/pressable";
+import { TooltipContent, tooltipText } from "../../../components/ui/tooltip";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, finish, mono, radius, toneColor, toneTint, type Tone } from "../../../lib/theme";
@@ -63,12 +64,7 @@ export function ActionButton(props: {
   onPress: () => void;
 }) {
   return (
-    <Press
-      onPress={props.onPress}
-      scale={0.86}
-      accessibilityLabel={props.label}
-      accessibilityState={{ selected: props.active }}
-    >
+    <Pressable onPress={props.onPress} accessibilityLabel={props.label} selected={props.active}>
       <View
         style={{
           width: 36,
@@ -96,7 +92,7 @@ export function ActionButton(props: {
           tint={props.active ? toneColor(props.tone ?? "accent") : token("muted-foreground")}
         />
       </View>
-    </Press>
+    </Pressable>
   );
 }
 
@@ -138,7 +134,11 @@ export function SegmentDivider(props: {
       }${row().current ? `, ${t("chat.current")}` : ""}`}
       tooltip={
         row().fullPath ? (
-          <Text style={{ fontSize: 12, userSelect: "text" }}>{row().fullPath}</Text>
+          <TooltipContent>
+            <Text class={tooltipText} style={{ userSelect: "text" }}>
+              {row().fullPath}
+            </Text>
+          </TooltipContent>
         ) : undefined
       }
       style={{
@@ -227,11 +227,11 @@ export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
         </Text>
       </View>
       <If when={props.onRemove}>
-        <Press onPress={props.onRemove} accessibilityLabel={t("chat.removeFile")} scale={0.85}>
+        <Pressable onPress={props.onRemove} accessibilityLabel={t("chat.removeFile")} hitSlop={6}>
           <View style={{ width: 36, height: 40, alignItems: "center", justifyContent: "center" }}>
             <Icon icon={X} size={13} tint={token("muted-foreground")} />
           </View>
-        </Press>
+        </Pressable>
       </If>
     </View>
   );

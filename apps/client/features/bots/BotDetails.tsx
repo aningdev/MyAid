@@ -45,12 +45,13 @@ import {
   token,
 } from "nsh";
 
-import { OptionSegmented, Press } from "../../components/app";
+import { OptionSegmented } from "../../components/app";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent } from "../../components/ui/dialog";
 import { Field, FieldLabel } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
 import { Meter } from "../../components/ui/meter";
+import { Pressable } from "../../components/ui/pressable";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t, type MessageKey } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
@@ -388,14 +389,14 @@ function Body(props: { botId: string; onClose: () => void }) {
             {bot()?.archived ? t("bot.detailsArchived") : t("bot.details")}
           </Text>
         </View>
-        <Press
+        <Pressable
           onPress={props.onClose}
           accessibilityLabel={t("bot.closeDetails")}
-          scale={0.96}
+          hitSlop={8}
           style={{ padding: 6 }}
         >
           <Icon icon={X} size={14} tint={token("muted-foreground")} />
-        </Press>
+        </Pressable>
       </View>
       <OptionSegmented
         options={TABS.map((entry) => ({ value: entry.value, label: t(entry.label) }))}
@@ -467,7 +468,6 @@ function Body(props: { botId: string; onClose: () => void }) {
             size="sm"
             disabled={saving() || savingNow() || !!bot()?.hadDialogue}
             onPress={() => void remove()}
-            accessibilityLabel={t("common.delete")}
           >
             {t("common.delete")}
           </Button>
@@ -476,26 +476,15 @@ function Body(props: { botId: string; onClose: () => void }) {
             size="sm"
             disabled={saving() || savingNow()}
             onPress={() => void setArchived(!bot()?.archived)}
-            accessibilityLabel={bot()?.archived ? t("common.unarchive") : t("common.archive")}
           >
             {bot()?.archived ? t("common.unarchive") : t("common.archive")}
           </Button>
         </If>
         <View style={{ flex: 1 }} />
-        <Button
-          variant="secondary"
-          size="sm"
-          onPress={props.onClose}
-          accessibilityLabel={t("common.cancel")}
-        >
+        <Button variant="secondary" size="sm" onPress={props.onClose}>
           {t("common.cancel")}
         </Button>
-        <Button
-          size="sm"
-          disabled={saving() || savingNow()}
-          onPress={() => void save()}
-          accessibilityLabel={t("common.save")}
-        >
+        <Button size="sm" disabled={saving() || savingNow()} onPress={() => void save()}>
           {t("common.save")}
         </Button>
       </View>
@@ -710,11 +699,6 @@ function Usage(props: {
           size="sm"
           disabled={props.compactRead().status === "running"}
           onPress={props.onCompact}
-          accessibilityLabel={
-            props.compactRead().status === "running"
-              ? t("bot.segment.compacting")
-              : t("bot.segment.compact")
-          }
         >
           {props.compactRead().status === "running"
             ? t("bot.segment.compacting")
@@ -745,9 +729,9 @@ function Usage(props: {
 /** A small accent action. */
 function Tiny(props: { label: string; onPress: () => void }) {
   return (
-    <Press onPress={props.onPress} accessibilityLabel={props.label} scale={0.96}>
+    <Pressable onPress={props.onPress} accessibilityLabel={props.label} hitSlop={8}>
       <Text style={{ fontSize: 11, fontWeight: "500", color: token("brand") }}>{props.label}</Text>
-    </Press>
+    </Pressable>
   );
 }
 
@@ -895,12 +879,7 @@ function RunsTab(props: {
         />
       </Field>
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <Button
-          size="sm"
-          variant="secondary"
-          onPress={props.onChooseWorkspace}
-          accessibilityLabel={t("bot.chooseDirectory")}
-        >
+        <Button size="sm" variant="secondary" onPress={props.onChooseWorkspace}>
           {t("bot.chooseDirectory")}
         </Button>
       </View>
@@ -934,13 +913,7 @@ function SkillsTab(props: {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <SectionTitle title={t("bot.skills.added")} />
         <View style={{ flex: 1 }} />
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={!props.writable()}
-          onPress={props.onAdd}
-          accessibilityLabel={t("bot.skills.add")}
-        >
+        <Button size="sm" variant="secondary" disabled={!props.writable()} onPress={props.onAdd}>
           {t("bot.skills.add")}
         </Button>
       </View>
@@ -969,17 +942,16 @@ function SkillsTab(props: {
                     {skill().path}
                   </Text>
                 </View>
-                <Press
+                <Pressable
                   onPress={() => props.onRemove(skill().path)}
                   accessibilityLabel={t("bot.skills.remove", { name: skill().name })}
-                  accessibilityState={{ disabled: !props.writable() }}
                   disabled={!props.writable()}
-                  scale={0.96}
+                  hitSlop={8}
                 >
                   <Text style={{ fontSize: 11, fontWeight: "600", color: token("destructive") }}>
                     {t("common.remove")}
                   </Text>
-                </Press>
+                </Pressable>
               </View>
             )}
           </Each>
@@ -1047,14 +1019,13 @@ function PluginsTab(props: {
                     {row().moduleName}
                   </Text>
                 </View>
-                <Press
+                <Pressable
                   onPress={() => props.onToggle(row())}
                   accessibilityLabel={t("bot.plugins.toggle", {
                     name: row().name ?? row().moduleName,
                   })}
-                  accessibilityState={{ checked: enabledOf(row()), disabled: !props.writable() }}
                   disabled={!props.writable()}
-                  scale={0.96}
+                  hitSlop={8}
                 >
                   <Text
                     style={{
@@ -1065,7 +1036,7 @@ function PluginsTab(props: {
                   >
                     {enabledOf(row()) ? t("common.enabled") : t("common.disabled")}
                   </Text>
-                </Press>
+                </Pressable>
               </View>
             )}
           </Each>

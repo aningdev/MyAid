@@ -3,7 +3,7 @@ import { createAnimatedValue } from "nsh";
 import { safeArea } from "nsh";
 import { Dialog, type TextViewImage } from "nsh/base";
 
-import { Press } from "../../components/app";
+import { Pressable } from "../../components/ui/pressable";
 import { t } from "../../lib/i18n";
 import { motion } from "../../lib/theme";
 
@@ -177,12 +177,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
         <View
           style={{ position: "absolute", top: safeArea().top + 12, right: safeArea().right + 12 }}
         >
-          <Press
-            onPress={props.onClose}
-            accessibilityLabel={t("chat.closeImage")}
-            scale={0.9}
-            hitSlop={8}
-          >
+          <Pressable onPress={props.onClose} accessibilityLabel={t("chat.closeImage")} hitSlop={8}>
             <View
               style={{
                 width: 44,
@@ -214,7 +209,7 @@ export function ImageViewer(props: { image: TextViewImage | null; onClose: () =>
                 }}
               />
             </View>
-          </Press>
+          </Pressable>
         </View>
       </View>
     </Dialog>

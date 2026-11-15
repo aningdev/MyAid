@@ -6,12 +6,13 @@
  */
 import { effect, Scroll, signal, Text, untracked, View, type JSX, token } from "nsh";
 
-import { OptionSegmented, Press } from "../../components/app";
+import { OptionSegmented } from "../../components/app";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card as CardFrame, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Field, FieldLabel } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
+import { Pressable } from "../../components/ui/pressable";
 import { t } from "../../lib/i18n";
 import { finish, mono, radius, toneTint } from "../../lib/theme";
 import type { ProviderField } from "./providerModel";
@@ -88,12 +89,7 @@ export function ProvidersSection() {
               {state().error ?? t("providers.hostDown")}
             </Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button
-                size="sm"
-                variant="secondary"
-                onPress={() => void loadProviders()}
-                accessibilityLabel={t("common.retry")}
-              >
+              <Button size="sm" variant="secondary" onPress={() => void loadProviders()}>
                 {t("common.retry")}
               </Button>
             </View>
@@ -179,11 +175,10 @@ function ProviderName(props: { row: ProviderRow; selected: boolean; onPress: () 
     return props.row.credential?.configured ? token("up") : token("faint");
   };
   return (
-    <Press
+    <Pressable
       onPress={props.onPress}
-      scale={0.99}
       accessibilityLabel={t("providers.rowLabel", { name: props.row.entry.displayName })}
-      accessibilityState={{ selected: props.selected }}
+      selected={props.selected}
       style={{
         flexDirection: "row",
         alignItems: "center",
@@ -215,7 +210,7 @@ function ProviderName(props: { row: ProviderRow; selected: boolean; onPress: () 
         </Text>
         <Text style={{ fontSize: 11, color: tone(), numberOfLines: 1 }}>{label()}</Text>
       </View>
-    </Press>
+    </Pressable>
   );
 }
 
@@ -344,7 +339,6 @@ function ProviderEditor(props: { row: ProviderRow }) {
                       if (saved) key.set("");
                     });
                   }}
-                  accessibilityLabel={t("providers.saveKey")}
                 >
                   {t("providers.saveKey")}
                 </Button>
@@ -353,7 +347,6 @@ function ProviderEditor(props: { row: ProviderRow }) {
                   disabled={!canWriteKey() || busy() || !props.row.credential?.configured}
                   variant="secondary"
                   onPress={() => void clearProviderKey(props.row.entry.provider)}
-                  accessibilityLabel={t("providers.clearKey")}
                 >
                   {t("providers.clearKey")}
                 </Button>
@@ -392,7 +385,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
           )}
         </If>
         <If when={others().length > 0}>
-          <Press
+          <Pressable
             onPress={() => advanced.set(!advanced())}
             style={{ flexDirection: "row", alignItems: "center", gap: 6, minHeight: 32 }}
             accessibilityLabel={
@@ -404,7 +397,7 @@ function ProviderEditor(props: { row: ProviderRow }) {
                 ? t("providers.collapseAdvanced")
                 : t("providers.expandAdvancedCount", { count: others().length })}
             </Text>
-          </Press>
+          </Pressable>
         </If>
         <If when={advanced()}>
           <View style={{ gap: 12 }}>
@@ -443,7 +436,6 @@ function ProviderEditor(props: { row: ProviderRow }) {
             }
             variant="secondary"
             onPress={() => void saveFields()}
-            accessibilityLabel={t("providers.saveFields")}
           >
             {t("providers.saveFields")}
           </Button>
@@ -587,7 +579,7 @@ function DefaultModelCard() {
               const chosen = () =>
                 current()?.provider === option().provider && current()?.model === option().model;
               return (
-                <Press
+                <Pressable
                   onPress={() => void saveDefaultModel(option().provider, option().model)}
                   disabled={!state().writable || saving()}
                   accessibilityLabel={t("providers.defaultModelLabel", {
@@ -618,7 +610,7 @@ function DefaultModelCard() {
                   <Text style={{ fontSize: 11, color: token("faint") }}>
                     {`${option().providerName} / ${option().model}`}
                   </Text>
-                </Press>
+                </Pressable>
               );
             }}
           </Each>

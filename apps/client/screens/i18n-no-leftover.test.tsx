@@ -111,10 +111,10 @@ async function walkShell(lang: Lang, texts: string[]): Promise<void> {
 
   // New Bot.
   await app.press(`label:${say(lang, "nav.newBot")}`);
-  await app.waitFor("id:new-bot-sheet");
+  await app.waitFor("id:new-bot-dialog");
   collect(texts, app);
   await app.press(`label:${say(lang, "common.cancel")}`);
-  await app.waitUntil(() => !app.shows("id:new-bot-sheet"));
+  await app.waitUntil(() => !app.shows("id:new-bot-dialog"));
 
   // ⌘K.
   await app.keyboard.press("mod+k");
