@@ -9,8 +9,13 @@ import { Check, Sparkles } from "lucide";
 import { Text, View, token } from "nsh";
 import { signal } from "nsh";
 
-import { Input } from "../../../components/ui/input";
-import { Pressable } from "../../../components/ui/pressable";
+import { buttonGlyph } from "../../../components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "../../../components/ui/input-group";
 import { TooltipContent, tooltipNote, tooltipText } from "../../../components/ui/tooltip";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
@@ -19,6 +24,7 @@ import { BotMark } from "../../bots/BotMark";
 import type { Bot } from "../../bots/model";
 
 export function ChatHeader(props: {
+  /** The Session's own title: what the header shows after the Bot's name, and what a double click renames. */
   title: () => string;
   subtitle: () => string;
   /** The canonical working directory, for the tooltip and screen readers. */
@@ -33,6 +39,11 @@ export function ChatHeader(props: {
 }) {
   const editing = signal(false);
   const draft = signal("");
+  /** The Bot's name · the Session's title: the header's line, and not what a rename writes. */
+  const shown = () => {
+    const bot = props.bot();
+    return bot ? `${bot.name} · ${props.title()}` : props.title();
+  };
   const editingPath = signal(false);
   const pathDraft = signal("");
 
@@ -88,27 +99,22 @@ export function ChatHeader(props: {
                   color: token("foreground"),
                 }}
               >
-                {props.title()}
+                {shown()}
               </Text>
             </View>
           }
         >
-          <Input
-            variant="ghost"
-            value={draft()}
-            onChange={(event) => draft.set(event.value)}
-            onSubmit={commit}
-            onBlur={commit}
-            autoFocus
-            testID="session-title"
-            style={{
-              flex: 1,
-              height: 26,
-              fontSize: 15,
-              fontWeight: "600",
-              paddingHorizontal: 6,
-            }}
-          />
+          <InputGroup style={{ flex: 1 }}>
+            <InputGroupInput
+              value={draft()}
+              onChange={(event) => draft.set(event.value)}
+              onSubmit={commit}
+              onBlur={commit}
+              autoFocus
+              testID="session-title"
+              style={{ flex: 1, height: 26, fontSize: 15, fontWeight: "600" }}
+            />
+          </InputGroup>
         </If>
         <View
           style={{
@@ -157,9 +163,8 @@ export function ChatHeader(props: {
           </View>
         }
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-          <Input
-            variant="ghost"
+        <InputGroup>
+          <InputGroupInput
             value={pathDraft()}
             onChange={(event) => pathDraft.set(event.value)}
             onSubmit={commitPath}
@@ -167,22 +172,18 @@ export function ChatHeader(props: {
             autoFocus
             testID="session-workspace-input"
             accessibilityLabel={t("chat.workingDirectory")}
-            style={{
-              flex: 1,
-              height: 24,
-              fontSize: 11,
-              paddingHorizontal: 4,
-            }}
+            style={{ flex: 1, height: 24, fontSize: 11 }}
           />
-          <Pressable
-            onPress={commitPath}
-            accessibilityLabel={t("chat.useWorkspace")}
-            hitSlop={10}
-            style={{ width: 22, height: 22 }}
-          >
-            <Icon icon={Check} size={12} tint={token("brand")} />
-          </Pressable>
-        </View>
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              size="icon-xs"
+              onPress={commitPath}
+              accessibilityLabel={t("chat.useWorkspace")}
+            >
+              <Icon icon={Check} {...buttonGlyph("ghost", { size: "sm" })} />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
       </If>
     </View>
   );

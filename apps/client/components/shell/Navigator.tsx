@@ -9,6 +9,7 @@ import { Plus, Search, X } from "lucide";
  */
 import { keymap, platform, Scroll, Text, token, View, type InputRef } from "nsh";
 
+import { GroupInput } from "../../components/app";
 import { BotMark } from "../../features/bots/BotMark";
 import { unarchiveBot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
@@ -16,8 +17,8 @@ import { changeRegistry, registry } from "../../features/bots/state";
 import { t, tCount } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { hovered, radius } from "../../lib/theme";
-import { IconButton, iconButtonGlyph } from "../ui/button";
-import { Input } from "../ui/input";
+import { buttonGlyph } from "../ui/button";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText } from "../ui/input-group";
 import { Pressable } from "../ui/pressable";
 import { TooltipContent } from "../ui/tooltip";
 import { type BotRow, botRows } from "./botList";
@@ -46,22 +47,13 @@ export function Navigator() {
   return (
     <View style={{ flex: 1, minWidth: 0, minHeight: 0, backgroundColor: token("inset") }}>
       <View style={{ paddingHorizontal: 6, paddingTop: 6, paddingBottom: 2, gap: 4 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            height: 30,
-            paddingHorizontal: 8,
-            borderRadius: 8,
-            backgroundColor: token("raised"),
-            borderWidth: 1,
-            borderColor: token("border"),
-          }}
-        >
-          <Icon icon={Search} size={13} tint={token("muted-foreground")} />
-          <Input
-            variant="ghost"
+        <InputGroup>
+          <InputGroupAddon align="inline-start">
+            <InputGroupText>
+              <Icon icon={Search} size={13} tint={token("muted-foreground")} />
+            </InputGroupText>
+          </InputGroupAddon>
+          <GroupInput
             ref={(node) => (search = node ?? undefined)}
             testID="nav-search"
             accessibilityLabel={t("nav.searchLabel")}
@@ -70,23 +62,20 @@ export function Navigator() {
             autoCapitalize="none"
             autoCorrect={false}
             onChange={(event) => setNavQuery(event.value)}
-            style={{
-              flex: 1,
-              height: 28,
-              fontSize: 13,
-              paddingHorizontal: 0,
-            }}
+            style={{ flex: 1, fontSize: 13 }}
           />
           <If when={!!navQuery()}>
-            <IconButton
-              size="sm"
-              onPress={() => setNavQuery("")}
-              accessibilityLabel={t("nav.clearSearch")}
-            >
-              <Icon icon={X} {...iconButtonGlyph({ size: "sm" })} />
-            </IconButton>
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                onPress={() => setNavQuery("")}
+                accessibilityLabel={t("nav.clearSearch")}
+              >
+                <Icon icon={X} {...buttonGlyph("ghost", { size: "sm" })} />
+              </InputGroupButton>
+            </InputGroupAddon>
           </If>
-        </View>
+        </InputGroup>
       </View>
       <Scroll style={{ flex: 1 }} contentStyle={{ paddingHorizontal: 6, paddingBottom: 6 }}>
         <If when={botRows().pinned.length > 0}>

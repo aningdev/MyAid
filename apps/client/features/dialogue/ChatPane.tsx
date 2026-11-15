@@ -912,7 +912,7 @@ export function ChatPane(props: {
       onFileDrop={(event) => void drop(event.uris, event.mimeTypes)}
     >
       <ChatHeader
-        title={() => `${botName()} · ${title()}`}
+        title={title}
         subtitle={subtitle}
         fullPath={fullSubtitle}
         modelLabel={() => model().label}
