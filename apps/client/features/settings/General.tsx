@@ -1,8 +1,7 @@
 /**
- * Settings › General: the interface language and the scheme. Both apply at
- * once (`lib/appearance`, `lib/i18n`) and are saved with the other client
- * preferences. The colors come from the shadcn-nsh theme the app installed,
- * so there is no accent colour to choose.
+ * Settings › General: the interface language, the scheme and the colour. Each
+ * applies at once (`lib/appearance`, `lib/i18n`, `lib/themes`) and is saved
+ * with the other client preferences.
  */
 import { Scroll, Text, View } from "nsh";
 
@@ -10,6 +9,10 @@ import { OptionSegmented } from "../../components/app";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { APPEARANCE_SCHEMES, applyScheme, appearanceScheme } from "../../lib/appearance";
 import { LANGUAGES, languagePref, setLanguagePref, t } from "../../lib/i18n";
+import { THEMES, applyTheme, themePref } from "../../lib/themes";
+
+/** The segment that stands for the build-time theme: a `Segmented` takes a string, and `null` is no id. */
+const BUILD_TIME = "build-time";
 
 export function GeneralSection() {
   return (
@@ -63,6 +66,27 @@ export function GeneralSection() {
             }
             fill
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.general.theme")}</CardTitle>
+        </CardHeader>
+        <CardContent style={{ gap: 8 }}>
+          <OptionSegmented
+            testID="settings-theme"
+            options={THEMES.map((theme) => ({
+              value: theme.id ?? BUILD_TIME,
+              label: t(theme.label),
+            }))}
+            value={themePref() ?? BUILD_TIME}
+            onValueChange={(value) => applyTheme(value === BUILD_TIME ? null : value)}
+            fill
+          />
+          <Text class="text-faint" style={{ fontSize: 12, lineHeight: 18 }}>
+            {t("settings.general.themeNote")}
+          </Text>
         </CardContent>
       </Card>
     </Scroll>

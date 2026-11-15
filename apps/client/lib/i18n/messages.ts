@@ -154,8 +154,8 @@ export const messages = {
   // --- Settings › General ---------------------------------------------------
   "settings.general.title": { zh: "通用", en: "General" },
   "settings.general.note": {
-    zh: "语言与外观保存在本机偏好里，重启后保留。",
-    en: "Language and appearance are client preferences; they survive a restart.",
+    zh: "语言、外观与颜色保存在本机偏好里，重启后保留。",
+    en: "Language, appearance and colour are client preferences; they survive a restart.",
   },
   "settings.general.language": { zh: "语言", en: "Language" },
   "settings.general.languageNote": {
@@ -163,6 +163,13 @@ export const messages = {
     en: "Switching the interface language applies at once; following the system uses the system language.",
   },
   "settings.general.appearance": { zh: "外观", en: "Appearance" },
+  "settings.general.theme": { zh: "颜色", en: "Colour" },
+  "settings.general.themeNote": {
+    zh: "切换后整个界面立即改用这一套颜色；外观（浅色 / 深色）对两者都生效。",
+    en: "Switching recolours the whole app at once; the appearance above applies to either.",
+  },
+  "settings.general.themeNeutral": { zh: "中性", en: "Neutral" },
+  "settings.general.themeCitrus": { zh: "柑橘", en: "Citrus" },
   "language.followSystem": { zh: "跟随系统", en: "Follow system" },
   "language.zh": { zh: "简体中文", en: "简体中文" },
   "language.en": { zh: "English", en: "English" },

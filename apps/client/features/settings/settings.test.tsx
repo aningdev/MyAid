@@ -5,6 +5,7 @@
  */
 import { expect, test } from "nsh/test";
 
+import { emptyShellPrefs, serializeShellPrefs } from "../../components/shell/prefs";
 import { t } from "../../lib/i18n";
 import { open } from "../../test/open";
 import { SUPPORTED_DSH, UNSUPPORTED_DSH } from "../../test/settings-fixtures";
@@ -145,6 +146,50 @@ test("the language is saved and the scheme applies and persists", async () => {
   await again.press("id:settings-nav-general");
   await again.waitFor("id:settings-general");
   expect(again.spanStyle(`text:${t("settings.general.note")}`).color).toBe(dark);
+});
+
+test("the colour switches the whole app at once, and a relaunch keeps it", async () => {
+  const app = await openSettings();
+  await app.press("id:settings-nav-general");
+  await app.waitFor("id:settings-general");
+  const neutral = app.spanStyle(`text:${t("settings.general.note")}`).color;
+
+  await app.press(`text:${t("settings.general.themeCitrus")}`);
+  await app.waitUntil(() =>
+    (app.storage()["myaid.prefs.shell"] ?? "").includes('"theme": "default"'),
+  );
+  // The palette followed the pick: the page's ink is the citrus theme's now.
+  const citrus = app.spanStyle(`text:${t("settings.general.note")}`).color;
+  expect(citrus).not.toBe(neutral);
+
+  // Relaunch on the preferences it wrote: the citrus palette is back.
+  const again = await open("./settings-harness.tsx", { ...desktop, storage: app.storage() });
+  await again.press(`label:${t("host.settings")}`);
+  await again.press("id:settings-nav-general");
+  await again.waitFor("id:settings-general");
+  expect(again.spanStyle(`text:${t("settings.general.note")}`).color).toBe(citrus);
+});
+
+test("a stored colour this build does not carry is the build-time theme", async () => {
+  const fresh = await openSettings();
+  await fresh.press("id:settings-nav-general");
+  await fresh.waitFor("id:settings-general");
+  const builtIn = fresh.spanStyle(`text:${t("settings.general.note")}`).color;
+
+  const stored = {
+    ...emptyShellPrefs(),
+    appearance: { scheme: "system" as const, language: "system" as const, theme: "shadcn" },
+  };
+  const app = await open("./settings-harness.tsx", {
+    ...desktop,
+    storage: { "myaid.prefs.shell": serializeShellPrefs(stored) },
+  });
+  await app.press(`label:${t("host.settings")}`);
+  await app.press("id:settings-nav-general");
+  await app.waitFor("id:settings-general");
+  // The build-time palette, and the file reads as no choice at all.
+  expect(app.spanStyle(`text:${t("settings.general.note")}`).color).toBe(builtIn);
+  await app.waitUntil(() => (app.storage()["myaid.prefs.shell"] ?? "").includes('"theme": null'));
 });
 
 test("About shows the versions and copies diagnostics without secrets", async () => {

@@ -4,7 +4,8 @@ import { dirname } from "path";
 /**
  * The shell's client preferences: the Navigator's width and open state, the
  * pinned Bots, the Workbench's Panes (layout, the Bot each shows, the one
- * with the focus), and the General page's appearance and language. Kept under
+ * with the focus), and the General page's appearance, language and colour.
+ * Kept under
  * the data root (`~/.myaid/prefs`) on the desktop and in the app's storage on
  * the web, so a launch opens where the person left it. A Bot that is gone
  * leaves its Pane empty.
@@ -13,7 +14,8 @@ import { dirname } from "path";
  * kept, a Dialogue or Session pin becomes the Pane of the Bot it belonged to,
  * and the session pins themselves are dropped (a Session is a segment now).
  * `appearance` joined the same version as an optional section, so a file
- * written before it reads as the defaults.
+ * written before it reads as the defaults; `theme` joined the section the same
+ * way, `null` being the theme the app was built with.
  */
 import { platform, signal } from "nsh";
 import { Storage } from "nsh";
@@ -27,6 +29,7 @@ import {
 } from "../../lib/appearance";
 import { prefsPath, usesTestStorage } from "../../lib/data-root";
 import { LANGUAGES, languagePref, setLanguagePref, type LanguagePref } from "../../lib/i18n";
+import { THEMES, applyTheme, themePref, type ThemeId } from "../../lib/themes";
 import type { DockAreaLayout, DockNode } from "../ui/dock-area";
 import {
   NAV_DEFAULT_WIDTH,
@@ -52,10 +55,12 @@ export type ShellPrefs = {
   };
   /** Pinned Bot ids, in the person's order. */
   pins: string[];
-  /** The General page's appearance and language, never dsh's settings. */
+  /** The General page's appearance, language and colour, never dsh's settings. */
   appearance: {
     scheme: AppearanceScheme;
     language: LanguagePref;
+    /** The theme in use: an `AppTheme`'s id, `null` for the app's build-time one. */
+    theme: ThemeId;
   };
   workbench: {
     layout: DockAreaLayout;
@@ -74,7 +79,7 @@ export function emptyShellPrefs(): ShellPrefs {
     version: SHELL_PREFS_VERSION,
     nav: { width: NAV_DEFAULT_WIDTH, open: true },
     pins: [],
-    appearance: { scheme: "system", language: "system" },
+    appearance: { scheme: "system", language: "system", theme: null },
     workbench: {
       layout: emptyLayout("panel-1"),
       contents: { "panel-1": null },
@@ -92,7 +97,7 @@ export function collectShellPrefs(): ShellPrefs {
       open: navOpen(),
     },
     pins: [...pins()],
-    appearance: { scheme: appearanceScheme(), language: languagePref() },
+    appearance: { scheme: appearanceScheme(), language: languagePref(), theme: themePref() },
     workbench: {
       layout: dockLayout(),
       contents: Object.fromEntries(
@@ -116,6 +121,7 @@ export function applyShellPrefs(prefs: ShellPrefs, registry: BotRegistry): void 
   setNavOpen(prefs.nav.open);
   applyScheme(prefs.appearance.scheme);
   setLanguagePref(prefs.appearance.language);
+  applyTheme(prefs.appearance.theme);
   const known = new Set(registry.bots.map((bot) => bot.id));
   setPins(prefs.pins.filter((id) => known.has(id)));
   const restored = restoreWorkbenchSnapshot(prefs.workbench, (botId) =>
@@ -350,7 +356,9 @@ function parsePins(value: unknown): string[] {
  * existed, or a value this build does not offer, keeps the default rather
  * than putting the palette in a state no control can leave. A file written
  * when the client still had an accent colour keeps loading: the field is
- * ignored.
+ * ignored. The colour is the id of a theme this build carries; anything else
+ * (an id from a build with other themes, or no id at all) is the build-time
+ * theme.
  */
 function parseAppearance(value: unknown): ShellPrefs["appearance"] {
   const record = isRecord(value) ? value : {};
@@ -360,7 +368,11 @@ function parseAppearance(value: unknown): ShellPrefs["appearance"] {
   const language = LANGUAGES.some((entry) => entry.id === record.language)
     ? (record.language as LanguagePref)
     : "system";
-  return { scheme, language };
+  const theme =
+    typeof record.theme === "string" && THEMES.some((entry) => entry.id === record.theme)
+      ? record.theme
+      : null;
+  return { scheme, language, theme };
 }
 
 /**

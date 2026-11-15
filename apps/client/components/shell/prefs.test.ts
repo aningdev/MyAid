@@ -152,13 +152,13 @@ test("an invalid layout degrades to one empty panel", () => {
   expect(prefs.workbench.contents[ids[0]!]).toBe(null);
 });
 
-test("the appearance and language round-trip, and an older file reads the defaults", () => {
+test("the appearance, language and colour round-trip, and an older file reads the defaults", () => {
   const prefs: ShellPrefs = {
     ...emptyShellPrefs(),
-    appearance: { scheme: "dark", language: "en" },
+    appearance: { scheme: "dark", language: "en", theme: "default" },
   };
   const parsed = parseShellPrefs(serializeShellPrefs(prefs));
-  expect(parsed.appearance).toEqual({ scheme: "dark", language: "en" });
+  expect(parsed.appearance).toEqual({ scheme: "dark", language: "en", theme: "default" });
 
   // A file written when the client still had an accent colour loads, and the field is ignored.
   const accented = parseShellPrefs(
@@ -174,7 +174,7 @@ test("the appearance and language round-trip, and an older file reads the defaul
       },
     }),
   );
-  expect(accented.appearance).toEqual({ scheme: "dark", language: "en" });
+  expect(accented.appearance).toEqual({ scheme: "dark", language: "en", theme: null });
 
   const before = parseShellPrefs(
     JSON.stringify({
@@ -188,7 +188,7 @@ test("the appearance and language round-trip, and an older file reads the defaul
       },
     }),
   );
-  expect(before.appearance).toEqual({ scheme: "system", language: "system" });
+  expect(before.appearance).toEqual({ scheme: "system", language: "system", theme: null });
 
   const invalid = parseShellPrefs(
     JSON.stringify({
@@ -203,5 +203,21 @@ test("the appearance and language round-trip, and an older file reads the defaul
       },
     }),
   );
-  expect(invalid.appearance).toEqual({ scheme: "system", language: "system" });
+  expect(invalid.appearance).toEqual({ scheme: "system", language: "system", theme: null });
+
+  // A colour this build does not carry (a theme from another one) is the build-time theme.
+  const unknown = parseShellPrefs(
+    JSON.stringify({
+      version: 2,
+      appearance: { scheme: "dark", language: "en", theme: "shadcn" },
+      nav: { width: 232, open: true },
+      pins: [],
+      workbench: {
+        layout: { center: { type: "tabs", panels: ["p1"], activeIndex: 0 } },
+        contents: { p1: null },
+        activePanelId: "p1",
+      },
+    }),
+  );
+  expect(unknown.appearance).toEqual({ scheme: "dark", language: "en", theme: null });
 });
