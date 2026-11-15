@@ -35,15 +35,15 @@ export function SlotPlaceholder() {
         </If>
       }
     >
-      <View class="flex-1 items-center justify-center gap-2 p-6">
-        <Icon icon={TriangleAlert} size={24} tint={token("destructive")} />
-        <Text class="text-sm font-medium" style={{ color: token("foreground") }}>
-          {t("empty.registryTitle")}
-        </Text>
-        <Text class="text-xs" style={{ color: token("muted-foreground"), textAlign: "center" }}>
-          {loadError()}
-        </Text>
-      </View>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Icon icon={TriangleAlert} size={EMPTY_ICON} tint={token("destructive")} />
+          </EmptyMedia>
+          <EmptyTitle>{t("empty.registryTitle")}</EmptyTitle>
+          <EmptyDescription>{loadError()}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </If>
   );
 }
