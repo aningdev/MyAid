@@ -6,6 +6,7 @@
 import { File, type IconNode, RotateCw, Sparkles, TriangleAlert, X } from "lucide";
 import { Image, type JSX, Text, View, token } from "nsh";
 
+import { Alert, AlertDescription, ALERT_ICON } from "../../../components/ui/alert";
 import { Button } from "../../../components/ui/button";
 import { Pressable } from "../../../components/ui/pressable";
 import { Separator } from "../../../components/ui/separator";
@@ -16,27 +17,6 @@ import { alpha, finish, mono, radius, toneColor, toneTint, type Tone } from "../
 import { BotMark } from "../../bots/BotMark";
 import type { BotIdentity } from "../../bots/identity";
 import type { FileRef } from "./scripts";
-
-/** A ring that spins natively (the built-in `spin` keyframes). */
-export function Spinner(props: { size?: number; tint?: string }) {
-  const size = props.size ?? 14;
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: 2,
-        borderColor: token("border"),
-        borderTopColor: props.tint ?? token("brand"),
-        animationName: "spin",
-        animationDuration: 800,
-        animationTimingFunction: "linear",
-        animationIterationCount: "infinite",
-      }}
-    />
-  );
-}
 
 /** The streaming caret: an inline block that pulses natively. */
 export function Caret() {
@@ -267,28 +247,23 @@ export function Photo(props: {
 /** The reply's error: what went wrong and a Retry button. */
 export function ErrorRow(props: { message: string; onRetry: () => void }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        padding: 10,
-        borderRadius: radius.inset,
-        borderCurve: "continuous",
-        backgroundColor: toneTint("danger"),
-        borderWidth: 1,
-        borderColor: alpha(token("destructive"), 0.32),
-      }}
-    >
-      <Icon icon={TriangleAlert} size={16} tint={token("destructive")} />
-      <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: token("foreground") }}>
-        {props.message}
-      </Text>
-      <Button onPress={props.onRetry} accessibilityLabel={t("chat.retry")}>
-        <Icon icon={RotateCw} size={13} tint={token("primary-foreground")} />
-        {t("common.retry")}
-      </Button>
-    </View>
+    <Alert variant="destructive">
+      <Icon icon={TriangleAlert} size={ALERT_ICON} tint={token("destructive")} />
+      <AlertDescription>
+        <Text style={{ fontSize: 13, lineHeight: 18, color: token("foreground") }}>
+          {props.message}
+        </Text>
+        <Button
+          size="sm"
+          variant="ghost"
+          onPress={props.onRetry}
+          accessibilityLabel={t("chat.retry")}
+        >
+          <Icon icon={RotateCw} size={13} tint={token("destructive")} />
+          {t("common.retry")}
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 
