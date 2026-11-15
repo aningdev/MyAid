@@ -28,8 +28,6 @@ export const messages = {
   "common.copy": { zh: "复制", en: "Copy" },
   "common.copied": { zh: "已复制", en: "Copied" },
   "common.selected": { zh: "已选", en: "Selected" },
-  "common.enabled": { zh: "已启用", en: "Enabled" },
-  "common.disabled": { zh: "已停用", en: "Disabled" },
   "common.on": { zh: "开", en: "On" },
   "common.off": { zh: "关", en: "Off" },
   "common.default": { zh: "默认", en: "Default" },
