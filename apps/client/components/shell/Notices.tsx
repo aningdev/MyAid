@@ -14,6 +14,7 @@ import {
 } from "../../features/bots/state";
 import { workspaceError } from "../../features/workspace/state";
 import { t } from "../../lib/i18n";
+import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { retryHost } from "./host";
 
@@ -25,14 +26,12 @@ export function ShellNotices() {
         <If when={!!workspaceError()}>
           <Notice
             testID="workspace-stream-notice"
-            tone="warn"
             text={t("notices.workspace", { error: workspaceError() ?? "" })}
           />
         </If>
         <If when={!!migrationNotice()}>
           <Notice
             testID="migration-notice"
-            tone="warn"
             text={migrationNotice() ?? ""}
             action={legacyRegistry() ? t("notices.connectHost") : undefined}
             onAction={() => void retryHost()}
@@ -42,7 +41,7 @@ export function ShellNotices() {
         <If when={!!actionError()}>
           <Notice
             testID="action-error-notice"
-            tone="danger"
+            destructive
             text={actionError() ?? ""}
             onDismiss={clearActionError}
           />
@@ -52,41 +51,35 @@ export function ShellNotices() {
   );
 }
 
+/** A notice and the refusals it offers: the sentence first, the buttons under it. */
 function Notice(props: {
   testID: string;
-  tone: "warn" | "danger";
   text: string;
+  /** A failure, rather than something to reconnect or migrate. */
+  destructive?: boolean;
   action?: string;
   onAction?: () => void;
   onDismiss?: () => void;
 }) {
   return (
-    <View
-      testID={props.testID}
-      style={{
-        gap: 6,
-        padding: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: props.tone === "danger" ? token("destructive") : token("line"),
-        backgroundColor: token("inset"),
-      }}
-    >
-      <Text style={{ fontSize: 11, lineHeight: 16, color: token("muted-foreground") }}>
-        {props.text}
-      </Text>
-      <View style={{ flexDirection: "row", gap: 6 }}>
-        <If when={!!props.action}>
-          <Button size="sm" onPress={() => props.onAction?.()}>
-            {props.action ?? ""}
-          </Button>
-        </If>
-        <If when={!!props.onDismiss}>
-          <Button size="sm" variant="ghost" onPress={() => props.onDismiss?.()}>
-            {t("common.cancel")}
-          </Button>
-        </If>
-      </View>
-    </View>
+    <Alert testID={props.testID} variant={props.destructive ? "destructive" : "default"}>
+      <AlertDescription>
+        <Text style={{ fontSize: 11, lineHeight: 16, color: token("muted-foreground") }}>
+          {props.text}
+        </Text>
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          <If when={!!props.action}>
+            <Button size="sm" onPress={() => props.onAction?.()}>
+              {props.action ?? ""}
+            </Button>
+          </If>
+          <If when={!!props.onDismiss}>
+            <Button size="sm" variant="ghost" onPress={() => props.onDismiss?.()}>
+              {t("common.cancel")}
+            </Button>
+          </If>
+        </View>
+      </AlertDescription>
+    </Alert>
   );
 }
