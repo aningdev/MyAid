@@ -7,9 +7,9 @@ import { Plus, Search, X } from "lucide";
  * (or brings it to the front), a secondary click offers its verbs, and a drag
  * to the right drops it into the Workbench as a new Pane.
  */
-import { platform, Scroll, Text, token, View, type InputRef } from "nsh";
+import { effect, platform, Scroll, Text, token, View, type InputRef } from "nsh";
 
-import { GroupInput, Shortcut } from "../../components/app";
+import { Shortcut } from "../../components/app";
 import { BotMark } from "../../features/bots/BotMark";
 import { unarchiveBot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
@@ -18,7 +18,13 @@ import { t, tCount } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { hovered, radius } from "../../lib/theme";
 import { buttonGlyph } from "../ui/button";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText } from "../ui/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+} from "../ui/input-group";
 import { Pressable } from "../ui/pressable";
 import { Separator } from "../ui/separator";
 import { TooltipContent } from "../ui/tooltip";
@@ -34,11 +40,13 @@ export function Navigator() {
   let search: InputRef | undefined;
 
   // ⌘F / View › Search Navigator: the field takes the keyboard, and the
-  // Navigator opens if it was folded away.
-  if (navSearchFocusRequest() > 0) {
-    takeNavSearchFocus();
+  // Navigator opens if it was folded away. The request is taken once the field
+  // is made (an effect runs after the tree is), and only the one it was for.
+  effect(() => {
+    if (navSearchFocusRequest() === 0) return;
+    if (!takeNavSearchFocus()) return;
     search?.focus();
-  }
+  });
 
   const empty = () => {
     const list = botRows();
@@ -54,7 +62,7 @@ export function Navigator() {
               <Icon icon={Search} size={13} tint={token("muted-foreground")} />
             </InputGroupText>
           </InputGroupAddon>
-          <GroupInput
+          <InputGroupInput
             ref={(node) => (search = node ?? undefined)}
             testID="nav-search"
             accessibilityLabel={t("nav.searchLabel")}

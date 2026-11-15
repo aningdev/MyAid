@@ -143,6 +143,57 @@ test("archiving hides a Bot, and a search brings it back to unarchive", async ()
   expect(app.storage()[REGISTRY_STORAGE_KEY]).toContain('"archived": false');
 });
 
+test("the search, the Composer and the title's field take the keys from code", async () => {
+  const app = await start();
+  await app.waitFor("label:Ada");
+
+  // ⌘F asks the search field to take the keyboard; the keys then land in it,
+  // not in the window (the group's control is the one with the ref).
+  await app.keyboard.press("mod+f");
+  await app.keyboard.press("b");
+  await app.keyboard.press("o");
+  await app.waitUntil(() => app.value("id:nav-search") === "bo");
+  await app.clear("id:nav-search");
+  await app.waitFor("label:Ada");
+
+  // A focus request for the Session showing lands in its Composer (⌘L).
+  await app.press("label:Ada");
+  await app.waitFor("id:composer", { timeout: 30000 });
+  // The Pane's segment knows its Session once the Workspaces have arrived, and
+  // ⌘L asks for that Session's Composer.
+  await app.waitFor("id:session-workspace", { timeout: 30000 });
+  await app.keyboard.press("mod+l");
+  await app.keyboard.press("h");
+  await app.keyboard.press("i");
+  await app.waitUntil(() => app.value("id:composer") === "hi");
+
+  // A double press on the title turns it into the group's field, which has the
+  // keys from the press that made it.
+  const title = app.texts().find((text) => text.startsWith("Ada · "));
+  expect(title).toBeDefined();
+  await app.press(`id:chat >> text:${title}`);
+  await app.press(`id:chat >> text:${title}`);
+  await app.waitFor("id:session-title", { timeout: 10000 });
+  const before = app.value("id:session-title") ?? "";
+  await app.keyboard.press("x");
+  await app.waitUntil(() => {
+    const now = app.value("id:session-title") ?? "";
+    return now.length === before.length + 1 && now.includes("x");
+  });
+
+  // The directory beside it is the same group: a press edits it, and the field
+  // it makes has the keys.
+  await app.keyboard.press("Escape");
+  await app.press("id:session-workspace");
+  await app.waitFor("id:session-workspace-input", { timeout: 10000 });
+  const path = app.value("id:session-workspace-input") ?? "";
+  await app.keyboard.press("y");
+  await app.waitUntil(() => {
+    const now = app.value("id:session-workspace-input") ?? "";
+    return now.length === path.length + 1 && now.includes("y");
+  });
+}, 120000);
+
 test("a press opens the Bot's Pane, a second Bot a new one", async () => {
   const app = await start();
   await app.waitFor("label:Ada");
