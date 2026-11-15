@@ -1,6 +1,7 @@
 // A press's feedback, native: a control sinks while pressed and eases back, from its
 // `activeStyle`, so it never waits for JS.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
+import { press } from "./theme";
 import type { ViewStyle } from "nsh";
 import { reduceMotion } from "nsh";
 
@@ -18,15 +19,20 @@ export function pressTransition(also?: string): ViewStyle {
 }
 
 /**
- * A press that sinks a control to `scale` (default 97%; none with reduced
- * motion). Spread `activeStyle` into the control's `activeStyle` (after its
+ * A press that sinks a control to `scale` (default: the theme's `press.scale`,
+ * 97%; none with reduced motion). A theme that draws no press (`press.scale` of
+ * 1, as shadcn's flat surfaces do) sinks nothing, whichever scale a control
+ * asks for. Spread `activeStyle` into the control's `activeStyle` (after its
  * own pressed shade) and `transition` into its `style`
  * (`pressTransition(also)`).
  */
-export function pressSink(scale = 0.97, also?: string) {
+export function pressSink(scale?: number, also?: string) {
   return {
     get activeStyle(): ViewStyle {
-      return reduceMotion() ? {} : { transform: [{ scale }] };
+      if (reduceMotion()) return {};
+      const sink = press.scale;
+      if (sink >= 1) return {};
+      return { transform: [{ scale: scale ?? sink }] };
     },
     transition: pressTransition(also),
   };

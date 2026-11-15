@@ -4,6 +4,7 @@
  * it, and a failed command. Each is a refusal the person can act on, so each
  * carries its own retry or dismissal instead of a sentence in a Pane.
  */
+import { Info, TriangleAlert } from "lucide";
 import { Text, View, token } from "nsh";
 
 import {
@@ -14,7 +15,8 @@ import {
 } from "../../features/bots/state";
 import { workspaceError } from "../../features/workspace/state";
 import { t } from "../../lib/i18n";
-import { Alert, AlertDescription } from "../ui/alert";
+import { Icon } from "../../lib/icons";
+import { Alert, AlertDescription, ALERT_ICON } from "../ui/alert";
 import { Button } from "../ui/button";
 import { retryHost } from "./host";
 
@@ -51,7 +53,7 @@ export function ShellNotices() {
   );
 }
 
-/** A notice and the refusals it offers: the sentence first, the buttons under it. */
+/** A notice and the refusals it offers: the mark, the sentence, and the buttons under it. */
 function Notice(props: {
   testID: string;
   text: string;
@@ -61,8 +63,14 @@ function Notice(props: {
   onAction?: () => void;
   onDismiss?: () => void;
 }) {
+  const destructive = () => props.destructive === true;
   return (
-    <Alert testID={props.testID} variant={props.destructive ? "destructive" : "default"}>
+    <Alert testID={props.testID} variant={destructive() ? "destructive" : "default"}>
+      <Icon
+        icon={destructive() ? TriangleAlert : Info}
+        size={ALERT_ICON}
+        tint={destructive() ? token("destructive") : token("foreground")}
+      />
       <AlertDescription>
         <Text style={{ fontSize: 11, lineHeight: 16, color: token("muted-foreground") }}>
           {props.text}

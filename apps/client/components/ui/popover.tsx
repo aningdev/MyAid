@@ -179,13 +179,13 @@ export function PopoverContent(props: PopoverContentProps) {
     "offset",
     "margin",
   ]);
-  const placement = props.placement ?? "bottom";
+  const placement = () => props.placement ?? "bottom";
   return (
     <BasePopover
       {...rest}
       open={ctx.open()}
       trigger={(triggerAccessor?.() as JSX.Element) ?? <View />}
-      placement={placement}
+      placement={placement()}
       align={props.align}
       offset={props.offset}
       margin={props.margin}
@@ -195,7 +195,10 @@ export function PopoverContent(props: PopoverContentProps) {
       onCancel={ctx.onCancel}
     >
       {() => (
-        <PopIn side={placement} style={popoverLook({ compact: props.compact, width: props.width })}>
+        <PopIn
+          side={placement()}
+          style={popoverLook({ compact: props.compact, width: props.width })}
+        >
           {props.children}
         </PopIn>
       )}

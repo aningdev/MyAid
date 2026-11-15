@@ -1,6 +1,6 @@
 // A progress: the look (`progressLook` and its companions) and the `Progress` that wears it.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
-import { colors, finish, type Tone, toneColor } from "../../lib/theme";
+import { colors, fillStyle, finish, insetEdge, type Tone, toneColor } from "../../lib/theme";
 import type { AnimatedValue, ViewStyle } from "nsh";
 import { cleanup, createAnimatedValue, Easing, effect, reduceMotion, split } from "nsh";
 import { Progress as BaseProgress, type ProgressProps as BaseProgressProps } from "nsh/base";
@@ -32,18 +32,18 @@ export function progressRail(height = 6): ViewStyle {
     borderRadius: height / 2,
     overflow: "hidden",
     backgroundColor: colors.track,
-    boxShadow: `inset 0 0 0 1px ${finish.track.borderColor}, ${finish.track.boxShadow}`,
+    boxShadow: insetEdge(finish.track.borderColor, finish.track.boxShadow),
   };
 }
 
 /** A bar's fill, `height` points tall (default 6): the slider's citrus run
- * (`finish.fill`'s gradient), or a tone's color (`up` for done, `warn`,
- * `danger`; `accent` is the run). Neither has an edge, so a tone's bar and
+ * (`finish.fill`: one color, under its gradient where the theme gives one), or a tone's color
+ * (`up` for done, `warn`, `danger`; `accent` is the run). Neither has an edge, so a tone's bar and
  * the run read as one kind of bar. */
 export function progressFill(height = 6, tone?: Tone): ViewStyle {
   return tone && tone !== "accent"
     ? { height, borderRadius: height / 2, backgroundColor: toneColor(tone) }
-    : { height, borderRadius: height / 2, backgroundImage: finish.fill.backgroundImage };
+    : { height, borderRadius: height / 2, ...fillStyle() };
 }
 
 /** An indeterminate bar's sweep (`progressSweep()`), for `progressLook`'s `sweep`. */

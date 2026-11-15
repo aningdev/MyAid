@@ -8,6 +8,7 @@ const ignoreVendored = ["references/**", ".agents/skills"];
 // those files with the registry's: formatting them would make every one differ.
 const ignoreCopied = [
   "apps/client/components/ui/**",
+  "apps/client/themes/**",
   "apps/client/theme.json",
   "apps/client/lib/finishes.json",
   "apps/client/lib/theme.ts",

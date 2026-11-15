@@ -138,13 +138,13 @@ export function HoverCardContent(props: HoverCardContentProps) {
     "offset",
     "margin",
   ]);
-  const placement = props.placement ?? "bottom";
+  const placement = () => props.placement ?? "bottom";
   return (
     <BaseHoverCard
       {...rest}
       open={ctx.disabled() ? false : ctx.open()}
       trigger={(triggerAccessor?.() as JSX.Element) ?? <View />}
-      placement={placement}
+      placement={placement()}
       align={props.align}
       offset={props.offset}
       margin={props.margin}
@@ -156,7 +156,10 @@ export function HoverCardContent(props: HoverCardContentProps) {
       onClose={ctx.onClose}
     >
       {() => (
-        <PopIn side={placement} style={popoverLook({ compact: props.compact, width: props.width })}>
+        <PopIn
+          side={placement()}
+          style={popoverLook({ compact: props.compact, width: props.width })}
+        >
           {props.children}
         </PopIn>
       )}

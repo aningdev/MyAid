@@ -1,4 +1,7 @@
 {
+  "press": {
+    "scale": 1
+  },
   "dark": {
     "card": {
       "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)"
@@ -35,12 +38,11 @@
       "borderColor": "transparent"
     },
     "track": {
-      "boxShadow": "inset 0 0 0 1px transparent",
+      "boxShadow": "none",
       "borderColor": "oklch(1 0 0 / 0.1)"
     },
     "fill": {
       "backgroundColor": "oklch(0.922 0 0)",
-      "backgroundImage": "linear-gradient(180deg, oklch(0.922 0 0) 0%, oklch(0.922 0 0) 100%)",
       "boxShadow": "none",
       "borderColor": "transparent"
     },
@@ -123,12 +125,11 @@
       "borderColor": "transparent"
     },
     "track": {
-      "boxShadow": "inset 0 0 0 1px transparent",
+      "boxShadow": "none",
       "borderColor": "oklch(0.922 0 0)"
     },
     "fill": {
       "backgroundColor": "oklch(0.205 0 0)",
-      "backgroundImage": "linear-gradient(180deg, oklch(0.205 0 0) 0%, oklch(0.205 0 0) 100%)",
       "boxShadow": "none",
       "borderColor": "transparent"
     },

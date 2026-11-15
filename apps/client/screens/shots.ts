@@ -54,6 +54,9 @@ export const SHOTS_UI5A = `${SCRATCHPAD}/pi-shots-ui5a`;
 /** Batch 5b: the `Alert`, `Skeleton` and `Item` copies, and the group's fields with the keys. */
 export const SHOTS_UI5B = `${SCRATCHPAD}/pi-shots-ui5b`;
 
+/** Batch 6: the `Alert` back in the doc's shape, and Settings › General's Colour choice. */
+export const SHOTS_UI6 = `${SCRATCHPAD}/pi-shots-ui6`;
+
 export { graphical } from "../test/graphical";
 
 /**

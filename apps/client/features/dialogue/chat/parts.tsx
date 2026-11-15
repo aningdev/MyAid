@@ -244,26 +244,23 @@ export function Photo(props: {
   );
 }
 
-/** The reply's error: what went wrong and a Retry button. */
+/** The reply's error: what went wrong and a Retry button under it. */
 export function ErrorRow(props: { message: string; onRetry: () => void }) {
   return (
     <Alert variant="destructive">
+      <Icon icon={TriangleAlert} size={ALERT_ICON} tint={token("destructive")} />
       <AlertDescription>
-        {/* The note as the app lays it out: the mark, the word and Retry on one line. */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Icon icon={TriangleAlert} size={ALERT_ICON} tint={token("destructive")} />
-          <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: token("foreground") }}>
-            {props.message}
-          </Text>
-          <Button
-            size="sm"
-            variant="ghost"
-            onPress={props.onRetry}
-            accessibilityLabel={t("chat.retry")}
-          >
-            {t("common.retry")}
-          </Button>
-        </View>
+        <Text style={{ fontSize: 13, lineHeight: 18, color: token("foreground") }}>
+          {props.message}
+        </Text>
+        <Button
+          size="sm"
+          variant="ghost"
+          onPress={props.onRetry}
+          accessibilityLabel={t("chat.retry")}
+        >
+          {t("common.retry")}
+        </Button>
       </AlertDescription>
     </Alert>
   );
