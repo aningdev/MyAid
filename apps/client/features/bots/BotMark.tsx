@@ -1,16 +1,21 @@
 /**
  * A Bot's identity mark: MyAid's own little character — a body in the Bot's
  * accent with two eyes cut out of it (see `avatar.ts`) — in the Navigator, the
- * Pane titles, the chat and the Bot's own screens. A Bot with a running turn
- * breathes a quiet halo around it (`animate-pulse`, still when reduced motion
- * is on); the character's own motion comes in the next batch.
+ * Pane titles, the chat and the Bot's own screens.
+ *
+ * It moves as a small creature does, and only as much as it means: at rest it
+ * blinks now and then and its gaze drifts a little; with a turn of its Bot
+ * running it breathes, looks about and blinks more often; a change of form in
+ * the picker morphs rather than cuts. Every mark in the app is served by one
+ * clock (`avatarClock.ts`), and reduced motion holds them all still.
  */
-import { Canvas, Text, View, token, type JSX } from "nsh";
+import { Canvas, effect, reduceMotion, Text, View, token, type JSX } from "nsh";
 
 import { Pressable } from "../../components/ui/pressable";
 import { t } from "../../lib/i18n";
-import { alpha } from "../../lib/theme";
-import { drawAvatarFrame } from "./avatar";
+import { avatarMotion, drawAvatarFrame, markSeed, type AvatarFormChange } from "./avatar";
+import { avatarTime, watchAvatar } from "./avatarClock";
+import { formBook } from "./avatarMorph";
 import {
   BOT_COLOR_HEX,
   BOT_COLOR_LABELS,
@@ -29,64 +34,97 @@ type Live<T> = T | (() => T);
 export function BotMark(props: {
   identity: BotIdentity;
   size?: number;
-  /** A running turn under this Bot: the halo breathes. */
+  /** A turn of this Bot's is running: the character works, and says so. */
   working?: boolean;
   /** What screen readers say (default: the mark is decorative). */
   accessibilityLabel?: string;
   testID?: string;
 }) {
   const size = props.size ?? 22;
-  const color = botColor(props.identity);
-  const halo = size + 6;
+  const working = () => props.working === true;
   return (
     <View
       testID={props.testID}
       accessibilityLabel={props.accessibilityLabel}
       style={{ width: size, height: size, flexShrink: 0 }}
     >
-      <If when={!!props.working}>
-        {/* A slow arc around the character: motion without a second badge. */}
+      <If when={working()}>
+        {/*
+         * The working mark's state layer: it exists only while a turn runs.
+         * The character's own motion says what is happening — no second badge
+         * around it — and this carries the state to the screens' tests and to
+         * anything that looks for the mark at work.
+         */}
         <View
           testID="bot-mark-working"
-          class="animate-spin motion-reduce:animate-none"
           style={{
             position: "absolute",
-            left: -3,
-            top: -3,
-            width: halo,
-            height: halo,
-            borderRadius: halo / 2,
-            borderWidth: 1.5,
-            borderColor: alpha(color, 0.18),
-            borderTopColor: alpha(color, 0.9),
-            borderRightColor: alpha(color, 0.5),
+            left: 0,
+            top: 0,
+            width: size,
+            height: size,
+            pointerEvents: "none",
           }}
         />
       </If>
-      <BotAvatar identity={props.identity} size={size} />
+      <BotAvatar identity={props.identity} size={size} working={working()} />
     </View>
   );
 }
 
 /**
- * The character itself: the body in its accent, the eyes cut out of it. It
- * redraws when the identity it reads changes, so a picker's preview follows
- * every press.
+ * The character itself: the body in its accent, the eyes cut out of it, moving
+ * on the app's one clock. It redraws when the identity it reads changes, so a
+ * picker's preview follows every press — and morphs into the new form rather
+ * than cutting to it.
  */
-export function BotAvatar(props: { identity: Live<BotIdentity>; size?: number }) {
+export function BotAvatar(props: {
+  identity: Live<BotIdentity>;
+  size?: number;
+  /** A turn of this Bot's is running: the character works. */
+  working?: boolean;
+  /**
+   * A moment to draw instead of the clock's, in milliseconds. A still picture
+   * (a contact sheet, a test's frame) sets it; it asks the clock for nothing,
+   * so a sheet of them is as still as it looks.
+   */
+  time?: number;
+  /**
+   * A step of a change of form to draw instead of one the mark remembers, from
+   * 0 (its old form) to 1 (the identity's own). A still picture of a morph sets
+   * it; the mark's own changes come from what it was drawn as before.
+   */
+  from?: AvatarFormChange;
+}) {
   const size = props.size ?? 22;
   const read = (): BotIdentity =>
     typeof props.identity === "function" ? props.identity() : props.identity;
+  // One mark, one wish for frames: the clock answers them all with one loop,
+  // and sleeps between the moments this one actually moves.
+  if (props.time === undefined)
+    effect(() =>
+      watchAvatar({
+        working: () => props.working === true,
+        motion: (time) =>
+          avatarMotion({ time, working: props.working === true, seed: markSeed(read()) }),
+      }),
+    );
+  const book = formBook();
   return (
     <Canvas
       style={{ pointerEvents: "none", width: size, height: size }}
       draw={(cx, { width }) => {
         const identity = read();
+        const time = props.time ?? avatarTime();
         drawAvatarFrame(cx, {
           shape: identity.shape,
           face: identity.face,
           color: botColor(identity),
           size: width,
+          time,
+          working: props.working === true,
+          seed: markSeed(identity),
+          from: props.from ?? book.at(identity, time, reduceMotion()),
         });
       }}
     />
