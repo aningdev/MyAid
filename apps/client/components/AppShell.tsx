@@ -6,11 +6,11 @@ import { effect, Text, View, token } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
 import { BotDetails } from "../features/bots/BotDetails";
-import { NewBotSheet } from "../features/bots/NewBotSheet";
+import { NewBotDialog } from "../features/bots/NewBotDialog";
 import { t } from "../lib/i18n";
 import { isDesktopLayout, Shell, TITLE_CHROME, titleTopInset } from "./shell";
 import { CommandPalette } from "./shell/CommandPalette";
-import { NavigatorSheets } from "./shell/NavigatorSheets";
+import { NavigatorDialogs } from "./shell/NavigatorDialogs";
 
 export { isDesktopLayout } from "./shell";
 
@@ -31,10 +31,10 @@ function DesktopShell() {
       <Shell />
       {/* One modal for every Bot details entry point (a Pane's header, the list). */}
       <BotDetails />
-      {/* The one New Bot sheet, the palette, and the Navigator's forms. */}
-      <NewBotSheet />
+      {/* The one New Bot dialog, the palette, and the Navigator's forms. */}
+      <NewBotDialog />
       <CommandPalette />
-      <NavigatorSheets />
+      <NavigatorDialogs />
     </View>
   );
 }

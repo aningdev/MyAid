@@ -44,18 +44,17 @@ import {
   type Signal,
   token,
 } from "nsh";
-import { Dialog } from "nsh/base";
 
-import { Press } from "../../components/app";
+import { OptionSegmented, Press } from "../../components/app";
 import { Button } from "../../components/ui/button";
+import { Dialog, DialogContent } from "../../components/ui/dialog";
 import { Field, FieldLabel } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
 import { Meter } from "../../components/ui/meter";
-import { Segmented, SegmentedItem, SegmentedList } from "../../components/ui/segmented";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t, type MessageKey } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
-import { hovered, mono, radius } from "../../lib/theme";
+import { hovered, mono } from "../../lib/theme";
 import { catalogModelKey, modelCatalog, sessionList } from "../dialogue/session/runtime";
 import { workspacePath, workspaces } from "../workspace/state";
 import { BotIdentityPicker, BotMark } from "./BotMark";
@@ -116,16 +115,14 @@ export function BotDetails() {
   return (
     <Dialog
       open={botId() !== null}
-      animation="fade"
-      accessibilityLabel={t("bot.details")}
       onCancel={closeBotDetails}
       onOpenChange={({ open }) => {
         if (!open) closeBotDetails();
       }}
-      backdropStyle={{ backgroundColor: token("scrim") }}
-      style={{ margin: "auto", width: 660, maxWidth: "94%", maxHeight: "92%" }}
     >
-      <If when={botId()}>{(id) => <Body botId={id()} onClose={closeBotDetails} />}</If>
+      <DialogContent width={660} accessibilityLabel={t("bot.details")} style={{ maxHeight: "92%" }}>
+        <If when={botId()}>{(id) => <Body botId={id()} onClose={closeBotDetails} />}</If>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -380,21 +377,7 @@ function Body(props: { botId: string; onClose: () => void }) {
   };
 
   return (
-    <View
-      testID="bot-details"
-      class="overflow-hidden"
-      style={{
-        gap: 12,
-        padding: 16,
-        borderRadius: radius.card,
-        borderCurve: "continuous",
-        borderWidth: 1,
-        borderColor: token("border"),
-        backgroundColor: token("card"),
-        flexDirection: "column",
-        maxHeight: "100%",
-      }}
-    >
+    <View testID="bot-details" style={{ gap: 12, flexDirection: "column", maxHeight: "100%" }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <If when={bot()}>{(current) => <BotMark identity={current().identity} size={28} />}</If>
         <View style={{ flex: 1, gap: 1 }}>
@@ -414,13 +397,12 @@ function Body(props: { botId: string; onClose: () => void }) {
           <Icon icon={X} size={14} tint={token("muted-foreground")} />
         </Press>
       </View>
-      <Segmented value={tab()} onValueChange={(value) => tab.set(value as Tab)}>
-        <SegmentedList fill>
-          <Each of={TABS}>
-            {(entry) => <SegmentedItem value={entry().value}>{t(entry().label)}</SegmentedItem>}
-          </Each>
-        </SegmentedList>
-      </Segmented>
+      <OptionSegmented
+        options={TABS.map((entry) => ({ value: entry.value, label: t(entry.label) }))}
+        value={tab()}
+        onValueChange={(value) => tab.set(value as Tab)}
+        fill
+      />
       <Scroll
         testID="bot-details-scroll"
         style={{ flexShrink: 1, minHeight: 0 }}
@@ -889,14 +871,15 @@ function RunsTab(props: {
           {t("bot.thinking")}
         </Text>
         <If when={props.levels().length > 0} else={<Hint text={t("bot.thinkingNone")} />}>
-          <Segmented value={props.thinking()} onValueChange={(value) => props.thinking.set(value)}>
-            <SegmentedList fill>
-              <SegmentedItem value="">{t("common.default")}</SegmentedItem>
-              <Each of={props.levels()}>
-                {(item) => <SegmentedItem value={item().id}>{item().name}</SegmentedItem>}
-              </Each>
-            </SegmentedList>
-          </Segmented>
+          <OptionSegmented
+            options={[
+              { value: "", label: t("common.default") },
+              ...props.levels().map((item) => ({ value: item.id, label: item.name })),
+            ]}
+            value={props.thinking()}
+            onValueChange={(value) => props.thinking.set(value)}
+            fill
+          />
         </If>
       </View>
       <Field>
