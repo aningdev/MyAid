@@ -4,10 +4,10 @@
  * moves the focus — and no Pane has tabs.
  */
 import { signal, untracked } from "nsh";
-import type { DockAreaLayout } from "nsh/base";
 
 import { registry } from "../../features/bots/state";
 import { t } from "../../lib/i18n";
+import type { DockAreaLayout } from "../ui/dock-area";
 import {
   collectPanelIds,
   emptyLayout,

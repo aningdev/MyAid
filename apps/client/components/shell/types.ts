@@ -10,4 +10,4 @@ export type PanelContent = { botId: string } | null;
 /** Panel key → what it shows. */
 export type PanelContents = Record<string, PanelContent>;
 
-export type { DockAreaLayout } from "nsh/base";
+export type { DockAreaLayout } from "../ui/dock-area";

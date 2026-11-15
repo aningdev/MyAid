@@ -1,9 +1,10 @@
 import { effect, Image, signal, Text, View, token } from "nsh";
 import { createAnimatedValue } from "nsh";
 import { safeArea } from "nsh";
-import { Dialog, type TextViewImage } from "nsh/base";
+import { Dialog } from "nsh/base";
 
 import { Pressable } from "../../components/ui/pressable";
+import type { TextViewImage } from "../../components/ui/text-view";
 import { t } from "../../lib/i18n";
 import { motion } from "../../lib/theme";
 

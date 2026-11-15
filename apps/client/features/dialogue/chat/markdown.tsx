@@ -1,7 +1,6 @@
 import { type JSX, signal, token } from "nsh";
-import type { TextViewImage } from "nsh/base";
 
-import { TextView } from "../../../components/ui/text-view";
+import { TextView, type TextViewImage } from "../../../components/ui/text-view";
 import { t } from "../../../lib/i18n";
 import { ImageViewer } from "../ImageViewer";
 import { orderedListIndent } from "./markdownLists";

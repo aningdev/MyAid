@@ -22,9 +22,9 @@ import {
 } from "lucide";
 import type { IconNode } from "lucide";
 import { signal } from "nsh";
-import type { CommandItem } from "nsh/base";
 import type { MenuItem } from "nsh/desktop";
 
+import type { CommandItem } from "../../components/ui/command";
 import { openBotDetails } from "../../features/bots/details";
 import type { Bot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
