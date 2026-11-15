@@ -3,6 +3,6 @@
  * shadcn-nsh components and the theme's roles, never from colour literals.
  */
 export { Appear } from "./Appear";
-export { handleThumb } from "./chrome";
 export { IconTile } from "./IconTile";
+export { OptionSegmented, type SegmentedOption } from "./OptionSegmented";
 export { Press, type PressProps } from "./Press";

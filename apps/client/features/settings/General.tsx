@@ -6,8 +6,8 @@
  */
 import { Scroll, Text, View } from "nsh";
 
+import { OptionSegmented } from "../../components/app";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Segmented, SegmentedItem, SegmentedList } from "../../components/ui/segmented";
 import { APPEARANCE_SCHEMES, applyScheme, appearanceScheme } from "../../lib/appearance";
 import { LANGUAGES, languagePref, setLanguagePref, t } from "../../lib/i18n";
 
@@ -32,18 +32,15 @@ export function GeneralSection() {
           <CardTitle>{t("settings.general.language")}</CardTitle>
         </CardHeader>
         <CardContent style={{ gap: 8 }}>
-          <Segmented
+          <OptionSegmented
+            options={LANGUAGES.map((language) => ({
+              value: language.id,
+              label: t(language.label),
+            }))}
             value={languagePref()}
             onValueChange={(value) => setLanguagePref(value as (typeof LANGUAGES)[number]["id"])}
-          >
-            <SegmentedList fill>
-              <Each of={LANGUAGES}>
-                {(language) => (
-                  <SegmentedItem value={language().id}>{t(language().label)}</SegmentedItem>
-                )}
-              </Each>
-            </SegmentedList>
-          </Segmented>
+            fill
+          />
           <Text class="text-faint" style={{ fontSize: 12, lineHeight: 18 }}>
             {t("settings.general.languageNote")}
           </Text>
@@ -55,18 +52,17 @@ export function GeneralSection() {
           <CardTitle>{t("settings.general.appearance")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Segmented
+          <OptionSegmented
+            options={APPEARANCE_SCHEMES.map((scheme) => ({
+              value: scheme.id,
+              label: t(scheme.label),
+            }))}
             value={appearanceScheme()}
             onValueChange={(value) =>
               applyScheme(value as (typeof APPEARANCE_SCHEMES)[number]["id"])
             }
-          >
-            <SegmentedList fill>
-              <Each of={APPEARANCE_SCHEMES}>
-                {(scheme) => <SegmentedItem value={scheme().id}>{t(scheme().label)}</SegmentedItem>}
-              </Each>
-            </SegmentedList>
-          </Segmented>
+            fill
+          />
         </CardContent>
       </Card>
     </Scroll>

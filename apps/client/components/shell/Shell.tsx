@@ -4,13 +4,12 @@ import { PanelLeft } from "lucide";
  * Host's state, Settings) beside the Workbench (the Panes that show Bots).
  */
 import { effect, keymap, platform, token, View } from "nsh";
-import { ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { isAvailable as hasWindow, Menu, titleBar } from "nsh/desktop";
 
 import { t } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
-import { handleThumb } from "../app";
 import { IconButton, iconButtonGlyph } from "../ui/button";
+import { ResizablePanel, ResizablePanelGroup } from "../ui/resizable";
 import { startAttention } from "./attention";
 import { buildApplicationMenu, COMMANDS, runCommand } from "./commands";
 import { startShell } from "./host";
@@ -72,8 +71,6 @@ export function Shell() {
       </If>
       <ResizablePanelGroup
         axis="horizontal"
-        handleClass="bg-border"
-        handleThumbClass={handleThumb}
         handleAccessibilityLabel={t("shell.resizeNavigator")}
         style={{ flex: 1, minHeight: 0, minWidth: 0 }}
       >

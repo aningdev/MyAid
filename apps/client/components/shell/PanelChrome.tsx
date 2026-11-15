@@ -42,7 +42,7 @@ export function PanelChrome(props: { tab: DockTab; area: DockAreaRef | undefined
   return (
     <View
       testID={`tab-${tab.panel}`}
-      class="border-border h-9 flex-row items-center gap-1 border-b px-2"
+      class="h-9 flex-row items-center gap-1 px-2"
       style={{ backgroundColor: active() ? token("background") : token("inset") }}
     >
       <If when={bot()}>
