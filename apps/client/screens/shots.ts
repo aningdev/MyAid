@@ -48,6 +48,9 @@ export const SHOTS_UI2 = `${SCRATCHPAD}/pi-shots-ui2`;
 /** Batch 4: input groups, the title field, plugin switches and the image viewer. */
 export const SHOTS_UI4 = `${SCRATCHPAD}/pi-shots-ui4`;
 
+/** Batch 5a: the `Separator`, `Kbd` and `Empty` copies on the shell and the chat. */
+export const SHOTS_UI5A = `${SCRATCHPAD}/pi-shots-ui5a`;
+
 export { graphical } from "../test/graphical";
 
 /**
