@@ -5,7 +5,7 @@
  */
 
 import { t } from "../../lib/i18n";
-import { defaultIdentity, readIdentity } from "./identity";
+import { defaultIdentity, readIdentity, storedIdentity } from "./identity";
 import type { Bot, BotRegistry, BotTemplate, Segment } from "./model";
 import {
   blankToNull,
@@ -60,7 +60,13 @@ export type ParseResult =
   | { ok: false; message: string };
 
 export function serializeRegistry(registry: BotRegistry): string {
-  return `${JSON.stringify(registry, null, 2)}\n`;
+  // Each Bot's identity goes out with its v4 glyph beside the shape, so an
+  // older client still opens the file and finds the mark it drew.
+  const stored = {
+    ...registry,
+    bots: registry.bots.map((bot) => ({ ...bot, identity: storedIdentity(bot.identity) })),
+  };
+  return `${JSON.stringify(stored, null, 2)}\n`;
 }
 
 export function parseRegistry(text: string): ParseResult {

@@ -17,7 +17,7 @@ function bot(overrides: Partial<Bot> = {}): Bot {
     boundPresetId: "standard",
     derivedPresetId: null,
     archived: false,
-    identity: { color: "rose", glyph: "orbit" },
+    identity: { color: "rose", shape: "round", face: "calm" },
     segments: [],
     ...overrides,
   };

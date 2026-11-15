@@ -426,7 +426,11 @@ test("an old file is never written over by a commit; only a migration replaces i
 test("a Bot's identity round-trips; an unknown one falls back to the default", () => {
   let registry = createBot(
     createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-    { name: "Ada", templateId: "tmpl", identity: { color: "rose", glyph: "orbit" } },
+    {
+      name: "Ada",
+      templateId: "tmpl",
+      identity: { color: "rose", shape: "flower", face: "wink" },
+    },
     "bot",
   );
   const parsed = parseRegistry(serializeRegistry(registry));
@@ -434,19 +438,38 @@ test("a Bot's identity round-trips; an unknown one falls back to the default", (
     parsed.ok && parsed.state === "current" ? parsed.registry.bots[0]?.identity : null,
   ).toEqual({
     color: "rose",
-    glyph: "orbit",
+    shape: "flower",
+    face: "wink",
   });
 
-  const broken = JSON.parse(serializeRegistry(registry)) as {
-    bots: { identity: { color: string; glyph: string } }[];
+  // The file it wrote also carries the v4 glyph, so an older client reads it.
+  const file = JSON.parse(serializeRegistry(registry)) as {
+    bots: { identity: { color: string; shape: string; face: string; glyph?: string } }[];
   };
-  broken.bots[0]!.identity = { color: "burgundy", glyph: "hexagon" };
+  expect(file.bots[0]?.identity.glyph).toBe("petal");
+
+  const broken = JSON.parse(serializeRegistry(registry)) as {
+    bots: { identity: Record<string, string> }[];
+  };
+  broken.bots[0]!.identity = { color: "burgundy", shape: "hexagon", face: "smug" };
   const fallback = parseRegistry(JSON.stringify(broken));
   expect(
     fallback.ok && fallback.state === "current" ? fallback.registry.bots[0]?.identity : null,
   ).toEqual(defaultIdentity("bot"));
   registry = parsed.ok && parsed.state === "current" ? parsed.registry : registry;
   expect(registry.bots[0]?.identity.color).toBe("rose");
+
+  // A file with only a v4 glyph: the color stays, the shape comes from the glyph.
+  const old = JSON.parse(serializeRegistry(registry)) as {
+    bots: { identity: Record<string, string> }[];
+  };
+  old.bots[0]!.identity = { color: "teal", glyph: "bolt" };
+  const read = parseRegistry(JSON.stringify(old));
+  expect(read.ok && read.state === "current" ? read.registry.bots[0]?.identity : null).toEqual({
+    color: "teal",
+    shape: "drop",
+    face: defaultIdentity("bot").face,
+  });
 });
 
 test("a segment carries the person's own title and can leave the conversation", () => {

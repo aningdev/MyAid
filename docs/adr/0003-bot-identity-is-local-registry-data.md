@@ -8,7 +8,7 @@ status: superseded by 0005 for Dialogue name and archive
 
 ## 决定
 
-Bot 的 **identity**（accent 颜色 + 几何 glyph）、Dialogue 的 **name**、Dialogue 与 Session claim 的 **archived** 都写在客户端注册表（v4，`~/.myaid/registry/bots.json`），不写进 dsh Agent preset，也不写进 Session 事件日志。
+Bot 的 **identity**（accent 颜色 + 标记的形状与表情）、Dialogue 的 **name**、Dialogue 与 Session claim 的 **archived** 都写在客户端注册表（v4，`~/.myaid/registry/bots.json`），不写进 dsh Agent preset，也不写进 Session 事件日志。
 
 注册表 v3 文件在读取时迁移：Bot 按 id 派生稳定 identity，Dialogue 的 name 读作 `null`（回落工作区段名），claim 的 archived 读作 `false`。dsh 继续是 Session、事件日志与 preset 正文的真源。
 

@@ -74,8 +74,8 @@ _Avoid_：Tab、Window（易与 OS 窗混淆）、把 Pane 当成域对象
 **Workbench（工作台）** _[C]_：右侧可调宽栏内的 Pane 布局（`DockArea` center）；设置覆盖层盖住它，Pane 不因此改变。  
 _Avoid_：裸名 Workspace（易与 DSH Workspace 混淆）、固定宫格、本阶段多窗多台
 
-**Bot identity mark（Bot 标记）** _[C]_：Bot 的视觉身份——一个 accent 颜色加一个几何 glyph，出现在 Navigator、Pane 标题、对话与创建 / 详情流程。属于注册表数据，不是 dsh preset 正文。  
-_Avoid_：角色画 / 头像上传、把标记塞进 Agent preset、把颜色当能力
+**Bot identity mark（Bot 标记）** _[C]_：Bot 的视觉身份——一个 accent 颜色，加上 MyAid 自己的小角色（身体形状 + 表情），出现在 Navigator、Pane 标题、对话与创建 / 详情流程。属于注册表数据，不是 dsh preset 正文。  
+_Avoid_：头像上传 / 图片、仿他家吉祥物、把标记塞进 Agent preset、把颜色当能力
 
 **Bot details（Bot 详情）** _[C]_：Pane 顶部（与拆分 / 关闭控件并排）打开的**弹窗**：Profile / Runs with / Skills / Plugins、默认工作目录、删除 / 归档，以及当前段的工作目录、模型、用量 / 上下文与 Compact。改的是注册表偏好；能力仍是那个 **Agent Preset**。  
 _Avoid_：第二个 Bot 编辑器页、Pane 内的侧抽屉 Inspector、把 preset 正文写进注册表、把全局插件开关伪装成每 Bot 差异
