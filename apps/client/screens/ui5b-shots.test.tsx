@@ -86,7 +86,7 @@ const V4 = `${JSON.stringify({
       status: "ready",
       boundPresetId: "standard",
       derivedPresetId: null,
-      identity: { color: "rose", glyph: "orbit" },
+      identity: { color: "rose", shape: "round", face: "calm" },
     },
   ],
   dialogues: [
