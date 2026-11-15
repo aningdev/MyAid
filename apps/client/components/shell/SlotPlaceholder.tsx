@@ -4,8 +4,9 @@
  * `features/bots`; nothing here reads a domain.
  */
 import { PanelsTopLeft, TriangleAlert } from "lucide";
-import { keymap, Text, View, token } from "nsh";
+import { Text, View, token } from "nsh";
 
+import { Shortcut } from "../../components/app";
 import { BotMark } from "../../features/bots/BotMark";
 import { nextIdentity } from "../../features/bots/identity";
 import { openNewBot } from "../../features/bots/newBot";
@@ -13,6 +14,14 @@ import { legacyRegistry, loadError, ready, registry } from "../../features/bots/
 import { t } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { Button } from "../ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EMPTY_ICON,
+} from "../ui/empty";
 
 export function SlotPlaceholder() {
   const firstLaunch = () =>
@@ -41,15 +50,15 @@ export function SlotPlaceholder() {
 
 function EmptyPanel() {
   return (
-    <View class="flex-1 items-center justify-center gap-2 p-6">
-      <Icon icon={PanelsTopLeft} size={24} tint={token("faint")} />
-      <Text class="text-sm font-medium" style={{ color: token("muted-foreground") }}>
-        {t("empty.panelTitle")}
-      </Text>
-      <Text class="text-xs" style={{ color: token("faint"), textAlign: "center" }}>
-        {t("empty.panelNote")}
-      </Text>
-    </View>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Icon icon={PanelsTopLeft} size={EMPTY_ICON} tint={token("faint")} />
+        </EmptyMedia>
+        <EmptyTitle>{t("empty.panelTitle")}</EmptyTitle>
+        <EmptyDescription>{t("empty.panelNote")}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 
@@ -75,9 +84,18 @@ function Welcome() {
           </Text>
         </View>
         <Button onPress={openNewBot}>{t("welcome.create")}</Button>
-        <Text style={{ fontSize: 11, color: token("faint") }}>
-          {t("welcome.shortcut", { shortcut: keymap.label("mod+n") ?? "" })}
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            gap: 6,
+          }}
+        >
+          <Shortcut keystroke="mod+n" />
+          <Text style={{ fontSize: 11, color: token("faint") }}>{t("welcome.shortcut")}</Text>
+        </View>
       </View>
     </View>
   );

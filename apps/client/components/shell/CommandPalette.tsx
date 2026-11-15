@@ -8,6 +8,7 @@ import { effect, keymap, signal, Text, token, View } from "nsh";
 
 import { Command, CommandEmpty, CommandRow } from "../../components/ui/command";
 import { Dialog, DialogContent } from "../../components/ui/dialog";
+import { Kbd, KbdGroup } from "../../components/ui/kbd";
 import { t } from "../../lib/i18n";
 import {
   closeCommandPalette,
@@ -71,13 +72,15 @@ export function CommandPalette() {
             footer={
               <View
                 class="border-border flex-row items-center gap-4 border-t px-3"
-                style={{ height: 32 }}
+                style={{ height: 36 }}
               >
-                <Hint label={t("palette.hintMove")} />
-                <Hint label={t("palette.hintOpen")} />
-                <Hint label={t("palette.hintClose")} />
+                <Hint keys={["↑", "↓"]} label={t("palette.move")} />
+                <Hint keys={["↩"]} label={t("palette.open")} />
+                <Hint keys={["Esc"]} label={t("palette.close")} />
                 <Text style={{ flex: 1 }} />
-                <Hint label={highlighted() ? labelOf(highlighted()!) : ""} />
+                <Text style={{ fontSize: 11, color: token("faint") }}>
+                  {highlighted() ? labelOf(highlighted()!) : ""}
+                </Text>
               </View>
             }
           />
@@ -87,8 +90,18 @@ export function CommandPalette() {
   );
 }
 
-function Hint(props: { label: string }) {
-  return <Text style={{ fontSize: 11, color: token("faint") }}>{props.label}</Text>;
+/** A hint: the stroke's keys, then what they do. */
+function Hint(props: { keys: string[]; label: string }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+      <KbdGroup>
+        {props.keys.map((key) => (
+          <Kbd>{key}</Kbd>
+        ))}
+      </KbdGroup>
+      <Text style={{ fontSize: 11, color: token("faint") }}>{props.label}</Text>
+    </View>
+  );
 }
 
 function labelOf(id: string): string {

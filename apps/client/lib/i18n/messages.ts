@@ -89,7 +89,7 @@ export const messages = {
     en: "Bots are who you work with. Give one a name, a mark and a workspace; every conversation with it is one long conversation.",
   },
   "welcome.create": { zh: "创建第一个 Bot", en: "Create your first Bot" },
-  "welcome.shortcut": { zh: "{shortcut} 随时打开", en: "{shortcut} opens this any time" },
+  "welcome.shortcut": { zh: "随时打开", en: "opens this any time" },
 
   // --- command palette ------------------------------------------------------
   "palette.title": { zh: "命令面板", en: "Command palette" },
@@ -100,9 +100,9 @@ export const messages = {
   "palette.label": { zh: "命令与位置", en: "Commands and places" },
   "palette.searchLabel": { zh: "搜索命令与位置", en: "Search commands and places" },
   "palette.nothing": { zh: "没有匹配项。", en: "Nothing matches." },
-  "palette.hintMove": { zh: "↑↓ 移动", en: "↑↓ move" },
-  "palette.hintOpen": { zh: "↩ 打开", en: "↩ open" },
-  "palette.hintClose": { zh: "esc 关闭", en: "esc close" },
+  "palette.move": { zh: "移动", en: "move" },
+  "palette.open": { zh: "打开", en: "open" },
+  "palette.close": { zh: "关闭", en: "close" },
   "palette.group.commands": { zh: "命令", en: "Commands" },
   "palette.group.bots": { zh: "Bot", en: "Bots" },
   "palette.group.archived": { zh: "已归档", en: "Archived" },
