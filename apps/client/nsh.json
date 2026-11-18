@@ -13,6 +13,9 @@
     }
   },
   "capabilities": {
+    "application": true,
+    "homeDir": true,
+    "statusBar": true,
     "clipboard": true,
     "picker": true,
     "notifications": true,

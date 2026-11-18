@@ -656,6 +656,10 @@ export const messages = {
     zh: "{missing}：MyAid 只通过打开对话框读取本地文件。",
     en: "{missing}: MyAid reads local files through the open dialog.",
   },
+  "chat.attachTooLarge": {
+    zh: "{names}：超过单个文件的大小上限，没有附加。",
+    en: "{names}: past the size limit for one file, so not attached.",
+  },
   "chat.attachmentFallback": { zh: "附件", en: "Attachment" },
   "chat.attachmentOnly": { zh: "（附件）", en: "(attachment)" },
   "chat.jumpLatest": { zh: "跳到最新消息", en: "Jump to the latest message" },

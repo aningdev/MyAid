@@ -13,7 +13,7 @@
  * grant. Nothing lands silently, and a file too large for `readFile` comes
  * through the dialog too (its bytes never pass `fs`).
  */
-import { Picker } from "nsh";
+import { Picker, type PickedFile } from "nsh";
 
 import { t } from "../../../lib/i18n";
 import { filesFromUrls } from "./files";
@@ -28,18 +28,39 @@ export type AttachedFiles = {
   notice: string | null;
 };
 
+/**
+ * The bytes a pick brought, and the names it did not: the picker hands over
+ * `null` for a file past its size limit (`status` `"tooLarge"`), so the name
+ * still says what was left behind.
+ */
+export function readFiles(picked: readonly PickedFile[]): { files: File[]; tooLarge: string[] } {
+  const files: File[] = [];
+  const tooLarge: string[] = [];
+  for (const item of picked) {
+    if (item.file) files.push(item.file);
+    else tooLarge.push(item.name);
+  }
+  return { files, tooLarge };
+}
+
+/** The line a pick says about the files it could not read, or `null` when it read them all. */
+export function tooLargeNotice(names: readonly string[]): string | null {
+  if (names.length === 0) return null;
+  return t("chat.attachTooLarge", { names: names.join(", ") });
+}
+
 /** The files the open dialog returned, or nothing (the user closed it). */
-async function pickInstead(count: number): Promise<File[]> {
+async function pickInstead(count: number): Promise<{ files: File[]; tooLarge: string[] }> {
   try {
     const picked = await Picker.pickFiles({
       multiple: count > 1,
       limit: Math.min(count, PICK_LIMIT),
     });
-    return picked.map((item) => item.file);
+    return readFiles(picked);
   } catch {
     // No picker (a platform without one, the capability withheld): the
     // gesture is lost, and the notice says so.
-    return [];
+    return { files: [], tooLarge: [] };
   }
 }
 
@@ -55,12 +76,19 @@ export async function attachDropped(
   const { files, unread } = await filesFromUrls(uris, mediaTypes);
   if (unread.length === 0) return { files, notice: null };
   const picked = await pickInstead(unread.length);
-  if (picked.length > 0) return { files: [...files, ...picked], notice: null };
-  const missing =
+  if (picked.files.length > 0) {
+    return {
+      files: [...files, ...picked.files],
+      notice: tooLargeNotice(picked.tooLarge),
+    };
+  }
+  const missing = tooLargeNotice(picked.tooLarge);
+  if (missing != null) return { files, notice: missing };
+  const label =
     files.length === 0
       ? t("chat.attachNothing")
       : unread.length === 1
         ? t("chat.attachOtherOne")
         : t("chat.attachOtherMany");
-  return { files, notice: t("chat.attachDialog", { missing }) };
+  return { files, notice: t("chat.attachDialog", { missing: label }) };
 }
