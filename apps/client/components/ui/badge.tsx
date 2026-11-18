@@ -1,4 +1,5 @@
-// A small capsule label. From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
+// A small capsule label.
+// From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import {
   colors,
   radius,
@@ -10,21 +11,17 @@ import {
 } from "../../lib/theme";
 import { token, View, Text } from "nsh";
 
+import { type Live, read } from "../../lib/utils";
+
 /** A badge's variants: `default`, the tone's fill; `outline`, an edge in the tone's color. */
 export type BadgeVariant = "default" | "outline";
-
-/** A value, or a function reading it where the badge is drawn (a signal). */
-type Live<T> = T | (() => T);
-
-const read = <T,>(v: Live<T> | undefined): T | undefined =>
-  typeof v === "function" ? (v as () => T)() : v;
 
 /** The props of `Badge`. */
 export type BadgeProps = {
   /** The label: a word, a state, a count. */
   children: string;
   /** The tone of the word and its fill, `neutral` unless set; a function is read where the badge is drawn. */
-  tone?: Tone | (() => Tone);
+  tone?: Live<Tone>;
   /** `default`: the tone's fill; `outline`: an edge in the tone's color under the word. */
   variant?: BadgeVariant;
 };

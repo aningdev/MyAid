@@ -3,7 +3,7 @@
 import { alpha, colors, finish, terminal } from "../../lib/theme";
 import { ChevronLeft, ChevronRight } from "lucide";
 import type { JSX, StyleProp, TextStyle, ViewStyle } from "nsh";
-import { context, platform, split, Text, token, View } from "nsh";
+import { context, horizontalSizeClass, platform, split, Text, token, View } from "nsh";
 import {
   Menu as BaseMenu,
   MenuItem as BaseMenuItem,
@@ -18,12 +18,34 @@ import {
 
 import { Button, type ButtonVariant } from "./button";
 import { Icon } from "../../lib/icons";
-import { labelOf } from "../../lib/label";
 import { createOpenState, createSlot, type OpenState, type Slot } from "../../lib/open-state";
-import { backdrop } from "../../lib/overlay";
-import { MenuMark, menuIndicator, popInStyles, type PopupSide, popupSurface } from "../../lib/popup";
+import {
+  backdrop,
+  MenuMark,
+  menuIndicator,
+  popInStyles,
+  type PopupSide,
+  popupSurface,
+} from "../../lib/popup";
+import { labelOf } from "../../lib/utils";
 
 const pointer = platform.desktop;
+
+/**
+ * Whether a menu is a popup at its trigger, as `nsh/base` presents it: on
+ * the desktops, and on an iPad while its window is regular in width (UIKit's
+ * horizontal size class); a sheet elsewhere. Read it in a getter or a
+ * binding: an iPad's window can be resized across it.
+ */
+export function menuIsPopup(): boolean {
+  return (
+    pointer ||
+    (platform.os === "ios" &&
+      platform.idiom === "pad" &&
+      !platform.catalyst &&
+      horizontalSizeClass() === "regular")
+  );
+}
 
 /** A menu row's height, corners and type: compact with a pointer, a
  * finger's row on a touch screen. */
@@ -43,7 +65,7 @@ export const menuItemSize: MenuItemDimensions = pointer
   : { height: 46, radius: 10, font: 16, note: 14, icon: 18 };
 
 /** A row's inset from the popup's sides: in a terminal the popup's own padding is its Cell from the frame. */
-const inset = terminal ? 0 : 8;
+const rowInset = terminal ? 0 : 8;
 
 /** The room a checkable row's mark takes before its label: the mark and the row's gap. An `inset`
  * row starts its label that much further in, so it lines up with the checkable rows. */
@@ -54,14 +76,10 @@ const markRoom = menuItemSize.icon + 8;
 export const menuHighlight = (): ViewStyle => ({ backgroundColor: token("accent") });
 
 /** A row pressed (`activeStyle`): a shade deeper than the highlight. */
-export const menuPressed = (): ViewStyle => ({ backgroundColor: alpha(colors.text, 0.1) });
+const menuPressed = (): ViewStyle => ({ backgroundColor: alpha(colors.text, 0.1) });
 
 /** Options of `menuItemLook`. */
 export interface MenuItemLookOptions {
-  /** A row of two lines (a label and a note under it): as tall as they are,
-   * 6 points above and below with a pointer, 10 on a touch screen, its mark
-   * at the top. */
-  tall?: boolean;
   /** The label starts where a checkable row's does, past the mark's room, as shadcn's `inset`. */
   inset?: boolean;
   /** More style (a justification, a padding), over the look's. */
@@ -82,11 +100,11 @@ export function menuItemLook(o?: MenuItemLookOptions) {
     get style(): ViewStyle {
       return {
         flexDirection: "row",
-        alignItems: o?.tall ? "flex-start" : "center",
+        alignItems: "center",
         gap: 8,
-        ...(o?.tall ? { paddingVertical: pointer ? 6 : 10 } : { height: menuItemSize.height }),
-        paddingHorizontal: inset,
-        ...(o?.inset ? { paddingStart: inset + markRoom } : {}),
+        height: menuItemSize.height,
+        paddingHorizontal: rowInset,
+        ...(o?.inset ? { paddingStart: rowInset + markRoom } : {}),
         borderRadius: menuItemSize.radius,
         borderCurve: "continuous",
         ...o?.style,
@@ -101,7 +119,7 @@ export function menuItemLook(o?: MenuItemLookOptions) {
     get activeStyle(): ViewStyle {
       return menuPressed();
     },
-    disabledStyle: { opacity: 0.5 } as ViewStyle,
+    disabledStyle: { opacity: 0.5 },
   };
 }
 
@@ -153,20 +171,21 @@ export interface MenuPopupOptions {
 
 /**
  * What a menu takes besides its items (spread it on a `Menu` or a
- * `ContextMenu`; its submenus' popups take the same): with a pointer the
- * popup surface every menu shares (`popupSurface`), at least `minWidth`
- * across, coming in from the trigger's `side` (`popInStyles`: a fade, 96%
- * to full size, 4 points of slide, 150 ms); on a touch screen the sheet
- * that slides up, the card's surface with its top corners 20 points round
- * and 34 points under its rows for the home indicator; the scrim behind the
- * sheet. The surface is the popup's own box: `nsh/base` holds it to the
- * room on its side and scrolls the items inside it, so its edges and
- * shadow stay put. Its values are getters, so they follow the appearance.
+ * `ContextMenu`; its submenus' popups take the same): as a popup
+ * (`menuIsPopup`) the popup surface every menu shares (`popupSurface`), at
+ * least `minWidth` across, coming in from the trigger's `side`
+ * (`popInStyles`: a fade, 96% to full size, 4 points of slide, 150 ms); as
+ * a sheet the one that slides up, the card's surface with its top corners
+ * 20 points round and 34 points under its rows for the home indicator; the
+ * scrim behind the sheet. The surface is the popup's own box: `nsh/base`
+ * holds it to the room on its side and scrolls the items inside it, so its
+ * edges and shadow stay put. Its values are getters, so they follow the
+ * appearance.
  */
 export function menuPopup(o?: MenuPopupOptions) {
   return {
     get popupStyle(): ViewStyle {
-      return pointer
+      return menuIsPopup()
         ? { ...popupSurface(), minWidth: o?.minWidth ?? 200, ...popInStyles(o?.side).style }
         : {
             backgroundColor: colors.surface,
@@ -179,7 +198,7 @@ export function menuPopup(o?: MenuPopupOptions) {
           };
     },
     get popupStartingStyle(): ViewStyle | undefined {
-      return pointer ? popInStyles(o?.side).starting : undefined;
+      return menuIsPopup() ? popInStyles(o?.side).starting : undefined;
     },
     get backdropStyle(): ViewStyle {
       return backdrop();
@@ -187,21 +206,30 @@ export function menuPopup(o?: MenuPopupOptions) {
   };
 }
 
-/** A group's title in a menu: not an item, nothing to press; 11 points semibold with a pointer, 13 on a touch screen, faint. `inset` lines it up with checkable rows' labels. */
-export function MenuLabel(props: { text: string; inset?: boolean }) {
+/** The props of `MenuLabel`. */
+export type MenuLabelProps = {
+  /** The title itself. */
+  children?: string;
+  /** Lines it up with checkable rows' labels, past the mark they hold. */
+  inset?: boolean;
+};
+
+/** A group's title in a menu: not an item, nothing to press; 11 points semibold with a pointer, 13 on a touch screen, faint. */
+export function MenuLabel(props: MenuLabelProps) {
   return (
     <Text
       style={{
         fontSize: pointer ? 11 : 13,
         fontWeight: "600",
         color: colors.faint,
-        paddingHorizontal: inset,
-        paddingStart: props.inset ? inset + markRoom : inset,
+        paddingHorizontal: rowInset,
+        ...(props.inset ? { paddingStart: rowInset + markRoom } : {}),
+        // 6 points down from the group above it, 2 up from its own rows.
         paddingTop: 6,
         paddingBottom: 2,
       }}
     >
-      {props.text}
+      {props.children}
     </Text>
   );
 }
@@ -218,16 +246,20 @@ export function menuSeparator(): ViewStyle {
   };
 }
 
-/**
- * The row that opens a submenu (a `Submenu`'s `trigger`): `menuItemLook`'s
- * row, `lead` (an icon) before the label and a faint chevron at its end;
- * disabled, 50%.
- */
-export function SubmenuRow(props: {
-  label: string;
-  lead?: JSX.Element;
+/** How far a submenu's row dims while it takes no presses: deeper than a
+ * disabled row's 50%, since the row itself is the trigger. */
+const submenuRowDim = 0.35;
+
+/** The side of a submenu row's chevron: 12 points with a pointer, 14 on a touch screen. */
+const submenuChevron = pointer ? 12 : 14;
+
+/** A submenu's row, whether `SubmenuRow` drew it or a `MenuSubTrigger`'s own
+ * children: `menuItemLook`'s row and its states, dimmed while it takes no presses. */
+function SubmenuRowFrame(props: {
   disabled?: boolean;
   inset?: boolean;
+  style?: StyleProp<ViewStyle>;
+  children: JSX.Element;
 }) {
   const look = menuItemLook({ inset: props.inset });
   return (
@@ -235,12 +267,31 @@ export function SubmenuRow(props: {
       hoverStyle={props.disabled ? undefined : look.hoverStyle}
       focusStyle={look.focusStyle}
       activeStyle={props.disabled ? undefined : look.activeStyle}
-      style={{ ...look.style, opacity: props.disabled ? 0.35 : 1 }}
+      style={[{ ...look.style, opacity: props.disabled ? submenuRowDim : 1 }, props.style ?? null]}
     >
+      {props.children}
+    </View>
+  );
+}
+
+/**
+ * The row that opens a submenu (a `Submenu`'s `trigger`): `menuItemLook`'s
+ * row, `lead` (an icon) before the label and a faint chevron at its end;
+ * disabled, 35%. `style` goes over the row's own.
+ */
+export function SubmenuRow(props: {
+  label: string;
+  lead?: JSX.Element;
+  disabled?: boolean;
+  inset?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <SubmenuRowFrame disabled={props.disabled} inset={props.inset} style={props.style}>
       {props.lead}
       <Text style={menuItemLabel()}>{props.label}</Text>
-      <Icon icon={ChevronRight} size={pointer ? 12 : 14} tint={colors.faint} />
-    </View>
+      <Icon icon={ChevronRight} size={submenuChevron} tint={colors.faint} />
+    </SubmenuRowFrame>
   );
 }
 
@@ -256,6 +307,9 @@ export function SubmenuBack(props: { label: string }) {
     </View>
   );
 }
+
+/** Why a menu closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type MenuOpenChangeReason = OpenChangeReason;
 
 /** The root: it owns whether the menu is open, and the trigger slot. */
 export type MenuProps = {
@@ -280,7 +334,7 @@ export type MenuContentProps = Omit<
   children?: JSX.Element;
 };
 
-/** Opens the menu. String children render as a Button; otherwise a pressable View. */
+/** Opens the menu. A string child renders as a `Button` (`variant` picks it, `secondary` unless set); anything else as a pressable view. */
 export type MenuTriggerProps = {
   children?: string | JSX.Element;
   variant?: ButtonVariant;
@@ -288,7 +342,7 @@ export type MenuTriggerProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Theme layer on `nsh/base` MenuItem. A string child takes `menuItemLabel`. */
+/** A menu row: a string child is its label (`menuItemLabel`), anything else is drawn as given. */
 export type MenuItemProps = Omit<BaseMenuItemProps, "children"> & {
   /** `default`, the row as it is; `destructive`, its label in the danger tone. */
   variant?: MenuItemVariant;
@@ -300,38 +354,40 @@ export type MenuItemProps = Omit<BaseMenuItemProps, "children"> & {
   inset?: boolean;
 };
 
-/** Checkbox-shaped item — sets `checked` and shows a check. */
+/** A row with a checkbox: `checked` shows a check. */
 export type MenuCheckboxItemProps = Omit<MenuItemProps, "checked"> & {
   checked?: boolean | null;
 };
 
-/** One choice of a group — `menuitemradio`, with a dot. */
+/** One choice of a group, `menuitemradio`: a dot when it is the choice. */
 export type MenuRadioItemProps = Omit<MenuItemProps, "checked"> & {
   checked?: boolean | null;
 };
 
-/** App group wrapper (not an `nsh/base` part). */
+/** A group of rows: `nsh/base` has no group part, so this is the library's own view, `group` to
+ * screen readers so its rows are announced as one set. */
 export type MenuGroupProps = {
   children?: JSX.Element;
   style?: StyleProp<ViewStyle>;
 };
 
-/** Theme layer on `nsh/base` MenuSeparator. */
+/** A hairline between rows (`menuSeparator`). */
 export type MenuSeparatorProps = BaseMenuSeparatorProps;
 
-/** App trailing shortcut hint (not an `nsh/base` part). */
+/** A shortcut shown at a row's trailing edge (`menuItemNote`); anything but a string is drawn as given. */
 export type MenuShortcutProps = {
   children?: string | JSX.Element;
-  style?: StyleProp<TextStyle | ViewStyle>;
+  /** The note's own style. A shortcut is type: a `TextStyle` is a `ViewStyle`, so an element child takes the same. */
+  style?: StyleProp<TextStyle>;
 };
 
-/** Composition root for a nested Submenu: trigger slot only. */
+/** The root of a nested menu: it holds the submenu's trigger, its label and its disabled state. */
 export type MenuSubProps = {
   children?: JSX.Element;
   disabled?: boolean;
 };
 
-/** Item that opens a submenu. String children get `SubmenuRow`. */
+/** The row that opens a submenu: a string child is the label (`SubmenuRow`), anything else is drawn as given. */
 export type MenuSubTriggerProps = {
   children?: string | JSX.Element;
   disabled?: boolean;
@@ -340,13 +396,13 @@ export type MenuSubTriggerProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Nested menu body — mounts `nsh/base` Submenu with the SubTrigger slot. */
+/** The nested menu's popup: `nsh/base`'s Submenu, with the trigger `MenuSubTrigger` sets; on a touch screen its sheet opens with a back row (`back`). */
 export type MenuSubContentProps = Omit<BaseSubmenuProps, "trigger" | "children"> & {
   children?: JSX.Element;
 };
 
 type MenuContextValue = OpenState & {
-  trigger: Slot;
+  trigger: Slot<JSX.Element>;
   onOpen?: () => void;
   onClose?: () => void;
   onCancel?: () => void;
@@ -361,7 +417,7 @@ function useMenu() {
 }
 
 type SubContextValue = {
-  trigger: Slot;
+  trigger: Slot<JSX.Element>;
   label: { value?: string };
   disabled?: boolean;
 };
@@ -370,7 +426,7 @@ const SubContext = context<SubContextValue | null>(null);
 /** Composition root: owns the open state the parts below read. */
 export function Menu(props: MenuProps) {
   const state = createOpenState<OpenChangeReason>(props);
-  const triggerSlot = createSlot();
+  const triggerSlot = createSlot<JSX.Element>();
   return (
     <MenuContext.Provider
       value={{
@@ -418,7 +474,7 @@ export function MenuTrigger(props: MenuTriggerProps) {
       </View>
     );
   });
-  // No layout node: a zero-size view would still take a flex `gap` in the demo row.
+  // No layout node: a zero-size view would still take a flex `gap` in a row of triggers.
   return null;
 }
 
@@ -444,7 +500,7 @@ export function MenuContent(props: MenuContentProps) {
     <BaseMenu
       {...rest}
       open={ctx.open()}
-      trigger={(triggerAccessor?.() as JSX.Element) ?? <View />}
+      trigger={triggerAccessor?.() ?? <View />}
       placement={props.placement ?? "bottom"}
       align={props.align ?? "start"}
       offset={props.offset ?? 4}
@@ -526,7 +582,11 @@ export function MenuRadioItem(props: MenuRadioItemProps) {
 
 /** Groups related rows. */
 export function MenuGroup(props: MenuGroupProps) {
-  return <View style={props.style}>{props.children}</View>;
+  return (
+    <View role="group" style={props.style}>
+      {props.children}
+    </View>
+  );
 }
 
 /** A hairline between groups. */
@@ -538,14 +598,10 @@ export function MenuSeparator(props: MenuSeparatorProps = {}) {
 /** The shortcut shown at a row's trailing edge. */
 export function MenuShortcut(props: MenuShortcutProps) {
   if (typeof props.children !== "string" && props.children != null) {
-    return (
-      <View style={[{ marginLeft: "auto" }, props.style as StyleProp<ViewStyle>]}>
-        {props.children}
-      </View>
-    );
+    return <View style={[{ marginLeft: "auto" }, props.style ?? null]}>{props.children}</View>;
   }
   return (
-    <Text style={[menuItemNote(), { marginLeft: "auto" }, props.style as StyleProp<TextStyle>]}>
+    <Text style={[menuItemNote(), { marginLeft: "auto" }, props.style ?? null]}>
       {props.children}
     </Text>
   );
@@ -553,7 +609,7 @@ export function MenuShortcut(props: MenuShortcutProps) {
 
 /** The root of a submenu. */
 export function MenuSub(props: MenuSubProps) {
-  const triggerSlot = createSlot();
+  const triggerSlot = createSlot<JSX.Element>();
   const label: { value?: string } = {};
   return (
     <SubContext.Provider
@@ -579,18 +635,14 @@ export function MenuSubTrigger(props: MenuSubTriggerProps) {
     const disabled = Boolean(props.disabled ?? ctx.disabled);
     ctx.label.value = typeof children === "string" ? children : undefined;
     if (typeof children === "string") {
-      return <SubmenuRow label={children} disabled={disabled} inset={props.inset} />;
+      return (
+        <SubmenuRow label={children} disabled={disabled} inset={props.inset} style={props.style} />
+      );
     }
-    const look = menuItemLook({ inset: props.inset });
     return (
-      <View
-        hoverStyle={disabled ? undefined : look.hoverStyle}
-        focusStyle={look.focusStyle}
-        activeStyle={disabled ? undefined : look.activeStyle}
-        style={[{ ...look.style, opacity: disabled ? 0.35 : 1 }, props.style ?? null]}
-      >
+      <SubmenuRowFrame disabled={disabled} inset={props.inset} style={props.style}>
         {children ?? <View />}
-      </View>
+      </SubmenuRowFrame>
     );
   });
   return null;
@@ -602,7 +654,7 @@ export function MenuSubContent(props: MenuSubContentProps) {
   if (!ctx) throw new Error("MenuSubContent must be used within <MenuSub>");
   const triggerAccessor = ctx.trigger.get();
   const [, rest] = split(props, ["children", "disabled", "back"]);
-  const trigger = (triggerAccessor?.() as JSX.Element) ?? <View />;
+  const trigger = triggerAccessor?.() ?? <View />;
   const name = ctx.label.value;
   const back =
     props.back !== undefined ? (
@@ -616,6 +668,3 @@ export function MenuSubContent(props: MenuSubContentProps) {
     </BaseSubmenu>
   );
 }
-
-/** Why a menu closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
-export type MenuOpenChangeReason = OpenChangeReason;

@@ -1,4 +1,4 @@
-// A popover: the look (`popoverLook`) and the `Popover` that wears it.
+// A popover: the look (`popoverLook`) at the top, and the parts that wear it below.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import { focusRing } from "../../lib/theme";
 import type { JSX, StyleProp, TextStyle, ViewStyle } from "nsh";
@@ -35,6 +35,9 @@ export function popoverLook(o?: PopoverLookOptions): ViewStyle {
     : { padding: pointer ? 14 : 16, gap: 12 };
   return { ...popupSurface(), ...room, width: o?.width };
 }
+
+/** Why a popover closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type PopoverOpenChangeReason = OpenChangeReason;
 
 /** The root: it owns whether the popover is open, and the trigger slot. */
 export type PopoverProps = {
@@ -97,7 +100,7 @@ export type PopoverTitleProps = {
 export type PopoverDescriptionProps = PopoverTitleProps;
 
 type PopoverContextValue = OpenState & {
-  trigger: Slot;
+  trigger: Slot<JSX.Element>;
   onOpen?: () => void;
   onClose?: () => void;
   onCancel?: () => void;
@@ -114,7 +117,7 @@ function usePopover() {
 /** The root of a popover's parts. */
 export function Popover(props: PopoverProps) {
   const state = createOpenState<OpenChangeReason>(props);
-  const trigger = createSlot();
+  const trigger = createSlot<JSX.Element>();
   return (
     <PopoverContext.Provider
       value={{
@@ -184,7 +187,7 @@ export function PopoverContent(props: PopoverContentProps) {
     <BasePopover
       {...rest}
       open={ctx.open()}
-      trigger={(triggerAccessor?.() as JSX.Element) ?? <View />}
+      trigger={triggerAccessor?.() ?? <View />}
       placement={placement()}
       align={props.align}
       offset={props.offset}
@@ -215,25 +218,21 @@ export function PopoverHeader(props: PopoverHeaderProps) {
   );
 }
 
-/** A panel's title; a string child is `Text` (give it the app's type with `style`). */
-export function PopoverTitle(props: PopoverTitleProps) {
+function PanelText(props: PopoverTitleProps) {
   if (typeof props.children !== "string") return props.children ?? null;
   return (
     <Text class={props.class ?? undefined} style={props.style}>
       {props.children}
     </Text>
   );
+}
+
+/** A panel's title; a string child is `Text` (give it the app's type with `style`). */
+export function PopoverTitle(props: PopoverTitleProps) {
+  return <PanelText {...props} />;
 }
 
 /** A panel's text under the title; as `PopoverTitle`. */
 export function PopoverDescription(props: PopoverDescriptionProps) {
-  if (typeof props.children !== "string") return props.children ?? null;
-  return (
-    <Text class={props.class ?? undefined} style={props.style}>
-      {props.children}
-    </Text>
-  );
+  return <PanelText {...props} />;
 }
-
-/** Why a popover closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
-export type PopoverOpenChangeReason = OpenChangeReason;

@@ -1,6 +1,7 @@
-// A card dialog: the look (`dialogCard`, `dialogTitle`, `dialogText`) and the parts that wear it.
+// A card dialog: the look (`dialogCard`, `dialogTitle`, `dialogText`) at the top, and the parts that
+// wear it below. `nsh/base`'s `Dialog` is the box; what this file adds is its card.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
-import { colors, finish, focusRing, radius, terminal } from "../../lib/theme";
+import { colors, finish, radius, terminal } from "../../lib/theme";
 import type { JSX, StyleProp, TextStyle, ViewStyle } from "nsh";
 import { context, platform, split, Text, View } from "nsh";
 import {
@@ -9,11 +10,15 @@ import {
   type DialogProps as BaseDialogProps,
 } from "nsh/base";
 
-import { Button, type ButtonVariant } from "./button";
+import { Action, type ButtonVariant } from "./button";
 import { createOpenState, type OpenState } from "../../lib/open-state";
-import { backdrop } from "../../lib/overlay";
+import { backdrop } from "../../lib/popup";
 
 const pointer = platform.desktop;
+
+/** A card's width where the app gives none: 360 points with a pointer, 320 on a touch screen
+ * (upstream's dialog demo, `el-dialog`; never wider than 90% of the window). */
+const cardWidth = pointer ? 360 : 320;
 
 /**
  * A dialog shown as a card in the middle of the window, over `backdrop()`:
@@ -130,42 +135,10 @@ export function Dialog(props: DialogProps) {
   );
 }
 
-/** A button of the card, or its trigger: a `Button` for a string, else a pressable view. */
-function Action(props: DialogTriggerProps & { onPress: () => void }) {
-  if (typeof props.children === "string") {
-    return (
-      <Button
-        variant={props.variant ?? "secondary"}
-        disabled={props.disabled}
-        style={props.style}
-        onPress={props.onPress}
-      >
-        {props.children}
-      </Button>
-    );
-  }
-  return (
-    <View
-      accessible
-      role="button"
-      accessibilityState={{ disabled: props.disabled }}
-      focusVisibleStyle={focusRing()}
-      onPress={props.disabled ? undefined : props.onPress}
-      style={props.style}
-    >
-      {props.children}
-    </View>
-  );
-}
-
 /** Opens the dialog. */
 export function DialogTrigger(props: DialogTriggerProps) {
   const ctx = useDialog();
-  return (
-    <Action {...props} onPress={() => ctx.setOpen(true)}>
-      {props.children}
-    </Action>
-  );
+  return <Action {...props} onPress={() => ctx.setOpen(true)} />;
 }
 
 /** Closes the dialog, after its own `onPress`. */
@@ -178,9 +151,7 @@ export function DialogClose(props: DialogCloseProps) {
         props.onPress?.();
         ctx.setOpen(false, "closePress");
       }}
-    >
-      {props.children}
-    </Action>
+    />
   );
 }
 
@@ -198,21 +169,20 @@ export function DialogContent(props: DialogContentProps) {
       onClose={ctx.onClose}
       onCancel={ctx.onCancel}
       backdropStyle={[backdrop(), props.backdropStyle ?? null]}
-      // The widths of upstream's dialog demo (`el-dialog`).
-      style={[dialogCard(props.width ?? (pointer ? 360 : 320)), props.style ?? null]}
+      style={[dialogCard(props.width ?? cardWidth), props.style ?? null]}
     >
       {props.children}
     </BaseDialog>
   );
 }
 
-/** The card's title; a string takes `dialogTitle`'s type. */
+/** The card's title; a string child takes `dialogTitle`'s type, anything else is drawn as given. */
 export function DialogTitle(props: DialogTextProps) {
   if (typeof props.children !== "string") return props.children;
   return <Text style={[dialogTitle(), props.style ?? null]}>{props.children}</Text>;
 }
 
-/** The text under the title; a string takes `dialogText`'s type. */
+/** The text under the title; a string child takes `dialogText`'s type, anything else as given. */
 export function DialogDescription(props: DialogTextProps) {
   if (typeof props.children !== "string") return props.children;
   return <Text style={[dialogText(), props.style ?? null]}>{props.children}</Text>;

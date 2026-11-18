@@ -1,4 +1,4 @@
-// A tabs: the look (`tabsLook`, `underlineTabsLook`, `TabTitle`) and the parts that wear it.
+// Tabs: the looks (`tabsLook`, `underlineTabsLook`, `TabTitle`) and the parts that wear them.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import {
   colors,
@@ -21,14 +21,9 @@ import {
 } from "nsh/base";
 
 import { Icon } from "../../lib/icons";
-import { labelOf } from "../../lib/label";
 import { controlSize } from "../../lib/surface";
+import { labelOf, type Live, read } from "../../lib/utils";
 
-/** A value, or a function reading it where the look is applied (a signal). */
-type Live<T> = T | (() => T);
-
-const read = <T,>(v: Live<T> | undefined): T | undefined =>
-  typeof v === "function" ? (v as () => T)() : v;
 
 /** The state of one tab or segment, read where the look is applied. */
 export interface TabState {
@@ -161,8 +156,11 @@ export function underlineTabsLook() {
   };
 }
 
+/** A tab title's icon: 14 points square. */
+const TAB_ICON = 14;
+
 /** The room a tab title's icon takes: the icon and the gap after it. */
-export const TAB_ICON_ROOM = 14 + 6;
+export const TAB_ICON_ROOM = TAB_ICON + 6;
 
 /**
  * A tab's label (and icon, and a count in a capsule): the text color while
@@ -192,12 +190,12 @@ export function TabTitle(props: {
       style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 }}
     >
       <If when={props.icon}>
-        <View style={{ width: 14, height: 14 }}>
+        <View style={{ width: TAB_ICON, height: TAB_ICON }}>
           <View style={{ position: "absolute", opacity: away }}>
-            <Icon icon={props.icon!} size={14} tint={colors.muted} />
+            <Icon icon={props.icon!} size={TAB_ICON} tint={colors.muted} />
           </View>
           <View style={{ position: "absolute", opacity: on }}>
-            <Icon icon={props.icon!} size={14} tint={colors.text} />
+            <Icon icon={props.icon!} size={TAB_ICON} tint={colors.text} />
           </View>
         </View>
       </If>
@@ -329,6 +327,7 @@ export function Tabs(props: TabsProps) {
         class={props.class ?? undefined}
         style={[
           {
+            // The list, then the panel, a gap apart — a row of the two when the list is vertical.
             flexDirection: orientation() === "vertical" ? "row" : "column",
             alignItems: "stretch",
             gap: 8,

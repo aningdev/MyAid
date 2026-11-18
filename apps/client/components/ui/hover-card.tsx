@@ -1,5 +1,5 @@
-// A hover card: `nsh/base`'s HoverCard with `popoverLook` on a `PopIn`.
-// The surface look lives in `popover.tsx` (from look/overlay.ts); this file is the shell only.
+// A hover card: `nsh/base`'s `HoverCard` with `popoverLook` on a `PopIn`.
+// The surface is `popover.tsx`'s (from NSH's look/overlay.ts); the parts here are this library's.
 import { focusRing } from "../../lib/theme";
 import type { JSX, StyleProp, ViewStyle } from "nsh";
 import { context, split, View } from "nsh";
@@ -13,6 +13,9 @@ import { Button, type ButtonVariant } from "./button";
 import { createOpenState, createSlot, type OpenState, type Slot } from "../../lib/open-state";
 import { PopIn } from "../../lib/popup";
 import { popoverLook } from "./popover";
+
+/** Why a hover card closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type HoverCardOpenChangeReason = OpenChangeReason;
 
 /** The root: it owns whether the card is open, the trigger slot, and whether the trigger is off. */
 export type HoverCardProps = {
@@ -51,7 +54,7 @@ export type HoverCardTriggerProps = {
 };
 
 type HoverCardContextValue = OpenState & {
-  trigger: Slot;
+  trigger: Slot<JSX.Element>;
   /** The trigger is disabled: the card stays closed. Reads the trigger's latest value. */
   disabled: () => boolean;
   setDisabled: (read: () => boolean) => void;
@@ -70,16 +73,17 @@ function useHoverCard() {
 /** The root of a hover card's parts. */
 export function HoverCard(props: HoverCardProps) {
   const state = createOpenState<OpenChangeReason>(props);
-  const trigger = createSlot();
-  const off = { read: () => false };
+  const trigger = createSlot<JSX.Element>();
+  // The trigger registers whether it is disabled; the card reads it when it would open.
+  const disabledTrigger = { read: () => false };
   return (
     <HoverCardContext.Provider
       value={{
         ...state,
         trigger,
-        disabled: () => off.read(),
+        disabled: () => disabledTrigger.read(),
         setDisabled: (read) => {
-          off.read = read;
+          disabledTrigger.read = read;
         },
         get onOpen() {
           return props.onOpen;
@@ -143,7 +147,7 @@ export function HoverCardContent(props: HoverCardContentProps) {
     <BaseHoverCard
       {...rest}
       open={ctx.disabled() ? false : ctx.open()}
-      trigger={(triggerAccessor?.() as JSX.Element) ?? <View />}
+      trigger={triggerAccessor?.() ?? <View />}
       placement={placement()}
       align={props.align}
       offset={props.offset}
@@ -166,6 +170,3 @@ export function HoverCardContent(props: HoverCardContentProps) {
     </BaseHoverCard>
   );
 }
-
-/** Why a hover card closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
-export type HoverCardOpenChangeReason = OpenChangeReason;

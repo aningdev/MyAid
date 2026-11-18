@@ -1,6 +1,6 @@
 // The elements of a lucide icon, drawn on a canvas: a `Path2D` per path, an arc or lines for the
-// rest. Apart from `icons.tsx`, and free of imports, so the unit test can watch what it draws with
-// a recorder instead of NSH (`docs/specs/lucide.md`).
+// rest. Apart from `icons.tsx` and free of imports, so a unit test can watch what it draws with a
+// recorder instead of NSH. This library's own: no upstream file draws these. Yours to change.
 import type { IconNode } from "lucide";
 
 /** One element of an `IconNode`: its tag and its SVG attributes. */
@@ -40,7 +40,7 @@ const TURN = Math.PI * 2;
 const SHAPES: ReadonlySet<string> = new Set(["circle", "ellipse", "rect", "line"]);
 
 /** An attribute as a number: lucide writes them as strings. */
-const number = (attrs: IconElement[1], name: string, fallback = 0) => {
+const attrNumber = (attrs: IconElement[1], name: string, fallback = 0) => {
   const value = attrs[name];
   return value == null ? fallback : Number(value);
 };
@@ -87,14 +87,14 @@ function drawElement<P>(
   canvas.beginPath();
   switch (tag) {
     case "circle":
-      canvas.arc(number(attrs, "cx"), number(attrs, "cy"), number(attrs, "r"), 0, TURN);
+      canvas.arc(attrNumber(attrs, "cx"), attrNumber(attrs, "cy"), attrNumber(attrs, "r"), 0, TURN);
       break;
     case "ellipse":
       canvas.ellipse(
-        number(attrs, "cx"),
-        number(attrs, "cy"),
-        number(attrs, "rx"),
-        number(attrs, "ry"),
+        attrNumber(attrs, "cx"),
+        attrNumber(attrs, "cy"),
+        attrNumber(attrs, "rx"),
+        attrNumber(attrs, "ry"),
         0,
         0,
         TURN,
@@ -103,16 +103,16 @@ function drawElement<P>(
     case "rect":
       // lucide's rects carry one radius, `rx` (`ry` repeats it): a rounded corner on all four.
       canvas.roundRect(
-        number(attrs, "x"),
-        number(attrs, "y"),
-        number(attrs, "width"),
-        number(attrs, "height"),
-        number(attrs, "rx", number(attrs, "ry")),
+        attrNumber(attrs, "x"),
+        attrNumber(attrs, "y"),
+        attrNumber(attrs, "width"),
+        attrNumber(attrs, "height"),
+        attrNumber(attrs, "rx", attrNumber(attrs, "ry")),
       );
       break;
-    default:
-      canvas.moveTo(number(attrs, "x1"), number(attrs, "y1"));
-      canvas.lineTo(number(attrs, "x2"), number(attrs, "y2"));
+    case "line":
+      canvas.moveTo(attrNumber(attrs, "x1"), attrNumber(attrs, "y1"));
+      canvas.lineTo(attrNumber(attrs, "x2"), attrNumber(attrs, "y2"));
       break;
   }
   paint();

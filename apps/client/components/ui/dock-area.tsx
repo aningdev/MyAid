@@ -19,7 +19,8 @@ import {
   type DockTarget,
 } from "nsh/base";
 
-import { handleThumb } from "./resizable";
+import { joinClass } from "../../lib/utils";
+import { handleThumb, RESIZE_HANDLE_LABEL } from "./resizable";
 
 /**
  * A `DockArea`'s parts (spread it): groups and docks on the inset, a tab
@@ -98,10 +99,7 @@ export function DockDragPreview(props: { title: string }) {
   );
 }
 
-function mergeClass(base: string, consumer?: string | null): string {
-  return consumer ? `${base} ${consumer}` : base;
-}
-
+/** Every prop of `nsh/base` DockArea. */
 export type DockAreaProps = BaseDockAreaProps;
 
 /** The layout of a whole dock area (`layout`, `defaultLayout`, `onLayoutChange`), from `nsh/base`. */
@@ -140,14 +138,17 @@ export type { DockAreaRef };
  */
 export type DockTabValue = DockTabData;
 
+/** A tab's chrome: its title, with no close button. */
 function defaultTab(tab: DockTabData) {
   return <DockTab title={tab.panel} active={tab.active} />;
 }
 
+/** A dragged tab, as a chip under the pointer (`DockDragPreview`). */
 function defaultPreview(tab: DockTabData) {
   return <DockDragPreview title={tab.panel} />;
 }
 
+/** An area with no panels: a quiet line in the middle. */
 function defaultEmpty(): JSX.Element {
   return (
     <View class="flex-1 items-center justify-center p-2">
@@ -158,7 +159,6 @@ function defaultEmpty(): JSX.Element {
 
 /** A dockable workspace: tabs, splits and edge docks. */
 export function DockArea(props: DockAreaProps) {
-  const chrome = dockClasses;
   const [, rest] = split(props, [
     "class",
     "style",
@@ -194,28 +194,28 @@ export function DockArea(props: DockAreaProps) {
       {...rest}
       class={props.class}
       style={props.style}
-      handleAccessibilityLabel={props.handleAccessibilityLabel ?? "Resize"}
-      groupClass={mergeClass(chrome.groupClass, props.groupClass)}
+      handleAccessibilityLabel={props.handleAccessibilityLabel ?? RESIZE_HANDLE_LABEL}
+      groupClass={joinClass(dockClasses.groupClass, props.groupClass)}
       groupStyle={props.groupStyle}
-      tabBarClass={mergeClass(chrome.tabBarClass, props.tabBarClass)}
+      tabBarClass={joinClass(dockClasses.tabBarClass, props.tabBarClass)}
       tabBarStyle={props.tabBarStyle}
-      tabClass={mergeClass(chrome.tabClass, props.tabClass)}
+      tabClass={joinClass(dockClasses.tabClass, props.tabClass)}
       tabStyle={props.tabStyle}
-      contentClass={mergeClass(chrome.contentClass, props.contentClass)}
+      contentClass={joinClass(dockClasses.contentClass, props.contentClass)}
       contentStyle={props.contentStyle}
-      handleClass={mergeClass(chrome.handleClass, props.handleClass)}
+      handleClass={joinClass(dockClasses.handleClass, props.handleClass)}
       handleStyle={props.handleStyle}
-      handleThumbClass={mergeClass(chrome.handleThumbClass, props.handleThumbClass)}
+      handleThumbClass={joinClass(dockClasses.handleThumbClass, props.handleThumbClass)}
       handleThumbStyle={props.handleThumbStyle}
-      dockClass={mergeClass(chrome.dockClass, props.dockClass)}
+      dockClass={joinClass(dockClasses.dockClass, props.dockClass)}
       dockStyle={props.dockStyle}
-      dropIndicatorClass={mergeClass(chrome.dropIndicatorClass, props.dropIndicatorClass)}
+      dropIndicatorClass={joinClass(dockClasses.dropIndicatorClass, props.dropIndicatorClass)}
       dropIndicatorStyle={props.dropIndicatorStyle}
-      drawerClass={props.drawerClass ?? chrome.drawerClass}
+      drawerClass={props.drawerClass ?? dockClasses.drawerClass}
       drawerStyle={props.drawerStyle}
-      sheetClass={props.sheetClass ?? chrome.sheetClass}
+      sheetClass={props.sheetClass ?? dockClasses.sheetClass}
       sheetStyle={props.sheetStyle}
-      backdropClass={props.backdropClass ?? chrome.backdropClass}
+      backdropClass={props.backdropClass ?? dockClasses.backdropClass}
       backdropStyle={props.backdropStyle}
       renderTab={props.renderTab ?? defaultTab}
       renderDragPreview={props.renderDragPreview ?? defaultPreview}

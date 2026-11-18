@@ -1,3 +1,5 @@
+// What sections, wells and rows look like: density, surfaces, and rows whose hover fill bleeds.
+// From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import {
   colors,
   finish,
@@ -8,18 +10,12 @@ import {
   TERMINAL_GAP,
   TERMINAL_ROW,
 } from "./theme";
-// What sections, wells and rows look like: density, surfaces, and rows whose hover fill bleeds.
-// From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import type { ViewStyle } from "nsh";
 import { platform, Text, token, View, windowSize } from "nsh";
 
+import { type Live, read } from "./utils";
+
 const pointer = platform.desktop;
-
-/** A value, or a function reading it where the look is applied (a signal). */
-type Live<T> = T | (() => T);
-
-const read = <T,>(v: Live<T> | undefined): T | undefined =>
-  typeof v === "function" ? (v as () => T)() : v;
 
 /**
  * The page's density: compact with a pointer (desktops), roomier on a touch
@@ -29,6 +25,72 @@ const read = <T,>(v: Live<T> | undefined): T | undefined =>
 export const density = pointer
   ? { title: 13, note: 12, body: 13, row: 36, pad: 14, gap: 12, surface: 10 }
   : { title: 13, note: 13, body: 15, row: 48, pad: 16, gap: 12, surface: 16 };
+
+/** One tier's sizes of a list of controls (see `controlSize` for what each is). */
+interface ControlSizes {
+  row: number;
+  padding: number;
+  gap: number;
+  label: number;
+  detail: number;
+  control: number;
+  corner: number;
+  check: number;
+  dot: number;
+  tabs: number;
+  line: number;
+  clear: number;
+  switch: "small" | "regular";
+}
+
+/** Each tier's sizes, by the name `controlSize` picks: see it for what each is. */
+const sizesByTier = {
+  terminal: {
+    row: TERMINAL_ROW,
+    padding: 0,
+    gap: TERMINAL_COLUMN,
+    label: 14,
+    detail: 12,
+    control: 3 * TERMINAL_COLUMN,
+    corner: 0,
+    check: 12,
+    dot: 6,
+    tabs: TERMINAL_ROW,
+    line: TERMINAL_ROW,
+    clear: 2 * TERMINAL_COLUMN,
+    switch: "small",
+  },
+  pointer: {
+    row: 40,
+    padding: 6,
+    gap: 10,
+    label: 14,
+    detail: 12,
+    control: 16,
+    corner: 5,
+    check: 12,
+    dot: 6,
+    tabs: 30,
+    line: 32,
+    clear: 16,
+    switch: "small",
+  },
+  touch: {
+    row: 44,
+    padding: 8,
+    gap: 12,
+    label: 15,
+    detail: 13,
+    control: 22,
+    corner: 7,
+    check: 16,
+    dot: 8,
+    tabs: 40,
+    line: 44,
+    clear: 20,
+    switch: "regular",
+  },
+} satisfies Record<string, ControlSizes>;
 
 /**
  * The sizes of a list of controls (a settings list, a filter, a plan
@@ -41,53 +103,8 @@ export const density = pointer
  * and an icon's size, `dot` a radio's dot, `corner` a box's corners, `clear`
  * a clear button's side, `switch` the switch size beside a row's label.
  */
-export const controlSize = terminal
-  ? {
-      row: TERMINAL_ROW,
-      padding: 0,
-      gap: TERMINAL_COLUMN,
-      label: 14,
-      detail: 12,
-      control: 3 * TERMINAL_COLUMN,
-      corner: 0,
-      check: 12,
-      dot: 6,
-      tabs: TERMINAL_ROW,
-      line: TERMINAL_ROW,
-      clear: 2 * TERMINAL_COLUMN,
-      switch: "small" as const,
-    }
-  : pointer
-    ? {
-        row: 40,
-        padding: 6,
-        gap: 10,
-        label: 14,
-        detail: 12,
-        control: 16,
-        corner: 5,
-        check: 12,
-        dot: 6,
-        tabs: 30,
-        line: 32,
-        clear: 16,
-        switch: "small" as const,
-      }
-    : {
-        row: 44,
-        padding: 8,
-        gap: 12,
-        label: 15,
-        detail: 13,
-        control: 22,
-        corner: 7,
-        check: 16,
-        dot: 8,
-        tabs: 40,
-        line: 44,
-        clear: 20,
-        switch: "regular" as const,
-      };
+export const controlSize: ControlSizes =
+  sizesByTier[terminal ? "terminal" : pointer ? "pointer" : "touch"];
 
 /** Options of `sectionSurface`. */
 export interface SectionSurfaceOptions {
@@ -98,7 +115,7 @@ export interface SectionSurfaceOptions {
 }
 
 /**
- * The flat surface a section's content sits on (the gallery's `Card`): the
+ * The flat surface a section's content sits on (a card's): the
  * card color, one hairline edge, no shadow, corners of `density.surface`
  * (10 with a pointer, 16 on a touch screen). In the terminal a border whose
  * row and column on each side the padding fills out, so the content starts
@@ -140,10 +157,16 @@ export function insetSurface(): ViewStyle {
   };
 }
 
+/** A pill's corners: half the tallest it gets, so any height rounds to a pill. */
+export const PILL_RADIUS = 999;
+
 /** How far a row's hover fill reaches past its content on each side, and its
  * corners: none in the terminal, where a negative margin rounds away but
  * the padding stays a column, pushing the label in. */
-export const ROW_BLEED = terminal ? 0 : 8;
+const ROW_BLEED = terminal ? 0 : 8;
+
+/** The room a stacked row leaves between its label and its control. */
+const STACKED_GAP = 8;
 
 /** The widest window that takes the phone's layout (a phone, or a narrow
  * desktop window), in points. */
@@ -182,7 +205,7 @@ export function plainRow(o?: PlainRowOptions): ViewStyle {
     minHeight: o?.dense ? controlSize.line : controlSize.row,
     flexDirection: stacked ? "column" : "row",
     alignItems: stacked ? "stretch" : "center",
-    gap: stacked ? 8 : controlSize.gap,
+    gap: stacked ? STACKED_GAP : controlSize.gap,
     paddingVertical: o?.dense ? 0 : controlSize.padding,
     borderTopWidth: o?.first || terminal ? 0 : 1,
     borderTopColor: colors.line,
@@ -275,7 +298,7 @@ export function RowDivider(props: { show: boolean }) {
 }
 
 /** The terminal's labels' column, so the details after them line up. */
-export const LABEL_WIDTH = 16 * TERMINAL_COLUMN;
+const LABEL_WIDTH = 16 * TERMINAL_COLUMN;
 
 /**
  * The least a label keeps, with a pointer, beside a wide control (a
@@ -287,16 +310,12 @@ const LABEL_MIN = 96;
 /** The least a terminal's detail keeps beside its label: narrower, it wraps under it. */
 const DETAIL_WIDTH = 24 * TERMINAL_COLUMN;
 
-/** A terminal's name column for `names`: the longest of them (at least `LABEL_WIDTH`), so the details after it line up. */
-export const labelColumn = (names: readonly string[]) =>
-  Math.max(LABEL_WIDTH, ...names.map((n) => n.length * TERMINAL_COLUMN));
-
 /**
  * A row's label and a quieter line under it (after it in the terminal):
  * `controlSize.label` in the text color, regular weight (`strong`: 600, the
  * row that leads others, as a "Select all"), the detail 12 points with a
  * pointer, 13 on a touch screen, muted, wrapping rather than cut short
- * beside a control. `width`: the terminal's label column (`labelColumn`).
+ * beside a control. `width`: the terminal's label column.
  */
 export function RowLabel(props: {
   label: string;

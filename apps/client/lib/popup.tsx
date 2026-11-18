@@ -1,13 +1,34 @@
-import { finish, radius, terminal } from "./theme";
-// The popup families' one surface and the motion they come in with.
+// The popup families' one surface and the motion they come in with: menus, popovers, a select's
+// list, and the mark of a checkable menu item and the scrim behind what is modal.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
-import type { JSX, MotionSpec, ViewStyle } from "nsh";
-import { createMotion, Easing, reduceMotion, View } from "nsh";
+import { finish, radius, terminal } from "./theme";
+import type { JSX, MotionSpec, StyleProp, ViewStyle } from "nsh";
+import { createMotion, Easing, reduceMotion, token, View } from "nsh";
 
 import { CheckMark } from "./icons";
 
+/**
+ * The scrim behind what is modal (a sheet, a dialog, a menu's sheet on a
+ * touch screen): the theme's `scrim`, one dimming for every overlay. Pass
+ * it as the overlay's `backdropStyle`.
+ */
+export function backdrop(): ViewStyle {
+  return { backgroundColor: token("scrim") };
+}
+
 /** The side of its trigger a popup is on. */
 export type PopupSide = "top" | "bottom" | "left" | "right";
+
+/** How long a popup takes to come in, and how far it moves: shadcn/ui's popups' 150 ms and its
+ * `zoom-in-95` (it starts at 96 % of its size). */
+const ENTER_MS = 150;
+const ENTER_SCALE = 0.96;
+
+/** How far a popup slides out of its trigger's edge as it comes in, in points. */
+const ENTER_DISTANCE = 4;
+
+/** The dot of a choice in a menu, and the corners that make it round: 6 points across. */
+const DOT = 6;
 
 /**
  * The surface every anchored popup shares (menus, popovers, a select's
@@ -16,16 +37,19 @@ export type PopupSide = "top" | "bottom" | "left" | "right";
  * elevation"). A terminal shows it by its line alone: a box there is its
  * line or its fill.
  */
-export const popupSurface = (): ViewStyle =>
-  // A terminal draws a popup as its line alone, over no fill of its own.
-  terminal
-    ? {
-        borderRadius: radius.inset,
-        borderWidth: 1,
-        padding: 4,
-        borderColor: finish.menu.borderColor,
-      }
-    : { borderRadius: radius.inset, borderWidth: 1, padding: 4, ...finish.menu };
+export function popupSurface(): ViewStyle {
+  return (
+    // A terminal draws a popup as its line alone, over no fill of its own.
+    terminal
+      ? {
+          borderRadius: radius.inset,
+          borderWidth: 1,
+          padding: 4,
+          borderColor: finish.menu.borderColor,
+        }
+      : { borderRadius: radius.inset, borderWidth: 1, padding: 4, ...finish.menu }
+  );
+}
 
 /** Where a popup grows from: the edge that faces its trigger. */
 const origins: Record<PopupSide, string> = {
@@ -37,22 +61,17 @@ const origins: Record<PopupSide, string> = {
 
 /**
  * How a popup comes in, as shadcn/ui's popups do (`fade-in-0 zoom-in-95
- * slide-in-from-*`, gpui-component's 150 ms): it fades up from nothing,
- * grows from 96 % and slides the last `distance` points out of its
- * trigger's edge, decelerating into place. Reduced motion lands it at once.
+ * slide-in-from-*`): it fades up from nothing, grows from 96 % and slides
+ * the last `distance` points out of its trigger's edge, decelerating into
+ * place. Reduced motion lands it at once.
  */
-/** Where a popup goes, in words for its trigger: "Bottom, centered", "Top, at the end". */
-export function placementWords(side: PopupSide, align: "start" | "center" | "end"): string {
-  return `${side[0].toLocaleUpperCase()}${side.slice(1)}, ${align === "center" ? "centered" : `at the ${align}`}`;
-}
-
-export function popIn(side: PopupSide = "bottom", distance = 4): MotionSpec {
+export function popIn(side: PopupSide = "bottom", distance = ENTER_DISTANCE): MotionSpec {
   const away = side === "top" || side === "left" ? distance : -distance;
   const axis = side === "top" || side === "bottom" ? "translateY" : "translateX";
   return {
-    duration: 150,
+    duration: ENTER_MS,
     easing: Easing.bezier(0.16, 1, 0.3, 1),
-    keyframes: { opacity: [0, 1], scale: [0.96, 1], [axis]: [away, 0] },
+    keyframes: { opacity: [0, 1], scale: [ENTER_SCALE, 1], [axis]: [away, 0] },
   };
 }
 
@@ -67,7 +86,7 @@ export function popIn(side: PopupSide = "bottom", distance = 4): MotionSpec {
  */
 export function popInStyles(
   side: PopupSide = "bottom",
-  distance = 4,
+  distance = ENTER_DISTANCE,
 ): { style: ViewStyle; starting?: ViewStyle } {
   if (terminal || reduceMotion()) return { style: {} };
   const away = side === "top" || side === "left" ? distance : -distance;
@@ -76,10 +95,10 @@ export function popInStyles(
     style: {
       transformOrigin: origins[side],
       transitionProperty: "opacity, transform",
-      transitionDuration: 150,
+      transitionDuration: ENTER_MS,
       transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
     },
-    starting: { opacity: 0, transform: [{ scale: 0.96 }, slide] },
+    starting: { opacity: 0, transform: [{ scale: ENTER_SCALE }, slide] },
   };
 }
 
@@ -92,7 +111,7 @@ export function popInStyles(
 export function PopIn(props: {
   side?: PopupSide;
   class?: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   children: JSX.Element;
 }) {
   const m = createMotion({ enter: popIn(props.side) });
@@ -109,22 +128,9 @@ export function PopIn(props: {
   );
 }
 
-/**
- * A surface that stays made between showings (a `Tooltip`'s bubble): hidden
- * while it is away, `show` plays `popIn` as it comes back. Call `show` from
- * the popup's `onOpen` and `hide` from its `onClose`.
- */
-export function createPresence(side: PopupSide = "top") {
-  const m = createMotion({ initial: { opacity: 0 } });
-  return {
-    style: { transformOrigin: origins[side], ...m.style } satisfies ViewStyle,
-    show: () => void m.play(popIn(side, 3)),
-    hide: () => {
-      m.stop();
-      m.opacity.set(0);
-    },
-  };
-}
+/** The indicator part a `MenuMark` goes in: a `group` whose `group-checked:` classes the mark's
+ * follow (give the item `indicatorClass={menuIndicator}`). */
+export const menuIndicator = "group";
 
 /**
  * The mark of a checkable menu item, its `indicator`: a check (a setting)
@@ -137,9 +143,6 @@ export function createPresence(side: PopupSide = "top") {
  * choice crosses over from one item to the next. Reduced motion shows it at
  * once.
  */
-/** The indicator part `MenuMark` goes in: a group its classes follow. */
-export const menuIndicator = "group";
-
 export function MenuMark(props: { kind?: "check" | "dot"; tint: string; size?: number }) {
   const size = () => props.size ?? 16;
   return (
@@ -148,7 +151,9 @@ export function MenuMark(props: { kind?: "check" | "dot"; tint: string; size?: n
       style={{ width: size(), height: size() }}
     >
       {props.kind === "dot" ? (
-        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: props.tint }} />
+        <View
+          style={{ width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: props.tint }}
+        />
       ) : (
         <CheckMark size={size() - 2} weight={2.7} tint={props.tint} />
       )}

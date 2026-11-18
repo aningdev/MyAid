@@ -1,0 +1,221 @@
+{
+  "press": {
+    "scale": 1
+  },
+  "dark": {
+    "card": {
+      "backgroundImage": "linear-gradient(180deg, var(--card) 0%, var(--card) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)"
+    },
+    "inset": {
+      "boxShadow": "none"
+    },
+    "field": {
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)"
+    },
+    "raised": {
+      "backgroundColor": "var(--raised)",
+      "backgroundImage": "linear-gradient(180deg, var(--raised) 0%, var(--raised) 100%)",
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)",
+      "borderColor": "transparent"
+    },
+    "hover": {
+      "backgroundColor": "var(--hover)",
+      "backgroundImage": "linear-gradient(180deg, var(--hover) 0%, var(--hover) 100%)",
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)",
+      "borderColor": "transparent"
+    },
+    "pressed": {
+      "backgroundColor": "oklch(0.34846 0 0)",
+      "backgroundImage": "linear-gradient(180deg, oklch(0.34846 0 0) 0%, oklch(0.34846 0 0) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "light": {
+      "backgroundColor": "var(--primary)",
+      "backgroundImage": "linear-gradient(180deg, var(--primary) 0%, var(--primary) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "accent": {
+      "backgroundColor": "var(--primary)",
+      "backgroundImage": "linear-gradient(180deg, var(--primary) 0%, var(--primary) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "track": {
+      "boxShadow": "none",
+      "borderColor": "var(--border)"
+    },
+    "fill": {
+      "backgroundColor": "transparent",
+      "backgroundImage": "linear-gradient(180deg, var(--primary) 0%, var(--primary) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "knob": {
+      "backgroundColor": "var(--knob)",
+      "backgroundImage": "linear-gradient(180deg, var(--knob) 0%, var(--knob) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "transparent"
+    },
+    "knobOn": {
+      "backgroundColor": "var(--primary-foreground)",
+      "backgroundImage": "linear-gradient(180deg, var(--primary-foreground) 0%, var(--primary-foreground) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "transparent"
+    },
+    "handle": {
+      "backgroundColor": "oklch(1 0 0)",
+      "backgroundImage": "linear-gradient(180deg, oklch(1 0 0) 0%, oklch(1 0 0) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "var(--primary)"
+    },
+    "pill": {
+      "backgroundColor": "var(--raised)",
+      "backgroundImage": "linear-gradient(180deg, var(--raised) 0%, var(--raised) 100%)",
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)",
+      "borderColor": "transparent"
+    },
+    "thumb": {
+      "backgroundColor": "oklch(0.34846 0 0)",
+      "backgroundImage": "linear-gradient(180deg, oklch(0.34846 0 0) 0%, oklch(0.34846 0 0) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "transparent"
+    },
+    "on": {
+      "backgroundColor": "var(--chart-3)",
+      "backgroundImage": "linear-gradient(180deg, var(--chart-3) 0%, var(--chart-3) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "chip": {
+      "backgroundColor": "var(--muted)",
+      "backgroundImage": "linear-gradient(180deg, var(--muted) 0%, var(--muted) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "glass": {
+      "backgroundColor": "oklch(from var(--card) l c h / 0.8)",
+      "boxShadow": "none",
+      "borderColor": "var(--border)",
+      "backdropFilter": "blur(20px)"
+    },
+    "menu": {
+      "backgroundColor": "var(--card)",
+      "boxShadow": "0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1)",
+      "borderColor": "var(--border)"
+    },
+    "groove": {
+      "boxShadow": "none"
+    }
+  },
+  "light": {
+    "card": {
+      "backgroundImage": "linear-gradient(180deg, var(--card) 0%, var(--card) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)"
+    },
+    "inset": {
+      "boxShadow": "none"
+    },
+    "field": {
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)"
+    },
+    "raised": {
+      "backgroundColor": "var(--raised)",
+      "backgroundImage": "linear-gradient(180deg, var(--raised) 0%, var(--raised) 100%)",
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)",
+      "borderColor": "transparent"
+    },
+    "hover": {
+      "backgroundColor": "var(--hover)",
+      "backgroundImage": "linear-gradient(180deg, var(--hover) 0%, var(--hover) 100%)",
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)",
+      "borderColor": "transparent"
+    },
+    "pressed": {
+      "backgroundColor": "var(--border)",
+      "backgroundImage": "linear-gradient(180deg, var(--border) 0%, var(--border) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "light": {
+      "backgroundColor": "var(--primary)",
+      "backgroundImage": "linear-gradient(180deg, var(--primary) 0%, var(--primary) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "accent": {
+      "backgroundColor": "var(--primary)",
+      "backgroundImage": "linear-gradient(180deg, var(--primary) 0%, var(--primary) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "track": {
+      "boxShadow": "none",
+      "borderColor": "var(--border)"
+    },
+    "fill": {
+      "backgroundColor": "transparent",
+      "backgroundImage": "linear-gradient(180deg, var(--primary) 0%, var(--primary) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "knob": {
+      "backgroundColor": "var(--knob)",
+      "backgroundImage": "linear-gradient(180deg, var(--knob) 0%, var(--knob) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "transparent"
+    },
+    "knobOn": {
+      "backgroundColor": "var(--background)",
+      "backgroundImage": "linear-gradient(180deg, var(--background) 0%, var(--background) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "transparent"
+    },
+    "handle": {
+      "backgroundColor": "oklch(1 0 0)",
+      "backgroundImage": "linear-gradient(180deg, oklch(1 0 0) 0%, oklch(1 0 0) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "var(--primary)"
+    },
+    "pill": {
+      "backgroundColor": "var(--raised)",
+      "backgroundImage": "linear-gradient(180deg, var(--raised) 0%, var(--raised) 100%)",
+      "boxShadow": "0 1px 2px 0 oklch(0 0 0 / 0.05)",
+      "borderColor": "transparent"
+    },
+    "thumb": {
+      "backgroundColor": "oklch(1 0 0)",
+      "backgroundImage": "linear-gradient(180deg, oklch(1 0 0) 0%, oklch(1 0 0) 100%)",
+      "boxShadow": "0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1)",
+      "borderColor": "transparent"
+    },
+    "on": {
+      "backgroundColor": "var(--chart-1)",
+      "backgroundImage": "linear-gradient(180deg, var(--chart-1) 0%, var(--chart-1) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "chip": {
+      "backgroundColor": "var(--muted)",
+      "backgroundImage": "linear-gradient(180deg, var(--muted) 0%, var(--muted) 100%)",
+      "boxShadow": "none",
+      "borderColor": "transparent"
+    },
+    "glass": {
+      "backgroundColor": "oklch(from var(--card) l c h / 0.8)",
+      "boxShadow": "none",
+      "borderColor": "var(--border)",
+      "backdropFilter": "blur(20px)"
+    },
+    "menu": {
+      "backgroundColor": "var(--card)",
+      "boxShadow": "0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1)",
+      "borderColor": "var(--border)"
+    },
+    "groove": {
+      "boxShadow": "none"
+    }
+  }
+}

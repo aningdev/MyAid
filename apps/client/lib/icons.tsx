@@ -1,6 +1,6 @@
-// Icons: lucide's nodes drawn on a canvas, and the check mark as one color's SVG.
-// It replaces NSH's examples/nsh-gallery-ui icons.tsx (Apache-2.0, © Longbridge; see NOTICE): the
-// glyphs are gone, the icons come from `lucide` as a front end imports them (`docs/specs/lucide.md`).
+// Icons: lucide's nodes drawn on a canvas, and the check mark as one color's SVG. This library's own
+// (upstream's own glyphs are superseded by `lucide`): the icons come from `lucide` as a front end
+// imports them. Yours to change.
 import { terminal } from "./theme";
 import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, type IconNode } from "lucide";
 import { Canvas, Image, Path2D, Text } from "nsh";
@@ -100,7 +100,8 @@ const svgElement = (tag: string, attrs: IconNode[number][1]) =>
 
 /**
  * lucide's `Check` as an SVG in one color, recolored by `tintColor`: `#000` is the image's
- * template ink, never what is drawn (the P3 exemption in `ui-guards.test.ts`).
+ * template ink, never what is drawn (a template image takes the tint, so this is no color of the
+ * interface and not a theme literal).
  */
 const checkSvg = (weight: number) =>
   `data:image/svg+xml,${encodeURIComponent(

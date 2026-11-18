@@ -11,6 +11,9 @@ import { split, View } from "nsh";
  */
 export type SeparatorOrientation = "horizontal" | "vertical";
 
+/** How thick a hairline is, in points. */
+const HAIRLINE = 1;
+
 /**
  * A separator's look: a hairline one point thick in the theme's edge color (`colors.border`),
  * across the content as `horizontal`, as tall as its row as `vertical`, and never shrunk by a
@@ -21,8 +24,8 @@ export function separatorLook(orientation: SeparatorOrientation = "horizontal"):
     flexShrink: 0,
     backgroundColor: colors.border,
     ...(orientation === "vertical"
-      ? { width: 1, alignSelf: "stretch" }
-      : { height: 1, alignSelf: "stretch", width: "100%" }),
+      ? { width: HAIRLINE, alignSelf: "stretch" }
+      : { height: HAIRLINE, alignSelf: "stretch", width: "100%" }),
   };
 }
 

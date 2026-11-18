@@ -111,9 +111,8 @@ export type AlertDescriptionProps = ViewProps;
  */
 export function Alert(props: AlertProps) {
   const [, rest] = split(props, ["variant", "style"]);
-  const variant = () => props.variant ?? "default";
   return (
-    <AlertVariantContext.Provider value={variant()}>
+    <AlertVariantContext.Provider value={props.variant ?? "default"}>
       <View {...rest} role="alert" style={[alertLook().root(), props.style ?? null]}>
         {props.children}
       </View>
@@ -124,25 +123,24 @@ export function Alert(props: AlertProps) {
 /** An alert's title, one line above its note: `destructive` puts it in the danger tone. */
 export function AlertTitle(props: AlertTitleProps) {
   const [, rest] = split(props, ["style"]);
-  const variant = () => AlertVariantContext();
   return (
-    <Text {...rest} style={[alertLook().title(variant()), props.style ?? null]}>
+    <Text {...rest} style={[alertLook().title(AlertVariantContext()), props.style ?? null]}>
       {props.children}
     </Text>
   );
 }
 
 /**
- * An alert's note, under its title or, with none, beside the icon: a string is drawn in the note's type and ink; anything else (a
- * list of lines, a link) is laid out as given, a small gap apart, in the ink the app gives it.
+ * An alert's note, under its title or, with none, beside the icon: a string is drawn in the note's
+ * type and ink; anything else (a list of lines, a link) is laid out as given, a small gap apart, in
+ * the ink the app gives it.
  */
 export function AlertDescription(props: AlertDescriptionProps) {
   const [, rest] = split(props, ["style", "children"]);
-  const variant = () => AlertVariantContext();
   return (
     <View {...rest} style={[alertLook().descriptionFrame(), props.style ?? null]}>
       {typeof props.children === "string" ? (
-        <Text style={alertLook().descriptionText(variant())}>{props.children}</Text>
+        <Text style={alertLook().descriptionText(AlertVariantContext())}>{props.children}</Text>
       ) : (
         props.children
       )}

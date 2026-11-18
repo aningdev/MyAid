@@ -11,29 +11,10 @@ import {
 import { createOpenState, createSlot, type OpenState, type Slot } from "../../lib/open-state";
 import { menuPopup } from "./menu";
 
-export {
-  MenuCheckboxItem as ContextMenuCheckboxItem,
-  MenuGroup as ContextMenuGroup,
-  MenuItem as ContextMenuItem,
-  MenuLabel as ContextMenuLabel,
-  MenuRadioItem as ContextMenuRadioItem,
-  MenuSeparator as ContextMenuSeparator,
-  MenuShortcut as ContextMenuShortcut,
-  MenuSub as ContextMenuSub,
-  MenuSubContent as ContextMenuSubContent,
-  MenuSubTrigger as ContextMenuSubTrigger,
-  type MenuCheckboxItemProps as ContextMenuCheckboxItemProps,
-  type MenuGroupProps as ContextMenuGroupProps,
-  type MenuItemProps as ContextMenuItemProps,
-  type MenuRadioItemProps as ContextMenuRadioItemProps,
-  type MenuSeparatorProps as ContextMenuSeparatorProps,
-  type MenuShortcutProps as ContextMenuShortcutProps,
-  type MenuSubContentProps as ContextMenuSubContentProps,
-  type MenuSubProps as ContextMenuSubProps,
-  type MenuSubTriggerProps as ContextMenuSubTriggerProps,
-} from "./menu";
+/** Why a context menu closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type ContextMenuOpenChangeReason = OpenChangeReason;
 
-/** Composition root for `nsh/base` ContextMenu: open state + trigger slot. */
+/** The root: it owns whether the menu is open, and the trigger slot. */
 export type ContextMenuProps = {
   open?: boolean | null;
   defaultOpen?: boolean;
@@ -45,10 +26,7 @@ export type ContextMenuProps = {
   onCancel?: () => void;
 };
 
-/**
- * Theme layer on `nsh/base` ContextMenu as `ContextMenuContent`. Open / trigger /
- * lifecycle events are owned by the {@link ContextMenu} context. Default offset 4.
- */
+/** The popup: `nsh/base`'s ContextMenu, showing the shared menu look (`menuPopup`) 4 points from the pointer unless set. */
 export type ContextMenuContentProps = Omit<
   BaseContextMenuProps,
   "trigger" | "open" | "disabled" | "onOpenChange" | "onOpen" | "onClose" | "onCancel" | "children"
@@ -56,14 +34,14 @@ export type ContextMenuContentProps = Omit<
   children?: JSX.Element;
 };
 
-/** Surface that opens the menu on secondary click / long-press. */
+/** The area that opens the menu, at the pointer (a secondary click or a long press). */
 export type ContextMenuTriggerProps = {
   children?: JSX.Element;
   style?: StyleProp<ViewStyle>;
 };
 
 type ContextMenuContextValue = OpenState & {
-  trigger: Slot;
+  trigger: Slot<JSX.Element>;
   disabled?: boolean;
   onOpen?: () => void;
   onClose?: () => void;
@@ -81,7 +59,7 @@ function useContextMenu() {
 /** Composition root: a menu opened at the pointer. */
 export function ContextMenu(props: ContextMenuProps) {
   const state = createOpenState<OpenChangeReason>(props);
-  const triggerSlot = createSlot();
+  const triggerSlot = createSlot<JSX.Element>();
   return (
     <ContextMenuContext.Provider
       value={{
@@ -106,7 +84,7 @@ export function ContextMenu(props: ContextMenuProps) {
   );
 }
 
-/** The area that opens the menu. */
+/** The area that opens the menu: its children in a `View` when it has a `style`, as given otherwise. */
 export function ContextMenuTrigger(props: ContextMenuTriggerProps) {
   const ctx = useContextMenu();
   ctx.trigger.set(() => {
@@ -115,7 +93,7 @@ export function ContextMenuTrigger(props: ContextMenuTriggerProps) {
     }
     return props.children ?? <View />;
   });
-  // No layout node: a zero-size view would still take a flex `gap` in the demo row.
+  // No layout node: a zero-size view would still take a flex `gap` in a row of triggers.
   return null;
 }
 
@@ -136,7 +114,7 @@ export function ContextMenuContent(props: ContextMenuContentProps) {
       {...rest}
       open={ctx.open()}
       disabled={ctx.disabled}
-      trigger={(triggerAccessor?.() as JSX.Element) ?? <View />}
+      trigger={triggerAccessor?.() ?? <View />}
       offset={props.offset ?? 4}
       onOpenChange={({ open, reason }) => ctx.setOpen(open, reason)}
       onOpen={ctx.onOpen}
@@ -155,5 +133,30 @@ export function ContextMenuContent(props: ContextMenuContentProps) {
   );
 }
 
-/** Why a context menu closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
-export type ContextMenuOpenChangeReason = OpenChangeReason;
+/**
+ * A context menu's rows, its groups, its submenus and its notes are the menu's own: `menu.tsx`
+ * draws them, so a row of a context menu wears what a row of a menu wears.
+ */
+export {
+  MenuCheckboxItem as ContextMenuCheckboxItem,
+  MenuGroup as ContextMenuGroup,
+  MenuItem as ContextMenuItem,
+  MenuLabel as ContextMenuLabel,
+  MenuRadioItem as ContextMenuRadioItem,
+  MenuSeparator as ContextMenuSeparator,
+  MenuShortcut as ContextMenuShortcut,
+  MenuSub as ContextMenuSub,
+  MenuSubContent as ContextMenuSubContent,
+  MenuSubTrigger as ContextMenuSubTrigger,
+  type MenuCheckboxItemProps as ContextMenuCheckboxItemProps,
+  type MenuGroupProps as ContextMenuGroupProps,
+  type MenuItemProps as ContextMenuItemProps,
+  type MenuItemVariant as ContextMenuItemVariant,
+  type MenuLabelProps as ContextMenuLabelProps,
+  type MenuRadioItemProps as ContextMenuRadioItemProps,
+  type MenuSeparatorProps as ContextMenuSeparatorProps,
+  type MenuShortcutProps as ContextMenuShortcutProps,
+  type MenuSubContentProps as ContextMenuSubContentProps,
+  type MenuSubProps as ContextMenuSubProps,
+  type MenuSubTriggerProps as ContextMenuSubTriggerProps,
+} from "./menu";
