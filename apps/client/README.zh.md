@@ -16,7 +16,7 @@ apps/client/
 ├── features/                   # bots（注册表、Pane、详情弹窗）、dialogue（chat、段）、workspace、settings
 ├── lib/                        # dsh、host、relay、background
 ├── screens/                    # open(…) 入口、截图、真 Host 冒烟（opt-in）
-├── themes/                     # shadcn-nsh CLI 再装进的另一套主题（`default/`：其自带配色）
+├── themes/                     # shadcn-nsh `add theme-*` 的复制件（`default/`：其自带配色；`shadcn/`：构建时主题的同一套，包成 `AppTheme`）
 ├── nsh.json                    # plain TSX: no "rust" key
 └── assets/
 ```

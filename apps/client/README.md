@@ -16,7 +16,7 @@ apps/client/
 ├── features/                   # bots (registry, Pane, details), dialogue (chat, segments), workspace, settings
 ├── lib/                        # dsh, host, relay, background
 ├── screens/                    # open(…) entries, screenshots, opt-in real-Host smokes
-├── themes/                     # another theme shadcn-nsh copies in (`default/`: its own colours)
+├── themes/                     # what shadcn-nsh's `add theme-*` copies in (`default/`: its own colours; `shadcn/`: the build theme again, as an `AppTheme`)
 ├── nsh.json                    # plain TSX: no "rust" key
 └── assets/
 ```

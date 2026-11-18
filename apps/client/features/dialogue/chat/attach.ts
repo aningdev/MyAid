@@ -2,7 +2,7 @@
  * Files the user hands the app from outside it: a drop on the chat, or a
  * paste of files copied in Finder. Both gestures arrive as `file:` URLs, so
  * their bytes are read through `fs` — and `capabilities.fs.read` in nsh.json
- * is a list of roots, not of the files a user picked: nsh 0.5 has no
+ * is a list of roots, not of the files a user picked: nsh 0.6 still has no
  * picker-scoped grant (the system's picker is the one gesture that hands
  * bytes over with no grant; a file merely opened or dropped is read under
  * `fs.read`, "which its opening does not grant").
