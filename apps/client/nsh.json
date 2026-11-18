@@ -7,9 +7,15 @@
   "appearance": "system",
   "theme": "./theme.json",
   "resolve": {
-    "conditions": ["node"]
+    "conditions": ["node"],
+    "alias": {
+      "@": "./"
+    }
   },
   "capabilities": {
+    "application": true,
+    "homeDir": true,
+    "statusBar": true,
     "clipboard": true,
     "picker": true,
     "notifications": true,

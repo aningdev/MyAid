@@ -48,7 +48,8 @@
 ## 原生接口与权限
 
 - 新增文件 / 网络 / 进程访问时同步更新 `nsh.json` capabilities。`fs.read: ["/"]` 在 Windows 无效；产品数据用 `${homeDir}/.myaid`。
-- **`fs` 只授应用自己的数据**：`read` / `write` 都是 `${homeDir}/.myaid`。nsh 0.5 没有「用户选中才可读」的授权，别为附件放宽回 `${homeDir}`。
+- **声明了 capabilities 就逐项授权**：nsh 0.6 起，声明 capabilities 的应用必须显式列出 `application`（菜单、`Application`、主窗口）、`homeDir`（`os.homedir()`）与 `statusBar`（灯箱的状态栏样式）；漏掉不报错，运行时静默变成拒绝或告警。`nsh test` 会把未授权的这类用法打成 `warn`，按它补齐。
+- **`fs` 只授应用自己的数据**：`read` / `write` 都是 `${homeDir}/.myaid`。nsh 0.6 仍没有「用户选中才可读」的授权，别为附件放宽回 `${homeDir}`。
 - **附件只走系统选择器**：回形针直接拿字节；拖放 / 粘贴只给 `file:` URL，授权外或读不了时由 [`chat/attach.ts`](features/dialogue/chat/attach.ts) 开同一文件的 `Picker`。策略只此一处。
 - 本机控制端点（Unix socket / named pipe）、`SMAppService` 仅在标准 API 缺口核实后添加；升级后复核可否迁回。
 - 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理与登记事实，不当业务网关。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。

@@ -38,6 +38,15 @@ const gap = 16;
 /** How wide the words and the actions get: a column of text does not run on. */
 const column = 384;
 
+/** The words and the actions: a column centered in the block, no wider than `column`. */
+const centered = (step: number): ViewStyle => ({
+  flexDirection: "column",
+  alignItems: "center",
+  gap: step,
+  maxWidth: column,
+  width: "100%",
+});
+
 /**
  * An empty state's look, after shadcn/ui's `Empty`: a column centered in the room its parent
  * leaves, padded 24 (none in the terminal, where the block is its lines), its header a step of 8
@@ -58,13 +67,7 @@ export function emptyLook(): EmptyLook {
       minWidth: 0,
       width: "100%",
     }),
-    header: (): ViewStyle => ({
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 8,
-      maxWidth: column,
-      width: "100%",
-    }),
+    header: (): ViewStyle => centered(8),
     media: (variant: EmptyMediaVariant): ViewStyle => ({
       marginBottom: 8,
       alignItems: "center",
@@ -90,13 +93,7 @@ export function emptyLook(): EmptyLook {
       color: colors.muted,
       textAlign: "center",
     }),
-    content: (): ViewStyle => ({
-      flexDirection: "column",
-      alignItems: "center",
-      gap: gap,
-      maxWidth: column,
-      width: "100%",
-    }),
+    content: (): ViewStyle => centered(gap),
   };
 }
 

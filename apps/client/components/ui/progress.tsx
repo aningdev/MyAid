@@ -5,11 +5,8 @@ import type { AnimatedValue, ViewStyle } from "nsh";
 import { cleanup, createAnimatedValue, Easing, effect, reduceMotion, split } from "nsh";
 import { Progress as BaseProgress, type ProgressProps as BaseProgressProps } from "nsh/base";
 
-/** A value, or a function reading it where the look is applied (a signal). */
-type Live<T> = T | (() => T);
+import { type Live, read } from "../../lib/utils";
 
-const read = <T,>(v: Live<T> | undefined): T | undefined =>
-  typeof v === "function" ? (v as () => T)() : v;
 
 /**
  * A determinate fill's classes: the whole track's width, slid back by what
@@ -37,13 +34,12 @@ export function progressRail(height = 6): ViewStyle {
 }
 
 /** A bar's fill, `height` points tall (default 6): the slider's citrus run
- * (`finish.fill`: one color, under its gradient where the theme gives one), or a tone's color
+ * (`finish.fill`: its gradient, over a `transparent` bottom), or a tone's color
  * (`up` for done, `warn`, `danger`; `accent` is the run). Neither has an edge, so a tone's bar and
  * the run read as one kind of bar. */
 export function progressFill(height = 6, tone?: Tone): ViewStyle {
-  return tone && tone !== "accent"
-    ? { height, borderRadius: height / 2, backgroundColor: toneColor(tone) }
-    : { height, borderRadius: height / 2, ...fillStyle() };
+  const fill = tone && tone !== "accent" ? { backgroundColor: toneColor(tone) } : fillStyle();
+  return { height, borderRadius: height / 2, ...fill };
 }
 
 /** An indeterminate bar's sweep (`progressSweep()`), for `progressLook`'s `sweep`. */
@@ -72,6 +68,7 @@ export function progressSweep(): ProgressSweep {
     else
       sweep.keyframes([0, 1], {
         duration: 800,
+        // CSS's `ease-in-out`.
         easing: Easing.bezier(0.42, 0, 0.58, 1),
         iterations: "infinite",
         direction: "alternate",
@@ -131,7 +128,7 @@ export type ProgressProps = BaseProgressProps & {
   /** Rail and fill height (default 6). */
   height?: number;
   /** Fill tone; default citrus run. A function is read where the fill is drawn. */
-  tone?: Tone | (() => Tone);
+  tone?: Live<Tone>;
   /** Shared sweep for indeterminate bars. */
   sweep?: ProgressSweep;
 };

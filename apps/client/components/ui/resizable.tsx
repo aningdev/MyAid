@@ -8,6 +8,8 @@ import {
   type ResizablePanelProps as BasePanelProps,
 } from "nsh/base";
 
+import { joinClass } from "../../lib/utils";
+
 /**
  * The thumb of a resize handle (`handleThumbClass`), as gpui-component
  * draws it: none at rest, so the hairlines stay quiet; a faint pill grows
@@ -34,14 +36,13 @@ export function resizableHandleLook(axis: "horizontal" | "vertical") {
   };
 }
 
-function mergeClass(base: string, consumer?: string | null): string {
-  return consumer ? `${base} ${consumer}` : base;
-}
+/** What a resize handle announces when its group is given no label of its own. */
+export const RESIZE_HANDLE_LABEL = "Resize";
 
-/** Theme layer on `nsh/base` ResizablePanelGroup. */
+/** Every prop of `nsh/base` ResizablePanelGroup, plus the handle's look. */
 export type ResizablePanelGroupProps = BaseGroupProps;
 
-/** Theme layer on `nsh/base` ResizablePanel. */
+/** Every prop of `nsh/base` ResizablePanel. */
 export type ResizablePanelProps = BasePanelProps;
 
 /** Panels in a row or column. Dragging a handle stays in base; this paints the hairline and thumb. */
@@ -56,18 +57,18 @@ export function ResizablePanelGroup(props: ResizablePanelGroupProps) {
     "handleThumbStyle",
     "handleAccessibilityLabel",
   ]);
-  const axis: "horizontal" | "vertical" = props.axis === "vertical" ? "vertical" : "horizontal";
+  const axis = props.axis === "vertical" ? "vertical" : "horizontal";
   const look = resizableHandleLook(axis);
   return (
     <BaseGroup
       {...rest}
       axis={props.axis}
-      handleAccessibilityLabel={props.handleAccessibilityLabel ?? "Resize"}
+      handleAccessibilityLabel={props.handleAccessibilityLabel ?? RESIZE_HANDLE_LABEL}
       class={props.class}
       style={props.style}
-      handleClass={mergeClass(look.handleClass, props.handleClass)}
+      handleClass={joinClass(look.handleClass, props.handleClass)}
       handleStyle={props.handleStyle}
-      handleThumbClass={mergeClass(look.handleThumbClass, props.handleThumbClass)}
+      handleThumbClass={joinClass(look.handleThumbClass, props.handleThumbClass)}
       handleThumbStyle={props.handleThumbStyle}
     />
   );

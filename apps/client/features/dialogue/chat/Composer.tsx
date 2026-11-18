@@ -43,7 +43,7 @@ import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
 import { alpha, radius } from "../../../lib/theme";
 import type { Attachment, SessionController } from "../session/controller";
-import { attachDropped } from "./attach";
+import { attachDropped, readFiles, tooLargeNotice } from "./attach";
 import { composerFocusRequest, takeComposerFocus } from "./focus";
 import { ensurePreferences, sendKey, sendKeyLabel, setSendKey, type SendKey } from "./prefs";
 
@@ -102,7 +102,10 @@ export function Composer(props: {
   const chooseFiles = async () => {
     try {
       const picked = await Picker.pickFiles({ multiple: true, limit: 8 });
-      attach(picked.map((item) => item.file));
+      const { files, tooLarge } = readFiles(picked);
+      attach(files);
+      // A pick past the picker's size limit says so, under the chips that came.
+      trouble.set(tooLargeNotice(tooLarge));
     } catch (error) {
       trouble.set(readFailure(error));
     }

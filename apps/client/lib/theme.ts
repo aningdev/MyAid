@@ -16,17 +16,20 @@ import {
 import finishes from "./finishes.json";
 
 /**
- * The Terminal idiom: the shared UI and the gallery leave out what a
- * terminal program would not show (charts, sparklines, decorative icons and
- * art, window chrome), put on one row what other platforms stack, and space
- * in whole Cell rows (16 pt at the default 8 × 16 points per Cell).
+ * The Terminal idiom (`nsh`'s internal module, so not a public API): a
+ * terminal program leaves out what it cannot draw well (charts,
+ * sparklines, decorative icons and art, window chrome), puts on one row
+ * what other platforms stack, and spaces in whole rows.
  */
 export const terminal = platform.idiom === "terminal";
 
-/** One Cell row and one Cell column in points (the default 8 × 16 points
- * per Cell): the terminal's line height and its unit of spacing. */
+/**
+ * One row and one column of the terminal grid, in points (a Cell is 16 by 8
+ * points): the terminal's line height and its unit of spacing. This
+ * library's own, over `nsh`'s internal Cell metrics; everywhere else the
+ * grid keeps two columns to a Cell.
+ */
 export const TERMINAL_ROW = 16;
-
 export const TERMINAL_COLUMN = 8;
 
 /** The gap the terminal's layout makes two columns (it makes any smaller
@@ -34,13 +37,7 @@ export const TERMINAL_COLUMN = 8;
  * as their labels, so they read apart. */
 export const TERMINAL_GAP = 24;
 
-/** A vertical space (a gap, a padding) in the terminal's whole rows: none
- * below half a row, else the nearest whole number of rows. Unchanged
- * elsewhere. */
-export const wholeRows = (points: number) =>
-  terminal ? Math.round(points / TERMINAL_ROW) * TERMINAL_ROW : points;
-
-/** Whether the shared example UI shows its dark palette (reactive: reading it subscribes). */
+/** Whether the app shows its dark palette; reactive: reading it subscribes. */
 export const isDark = () => colorScheme() !== "light";
 
 /** A surface's finish: a gradient over its color and its shadows. */
@@ -66,6 +63,7 @@ export type FinishRole =
   | "fill"
   | "knob"
   | "knobOn"
+  | "handle"
   | "pill"
   | "thumb"
   | "on"
@@ -115,40 +113,60 @@ const selected = signal<AppTheme | null>(null);
 /** The finishes in use: the selected theme's, else the build-time ones. Reactive: reading it subscribes. */
 const finishesOf = (): Finishes => selected()?.finishes ?? builtIn;
 
+/** The one relative color a finish writes: a token's color at another alpha. */
+const relative = /oklch\(from var\(--([a-z0-9-]+)\) l c h \/ ([\d.]+)\)/g;
+
+/** A token's color, `#rrggbbaa` as `token` gives it, at another alpha. */
+const atAlpha = (color: string, a: number) =>
+  `${color.slice(0, 7)}${Math.round(a * 255)
+    .toString(16)
+    .padStart(2, "0")}`;
+
 /**
- * Finishes a role may hold beyond the build-time file's keys. `fill` is the one: a theme may draw
- * its runs as a gradient (the build-time one) or as a single color with no gradient at all
- * (shadcn's flat fills), and a reader has to see the color the second kind states.
+ * A finish's strings name the theme's tokens instead of writing their colors (`var(--raised)`, an
+ * alias): the finishes keep one shape in every theme while the colors they draw are the theme's.
+ * `token` reads the same token the rest of the theme does, so an alias follows the appearance and
+ * the theme `selectTheme` put in, and a `var()` anywhere in a gradient or a shadow resolves with it.
+ *
+ * A token named at another alpha (`oklch(from var(--card) l c h / 0.78)`, the one relative color a
+ * finish writes) resolves to that token's color with the alpha replaced: NSH reads these strings
+ * as plain CSS and has no relative color syntax. It goes through `token` rather than reading the
+ * theme file, so this module imports nothing but `finishes.json`: it is `lib/theme.ts` in an app,
+ * whose `theme.json` sits at its root.
  */
-const FINISH_EXTRA: Partial<Record<FinishRole, (keyof Finish)[]>> = {
-  fill: ["backgroundColor"],
-};
+const alias = (value: string): string =>
+  value
+    .replace(relative, (whole, name: string, a: string) => {
+      const color = token(name as keyof Tokens);
+      return typeof color === "string" ? atAlpha(color, Number(a)) : whole;
+    })
+    .replace(/var\(--([a-z0-9-]+)\)/g, (whole, name: string) => {
+      const color = token(name as keyof Tokens);
+      return typeof color === "string" ? color : whole;
+    });
 
 /**
  * An object whose getters read one finish role of the finishes in use, in
  * the appearance shown: shadows and gradients are no design tokens, so they
- * stay here while every color is the theme's. Reading one subscribes to the
- * appearance and to the theme `selectTheme` put in.
+ * stay here while every color is the theme's, by alias. Reading one
+ * subscribes to the appearance and to the theme `selectTheme` put in.
  */
 function themed(role: FinishRole): Finish {
   const out = {} as Finish;
-  const keys = [
-    ...(Object.keys(builtIn.dark[role]) as (keyof Finish)[]),
-    ...(FINISH_EXTRA[role] ?? []).filter((key) => !(key in builtIn.dark[role])),
-  ];
-  for (const key of keys) {
+  for (const key of Object.keys(builtIn.dark[role]) as (keyof Finish)[]) {
     Object.defineProperty(out, key, {
       enumerable: true,
       get: () => {
         const finishes = finishesOf();
-        return (isDark() ? finishes.dark : finishes.light)[role][key];
+        const value = (isDark() ? finishes.dark : finishes.light)[role][key];
+        return value === undefined ? value : alias(value);
       },
     });
   }
   return out;
 }
 
-/** The roles of the palette. */
+/** The palette's roles: one color each, a token of the theme's `theme.json`. */
 export interface Palette {
   /** The page behind the cards. */
   background: string;
@@ -166,11 +184,21 @@ export interface Palette {
   field: string;
   /** An input's edge. */
   fieldBorder: string;
+  /** The hairline round what needs an edge (a card, a well, a divider). */
   border: string;
   /** Hairlines inside insets. */
   line: string;
+  /** The edge a filled pane draws (a primary button, a chosen run, a chip): the accent a step down,
+   * or `border` where the theme's fill is flat. */
+  brandEdge: string;
+  /** The hairline round a glass surface (a raised pane, a track's thumb, a popover): Solid Glass' own
+   * line, `border` in a flat theme. */
+  glassEdge: string;
+  /** Body text. */
   text: string;
+  /** Secondary text: a detail, a caption. */
   muted: string;
+  /** What recedes the furthest: a placeholder, an icon at rest. */
   faint: string;
   /** The accent as a foreground: text, icons, lines, small marks. */
   accent: string;
@@ -194,6 +222,7 @@ export interface Palette {
   knob: string;
   /** Code inside insets. */
   code: string;
+  /** The tone colors: information, a warning, a failure, a gain, a loss. */
   info: string;
   warn: string;
   danger: string;
@@ -212,11 +241,9 @@ function tokens<K extends string>(names: Record<K, keyof Tokens>): Record<K, str
 }
 
 /**
- * The shared example UI's look: a graphite page (or a paper one in light
- * appearance), cards with an inset surface, tabular numbers and one citrus
- * accent, its colors the tokens of `theme.json`. Desktops are compact
- * (28-point controls, 13-point labels), touch screens roomier (36 to 40
- * points).
+ * The palette in use, read from the theme's tokens: reactive, so reading it
+ * in JSX, a `draw` or an `effect` follows the appearance and the theme
+ * `selectTheme` put in.
  */
 export const colors: Palette = tokens<keyof Palette>({
   background: "background",
@@ -228,6 +255,8 @@ export const colors: Palette = tokens<keyof Palette>({
   fieldBorder: "input",
   border: "border",
   line: "line",
+  brandEdge: "brand-edge",
+  glassEdge: "glass-edge",
   text: "foreground",
   muted: "muted-foreground",
   faint: "faint",
@@ -264,9 +293,12 @@ export const windowControls = tokens<"close" | "minimize" | "zoom" | "ink" | "ed
   off: "window-control-off",
 });
 
-/** `color` at opacity `a`. */
-export function alpha(color: string, a: number) {
-  return `color-mix(in srgb, ${color} ${a * 100}%, transparent)`;
+/**
+ * `color` at opacity `a` (0 to 1): a `color-mix` over nothing, for a fill or a text color that is
+ * the theme's at a lighter weight. Clamped, so a ratio past its ends is still a color.
+ */
+export function alpha(color: string, a: number): string {
+  return `color-mix(in srgb, ${color} ${Math.min(Math.max(a, 0), 1) * 100}%, transparent)`;
 }
 
 /** The charts' series colors, in order (`theme.json`'s `chart-1` to
@@ -297,7 +329,9 @@ export const tints = tokens({
  * shadow. `hover` and `pressed` are a raised control's states, `fill` a
  * slider's or a meter's run of the accent; `knob` a switch's knob on its
  * sunk track, `knobOn` the white one with an olive edge on the citrus.
- * `thumb` is a segmented control's or a tab strip's selected segment on
+ * `handle` is a slider's thumb, the knob's twin here; a theme whose thumb
+ * wears an edge the switch's knob does not (shadcn's `border-primary`) tells
+ * them apart. `thumb` is a segmented control's or a tab strip's selected segment on
  * its sunk track: the raised fill dark; white with a soft drop light, where
  * the raised fill is all but the track's color.
  * `on` is what stays on (a toggle, a chosen tool, a selected button): a
@@ -321,6 +355,7 @@ export const finish: Record<FinishRole, Finish> = {
   fill: themed("fill"),
   knob: themed("knob"),
   knobOn: themed("knobOn"),
+  handle: themed("handle"),
   pill: themed("pill"),
   thumb: themed("thumb"),
   on: themed("on"),
@@ -374,14 +409,6 @@ export const toneColor = (tone: Tone) => (tone === "neutral" ? colors.muted : co
 
 /** The tint of a tone. */
 export const toneTint = (tone: Tone) => (tone === "neutral" ? colors.raised : tints[tone]);
-
-/** A tone's tint as `toneTint` shows it on `base` (default the card), but
- * opaque: for what overlaps, such as stacked avatars, where a translucent
- * tint would let what is under it show through. */
-export const solidTint = (tone: Tone, base: string = colors.surface) =>
-  tone === "neutral"
-    ? colors.raised
-    : `color-mix(in srgb, ${toneColor(tone)} ${isDark() ? 16 : 10}%, ${base})`;
 
 /** The monospaced family, for code (API names, identifiers). Figures use
  * the system font with tabular numbers instead. */
@@ -451,30 +478,27 @@ export function follow(
 }
 
 /**
- * A pressable under the pointer (`hoverStyle`): a whisper of the text color
- * over its surface, quieter than pressed and than selected. Leave it off a
- * disabled control and off a selected one, whose own fill shows.
+ * A pressable under the pointer (`hoverStyle`): the theme's `hover` (here a
+ * whisper of the text color over its surface, quieter than pressed and than
+ * selected; shadcn's `accent`). Leave it off a disabled control and off a
+ * selected one, whose own fill shows.
  */
-export const hovered = (): ViewStyle => ({ backgroundColor: alpha(colors.text, 0.05) });
+export const hovered = (): ViewStyle => ({ backgroundColor: token("hover") });
 
-/**
- * The resting fill of a ghost control (a bare button, an icon button): none,
- * bare until the pointer is over it; in the terminal, which shows no hover
- * until the pointer is there and no outline to hint at one, a faint
- * `secondary` band, so it reads as pressable.
- */
-export const ghostFill = () => (terminal ? token("secondary") : "transparent");
+/** How wide the halo round a focused view is: shadcn/ui's `ring-3`. */
+const RING_WIDTH = 3;
 
 /**
  * The keyboard focus (`focusVisibleStyle`: not after a click or a tap): the
- * edge turns the theme's muted olive `ring` and a 3-point halo of it lies
- * around the view (`offset` moves the halo out from the edge).
+ * edge turns the theme's `ring` and a 3-point halo of `ring-halo` lies
+ * around the view (a faint wash of the ring; shadcn's `ring/50`), `offset`
+ * points out from the edge.
  */
 export const focusRing = (offset = 0): ViewStyle => ({
   borderColor: token("ring"),
   outlineStyle: "solid",
-  outlineWidth: 3,
-  outlineColor: alpha(token("ring"), 0.14),
+  outlineWidth: RING_WIDTH,
+  outlineColor: token("ring-halo"),
   outlineOffset: offset,
 });
 
@@ -483,14 +507,15 @@ export const focusRing = (offset = 0): ViewStyle => ({
  */
 
 /**
- * A theme's fill for a run, a bar or a slider's range: its gradient where it gives one, else its
- * color. A theme may state both (a color under the gradient), as the build-time one does; the
- * gradient is what draws then, so what a theme that states one color alone says is a fill too.
+ * A theme's fill for a run, a bar or a slider's range: its gradient, and the color under it. The
+ * gradient carries the color (a flat theme repeats one color in both stops); the theme keeps its
+ * `backgroundColor` transparent, since a color under the gradient shows through and tints the run.
  */
 export function fillStyle(): ViewStyle {
-  return finish.fill.backgroundImage === undefined
-    ? { backgroundColor: finish.fill.backgroundColor }
-    : { backgroundImage: finish.fill.backgroundImage };
+  return {
+    backgroundColor: finish.fill.backgroundColor,
+    backgroundImage: finish.fill.backgroundImage,
+  };
 }
 
 /**

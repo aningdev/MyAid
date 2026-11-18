@@ -1,6 +1,6 @@
 // An item: the look (`itemLook`) and the ten parts that wear it.
-// This library's own (docs/specs/card-field-item.md): upstream has no item family, so the parts
-// and their axes follow shadcn/ui and the look is written from the theme's roles. Yours to change.
+// This library's own (upstream has no item family): the parts and their axes follow shadcn/ui and
+// the look is written from the theme's roles. Yours to change.
 import { colors, radius, TERMINAL_COLUMN, terminal } from "../../lib/theme";
 import type { TextStyle, TextProps, ViewProps, ViewStyle } from "nsh";
 import { split, Text, View } from "nsh";
@@ -45,10 +45,16 @@ export interface ItemLook {
 }
 
 /** The side of an icon's tile: a control's box plus 12. */
-const iconTile = () => controlSize.control + 12;
+const iconTile = controlSize.control + 12;
 
 /** The side of an image's frame: a row's own height at its least. */
-const imageTile = () => controlSize.row - 8;
+const imageTile = controlSize.row - 8;
+
+/** A row's padding and gaps: `sm` takes four points off each. */
+const rowBox = (size: ItemSize) =>
+  size === "sm"
+    ? { paddingVertical: density.pad - 4, paddingHorizontal: density.pad, gap: 10 }
+    : { paddingVertical: density.pad, paddingHorizontal: density.pad, gap: density.gap + 2 };
 
 /**
  * An item family's look, after shadcn/ui's secondary `Item`, written from the
@@ -63,11 +69,6 @@ const imageTile = () => controlSize.row - 8;
  * clips. The terminal draws rows one row high, with no surface and no tile.
  */
 export function itemLook(): ItemLook {
-  /** The row's padding and gaps: `sm` takes four points off each. */
-  const box = (size: ItemSize) =>
-    size === "sm"
-      ? { paddingVertical: density.pad - 4, paddingHorizontal: density.pad, gap: 10 }
-      : { paddingVertical: density.pad, paddingHorizontal: density.pad, gap: density.gap + 2 };
   return {
     get group(): ViewStyle {
       return {
@@ -92,7 +93,7 @@ export function itemLook(): ItemLook {
             minHeight: controlSize.row,
           }
         : {
-            ...box(size),
+            ...rowBox(size),
             flexDirection: "row",
             flexWrap: "wrap",
             alignItems: "center",
@@ -108,8 +109,8 @@ export function itemLook(): ItemLook {
         : variant === "icon"
           ? {
               flexShrink: 0,
-              width: iconTile(),
-              height: iconTile(),
+              width: iconTile,
+              height: iconTile,
               alignItems: "center",
               justifyContent: "center",
               borderRadius: radius.control,
@@ -119,8 +120,8 @@ export function itemLook(): ItemLook {
             }
           : {
               flexShrink: 0,
-              width: imageTile(),
-              height: imageTile(),
+              width: imageTile,
+              height: imageTile,
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",

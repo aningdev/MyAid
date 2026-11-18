@@ -1,4 +1,4 @@
-// A tooltip: the look (`tooltipLook`, `tooltipText`, `tooltipNote`) and the `Tooltip` that wears it.
+// A tooltip: the look (`tooltipLook`, `tooltipText`, `tooltipNote`) at the top, and the parts below.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import type { JSX, StyleProp, ViewStyle } from "nsh";
 import { context, split, Text, View } from "nsh";
@@ -38,6 +38,9 @@ export const tooltipText = "text-xs text-popover-foreground";
 
 /** A tooltip's quieter text (`class`): a shortcut's keys, a time. */
 export const tooltipNote = "text-xs text-muted-foreground";
+
+/** Why a tooltip closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
+export type TooltipOpenChangeReason = OpenChangeReason;
 
 /**
  * The root: it owns whether the hint shows, and the trigger and content slots. `nsh/base` takes a
@@ -97,8 +100,8 @@ export type TooltipContentProps = Omit<BaseTooltipProps, "children"> & {
 };
 
 type TooltipContextValue = OpenState & {
-  trigger: Slot;
-  content: Slot;
+  trigger: Slot<JSX.Element>;
+  content: Slot<TooltipContentProps>;
   placement?: BaseTooltipProps["placement"];
   align?: BaseTooltipProps["align"];
   offset?: number;
@@ -136,8 +139,8 @@ function Bubble(props: TooltipContentProps) {
 /** The root of a tooltip's parts. */
 export function Tooltip(props: TooltipProps) {
   const state = createOpenState<OpenChangeReason>(props);
-  const trigger = createSlot();
-  const content = createSlot();
+  const trigger = createSlot<JSX.Element>();
+  const content = createSlot<TooltipContentProps>();
   return (
     <TooltipContext.Provider
       value={{
@@ -173,6 +176,7 @@ export function Tooltip(props: TooltipProps) {
         },
       }}
     >
+      {/* No gap of its own: this view only hosts the hint, the children lay out as they would. */}
       <View style={[{ gap: 0 }, props.style ?? null]}>
         {props.children}
         {() => <TooltipAnchor />}
@@ -220,7 +224,7 @@ function TooltipAnchor() {
   if (!ctx) return null;
   const build = ctx.trigger.get();
   if (!build) return null;
-  const content = ctx.content.get() as (() => TooltipContentProps) | undefined;
+  const content = ctx.content.get();
   if (!content) return build() as JSX.Element;
   return (
     <View tooltip={<AnchorBubble content={content()} ctx={ctx} />}>{build() as JSX.Element}</View>
@@ -228,8 +232,7 @@ function TooltipAnchor() {
 }
 
 function AnchorBubble(props: { content: TooltipContentProps; ctx: TooltipContextValue }) {
-  const content = props.content;
-  const ctx = props.ctx;
+  const { content, ctx } = props;
   return (
     <Bubble
       {...content}
@@ -251,6 +254,3 @@ function AnchorBubble(props: { content: TooltipContentProps; ctx: TooltipContext
     </Bubble>
   );
 }
-
-/** Why a tooltip closed (`onOpenChange`'s `reason`): `nsh/base`'s `OpenChangeReason`, under this part's name. */
-export type TooltipOpenChangeReason = OpenChangeReason;

@@ -8,14 +8,7 @@ import { Input as BaseInput, type InputProps as BaseInputProps } from "nsh/base"
 
 import { Button, buttonSizes, type ButtonProps, type ButtonSize } from "./button";
 import { fieldLook, fieldSize, fieldText } from "./input";
-
-/**
- * A value, or a function reading it where the look is applied (a signal).
- */
-type Live<T> = T | (() => T);
-
-const read = <T,>(v: Live<T> | undefined): T | undefined =>
-  typeof v === "function" ? (v as () => T)() : v;
+import { type Live, read } from "../../lib/utils";
 
 /** Options of `inputGroupLook`. */
 export interface InputGroupLookOptions {
@@ -60,7 +53,7 @@ export function inputGroupLook(o?: InputGroupLookOptions) {
 /** Options of `inputGroupControlLook`. */
 export interface InputGroupControlLookOptions {
   /** Several lines: the content starts at the top and the group grows with it. */
-  multiline?: boolean;
+  multiline?: Live<boolean | undefined>;
   /** More style (a width, a text style), over the look's. */
   style?: Live<InputStyle | undefined>;
 }
@@ -75,7 +68,7 @@ export function inputGroupControlLook(o?: InputGroupControlLookOptions) {
   return {
     get style(): InputStyle {
       return {
-        ...fieldText({ multiline: !!o?.multiline, inWell: true }),
+        ...fieldText({ multiline: !!read(o?.multiline), inWell: true }),
         backgroundColor: "transparent",
         ...read(o?.style),
       };
@@ -150,6 +143,12 @@ export type InputGroupButtonSize = "xs" | "sm" | "icon-xs" | "icon-sm";
 const groupButtonSize = (size: InputGroupButtonSize): ButtonSize =>
   size === "sm" || size === "icon-sm" ? "default" : "sm";
 
+/** A square group button (`icon-xs`, `icon-sm`): the height of the button it takes, no side padding. */
+const squareStyle = (size: InputGroupButtonSize): ViewStyle | null =>
+  size.startsWith("icon")
+    ? { width: buttonSizes[groupButtonSize(size)].height, paddingHorizontal: 0 }
+    : null;
+
 /** What a group's parts share: its control, so a press on an addon puts the keys in it. */
 type InputGroupContextValue = {
   /** The control, once it is made. */
@@ -180,7 +179,7 @@ export type InputGroupProps = ViewProps & {
  * (`style={{ borderRadius: 22, padding: 6 }}`): the focus ring follows the radius.
  */
 export function InputGroup(props: InputGroupProps) {
-  const [, rest] = split(props, ["invalid", "class", "style", "disabledStyle"]);
+  const [, rest] = split(props, ["invalid", "class", "style", "disabledStyle", "children"]);
   const input = signal<InputRef | undefined>(undefined);
   const look = inputGroupLook({
     invalid: () => !!props.invalid,
@@ -205,9 +204,9 @@ export function InputGroup(props: InputGroupProps) {
 
 /**
  * A group's control: `nsh/base`'s `Input` with the field's text and none of its frame, the group
- * around it drawing the fill, the edge and the focus ring. Every base input prop passes through
- * through, `ref` too (`ref.focus()` puts the keys in it, as shadcn's forwards its ref; the group
- * holds the input as well, to do the same from an addon); `style` goes over the look's.
+ * around it drawing the fill, the edge and the focus ring. Every base input prop passes through,
+ * `ref` too (`ref.focus()` puts the keys in it, as shadcn's forwards its ref; the group holds the
+ * input as well, to do the same from an addon); `style` goes over the look's.
  */
 export type InputGroupInputProps = BaseInputProps;
 
@@ -221,7 +220,7 @@ function hold(group: InputGroupContextValue, ref: BaseInputProps["ref"], input: 
 export function InputGroupInput(props: InputGroupInputProps) {
   const group = useInputGroup();
   const [, rest] = split(props, ["style", "ref"]);
-  const look = inputGroupControlLook({ multiline: !!props.multiline });
+  const look = inputGroupControlLook({ multiline: () => !!props.multiline });
   return (
     <BaseInput
       {...rest}
@@ -267,7 +266,7 @@ export type InputGroupAddonProps = ViewProps & {
 /** What sits before or after the control, on its line or on one of its own. */
 export function InputGroupAddon(props: InputGroupAddonProps) {
   const group = useInputGroup();
-  const [, rest] = split(props, ["align", "style"]);
+  const [, rest] = split(props, ["align", "style", "children"]);
   return (
     <View
       focusable={false}
@@ -293,7 +292,7 @@ export type InputGroupTextProps = Omit<ViewProps, "children"> & {
 /** A unit, a word, an icon beside a group's control. */
 export function InputGroupText(props: InputGroupTextProps) {
   const look = inputGroupTextLook();
-  const [, rest] = split(props, ["style", "ref"]);
+  const [, rest] = split(props, ["style", "ref", "children"]);
   return (
     <View {...rest} style={[look.style, props.style ?? null]}>
       {typeof props.children === "string" ? (
@@ -321,17 +320,14 @@ export type InputGroupButtonProps = Omit<ButtonProps, "size"> & {
 /** A button in a group: a trailing clear, a send. */
 export function InputGroupButton(props: InputGroupButtonProps) {
   const [, rest] = split(props, ["size", "style", "children"]);
-  const size = props.size ?? "xs";
-  const square = size.startsWith("icon");
+  // Read where it is drawn, so the button follows `size`.
+  const size = () => props.size ?? "xs";
   return (
     <Button
       {...rest}
       variant={props.variant ?? "ghost"}
-      size={groupButtonSize(size)}
-      style={[
-        square ? { width: buttonSizes[groupButtonSize(size)].height, paddingHorizontal: 0 } : null,
-        props.style ?? null,
-      ]}
+      size={groupButtonSize(size())}
+      style={[squareStyle(size()), props.style ?? null]}
     >
       {props.children}
     </Button>

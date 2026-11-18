@@ -2,7 +2,6 @@
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import { colors, terminal } from "../../lib/theme";
 import { Check, Search, type IconNode } from "lucide";
-import type { ViewStyle } from "nsh";
 import { platform, split, Text, View } from "nsh";
 import {
   Command as BaseCommand,
@@ -13,8 +12,10 @@ import {
   type CommandRef,
 } from "nsh/base";
 
+import { Kbd } from "./kbd";
 import { Icon } from "../../lib/icons";
 import { controlSize } from "../../lib/surface";
+import { joinClass } from "../../lib/utils";
 
 const desktop = platform.desktop;
 const size = {
@@ -23,6 +24,9 @@ const size = {
   label: controlSize.label,
   detail: controlSize.detail,
 };
+
+/** A row's label: 13 points under a pointer, a touch screen's control label. */
+const labelFont = desktop ? 13 : size.label;
 
 /**
  * The classes of a palette's parts. The highlight is a tint and an inner
@@ -49,47 +53,21 @@ export const commandClasses = {
   group: "px-2 pt-2.5 pb-1",
   /** Between two sections. */
   separator: "-mx-1.5 my-1 h-px bg-border",
-  /** A row: quiet until hovered, tinted while highlighted, dimmed while disabled. */
+  /** A row: quiet until hovered, on `accent` while highlighted (as a list's row), dimmed while disabled. */
   item:
     "group rounded-md border border-transparent transition-colors duration-100 motion-reduce:transition-none " +
-    "hover:bg-hover focus:border-brand/30 focus:bg-brand-tint active:opacity-70 disabled:opacity-50",
+    "hover:bg-hover focus:bg-accent active:opacity-70 disabled:opacity-50",
 };
 
-/**
- * A shortcut's keys (`⌘K`, `⇧⌘P`): a small key cap, 20 points tall, the
- * raised fill with a hairline edge and the label in the muted color. One
- * look for every shortcut the gallery shows: a palette's rows, a field's
- * hint, a menu's or a section's shortcut.
- */
-export function Kbd(props: { label: string; style?: ViewStyle }) {
-  return (
-    <View
-      class="border-border bg-raised rounded border px-1.5"
-      style={[{ height: 20, justifyContent: "center" }, props.style ?? null]}
-    >
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: "500",
-          color: colors.muted,
-          fontVariant: ["tabular-nums"],
-          numberOfLines: 1,
-        }}
-      >
-        {props.label}
-      </Text>
-    </View>
-  );
-}
-
-/** A shortcut's keys, as hints show them here (`entry.shortcutLabel`). */
+/** A shortcut's keys, as hints show them here (`entry.shortcutLabel`): the library's one keycap, `kbd`'s. */
 export function CommandKeys(props: { label: string }) {
-  return <Kbd label={props.label} />;
+  return <Kbd>{props.label}</Kbd>;
 }
 
 /** A section's heading: small capitals in the faint color. */
 export function CommandHeading(props: { group: CommandGroup }) {
   return (
+    // Small capitals: an 11-point header, tracked out a little to read as a label.
     <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.6, color: colors.faint }}>
       {props.group.heading.toLocaleUpperCase()}
     </Text>
@@ -108,6 +86,7 @@ export function CommandRow(props: {
   detail?: string;
   note?: string;
 }) {
+  // A second line of text takes the row past its least height, so the row asks for density's height.
   const height = props.detail ? size.row : size.rowSm;
   return (
     <View
@@ -115,7 +94,7 @@ export function CommandRow(props: {
     >
       {props.icon ? <Icon icon={props.icon} size={16} tint={colors.muted} /> : null}
       <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-        <Text style={{ fontSize: desktop ? 13 : size.label, color: colors.text, numberOfLines: 1 }}>
+        <Text style={{ fontSize: labelFont, color: colors.text, numberOfLines: 1 }}>
           {props.entry.label}
         </Text>
         {props.detail ? (
@@ -146,11 +125,7 @@ export function CommandEmpty(props: { label: string }) {
   );
 }
 
-function mergeClass(base: string, extra?: string | null): string {
-  return extra ? `${base} ${extra}` : base;
-}
-
-/** `nsh/base` Command with `commandClasses` and default row chrome. */
+/** Every prop of `nsh/base` Command. */
 export type CommandProps = BaseCommandProps;
 
 /** A command of the palette (`items`), from `nsh/base`. */
@@ -183,17 +158,16 @@ export function Command(props: CommandProps) {
     "searchPrefix",
     "style",
   ]);
-  const chrome = commandClasses;
   return (
     <BaseCommand
       {...rest}
-      class={mergeClass(chrome.root, props.class)}
-      searchBarClass={mergeClass(chrome.searchBar, props.searchBarClass)}
-      searchClass={mergeClass(chrome.search, props.searchClass)}
-      listClass={mergeClass(chrome.list, props.listClass)}
-      itemClass={mergeClass(chrome.item, props.itemClass)}
-      groupClass={mergeClass(chrome.group, props.groupClass)}
-      separatorClass={mergeClass(chrome.separator, props.separatorClass)}
+      class={joinClass(commandClasses.root, props.class)}
+      searchBarClass={joinClass(commandClasses.searchBar, props.searchBarClass)}
+      searchClass={joinClass(commandClasses.search, props.searchClass)}
+      listClass={joinClass(commandClasses.list, props.listClass)}
+      itemClass={joinClass(commandClasses.item, props.itemClass)}
+      groupClass={joinClass(commandClasses.group, props.groupClass)}
+      separatorClass={joinClass(commandClasses.separator, props.separatorClass)}
       placeholder={props.placeholder ?? "Type a command or search…"}
       searchPrefix={
         props.searchPrefix === undefined ? (

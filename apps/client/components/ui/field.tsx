@@ -1,6 +1,6 @@
 // A field: the look (`fieldFamilyLook`) and the ten parts that wear it.
-// This library's own (docs/specs/card-field-item.md): upstream has no field family, so the parts
-// and their axes follow shadcn/ui and the look is written from the theme's roles. Yours to change.
+// This library's own: upstream has no field family, so the parts and their axes follow shadcn/ui and
+// the look is written from the theme's roles. Yours to change.
 import { colors, TERMINAL_ROW, terminal } from "../../lib/theme";
 import type { JSX, TextStyle, TextProps, ViewProps, ViewStyle } from "nsh";
 import { context, split, Text, View } from "nsh";
@@ -26,9 +26,9 @@ const FieldContext = context<FieldContextValue | null>(null);
 
 /** A `Field`'s parts as the styles they wear: spread each one. */
 export interface FieldFamilyLook {
-  /** The set of fields: a column, 20 points apart. */
+  /** The set of fields: a column, 16 points apart (one row in the terminal). */
   readonly set: ViewStyle;
-  /** A group of fields in a set, or the choices of one field: a column, 18 points apart. */
+  /** A group of fields in a set: a column, 16 points apart too, its fields stretched across. */
   readonly group: ViewStyle;
   /** A field: `horizontal` puts the label and the control on one row. */
   field(horizontal: boolean): ViewStyle;
@@ -38,7 +38,9 @@ export interface FieldFamilyLook {
   legend(variant: FieldLegendVariant): TextStyle;
   /** A control's label, in the vertical look (as wide as its text). */
   readonly title: TextStyle;
-  /** A field's label in a row: as wide as its text, wrapping rather than pushing the control out. */
+  /** A field's label in a row: as wide as its text, never squeezed thinner than it (the control
+   * beside it takes the room left, `content`'s `minWidth: 0`), which on a narrow phone would cut
+   * it mid-word. */
   readonly labelInRow: TextStyle;
   readonly description: TextStyle;
   readonly separator: ViewStyle;
@@ -47,13 +49,19 @@ export interface FieldFamilyLook {
   readonly error: ViewStyle;
   readonly errorRow: ViewStyle;
   readonly errorText: TextStyle;
+  /** An error's message beside its bullet: it wraps rather than running past the field, which a
+   * long sentence would in a narrow window (`flexShrink: 1`, `minWidth: 0`). */
+  readonly errorMessage: TextStyle;
 }
 
+/** The gap between a set's fields: 16 points, or one row in the terminal. */
+const setGap = terminal ? TERMINAL_ROW : 16;
+
 /** The gap between a label and the control under it: 8 points (none in the terminal, whose rows are one row each). */
-const labelGap = () => (terminal ? 0 : 8);
+const labelGap = terminal ? 0 : 8;
 
 /** The gap between a label and the control beside it. */
-const rowGap = () => 12;
+const rowGap = 12;
 
 /**
  * A field family's look, after shadcn/ui's secondary `Field`, written from the
@@ -67,16 +75,17 @@ const rowGap = () => 12;
  * and horizontal above.
  */
 export function fieldFamilyLook(): FieldFamilyLook {
-  const label: TextStyle = {
+  // Read where it is drawn, as every part below: a look kept in a `const` follows the scheme.
+  const label = (): TextStyle => ({
     fontSize: controlSize.label,
     fontWeight: "500",
     color: colors.text,
-  };
+  });
   return {
     get set(): ViewStyle {
       return {
         flexDirection: "column",
-        gap: terminal ? TERMINAL_ROW : 16,
+        gap: setGap,
         width: "100%",
       };
     },
@@ -84,7 +93,7 @@ export function fieldFamilyLook(): FieldFamilyLook {
       return {
         flexDirection: "column",
         alignItems: "stretch",
-        gap: terminal ? TERMINAL_ROW : 16,
+        gap: setGap,
         width: "100%",
       };
     },
@@ -93,28 +102,27 @@ export function fieldFamilyLook(): FieldFamilyLook {
         ? {
             flexDirection: "row",
             alignItems: "center",
-            gap: rowGap(),
+            gap: rowGap,
             width: "100%",
           }
         : {
             flexDirection: "column",
             alignItems: "stretch",
-            gap: labelGap(),
+            gap: labelGap,
             width: "100%",
           },
     get content(): ViewStyle {
-      return { flexGrow: 1, flexShrink: 1, flexDirection: "column", gap: 4 };
+      return { flexGrow: 1, flexShrink: 1, minWidth: 0, flexDirection: "column", gap: 4 };
     },
     legend: (variant: FieldLegendVariant): TextStyle => ({
+      ...label(),
       fontSize: variant === "legend" ? controlSize.label + 1 : controlSize.label,
-      fontWeight: "500",
-      color: colors.text,
     }),
     get title(): TextStyle {
-      return { ...label, alignSelf: "flex-start" };
+      return { ...label(), alignSelf: "flex-start" };
     },
     get labelInRow(): TextStyle {
-      return { ...label, flexShrink: 1 };
+      return { ...label(), flexShrink: 0 };
     },
     get description(): TextStyle {
       return { fontSize: density.note, color: colors.muted };
@@ -142,6 +150,9 @@ export function fieldFamilyLook(): FieldFamilyLook {
     get errorText(): TextStyle {
       return { fontSize: density.note, color: colors.danger };
     },
+    get errorMessage(): TextStyle {
+      return { fontSize: density.note, color: colors.danger, flexShrink: 1, minWidth: 0 };
+    },
   };
 }
 
@@ -157,7 +168,7 @@ export type FieldLegendProps = TextProps & {
   variant?: FieldLegendVariant;
 };
 
-/** A group of fields that sit closer together than a set's. */
+/** A group of fields in a set. Every view prop passes through. */
 export type FieldGroupProps = ViewProps;
 
 /** A field: its label and its control. */
@@ -214,7 +225,7 @@ export function FieldLegend(props: FieldLegendProps) {
   );
 }
 
-/** A group of fields, closer than a set's. */
+/** A group of fields in a set. */
 export function FieldGroup(props: FieldGroupProps) {
   const [, rest] = split(props, ["style", "children"]);
   return (
@@ -227,9 +238,11 @@ export function FieldGroup(props: FieldGroupProps) {
 /** A field: a label and its control, `vertical` unless `orientation` says otherwise. */
 export function Field(props: FieldProps) {
   const [, rest] = split(props, ["orientation", "style", "children"]);
-  const orientation = props.orientation ?? "vertical";
-  const horizontal = () =>
-    orientation === "horizontal" || (orientation === "responsive" && !narrowWindow());
+  // Read where it is drawn, so a field that turns horizontal follows `orientation`.
+  const horizontal = () => {
+    const orientation = props.orientation ?? "vertical";
+    return orientation === "horizontal" || (orientation === "responsive" && !narrowWindow());
+  };
   return (
     <FieldContext.Provider value={{ horizontal }}>
       <View
@@ -327,7 +340,7 @@ export function FieldError(props: FieldErrorProps) {
         {(message) => (
           <View style={fieldFamilyLook().errorRow}>
             <Text style={fieldFamilyLook().errorText}>•</Text>
-            <Text style={fieldFamilyLook().errorText}>{message()}</Text>
+            <Text style={fieldFamilyLook().errorMessage}>{message()}</Text>
           </View>
         )}
       </Each>

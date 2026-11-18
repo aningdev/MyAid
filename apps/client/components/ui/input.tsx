@@ -1,17 +1,14 @@
-// An input: the look (`inputLook` and its companions) and the `Input` that wears it.
+// A text field: the size, edge and text every field shares (`fieldSize`, `edgeClass`, `fieldLook`,
+// `fieldText`) and the `Input` that wears them as `inputLook`.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
 import { colors, finish, radius, terminal, TERMINAL_COLUMN, TERMINAL_ROW } from "../../lib/theme";
 import type { InputStyle, ViewStyle } from "nsh";
 import { platform, split } from "nsh";
 import { Input as BaseInput, type InputProps as BaseInputProps } from "nsh/base";
 
+import { type Live, read } from "../../lib/utils";
+
 const pointer = platform.desktop;
-
-/** A value, or a function reading it where the look is applied (a signal). */
-type Live<T> = T | (() => T);
-
-const read = <T,>(v: Live<T> | undefined): T | undefined =>
-  typeof v === "function" ? (v as () => T)() : v;
 
 /**
  * A text field's sizes, shared by every single-line field and picker
@@ -26,6 +23,9 @@ export const fieldSize = terminal
   : pointer
     ? { height: 32, font: 14, pad: 10 }
     : { height: 46, font: 15, pad: 14 };
+
+/** A field's variants: `default` the field's fill and edge, `ghost` neither until the keys are in it. */
+export type InputVariant = "default" | "ghost";
 
 /** Options of `fieldLook` and `inputLook`. */
 export interface FieldLookOptions {
@@ -84,9 +84,6 @@ export function edgeClass(o: EdgeOptions): string {
     .filter(Boolean)
     .join(" ");
 }
-
-/** A field's variants: `default` the field's fill and edge, `ghost` neither until the keys are in it. */
-export type InputVariant = "default" | "ghost";
 
 /**
  * A field's edge: the danger tone while invalid, the line (no hover) while read-only or disabled,
@@ -206,6 +203,8 @@ export function inputLook(o?: FieldLookOptions) {
     },
     get style(): InputStyle {
       const text = fieldText({ readonly: !!read(o?.readonly), multiline: o?.multiline });
+      // A lone input is its own well: the text takes no `flex`, which a field's text has for the
+      // parts beside it.
       return { ...frame(o), ...text, flex: undefined, ...read(o?.style) } as InputStyle;
     },
     disabledStyle: look.disabledStyle,
@@ -213,9 +212,9 @@ export function inputLook(o?: FieldLookOptions) {
 }
 
 /**
- * A time field's well (`DatePicker`'s `timeFieldClass`): a number input's, its segments inside. It sits in the
- * calendar's popup, so in dark it is shadcn's input there (`bg-input/30`, a shade over the popup) rather than the
- * field color, which is the page's and would read as a hole.
+ * A time field's well, the same one in `TimeField` and in the date picker's time row: a number input's frame, the
+ * field's segments inside. It sits in the calendar's popup, so in dark it is shadcn's input there (`bg-input/30`, a
+ * shade over the popup) rather than the field color, which is the page's and would read as a hole.
  */
 export const timeFieldClass = [
   pointer ? "h-8 rounded-[7px] px-2" : "h-11 rounded-lg px-3",

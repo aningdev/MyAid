@@ -1,7 +1,6 @@
+// A switch's sizes and the arithmetic of its knob, apart from `switch.tsx` and free of imports: kept
+// in lib so `bun test` checks it without starting NSH.
 // From NSH's examples/nsh-gallery-ui (Apache-2.0, © Longbridge; see NOTICE): yours to change.
-
-// A switch's sizes and the arithmetic of its knob, apart from `switch.ts`
-// and free of imports, so the website's tests can check it without NSH.
 
 /** A switch's track and knob, in points. */
 export interface SwitchGeometry {
@@ -18,10 +17,9 @@ export interface SwitchGeometry {
 }
 
 /**
- * The switch's sizes: 28 × 16 with a pointer, 42 × 24 on a touch screen
- * (`sm`: 34 × 20). The track is exactly the knob plus its border and
- * inset on each side, so the knob sits as far from the top and the bottom
- * as from the near end.
+ * The switch's sizes, by name: `pointer` is a mouse's 28 × 16, `default` a touch screen's
+ * 42 × 24 and `sm` its smaller 34 × 20. The track is exactly the knob plus its border and inset
+ * on each side, so the knob sits as far from the top and the bottom as from the near end.
  */
 export const switchGeometries = {
   pointer: { width: 28, height: 16, border: 1, inset: 1, knob: 12 },
@@ -35,9 +33,10 @@ export const switchGeometries = {
  * end the same `border + inset` from the trailing edge. So it travels the
  * width less the knob and that gap at both ends.
  */
-export const knobTravel = (g: SwitchGeometry) => g.width - 2 * (g.border + g.inset) - g.knob;
+export const knobTravel = (g: SwitchGeometry): number =>
+  g.width - 2 * (g.border + g.inset) - g.knob;
 
-/** The smallest target a finger gets (Accessibility, "Touch targets"). */
+/** The smallest target a finger gets (Design Guides, "Touch targets"). */
 export const TOUCH_TARGET = 44;
 
 /**

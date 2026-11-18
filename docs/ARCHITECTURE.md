@@ -118,7 +118,7 @@ apps/client/
 │   ├── background/             # 两个 Background Service 的产品编排
 │   └── i18n/                   # 唯一消息目录（zh + en）、语言偏好、t()
 ├── screens/                    # open(…) 入口、截图与真 Host 冒烟（opt-in）
-├── themes/                     # shadcn-nsh CLI 装进的另一套主题（`default/`）；构建时主题仍是根上的 theme.json
+├── themes/                     # shadcn-nsh 的 `add theme-*` 复制件：`default/`（库自带配色，运行时可切）与 `shadcn/`（构建时主题的同一套，`init` 放进来的 AppTheme）；构建时主题仍是根上的 theme.json
 └── nsh.json                    # 纯 TSX：无 "rust" 键；network / process 能力收窄
 ```
 
@@ -130,7 +130,7 @@ apps/client/
 - `nsh.json` 的 `network` 只授予回环 `/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`、Relay 的 `/v1/health` 与 dsh 的 `/connect`、`/api/*`；`process.execute` 只授予 `myaid-host`。
 
 - **界面语言**：用户可见文案只有一个归宿——`lib/i18n/messages.ts` 的目录（简体中文 + English，键为类型，缺键即 `nsh check` 失败）；视图不持有字面 UI 文案，只经 `lib/i18n` 的 `t(key, values)` 读取，因此切换语言在原地重绘。语言偏好（跟随系统 / 简体中文 / English）与 `locale()` 的读取也在 `lib/i18n`；`跟随系统` 把 `zh*` 读作简体中文，其余读作 English，并跟随系统变化。不翻译：用户内容（Bot 名、消息、模型回复）、产品与专名（MyAid、Host、dsh、Relay、DeepSeek、模型 id、`/new`）、dsh 自己返回的文本（provider 名、dsh 错误正文，放在已翻译的框里原样显示）与文件路径。
-- **主题与颜色**：构建时主题是 shadcn-nsh 的 shadcn（`nsh-ui.json` 的 `theme: theme-shadcn`，落在 `theme.json` 与 `lib/finishes.json`，归组件库所有，本仓不另造调色板）；`themes/default/` 是 `add theme-default` 复制进的库自带配色，`lib/themes.ts` 是应用自己列的主题清单（`null` = 构建时主题，加每条 `themes/<name>/`），`selectTheme` 运行时一次性切换所有面。颜色是客户端偏好，存在 `prefs/client.json` 的 `appearance.theme`（主题 id，`null` 即构建时主题），与外观（浅色 / 深色）正交；本版本不带的 id 读作构建时主题。
+- **主题与颜色**：构建时主题是 shadcn-nsh 的 shadcn（`nsh-ui.json` 的 `theme: theme-shadcn`，落在 `theme.json` 与 `lib/finishes.json`，归组件库所有，本仓不另造调色板）；`themes/default/` 是 `add theme-default` 复制进的库自带配色，`themes/shadcn/` 是 `init` 装进来的构建时主题的同一套（同一份 `theme.json` / `finishes.json`，包成 `AppTheme`），`lib/themes.ts` 是应用自己列的主题清单（`null` = 构建时主题，加每条 `themes/<name>/`，`shadcn` 不在清单里——它就是构建时主题），`selectTheme` 运行时一次性切换所有面。颜色是客户端偏好，存在 `prefs/client.json` 的 `appearance.theme`（主题 id，`null` 即构建时主题），与外观（浅色 / 深色）正交；本版本不带的 id 读作构建时主题。
 - **壳**：`AppShell` 挂 `components/shell`。左 Navigator 是注册表投影的**扁平 Bot 列表**——搜索框、**Pin** 区、其余 Bot 按最近活动排序（工作中的点、未读数）、「＋ New Bot」——底部是 Host 状态与设置入口；右 Workbench 是 shadcn-nsh `DockArea` 的 **Pane** 分屏（横 / 纵再拆、拖动分隔线、关闭、⌘ 切换焦点、从列表拖入），一个 Pane 显示一个 Bot 的长对话，**一个 Bot 同时只在一个 Pane 里**。⚙ / ⌘, 打开整页设置覆盖层，Esc 或「返回」回到原布局。Pane 只持 `botId` 与布局，内容由 `features/*` 提供。长对话是一条连续 transcript：段之间是「日期 · 工作目录」分隔线，右侧历史轨逐段定位；向上滚动经官方 Session 模型加载更早的页与段。
 - **数据归属**：注册表（Bot、它的段与归档位）与客户端偏好（Pin 顺序、Pane 布局）是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。dsh 的真源经官方 client model 到达 Client：Workspace 的 path / title / Session 顺序 / 置顶 / 归档由 `ctx.workspaces`（`ClientWorkspaceModel`）拥有，Session 列表、事件窗口、follow、分页、prompt/queue/control 与投影由 `ctx.sessions`（`ClientSessions → SessionManager → Session`）拥有；产品只投影它们的 snapshot（[`features/workspace`](../apps/client/features/workspace/state.ts)、[`features/dialogue/session`](../apps/client/features/dialogue/session/controller.ts)）。Bot identity 与「哪条 Session 属于哪个 Bot、跑在哪个 Workspace」归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)），段的路径 / 名字 / 顺序 / 归档归 dsh 的 Workspace（[ADR 0006](adr/0006-lorca-style-bot-app.md)）。
 - **三层分工**：官方 client model（本地真相镜像：对象 identity、流与一元竞态、重连）→ 产品投影（`TurnProjection` / `rows.ts` / `WorkspaceProjection` / `botList`：把官方窗口与 snapshot 变成对话消息、列表行、状态）→ NSH 视图（`features/*` 的 Pane，控件取自 `components/ui` 的 shadcn-nsh 复制件与 `components/app` 的产品组合）。视图不读 transport，投影不重算官方 model 已拥有的状态。
