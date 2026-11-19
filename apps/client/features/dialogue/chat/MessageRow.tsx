@@ -13,7 +13,7 @@ import { signal, Text, View, token } from "nsh";
 
 import { ImageViewer } from "../../../components/app";
 import { Badge } from "../../../components/ui/badge";
-import { Bubble, BubbleContent } from "../../../components/ui/bubble";
+import { Bubble, BubbleContent, bubbleLook } from "../../../components/ui/bubble";
 import { Marker, MarkerContent, MarkerIcon } from "../../../components/ui/marker";
 import {
   Message,
@@ -98,7 +98,7 @@ function Person(props: { message: () => UserRow }) {
         <If when={!!m().text}>
           <Bubble variant="muted" align="end">
             <BubbleContent>
-              <Text style={{ userSelect: "text" }}>{m().text}</Text>
+              <Text style={{ ...bubbleLook().text("muted"), userSelect: "text" }}>{m().text}</Text>
             </BubbleContent>
           </Bubble>
         </If>
