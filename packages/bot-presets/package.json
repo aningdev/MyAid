@@ -48,7 +48,7 @@
     "@deepseek-ai/dsh-typert-protocol": "catalog:"
   },
   "engines": {
-    "dsh": ">=0.2.2-rc.3 <0.3.0"
+    "dsh": ">=0.2.2-rc.5 <0.3.0"
   },
   "dsh": {
     "bundle": {

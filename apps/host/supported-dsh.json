@@ -1,4 +1,4 @@
 {
-  "version": "0.2.2-rc.3",
+  "version": "0.2.2-rc.5",
   "note": "Pin the supported official dsh CLI version; Host refuses mismatched installs."
 }
