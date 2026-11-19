@@ -4,7 +4,7 @@
  * the send key's preference, Stop, and the model chip. Its text and files
  * belong to the SessionController, so switching Panels keeps the draft.
  */
-import { ArrowUp, ChevronDown, type IconNode, Paperclip, Square, X } from "lucide";
+import { ArrowUp, ChevronDown, File, type IconNode, Paperclip, Square, X } from "lucide";
 import {
   cleanup,
   effect,
@@ -22,6 +22,17 @@ import {
   token,
 } from "nsh";
 
+import {
+  Attachment as AttachmentFrame,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentGroup,
+  AttachmentMedia,
+  AttachmentTitle,
+  attachmentGlyph,
+} from "../../../components/ui/attachment";
 import { Button, RoundButton, roundButtonGlyph } from "../../../components/ui/button";
 import {
   InputGroup,
@@ -183,16 +194,42 @@ export function Composer(props: {
       </If>
 
       <If when={attachments().length > 0}>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        <AttachmentGroup style={{ paddingHorizontal: 16 }}>
           <Each of={attachments()} key={(item) => item.id}>
             {(item) => (
-              <AttachmentChip
-                attachment={item()}
-                onRemove={() => controller().detachFile(item().id)}
-              />
+              <AttachmentFrame
+                state="done"
+                size="xs"
+                orientation={item().url ? "vertical" : "horizontal"}
+              >
+                <AttachmentMedia variant={item().url ? "image" : "icon"}>
+                  <If when={!!item().url}>
+                    <Image src={item().url!} style={{ width: "100%", height: "100%" }} />
+                  </If>
+                  <If when={!item().url}>
+                    <Icon
+                      icon={File}
+                      size={attachmentGlyph("xs", "horizontal")}
+                      tint={token("muted-foreground")}
+                    />
+                  </If>
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle>{item().name}</AttachmentTitle>
+                  <AttachmentDescription>{item().size}</AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <AttachmentAction
+                    accessibilityLabel={t("chat.removeAttachment", { name: item().name })}
+                    onPress={() => controller().detachFile(item().id)}
+                  >
+                    <Icon icon={X} size={12} tint={token("muted-foreground")} />
+                  </AttachmentAction>
+                </AttachmentActions>
+              </AttachmentFrame>
             )}
           </Each>
-        </View>
+        </AttachmentGroup>
       </If>
 
       <InputGroup style={{ borderRadius: 22, padding: 6, gap: 2 }}>
@@ -293,60 +330,6 @@ function QueuedRow(props: { text: string; onWithdraw: () => void }) {
         </Button>
       </ItemActions>
     </Item>
-  );
-}
-
-/** One file on the composer: its preview, its name and a way off. */
-function AttachmentChip(props: { attachment: Attachment; onRemove: () => void }) {
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        height: 32,
-        paddingStart: props.attachment.url ? 3 : 8,
-        paddingEnd: 2,
-        borderRadius: 8,
-        borderCurve: "continuous",
-        backgroundColor: token("raised"),
-        borderWidth: 1,
-        borderColor: token("border"),
-      }}
-    >
-      <If when={!!props.attachment.url}>
-        <PhotoThumb url={props.attachment.url!} />
-      </If>
-      <Text style={{ numberOfLines: 1, fontSize: 12, color: token("foreground"), maxWidth: 160 }}>
-        {props.attachment.name}
-      </Text>
-      <Text style={{ fontSize: 11, color: token("faint") }}>{props.attachment.size}</Text>
-      <Pressable
-        onPress={props.onRemove}
-        accessibilityLabel={t("chat.removeAttachment", { name: props.attachment.name })}
-        hitSlop={8}
-      >
-        <View style={{ width: 26, height: 28, alignItems: "center", justifyContent: "center" }}>
-          <Icon icon={X} size={12} tint={token("muted-foreground")} />
-        </View>
-      </Pressable>
-    </View>
-  );
-}
-
-function PhotoThumb(props: { url: string }) {
-  return (
-    <View
-      style={{
-        width: 24,
-        height: 24,
-        borderRadius: 5,
-        overflow: "hidden",
-        backgroundColor: token("inset"),
-      }}
-    >
-      <Image src={props.url} style={{ width: 24, height: 24 }} />
-    </View>
   );
 }
 

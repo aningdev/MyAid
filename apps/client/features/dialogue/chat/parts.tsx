@@ -7,6 +7,14 @@ import { File, type IconNode, RotateCw, Sparkles, TriangleAlert, X } from "lucid
 import { Image, type JSX, Text, View, token } from "nsh";
 
 import { Alert, AlertDescription, ALERT_ICON } from "../../../components/ui/alert";
+import {
+  Attachment,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+  attachmentGlyph,
+} from "../../../components/ui/attachment";
 import { Button } from "../../../components/ui/button";
 import { Marker, MarkerContent } from "../../../components/ui/marker";
 import { Pressable } from "../../../components/ui/pressable";
@@ -146,55 +154,24 @@ export function SegmentDivider(props: {
   );
 }
 
-/** A file as a chip: an icon, the name and the size. */
-export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
+/** A file a message carries: its glyph, its name and its weight. */
+export function FileChip(props: { file: FileRef }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        height: 44,
-        paddingStart: 8,
-        paddingEnd: props.onRemove ? 2 : 12,
-        borderRadius: radius.control,
-        borderCurve: "continuous",
-        backgroundColor: token("raised"),
-        ...finish.raised,
-        borderWidth: 1,
-        borderColor: token("border"),
-      }}
-    >
-      <View
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          backgroundColor: toneTint("danger"),
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Icon icon={File} size={15} tint={token("destructive")} />
-      </View>
-      <View style={{ gap: 1 }}>
-        <Text style={{ numberOfLines: 1, maxWidth: 170, fontSize: 13, color: token("foreground") }}>
-          {props.file.name}
-        </Text>
-        <Text
-          style={{ fontSize: 11, color: token("muted-foreground"), fontVariant: ["tabular-nums"] }}
-        >
-          {(props.file.name.split(".").pop() ?? "file").toUpperCase()} · {props.file.size}
-        </Text>
-      </View>
-      <If when={props.onRemove}>
-        <Pressable onPress={props.onRemove} accessibilityLabel={t("chat.removeFile")} hitSlop={6}>
-          <View style={{ width: 36, height: 40, alignItems: "center", justifyContent: "center" }}>
-            <Icon icon={X} size={13} tint={token("muted-foreground")} />
-          </View>
-        </Pressable>
-      </If>
-    </View>
+    <Attachment state="done" size="sm">
+      <AttachmentMedia>
+        <Icon
+          icon={File}
+          size={attachmentGlyph("sm", "horizontal")}
+          tint={token("muted-foreground")}
+        />
+      </AttachmentMedia>
+      <AttachmentContent>
+        <AttachmentTitle style={{ maxWidth: 170 }}>{props.file.name}</AttachmentTitle>
+        <AttachmentDescription>
+          {`${(props.file.name.split(".").pop() ?? "file").toUpperCase()} · ${props.file.size}`}
+        </AttachmentDescription>
+      </AttachmentContent>
+    </Attachment>
   );
 }
 
