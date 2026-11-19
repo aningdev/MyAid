@@ -36,12 +36,14 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 
 ## 已知限制：mux 心跳与阻塞的读取
 
-长回复期间 mux 仍可能被 dsh 判死并重连一次。实测（本机 `dsh` 0.2.2-rc.2 + 安装版 NSH 0.5.0，用与 gateway 同参的 ws 服务复现）：
+长回复期间 mux 仍可能被 dsh 判死并重连一次。实测（本机 `dsh` 0.2.2-rc.3 + 安装版 NSH 0.6.0，用与 gateway 同参的本地 ws 服务对 `nsh test` 里的客户端复现；脚本不入库：它需要外部 ws 进程，且 `nsh test` 的 2s 调用预算只能把阻塞模拟成切片）：
 
-| 一侧            | 行为                                                                                                            | 出处                                                                                                               |
-| --------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| dsh gateway     | 每 2s 给每个 mux socket 发 ping，连续 2 次未收到 pong（也接受「收到的任何帧」与「未立即完成的写」）就 terminate | `packages/api/gateway/src/index.ts` `DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 2_000`、`MAX_MISSED_HEARTBEATS = 2` |
-| NSH `websocket` | 「8 条消息或 8 MiB 未被 read 时，连接停止从网络读取」；协议层不再看到 ping                                      | 安装版 `.nsh/types/websocket.d.ts`                                                                                 |
+| 一侧            | 行为                                                                                                            | 出处                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| dsh gateway     | 每 2s 给每个 mux socket 发 ping，连续 2 次未收到 pong（也接受「收到的任何帧」与「未立即完成的写」）就 terminate | `packages/api/gateway/src/index.ts` `DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 2_000`、`src/stream-server.ts` `MAX_MISSED_HEARTBEATS = 2`（catalog 钉的 `0.2.2-rc.3`，值未变） |
+| NSH `websocket` | 「8 条消息或 8 MiB 未被 read 时，连接停止从网络读取」；协议层不再看到 ping                                      | 0.6 生成的 `apps/client/.nsh/types/websocket.d.ts`（`WebSocketConnection.read` 的注释）                                                                                        |
+
+复现结果（NSH 0.6.0，每项 3 次一致）：积压 8 帧且无人 `read`、9.5s，gateway 在 ~7s terminate（socket 侧 1006，下一次 `read` 以 `EPROTO` 拒绝）；积压 2 帧、11.4s 不读，pong 照常回流，socket 存活；积压 8 帧但有一个 outstanding `read`（`AuthenticatedSocket` 的形状）、9.5s，也存活——那一个 `read` 让未读帧停在 7 条，连接继续从网络读取。结论与 0.5 时相同：触发条件是「未读队列满（≥8 条）+ 期间没有 `read` 把它腾空」，不是单纯空闲。
 
 于是：JS 侧一次 ≳4s 的阻塞（大回复的整段重排、一次长渲染），且其间积压 ≥8 帧未读，mux 就会被判死 → 官方 connection 退避重连 → 新 generation → 官方 client model 以 **snapshot** 原子替换每个 Session 的事件窗口（不是 live 帧）。只有 2 帧积压时同样阻塞 10s，socket 存活（实测），所以触发条件是「队列满 + 阻塞」，不是单纯空闲。
 
@@ -58,6 +60,7 @@ cargo run -p myaid-host -- serve-app --port 4872
 
 # 2) 客户端（没有 Host 时自己拉起；myaid-host 要在 PATH 上）
 bun run dev        # 根目录：先核对依赖、必要时重建 Host，再起 Client
+# Agent、脚本化验证与冒烟一律用 bun run dev --isolated=<name>（数据根 ~/.myaid-dev/<name>），不带它的 dev 读写真实的 ~/.myaid
 # Settings ⇢ Background Services → Enable → 一条 Bot 的 Session
 # 无 Host 时仍可用：export MYAID_DSH_LOGIN_URL='http://127.0.0.1:<port>/?token=…'
 ```

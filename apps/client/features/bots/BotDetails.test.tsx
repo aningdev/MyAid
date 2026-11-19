@@ -25,13 +25,13 @@ import { REGISTRY_STORAGE_KEY } from "./store";
 
 const desktop = { platform: "web" as const, width: 1200, height: 860 };
 
-/** Ada (ready, template-bound) → one segment. */
-function sampleRegistry(): BotRegistry {
+/** Ada (ready, template-bound) → one segment. `model` is the Bot's default route. */
+function sampleRegistry(model: string | null = null): BotRegistry {
   return claimSegment(
     initializeBot(
       createBot(
         createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-        { name: "Ada", templateId: "tmpl" },
+        { name: "Ada", templateId: "tmpl", defaultModel: model },
         "bot",
       ),
       "bot",
@@ -90,6 +90,20 @@ test("Profile saves the Bot's name and description in the registry", async () =>
   expect(saved.ok).toBe(true);
   expect(saved.ok && saved.state === "current" ? saved.registry.bots[0]?.description : null).toBe(
     "Keeps the release branch tidy",
+  );
+});
+
+test("Runs with lists the models as one radio group", async () => {
+  const app = await details(sampleRegistry("acme/fast"));
+  await app.press("Runs with");
+  await app.waitFor("text:acme/fast");
+  // The Bot's route is the checked radio; checking another one becomes its default.
+  await app.press("label:Acme Deep");
+  await app.press("id:bot-details >> Save");
+  await app.waitUntil(() => !app.shows("id:bot-details"));
+  const saved = parseRegistry(app.storage()[REGISTRY_STORAGE_KEY] ?? "");
+  expect(saved.ok && saved.state === "current" ? saved.registry.bots[0]?.defaultModel : null).toBe(
+    "acme/deep",
   );
 });
 

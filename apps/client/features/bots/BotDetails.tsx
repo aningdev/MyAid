@@ -59,13 +59,15 @@ import {
 import { Input } from "../../components/ui/input";
 import { Meter } from "../../components/ui/meter";
 import { Pressable } from "../../components/ui/pressable";
+import { Radio, RadioGroup } from "../../components/ui/radio-group";
 import { Separator } from "../../components/ui/separator";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Switch } from "../../components/ui/switch";
 import type { InventoryPreset, SkillSummary } from "../../lib/dsh/connection";
 import { t, type MessageKey } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
-import { hovered, mono } from "../../lib/theme";
+import { listRow } from "../../lib/surface";
+import { mono } from "../../lib/theme";
 import { catalogModelKey, modelCatalog, sessionList } from "../dialogue/session/runtime";
 import { workspacePath, workspaces } from "../workspace/state";
 import { BotIdentityPicker, BotMark } from "./BotMark";
@@ -843,21 +845,39 @@ function RunsTab(props: {
           {t("bot.model")}
         </Text>
         <If when={props.models().length > 0} else={<Hint text={t("bot.modelNoCatalog")} />}>
-          <View style={{ gap: 1 }}>
-            <Each of={props.models()}>
-              {(item) => (
-                <Choice
-                  label={item().label}
-                  detail={item().key}
-                  selected={props.modelKey() === item().key}
-                  onPress={() => {
-                    props.modelKey.set(item().key);
-                    props.thinking.set("");
-                  }}
-                />
-              )}
-            </Each>
-          </View>
+          <RadioGroup accessibilityLabel={t("bot.model")}>
+            <View style={{ gap: 1 }}>
+              <Each of={props.models()}>
+                {(item) => (
+                  <Radio
+                    {...listRow({ first: true })}
+                    checked={props.modelKey() === item().key}
+                    accessibilityLabel={item().label}
+                    onChange={() => {
+                      props.modelKey.set(item().key);
+                      props.thinking.set("");
+                    }}
+                  >
+                    <View style={{ gap: 1, flex: 1, minWidth: 0 }}>
+                      <Text style={{ fontSize: 12, fontWeight: "500", numberOfLines: 1 }}>
+                        {item().label}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: token("muted-foreground"),
+                          fontFamily: mono,
+                          numberOfLines: 1,
+                        }}
+                      >
+                        {item().key}
+                      </Text>
+                    </View>
+                  </Radio>
+                )}
+              </Each>
+            </View>
+          </RadioGroup>
         </If>
       </View>
       <View style={{ gap: 6 }}>
@@ -1044,44 +1064,6 @@ function PluginsTab(props: {
       <If when={props.writable()}>
         <Hint text={t("bot.plugins.hint")} />
       </If>
-    </View>
-  );
-}
-
-function Choice(props: { label: string; detail: string; selected: boolean; onPress: () => void }) {
-  return (
-    <View
-      onPress={props.onPress}
-      accessibilityLabel={props.label}
-      accessibilityState={{ selected: props.selected }}
-      hoverStyle={hovered()}
-      style={{
-        paddingHorizontal: 8,
-        paddingVertical: 6,
-        borderRadius: 8,
-        backgroundColor: props.selected ? token("raised") : "transparent",
-        gap: 1,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: props.selected ? "600" : "400",
-          color: token("foreground"),
-        }}
-      >
-        {props.label}
-      </Text>
-      <Text
-        style={{
-          fontSize: 11,
-          color: token("muted-foreground"),
-          fontFamily: mono,
-          numberOfLines: 1,
-        }}
-      >
-        {props.detail}
-      </Text>
     </View>
   );
 }
