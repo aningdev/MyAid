@@ -1,7 +1,10 @@
 /**
- * One transcript row: the person's message (a compact bubble with its
- * attachments), the bot's reply (reasoning, tool steps, Markdown, actions),
- * or the working row while a turn runs. A row is recycled by the list, so it
+ * One transcript row: the person's message (a bubble with its attachments),
+ * the bot's reply (reasoning, tool steps, Markdown, actions), or the working
+ * row while a turn runs. The row is the library's `Message` — its header, its
+ * content on the message's side and its footer — and the turn itself a
+ * `Bubble`: `muted` for what the person sends, `ghost` for the bot's reply,
+ * which keeps the frameless text it had. A row is recycled by the list, so it
  * reads its message through `row()` and keeps no state of its own; the
  * expansion the person chose lives in the Pane.
  */
@@ -10,11 +13,17 @@ import { signal, Text, View, token } from "nsh";
 
 import { ImageViewer } from "../../../components/app";
 import { Badge } from "../../../components/ui/badge";
+import { Bubble, BubbleContent } from "../../../components/ui/bubble";
+import {
+  Message,
+  MessageContent,
+  MessageFooter,
+  MessageHeader,
+} from "../../../components/ui/message";
 import { Pressable } from "../../../components/ui/pressable";
 import { Spinner } from "../../../components/ui/spinner";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
-import { finish } from "../../../lib/theme";
 import type { Bot } from "../../bots/model";
 import { Markdown } from "./markdown";
 import { ActionButton, Avatar, Caret, ErrorRow, FileChip, Photo } from "./parts";
@@ -71,68 +80,46 @@ export function MessageRow(props: {
   );
 }
 
-/** A message the person sent: its files, then the words, right-aligned. */
+/** A message the person sent: its files, then the words, on their side. */
 function Person(props: { message: () => UserRow }) {
   const m = () => props.message().message;
   const viewing = signal(false);
   return (
-    <View
-      class="group"
-      style={{
-        alignItems: "flex-end",
-        paddingVertical: 6,
-        gap: 6,
-      }}
-    >
-      <If when={!!m().image}>
-        <Pressable onPress={() => viewing.set(true)} accessibilityLabel={t("chat.openImage")}>
-          <Photo src={m().image!} width={200} height={150} />
-        </Pressable>
-      </If>
-      <If when={!!m().file}>
-        <FileChip file={m().file!} />
-      </If>
-      <If when={!!m().text}>
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6, maxWidth: "88%" }}>
-          <View class={hoverTime} style={{ paddingBottom: 4 }}>
-            <Text style={{ fontSize: 11, color: token("faint"), fontVariant: ["tabular-nums"] }}>
+    <Message class="group" align="end" style={{ paddingVertical: 6 }}>
+      <MessageContent>
+        <If when={!!m().image}>
+          <Pressable onPress={() => viewing.set(true)} accessibilityLabel={t("chat.openImage")}>
+            <Photo src={m().image!} width={200} height={150} />
+          </Pressable>
+        </If>
+        <If when={!!m().file}>
+          <FileChip file={m().file!} />
+        </If>
+        <If when={!!m().text}>
+          <Bubble variant="muted" align="end">
+            <BubbleContent>
+              <Text style={{ userSelect: "text" }}>{m().text}</Text>
+            </BubbleContent>
+          </Bubble>
+        </If>
+        <If when={!!m().text}>
+          <MessageFooter>
+            <Text
+              class={hoverTime}
+              style={{ fontSize: 11, color: token("faint"), fontVariant: ["tabular-nums"] }}
+            >
               {timeText(m().at)}
             </Text>
-          </View>
-          <View
-            style={{
-              flexShrink: 1,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: 16,
-              borderBottomRightRadius: 5,
-              borderCurve: "continuous",
-              backgroundColor: token("raised"),
-              ...finish.raised,
-              borderWidth: 1,
-              borderColor: token("border"),
-            }}
-          >
-            <Text
-              style={{
-                userSelect: "text",
-                fontSize: 15,
-                lineHeight: 21,
-                color: token("foreground"),
-              }}
-            >
-              {m().text}
-            </Text>
-          </View>
-        </View>
-      </If>
-      <If when={viewing()}>
-        <ImageViewer
-          image={{ src: m().image ?? "", alt: m().file?.name ?? "Image" }}
-          onClose={() => viewing.set(false)}
-        />
-      </If>
-    </View>
+          </MessageFooter>
+        </If>
+        <If when={viewing()}>
+          <ImageViewer
+            image={{ src: m().image ?? "", alt: m().file?.name ?? "Image" }}
+            onClose={() => viewing.set(false)}
+          />
+        </If>
+      </MessageContent>
+    </Message>
   );
 }
 
@@ -161,112 +148,118 @@ function Reply(props: {
   const liveThinking = () =>
     streaming() && thinking() !== null && !written() ? "thinking" : false;
   return (
-    <View style={{ paddingVertical: 8, gap: 6 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, height: 24 }}>
-        <Avatar identity={props.bot()?.identity ?? null} working={streaming()} />
-        <Text
-          style={{
-            numberOfLines: 1,
-            fontSize: 13,
-            fontWeight: "600",
-            color: token("muted-foreground"),
-          }}
-        >
-          {props.botName()}
-        </Text>
-        <If when={message().status === "stopped" && !streaming()}>
-          <Badge tone="warn">{t("chat.stopped")}</Badge>
+    <Message class="group" align="start" style={{ paddingVertical: 8 }}>
+      <MessageContent style={{ gap: 6 }}>
+        <MessageHeader style={{ paddingHorizontal: 0 }}>
+          <Avatar identity={props.bot()?.identity ?? null} working={streaming()} />
+          <Text
+            style={{
+              numberOfLines: 1,
+              fontSize: 13,
+              fontWeight: "600",
+              color: token("muted-foreground"),
+            }}
+          >
+            {props.botName()}
+          </Text>
+          <If when={message().status === "stopped" && !streaming()}>
+            <Badge tone="warn">{t("chat.stopped")}</Badge>
+          </If>
+          <View style={{ flex: 1 }} />
+          <Text
+            class={hoverTime}
+            style={{ fontSize: 11, color: token("faint"), fontVariant: ["tabular-nums"] }}
+          >
+            {timeText(message().at)}
+          </Text>
+        </MessageHeader>
+        <If when={thinking()}>
+          <ThinkingRow
+            text={() => thinking()?.text ?? ""}
+            seconds={() => thinking()?.seconds ?? 0}
+            live={liveThinking()}
+            open={() => props.handlers.isOpen(reasoningKey())}
+            onToggle={() => props.handlers.onToggle(reasoningKey())}
+          />
         </If>
-        <View style={{ flex: 1 }} />
-        <Text
-          class={hoverTime}
-          style={{ fontSize: 11, color: token("faint"), fontVariant: ["tabular-nums"] }}
-        >
-          {timeText(message().at)}
-        </Text>
-      </View>
-      <If when={thinking()}>
-        <ThinkingRow
-          text={() => thinking()?.text ?? ""}
-          seconds={() => thinking()?.seconds ?? 0}
-          live={liveThinking()}
-          open={() => props.handlers.isOpen(reasoningKey())}
-          onToggle={() => props.handlers.onToggle(reasoningKey())}
-        />
-      </If>
-      <If when={steps()}>
-        <If
-          when={groupsSteps(steps() ?? [])}
-          else={
-            <ToolRow
-              tool={() => steps()![0]}
-              open={() => props.handlers.isOpen(`${message().id}:tool:${steps()![0].id}`)}
-              onToggle={() => props.handlers.onToggle(`${message().id}:tool:${steps()![0].id}`)}
+        <If when={steps()}>
+          <If
+            when={groupsSteps(steps() ?? [])}
+            else={
+              <ToolRow
+                tool={() => steps()![0]}
+                open={() => props.handlers.isOpen(`${message().id}:tool:${steps()![0].id}`)}
+                onToggle={() => props.handlers.onToggle(`${message().id}:tool:${steps()![0].id}`)}
+              />
+            }
+          >
+            <StepGroup
+              tools={() => steps() ?? []}
+              open={() => props.handlers.isOpen(stepsKey())}
+              onToggle={() => props.handlers.onToggle(stepsKey())}
+              isOpen={props.handlers.isOpen}
+              onToggleTool={props.handlers.onToggle}
             />
-          }
-        >
-          <StepGroup
-            tools={() => steps() ?? []}
-            open={() => props.handlers.isOpen(stepsKey())}
-            onToggle={() => props.handlers.onToggle(stepsKey())}
-            isOpen={props.handlers.isOpen}
-            onToggleTool={props.handlers.onToggle}
-          />
+          </If>
         </If>
-      </If>
-      <If when={!!written()}>
-        <Markdown
-          md={written()}
-          id={message().id}
-          streaming={streaming()}
-          caret={streaming() ? <Caret /> : undefined}
-        />
-      </If>
-      <If when={!streaming() && message().status === "error"}>
-        <ErrorRow
-          message={message().error ?? t("chat.somethingWrong")}
-          onRetry={() => props.handlers.onRetry(message())}
-        />
-      </If>
-      <If when={!streaming() && message().status === "stopped"}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Icon icon={Square} size={11} tint={token("faint")} />
-          <Text style={{ fontSize: 12, color: token("faint") }}>{t("chat.stoppedNote")}</Text>
-        </View>
-      </If>
-      <If when={!streaming() && message().status !== "error"}>
-        <View style={{ flexDirection: "row", alignItems: "center", marginLeft: -8 }}>
-          <ActionButton
-            glyph={props.handlers.copied() === message().id ? Check : Copy}
-            label={t("common.copy")}
-            active={props.handlers.copied() === message().id}
-            onPress={() => props.handlers.onCopy(message().id, message().md)}
-          />
-          <ActionButton
-            glyph={RotateCw}
-            label={t("chat.regenerate")}
-            onPress={() => props.handlers.onRegenerate(message())}
-          />
-          <ActionButton
-            glyph={ThumbsUp}
-            label={t("chat.goodReply")}
-            active={message().rating === "up"}
-            onPress={() =>
-              props.handlers.onRate(message(), message().rating === "up" ? undefined : "up")
-            }
-          />
-          <ActionButton
-            glyph={ThumbsDown}
-            label={t("chat.badReply")}
-            active={message().rating === "down"}
-            tone="danger"
-            onPress={() =>
-              props.handlers.onRate(message(), message().rating === "down" ? undefined : "down")
-            }
-          />
-        </View>
-      </If>
-    </View>
+        <Bubble variant="ghost" align="start">
+          <BubbleContent style={{ gap: 6 }}>
+            <If when={!!written()}>
+              <Markdown
+                md={written()}
+                id={message().id}
+                streaming={streaming()}
+                caret={streaming() ? <Caret /> : undefined}
+              />
+            </If>
+            <If when={!streaming() && message().status === "error"}>
+              <ErrorRow
+                message={message().error ?? t("chat.somethingWrong")}
+                onRetry={() => props.handlers.onRetry(message())}
+              />
+            </If>
+            <If when={!streaming() && message().status === "stopped"}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon icon={Square} size={11} tint={token("faint")} />
+                <Text style={{ fontSize: 12, color: token("faint") }}>{t("chat.stoppedNote")}</Text>
+              </View>
+            </If>
+          </BubbleContent>
+        </Bubble>
+        <If when={!streaming() && message().status !== "error"}>
+          <MessageFooter style={{ paddingHorizontal: 4 }}>
+            <ActionButton
+              glyph={props.handlers.copied() === message().id ? Check : Copy}
+              label={t("common.copy")}
+              active={props.handlers.copied() === message().id}
+              onPress={() => props.handlers.onCopy(message().id, message().md)}
+            />
+            <ActionButton
+              glyph={RotateCw}
+              label={t("chat.regenerate")}
+              onPress={() => props.handlers.onRegenerate(message())}
+            />
+            <ActionButton
+              glyph={ThumbsUp}
+              label={t("chat.goodReply")}
+              active={message().rating === "up"}
+              onPress={() =>
+                props.handlers.onRate(message(), message().rating === "up" ? undefined : "up")
+              }
+            />
+            <ActionButton
+              glyph={ThumbsDown}
+              label={t("chat.badReply")}
+              active={message().rating === "down"}
+              tone="danger"
+              onPress={() =>
+                props.handlers.onRate(message(), message().rating === "down" ? undefined : "down")
+              }
+            />
+          </MessageFooter>
+        </If>
+      </MessageContent>
+    </Message>
   );
 }
 
