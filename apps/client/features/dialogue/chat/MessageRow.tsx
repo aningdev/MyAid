@@ -85,7 +85,7 @@ function Person(props: { message: () => UserRow }) {
   const m = () => props.message().message;
   const viewing = signal(false);
   return (
-    <Message class="group" align="end" style={{ paddingVertical: 6 }}>
+    <Message class="group" align="end">
       <MessageContent>
         <If when={!!m().image}>
           <Pressable onPress={() => viewing.set(true)} accessibilityLabel={t("chat.openImage")}>
@@ -148,7 +148,7 @@ function Reply(props: {
   const liveThinking = () =>
     streaming() && thinking() !== null && !written() ? "thinking" : false;
   return (
-    <Message class="group" align="start" style={{ paddingVertical: 8 }}>
+    <Message class="group" align="start">
       <MessageContent style={{ gap: 6 }}>
         <MessageHeader style={{ paddingHorizontal: 0 }}>
           <Avatar identity={props.bot()?.identity ?? null} working={streaming()} />
@@ -271,7 +271,7 @@ function timeText(at: number | undefined): string {
 
 function Working(props: { message: () => WorkingRow; now: () => number }) {
   return (
-    <Marker style={{ paddingVertical: 10 }}>
+    <Marker>
       <MarkerIcon>
         <Spinner size={13} tint={token("brand")} />
       </MarkerIcon>

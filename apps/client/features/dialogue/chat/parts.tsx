@@ -80,7 +80,7 @@ export function ActionButton(props: {
 /** A row between days. */
 export function DateSeparator(props: { label: string }) {
   return (
-    <Marker variant="separator" style={{ paddingHorizontal: 4, paddingVertical: 10 }}>
+    <Marker variant="separator" style={{ paddingHorizontal: 4 }}>
       {props.label}
     </Marker>
   );
@@ -113,7 +113,7 @@ export function SegmentDivider(props: {
           </TooltipContent>
         ) : undefined
       }
-      style={{ paddingHorizontal: 4, paddingTop: 18, paddingBottom: 8 }}
+      style={{ paddingHorizontal: 4 }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "78%" }}>
         <MarkerContent>{row().label}</MarkerContent>

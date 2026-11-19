@@ -12,7 +12,6 @@ import {
   Clipboard,
   cleanup,
   effect,
-  type ListRef,
   platform,
   signal,
   Text,
@@ -47,7 +46,7 @@ import { type RowHandlers } from "./chat/MessageRow";
 import { buildConversationRows, buildRows, toggleKey, type SegmentInput } from "./chat/rows";
 import type { Msg, Tool } from "./chat/scripts";
 import { clockLabel, dayLabel } from "./chat/time";
-import { Transcript } from "./chat/Transcript";
+import { Transcript, type TranscriptHandle } from "./chat/Transcript";
 import type { SessionController } from "./session/controller";
 import {
   catalogModelKey,
@@ -124,7 +123,7 @@ export function ChatPane(props: {
   const dragging = signal(false);
   const dropTrouble = signal<string | null>(null);
 
-  let list: ListRef | undefined;
+  let transcript: TranscriptHandle | undefined;
   let ticker: ReturnType<typeof setInterval> | undefined;
   /** The Session the reset effect last saw, to keep a new segment's history above. */
   let lastSession: string | null = null;
@@ -198,7 +197,7 @@ export function ChatPane(props: {
   /** Scrolls to the end on the person's own action (send, jump). */
   const toEnd = (animated = true) => {
     following.set(true);
-    list?.scrollToEnd({ animated });
+    transcript?.revealEnd(animated);
   };
 
   const flushLive = () => {
@@ -284,7 +283,7 @@ export function ChatPane(props: {
     });
     stopTicker();
     controller().acknowledgeFreeze();
-    setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
+    setTimeout(() => following() && transcript?.revealEnd(true), 360);
   };
 
   const showConnectError = (error: unknown, at?: string) => {
@@ -384,7 +383,7 @@ export function ChatPane(props: {
     if (!following()) return;
     const timers = [80, 400].map((delay) =>
       setTimeout(() => {
-        if (following()) list?.scrollToEnd({ animated: true });
+        if (following()) transcript?.revealEnd(true);
       }, delay),
     );
     cleanup(() => {
@@ -471,7 +470,7 @@ export function ChatPane(props: {
         });
         stopTicker();
         controller().acknowledgeFreeze();
-        setTimeout(() => following() && list?.scrollToEnd({ animated: true }), 360);
+        setTimeout(() => following() && transcript?.revealEnd(true), 360);
       }
       return;
     }
@@ -563,15 +562,6 @@ export function ChatPane(props: {
   };
 
   cleanup(stopTicker);
-
-  // A batch of messages (a whole history page, a finished turn) lands at once:
-  // a list that follows the newest one keeps it in view.
-  effect(() => {
-    const count = messages().length;
-    const isRunning = running();
-    if (!following() || (count === 0 && !isRunning)) return;
-    list?.scrollToEnd({ animated: false });
-  });
 
   const stop = () => {
     if (!controller().running() && liveId() === null) return;
@@ -825,19 +815,13 @@ export function ChatPane(props: {
       toEnd();
       return;
     }
-    // The rows exist after the loaded segment's first view lands. The first
-    // pass scrolls by estimate; the second corrects once the list measured
-    // the loaded rows (a long older transcript makes the estimate drift).
-    const place = () => {
-      const at = rows().findIndex(
-        (row) => row.kind === "segment" && row.sessionId === target.sessionId,
-      );
-      if (at < 0) return;
-      following.set(false);
-      list?.scrollToIndex({ index: at, animated: true, viewPosition: 0 });
-    };
-    setTimeout(place, 80);
-    setTimeout(place, 360);
+    // The segment's rows exist after its first view lands; the transcript
+    // reveals whatever row is there, so a second pass covers a slow load.
+    following.set(false);
+    const place = () => transcript?.revealSegment(target.sessionId);
+    place();
+    setTimeout(place, 200);
+    setTimeout(place, 600);
   };
 
   const railMarks = (): RailMark[] => {
@@ -988,8 +972,7 @@ export function ChatPane(props: {
               if (scrolled() !== state.scrolled) scrolled.set(state.scrolled);
             }}
             onLoadOlder={() => void loadOlder()}
-            onJump={() => toEnd()}
-            listRef={(node) => (list = node)}
+            handle={(node) => (transcript = node)}
           />
           <If when={!!props.history && segments().length > 0}>
             <HistoryRail marks={railMarks} onJump={(index) => void jumpToSegment(index)} />
