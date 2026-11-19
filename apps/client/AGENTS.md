@@ -30,6 +30,7 @@
 - **复制件的出入只走 CLI**：`bun run ui:diff`（在 `check` 里）核对 `components/ui` 与 `nsh-ui.json` 那个 tag 的注册表是否一致（不一致就 `add --overwrite` 拉回，不在本仓打补丁）；`vp fmt` 不碰这些复制件与 `theme.json`（见 `vite.config.ts` 的 fmt ignore）。图标一律 `import { X } from "lucide"`，经 `lib/icons` 的 `Icon` 画。
 - **只调间距与布局**：复制进来的文件不改；MyAid 只在调用处用 `class` / `style` 定间距、尺寸与排布，不写颜色字面量、不覆盖组件外观。组件缺功能或有缺陷，到 shadcn-nsh 提 [issue](https://github.com/aningdev/shadcn-nsh/issues)，修好后 `add --overwrite` 拉回，不在本仓打补丁。
 - **缺口先分归属**（shadcn-nsh 对标 shadcn）：① shadcn 有而副本不一致 / 有缺陷，或属 NSH 平台差异（原生无障碍、无 `asChild`、CLI）→ 提给 shadcn-nsh；② shadcn 用别的写法满足同一需求 → 改 MyAid 的设计去用它（如外框里的输入用 InputGroup、开关行用 Switch），不请组件库迁就；③ 只有本产品需要 → 在 `components/app/` 用 shadcn-nsh 组件拼，拼不出再按上条做最小自定义（如图片灯箱）。
+- **对话那一屏归 shadcn-nsh 的会话组件**：transcript 的视口、跟随末尾、回到最新与每行是 `message-scroller`，一轮是 `message` + `bubble`，分隔线与说明是 `marker`，文件是 `attachment`，折叠是 `collapsible`。不要退回自造的 `List` + 手动跟随 + 自绘圆钮；这一屏的滚动状态由 `features/dialogue/chat/Transcript.tsx` 持有并回给 Pane，测试读它自己的 `id:transcript-edge`（库的画钮靠动画值，测试读不到）。
 - **主题与配色只经 shadcn-nsh 主题**：浅色 / 深色 / 跟随系统是客户端偏好；颜色方案选的是 shadcn-nsh 发布的主题，本仓不另造调色板或强调色覆盖。
 - 布局原语与运行时（`View` / `Text` / `signal` / `mount` / `token`…）从 `nsh` 引入。
 

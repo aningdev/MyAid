@@ -17,6 +17,11 @@ async function conversation() {
   return app;
 }
 
+/** Whether the reader is at the newest message: the edge hairline is hidden there. */
+function atTheEnd(app: Awaited<ReturnType<typeof conversation>>): boolean {
+  return (app.viewStyle("id:transcript-edge")?.effectiveOpacity ?? 1) < 0.5;
+}
+
 /** Reach the top a page at a time; each load re-renders above the viewport. */
 async function scrollToTop(app: Awaited<ReturnType<typeof conversation>>) {
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -62,9 +67,14 @@ test("scrolling to the top loads the older segment above the current one", async
 
 test("the history rail jumps to an older segment's start", async () => {
   const app = await conversation();
+  // At the end, the transcript's edge wears its hairline at zero; away from it,
+  // the hairline shows. A row's place in the scroll is not something a test can
+  // read, so this is how the jump shows itself from where the reader stands.
+  expect(atTheEnd(app)).toBe(true);
   await app.press("id:history-mark-s1");
   await app.waitFor("text:the earlier answer", { timeout: 10000 });
   expect(app.count("id:segment-divider")).toBe(2);
+  await app.waitUntil(() => !atTheEnd(app), { timeout: 10000 });
 });
 
 test("a prompt sent while scrolled up still goes to the latest segment", async () => {

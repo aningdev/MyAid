@@ -1,15 +1,23 @@
 /**
  * The small pieces a transcript row is made of: the spinner, the streaming
- * caret, a reply's action buttons, a day separator, a file chip, a photo,
- * the error row and the bot's avatar.
+ * caret, a reply's action buttons, a day's and a segment's `Marker`, a file
+ * chip, a photo, the error row and the bot's avatar.
  */
 import { File, type IconNode, RotateCw, Sparkles, TriangleAlert, X } from "lucide";
 import { Image, type JSX, Text, View, token } from "nsh";
 
 import { Alert, AlertDescription, ALERT_ICON } from "../../../components/ui/alert";
+import {
+  Attachment,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+  attachmentGlyph,
+} from "../../../components/ui/attachment";
 import { Button } from "../../../components/ui/button";
+import { Marker, MarkerContent } from "../../../components/ui/marker";
 import { Pressable } from "../../../components/ui/pressable";
-import { Separator } from "../../../components/ui/separator";
 import { TooltipContent, tooltipText } from "../../../components/ui/tooltip";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
@@ -80,19 +88,9 @@ export function ActionButton(props: {
 /** A row between days. */
 export function DateSeparator(props: { label: string }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        paddingHorizontal: 4,
-        paddingVertical: 10,
-      }}
-    >
-      <Separator style={{ flex: 1, width: "auto" }} />
-      <Text style={{ fontSize: 11, fontWeight: "500", color: token("faint") }}>{props.label}</Text>
-      <Separator style={{ flex: 1, width: "auto" }} />
-    </View>
+    <Marker variant="separator" style={{ paddingHorizontal: 4 }}>
+      {props.label}
+    </Marker>
   );
 }
 
@@ -108,7 +106,8 @@ export function SegmentDivider(props: {
 }) {
   const row = () => props.row();
   return (
-    <View
+    <Marker
+      variant="separator"
       testID="segment-divider"
       accessibilityLabel={`${t("chat.segmentDivider", { label: row().label })}${
         row().fullPath ? `, ${row().fullPath}` : ""
@@ -122,20 +121,10 @@ export function SegmentDivider(props: {
           </TooltipContent>
         ) : undefined
       }
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        paddingHorizontal: 4,
-        paddingTop: 18,
-        paddingBottom: 8,
-      }}
+      style={{ paddingHorizontal: 4 }}
     >
-      <Separator style={{ flex: 1, width: "auto" }} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "78%" }}>
-        <Text style={{ fontSize: 11, fontWeight: "600", color: token("muted-foreground") }}>
-          {row().label}
-        </Text>
+        <MarkerContent>{row().label}</MarkerContent>
         <If when={!!row().path}>
           <Text
             testID={`segment-path-${row().sessionId}`}
@@ -161,60 +150,28 @@ export function SegmentDivider(props: {
           />
         </If>
       </View>
-      <Separator style={{ flex: 1, width: "auto" }} />
-    </View>
+    </Marker>
   );
 }
 
-/** A file as a chip: an icon, the name and the size. */
-export function FileChip(props: { file: FileRef; onRemove?: () => void }) {
+/** A file a message carries: its glyph, its name and its weight. */
+export function FileChip(props: { file: FileRef }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        height: 44,
-        paddingStart: 8,
-        paddingEnd: props.onRemove ? 2 : 12,
-        borderRadius: radius.control,
-        borderCurve: "continuous",
-        backgroundColor: token("raised"),
-        ...finish.raised,
-        borderWidth: 1,
-        borderColor: token("border"),
-      }}
-    >
-      <View
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          backgroundColor: toneTint("danger"),
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Icon icon={File} size={15} tint={token("destructive")} />
-      </View>
-      <View style={{ gap: 1 }}>
-        <Text style={{ numberOfLines: 1, maxWidth: 170, fontSize: 13, color: token("foreground") }}>
-          {props.file.name}
-        </Text>
-        <Text
-          style={{ fontSize: 11, color: token("muted-foreground"), fontVariant: ["tabular-nums"] }}
-        >
-          {(props.file.name.split(".").pop() ?? "file").toUpperCase()} · {props.file.size}
-        </Text>
-      </View>
-      <If when={props.onRemove}>
-        <Pressable onPress={props.onRemove} accessibilityLabel={t("chat.removeFile")} hitSlop={6}>
-          <View style={{ width: 36, height: 40, alignItems: "center", justifyContent: "center" }}>
-            <Icon icon={X} size={13} tint={token("muted-foreground")} />
-          </View>
-        </Pressable>
-      </If>
-    </View>
+    <Attachment state="done" size="sm">
+      <AttachmentMedia>
+        <Icon
+          icon={File}
+          size={attachmentGlyph("sm", "horizontal")}
+          tint={token("muted-foreground")}
+        />
+      </AttachmentMedia>
+      <AttachmentContent>
+        <AttachmentTitle style={{ maxWidth: 170 }}>{props.file.name}</AttachmentTitle>
+        <AttachmentDescription>
+          {`${(props.file.name.split(".").pop() ?? "file").toUpperCase()} · ${props.file.size}`}
+        </AttachmentDescription>
+      </AttachmentContent>
+    </Attachment>
   );
 }
 

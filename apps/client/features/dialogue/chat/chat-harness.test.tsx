@@ -27,6 +27,15 @@ const denial = () => {
 };
 const send = "label:Send";
 const pill = "label:Jump to the latest message";
+const edge = "id:transcript-edge";
+
+/** Whether the transcript sits at the newest message, read from the
+ * product's own sign of it: the hairline over the last row is out of sight
+ * while the reader is there. The library's way back fades through an
+ * animated value, which `viewStyle` cannot read. */
+function atEnd(app: Awaited<ReturnType<typeof open>>): boolean {
+  return (app.viewStyle(edge)?.effectiveOpacity ?? 1) < 0.5;
+}
 
 async function chat() {
   const app = await open("./chat-harness.tsx", desktop);
@@ -50,15 +59,15 @@ test("the transcript follows the newest message until scrolled up", async () => 
   await app.type(composer, "long thread");
   await app.press(send);
   await app.waitFor("text:Answer 17.");
-  expect(app.shows(pill)).toBe(false);
+  await app.waitUntil(() => atEnd(app));
+  expect(atEnd(app)).toBe(true);
 
   // Scrolled up, it stops following and offers the way back.
-  await app.wait(400);
-  expect(app.shows(pill)).toBe(false);
   await app.scroll("id:transcript", -900);
-  await app.waitFor(pill);
+  await app.waitUntil(() => !atEnd(app));
   await app.press(pill);
-  await app.waitUntil(() => !app.shows(pill));
+  await app.waitUntil(() => atEnd(app));
+  expect(app.shows("text:Answer 17.")).toBe(true);
 });
 
 test("tool calls group into steps and open on press", async () => {
@@ -93,9 +102,9 @@ test("a reply only a recovered snapshot reports settles the turn", async () => {
   // The prompt was sent while the follow stream was away: the reply comes
   // with the recovered snapshot, never as a live frame.
   await app.waitFor("text:Replayed answer.");
-  // The turn is over: no working row stays behind and nothing is left to jump to.
+  // The turn is over: no working row stays behind, and its end is in view.
   expect(app.texts()).not.toContain("Working…");
-  expect(app.shows(pill)).toBe(false);
+  expect(atEnd(app)).toBe(true);
 });
 
 test("Stop keeps the words shown so far", async () => {
