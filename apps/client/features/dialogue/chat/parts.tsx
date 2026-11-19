@@ -1,15 +1,15 @@
 /**
  * The small pieces a transcript row is made of: the spinner, the streaming
- * caret, a reply's action buttons, a day separator, a file chip, a photo,
- * the error row and the bot's avatar.
+ * caret, a reply's action buttons, a day's and a segment's `Marker`, a file
+ * chip, a photo, the error row and the bot's avatar.
  */
 import { File, type IconNode, RotateCw, Sparkles, TriangleAlert, X } from "lucide";
 import { Image, type JSX, Text, View, token } from "nsh";
 
 import { Alert, AlertDescription, ALERT_ICON } from "../../../components/ui/alert";
 import { Button } from "../../../components/ui/button";
+import { Marker, MarkerContent } from "../../../components/ui/marker";
 import { Pressable } from "../../../components/ui/pressable";
-import { Separator } from "../../../components/ui/separator";
 import { TooltipContent, tooltipText } from "../../../components/ui/tooltip";
 import { t } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
@@ -80,19 +80,9 @@ export function ActionButton(props: {
 /** A row between days. */
 export function DateSeparator(props: { label: string }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        paddingHorizontal: 4,
-        paddingVertical: 10,
-      }}
-    >
-      <Separator style={{ flex: 1, width: "auto" }} />
-      <Text style={{ fontSize: 11, fontWeight: "500", color: token("faint") }}>{props.label}</Text>
-      <Separator style={{ flex: 1, width: "auto" }} />
-    </View>
+    <Marker variant="separator" style={{ paddingHorizontal: 4, paddingVertical: 10 }}>
+      {props.label}
+    </Marker>
   );
 }
 
@@ -108,7 +98,8 @@ export function SegmentDivider(props: {
 }) {
   const row = () => props.row();
   return (
-    <View
+    <Marker
+      variant="separator"
       testID="segment-divider"
       accessibilityLabel={`${t("chat.segmentDivider", { label: row().label })}${
         row().fullPath ? `, ${row().fullPath}` : ""
@@ -122,20 +113,10 @@ export function SegmentDivider(props: {
           </TooltipContent>
         ) : undefined
       }
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        paddingHorizontal: 4,
-        paddingTop: 18,
-        paddingBottom: 8,
-      }}
+      style={{ paddingHorizontal: 4, paddingTop: 18, paddingBottom: 8 }}
     >
-      <Separator style={{ flex: 1, width: "auto" }} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "78%" }}>
-        <Text style={{ fontSize: 11, fontWeight: "600", color: token("muted-foreground") }}>
-          {row().label}
-        </Text>
+        <MarkerContent>{row().label}</MarkerContent>
         <If when={!!row().path}>
           <Text
             testID={`segment-path-${row().sessionId}`}
@@ -161,8 +142,7 @@ export function SegmentDivider(props: {
           />
         </If>
       </View>
-      <Separator style={{ flex: 1, width: "auto" }} />
-    </View>
+    </Marker>
   );
 }
 

@@ -14,6 +14,7 @@ import { signal, Text, View, token } from "nsh";
 import { ImageViewer } from "../../../components/app";
 import { Badge } from "../../../components/ui/badge";
 import { Bubble, BubbleContent } from "../../../components/ui/bubble";
+import { Marker, MarkerContent, MarkerIcon } from "../../../components/ui/marker";
 import {
   Message,
   MessageContent,
@@ -23,7 +24,6 @@ import {
 import { Pressable } from "../../../components/ui/pressable";
 import { Spinner } from "../../../components/ui/spinner";
 import { t } from "../../../lib/i18n";
-import { Icon } from "../../../lib/icons";
 import type { Bot } from "../../bots/model";
 import { Markdown } from "./markdown";
 import { ActionButton, Avatar, Caret, ErrorRow, FileChip, Photo } from "./parts";
@@ -219,10 +219,10 @@ function Reply(props: {
               />
             </If>
             <If when={!streaming() && message().status === "stopped"}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Icon icon={Square} size={11} tint={token("faint")} />
-                <Text style={{ fontSize: 12, color: token("faint") }}>{t("chat.stoppedNote")}</Text>
-              </View>
+              <Marker>
+                <MarkerIcon icon={Square} />
+                <MarkerContent>{t("chat.stoppedNote")}</MarkerContent>
+              </Marker>
             </If>
           </BubbleContent>
         </Bubble>
@@ -271,14 +271,14 @@ function timeText(at: number | undefined): string {
 
 function Working(props: { message: () => WorkingRow; now: () => number }) {
   return (
-    <View style={{ paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Spinner size={13} tint={token("brand")} />
-      <Text style={{ flex: 1, fontSize: 13, color: token("muted-foreground") }}>
-        {t("chat.working")}
-      </Text>
+    <Marker style={{ paddingVertical: 10 }}>
+      <MarkerIcon>
+        <Spinner size={13} tint={token("brand")} />
+      </MarkerIcon>
+      <MarkerContent style={{ flex: 1 }}>{t("chat.working")}</MarkerContent>
       <Text style={{ fontSize: 12, color: token("faint"), fontVariant: ["tabular-nums"] }}>
         {elapsedLabel(elapsedSeconds(props.message().since, props.now()))}
       </Text>
-    </View>
+    </Marker>
   );
 }
