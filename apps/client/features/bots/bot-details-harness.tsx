@@ -4,8 +4,9 @@
  * imports it, and no production path installs a writer or a facts source.
  * The Bot details modal is inside `AppShell`.
  *
- * What it stands in for: `dsh-bot-presets` (the derived-preset writer)
- * and the Host's `pluginInventory` / `skills` reads.
+ * What it stands in for: `dsh-bot-presets` (the derived-preset writer),
+ * the Host's `pluginInventory` / `skills` reads, and a model catalog (the Runs
+ * with tab lists models only once dsh reports some).
  */
 import { basename } from "path";
 
@@ -13,8 +14,29 @@ import type { BotPresetRecord } from "@myaid/dsh-web-protocol/bot-presets";
 import { mount } from "nsh";
 
 import { AppShell } from "../../components/AppShell";
+import { catalogModelKey, modelCatalog } from "../dialogue/session/runtime";
 import { setBotFactsSource } from "./facts";
 import { setPresetWriter } from "./presets";
+
+catalogModelKey.set("acme/fast");
+modelCatalog.set({
+  default: { provider: "acme", model: "fast" },
+  models: [
+    {
+      provider: "acme",
+      providerName: "Acme",
+      model: "fast",
+      name: "Acme Fast",
+      thinking: [
+        { id: "low", name: "Low" },
+        { id: "high", name: "High" },
+      ],
+    },
+    { provider: "acme", providerName: "Acme", model: "deep", name: "Acme Deep" },
+    { provider: "openai", providerName: "OpenAI", model: "gpt-5", name: "GPT-5" },
+  ],
+  failures: [],
+});
 
 let record: BotPresetRecord | null = {
   presetId: "bot-presets-bot",
