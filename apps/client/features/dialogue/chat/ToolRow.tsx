@@ -65,7 +65,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
   const summary = () => toolSummary(props.tool());
   return (
     <Collapsible open={props.open()} onOpenChange={props.onToggle}>
-      <View style={{ gap: 4 }}>
+      <View style={{ gap: 4, width: "100%" }}>
         <CollapsibleTrigger
           accessibilityLabel={t("chat.tool", { name: props.tool().name })}
           style={trigger}
@@ -131,7 +131,7 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
             <If
               when={props.tool().result !== undefined || state() === "failed" || state() === "cut"}
             >
-              <View style={{ gap: 2 }}>
+              <View style={{ gap: 2, width: "100%" }}>
                 <Text style={{ fontSize: 12, color: stateTint(state()) }}>
                   {state() === "failed"
                     ? t("common.error")
@@ -173,7 +173,7 @@ export function StepGroup(props: {
     });
   return (
     <Collapsible open={props.open()} onOpenChange={props.onToggle}>
-      <View style={{ gap: 2 }}>
+      <View style={{ gap: 2, width: "100%" }}>
         <CollapsibleTrigger
           accessibilityLabel={`${stepsLabel(props.tools())}, ${
             props.open() ? t("chat.stepsCollapse") : t("chat.stepsExpand")
