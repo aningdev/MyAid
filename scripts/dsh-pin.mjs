@@ -163,7 +163,7 @@ export function installedDrift(rootDir = root) {
 
 /**
  * Compare two versions by SemVer precedence, prerelease tags included.
- * @param a - a version like `0.2.2-rc.3`.
+ * @param a - a version like `0.2.2-rc.5`.
  * @param b - the version to compare against.
  * @returns a negative number, zero, or a positive number.
  */
@@ -190,7 +190,7 @@ function compareVersions(a, b) {
 /**
  * Whether a version lies in a range written as `&&`-style comparators.
  * @param version - the version to test.
- * @param range - comparators separated by spaces, such as `>=0.2.2-rc.3 <0.3.0`.
+ * @param range - comparators separated by spaces, such as `>=0.2.2-rc.5 <0.3.0`.
  * @returns true when every comparator accepts the version.
  */
 function inRange(version, range) {
