@@ -4,10 +4,14 @@
  * of consecutive calls as "N steps". Reasoning is the collapsed row above
  * them. Expansion lives in the Pane: list rows are recycled.
  */
-import { Brain, ChevronDown, Terminal } from "lucide";
+import { Brain, Terminal } from "lucide";
 import { Text, View, token } from "nsh";
 
-import { Pressable } from "../../../components/ui/pressable";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../../../components/ui/collapsible";
 import { Spinner } from "../../../components/ui/spinner";
 import { t, type MessageKey } from "../../../lib/i18n";
 import { Icon } from "../../../lib/icons";
@@ -16,6 +20,25 @@ import { stepsLabel, toolDisplayState, toolSummary, type ToolDisplayState } from
 import type { Tool } from "./scripts";
 
 const ROW_HEIGHT = 30;
+
+/** The trigger's row: our 30-point line inside the disclosure row's own. */
+const trigger = {
+  minHeight: ROW_HEIGHT,
+  paddingTop: 0,
+  paddingVertical: 0,
+  paddingStart: 6,
+  paddingEnd: 6,
+  marginHorizontal: 0,
+  gap: 8,
+};
+
+/** What the trigger holds: a line of text, its glyphs first. */
+const head = {
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  gap: 8,
+  paddingEnd: 10,
+};
 
 const stateLabel: Record<ToolDisplayState, MessageKey> = {
   pending: "chat.toolState.queued",
@@ -41,110 +64,96 @@ export function ToolRow(props: { tool: () => Tool; open: () => boolean; onToggle
   const state = () => toolDisplayState(props.tool());
   const summary = () => toolSummary(props.tool());
   return (
-    <View style={{ gap: 4 }}>
-      <Pressable
-        onPress={props.onToggle}
-        accessibilityLabel={t("chat.tool", { name: props.tool().name })}
-        selected={props.open()}
-        style={{ borderRadius: radius.control }}
-        hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
-      >
-        <View
-          style={{
-            height: ROW_HEIGHT,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            paddingHorizontal: 6,
-            borderRadius: radius.control,
-            borderCurve: "continuous",
-          }}
+    <Collapsible open={props.open()} onOpenChange={props.onToggle}>
+      <View style={{ gap: 4 }}>
+        <CollapsibleTrigger
+          accessibilityLabel={t("chat.tool", { name: props.tool().name })}
+          style={trigger}
         >
-          <If
-            when={state() === "running" || state() === "pending"}
-            else={<Icon icon={Terminal} size={13} tint={token("faint")} />}
-          >
-            <Spinner size={12} tint={token("info")} />
-          </If>
-          <Text
-            style={{
-              numberOfLines: 1,
-              fontSize: 13,
-              fontWeight: "600",
-              color: token("foreground"),
-            }}
-          >
-            {summary().verb}
-          </Text>
-          <If when={!!summary().target}>
-            <Text
-              style={{ numberOfLines: 1, flex: 1, fontSize: 13, color: token("muted-foreground") }}
+          <View style={head}>
+            <If
+              when={state() === "running" || state() === "pending"}
+              else={<Icon icon={Terminal} size={13} tint={token("faint")} />}
             >
-              {summary().target}
-            </Text>
-          </If>
-          <If when={!summary().target}>
-            <View style={{ flex: 1 }} />
-          </If>
-          <Text style={{ fontSize: 12, color: stateTint(state()) }}>{t(stateLabel[state()])}</Text>
-          <View
-            style={{
-              transform: [{ rotate: props.open() ? "0deg" : "-90deg" }],
-              transitionProperty: "transform",
-              transitionDuration: 180,
-              transitionTimingFunction: "ease-out",
-            }}
-          >
-            <Icon icon={ChevronDown} size={12} tint={token("faint")} />
-          </View>
-        </View>
-      </Pressable>
-      <If when={props.open()}>
-        <View
-          style={{
-            marginLeft: 6,
-            gap: 6,
-            paddingBottom: 4,
-            paddingLeft: 10,
-            borderLeftWidth: 1,
-            borderLeftColor: token("line"),
-          }}
-        >
-          <If when={!!props.tool().arguments}>
-            <View
+              <Spinner size={12} tint={token("info")} />
+            </If>
+            <Text
               style={{
-                padding: 8,
-                borderRadius: radius.control,
-                borderCurve: "continuous",
-                backgroundColor: token("inset"),
+                numberOfLines: 1,
+                fontSize: 13,
+                fontWeight: "600",
+                color: token("foreground"),
               }}
             >
-              <Text style={monoBody()}>{props.tool().arguments}</Text>
-            </View>
-          </If>
-          <If when={props.tool().result !== undefined || state() === "failed" || state() === "cut"}>
-            <View style={{ gap: 2 }}>
-              <Text style={{ fontSize: 12, color: stateTint(state()) }}>
-                {state() === "failed"
-                  ? t("common.error")
-                  : state() === "cut"
-                    ? t("chat.toolState.cut")
-                    : t("common.result")}
-              </Text>
+              {summary().verb}
+            </Text>
+            <If when={!!summary().target}>
               <Text
                 style={{
-                  ...monoBody(),
-                  color: state() === "failed" ? token("destructive") : monoBody().color,
+                  numberOfLines: 1,
+                  flex: 1,
+                  fontSize: 13,
+                  color: token("muted-foreground"),
                 }}
               >
-                {props.tool().result?.trim() ||
-                  (state() === "cut" ? t("chat.toolCutLong") : t("common.empty"))}
+                {summary().target}
               </Text>
-            </View>
-          </If>
-        </View>
-      </If>
-    </View>
+            </If>
+            <If when={!summary().target}>
+              <View style={{ flex: 1 }} />
+            </If>
+            <Text style={{ fontSize: 12, color: stateTint(state()) }}>
+              {t(stateLabel[state()])}
+            </Text>
+          </View>
+        </CollapsibleTrigger>
+        <CollapsibleContent panel={{ start: 6 }}>
+          <View
+            style={{
+              gap: 6,
+              paddingLeft: 10,
+              borderLeftWidth: 1,
+              borderLeftColor: token("line"),
+            }}
+          >
+            <If when={!!props.tool().arguments}>
+              <View
+                style={{
+                  padding: 8,
+                  borderRadius: radius.control,
+                  borderCurve: "continuous",
+                  backgroundColor: token("inset"),
+                }}
+              >
+                <Text style={monoBody()}>{props.tool().arguments}</Text>
+              </View>
+            </If>
+            <If
+              when={props.tool().result !== undefined || state() === "failed" || state() === "cut"}
+            >
+              <View style={{ gap: 2 }}>
+                <Text style={{ fontSize: 12, color: stateTint(state()) }}>
+                  {state() === "failed"
+                    ? t("common.error")
+                    : state() === "cut"
+                      ? t("chat.toolState.cut")
+                      : t("common.result")}
+                </Text>
+                <Text
+                  style={{
+                    ...monoBody(),
+                    color: state() === "failed" ? token("destructive") : monoBody().color,
+                  }}
+                >
+                  {props.tool().result?.trim() ||
+                    (state() === "cut" ? t("chat.toolCutLong") : t("common.empty"))}
+                </Text>
+              </View>
+            </If>
+          </View>
+        </CollapsibleContent>
+      </View>
+    </Collapsible>
   );
 }
 
@@ -163,82 +172,60 @@ export function StepGroup(props: {
       return state === "running" || state === "pending";
     });
   return (
-    <View style={{ gap: 2 }}>
-      <Pressable
-        onPress={props.onToggle}
-        accessibilityLabel={`${stepsLabel(props.tools())}, ${
-          props.open() ? t("chat.stepsCollapse") : t("chat.stepsExpand")
-        }`}
-        selected={props.open()}
-        style={{ borderRadius: radius.control }}
-        hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
-      >
-        <View
-          style={{
-            height: ROW_HEIGHT,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            paddingHorizontal: 6,
-            borderRadius: radius.control,
-            borderCurve: "continuous",
-          }}
+    <Collapsible open={props.open()} onOpenChange={props.onToggle}>
+      <View style={{ gap: 2 }}>
+        <CollapsibleTrigger
+          accessibilityLabel={`${stepsLabel(props.tools())}, ${
+            props.open() ? t("chat.stepsCollapse") : t("chat.stepsExpand")
+          }`}
+          style={trigger}
         >
-          <If when={running()} else={<Icon icon={Terminal} size={13} tint={token("faint")} />}>
-            <Spinner size={12} tint={token("info")} />
-          </If>
-          <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: token("foreground") }}>
-            {stepsLabel(props.tools())}
-          </Text>
-          <If when={failed() && !running()}>
-            <View
-              style={{
-                paddingHorizontal: 6,
-                paddingVertical: 1,
-                borderRadius: 6,
-                backgroundColor: toneTint("danger"),
-              }}
-            >
-              <Text style={{ fontSize: 11, color: token("destructive") }}>
-                {t("chat.toolState.failed")}
-              </Text>
-            </View>
-          </If>
+          <View style={head}>
+            <If when={running()} else={<Icon icon={Terminal} size={13} tint={token("faint")} />}>
+              <Spinner size={12} tint={token("info")} />
+            </If>
+            <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: token("foreground") }}>
+              {stepsLabel(props.tools())}
+            </Text>
+            <If when={failed() && !running()}>
+              <View
+                style={{
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 6,
+                  backgroundColor: toneTint("danger"),
+                }}
+              >
+                <Text style={{ fontSize: 11, color: token("destructive") }}>
+                  {t("chat.toolState.failed")}
+                </Text>
+              </View>
+            </If>
+          </View>
+        </CollapsibleTrigger>
+        <CollapsibleContent panel={{ start: 12 }}>
           <View
             style={{
-              transform: [{ rotate: props.open() ? "0deg" : "-90deg" }],
-              transitionProperty: "transform",
-              transitionDuration: 180,
-              transitionTimingFunction: "ease-out",
+              paddingLeft: 6,
+              borderLeftWidth: 1,
+              borderLeftColor: token("line"),
+              backgroundColor: isDark() ? undefined : alpha(token("foreground"), 0.015),
+              borderRadius: radius.control,
             }}
           >
-            <Icon icon={ChevronDown} size={12} tint={token("faint")} />
+            <Each of={props.tools()} key={(tool) => tool.id}>
+              {(tool) => (
+                <ToolRow
+                  tool={tool}
+                  open={() => props.isOpen(tool().id)}
+                  onToggle={() => props.onToggleTool(tool().id)}
+                />
+              )}
+            </Each>
           </View>
-        </View>
-      </Pressable>
-      <If when={props.open()}>
-        <View
-          style={{
-            marginLeft: 12,
-            paddingLeft: 6,
-            borderLeftWidth: 1,
-            borderLeftColor: token("line"),
-            backgroundColor: isDark() ? undefined : alpha(token("foreground"), 0.015),
-            borderRadius: radius.control,
-          }}
-        >
-          <Each of={props.tools()} key={(tool) => tool.id}>
-            {(tool) => (
-              <ToolRow
-                tool={tool}
-                open={() => props.isOpen(tool().id)}
-                onToggle={() => props.onToggleTool(tool().id)}
-              />
-            )}
-          </Each>
-        </View>
-      </If>
-    </View>
+        </CollapsibleContent>
+      </View>
+    </Collapsible>
   );
 }
 
@@ -260,77 +247,54 @@ export function ThinkingRow(props: {
     return t("chat.thoughtFor", { seconds });
   };
   return (
-    <View style={{ gap: 6 }}>
-      <Pressable
-        onPress={props.onToggle}
-        accessibilityLabel={t("chat.reasoning")}
-        selected={props.open()}
-        style={{ borderRadius: radius.control }}
-        hoverStyle={{ backgroundColor: alpha(token("foreground"), 0.04) }}
-      >
-        <View
-          style={{
-            height: ROW_HEIGHT,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            alignSelf: "flex-start",
-            paddingHorizontal: 6,
-            borderRadius: radius.control,
-            borderCurve: "continuous",
-          }}
+    <Collapsible open={props.open()} onOpenChange={props.onToggle}>
+      <View style={{ gap: 6 }}>
+        <CollapsibleTrigger
+          accessibilityLabel={t("chat.reasoning")}
+          style={{ ...trigger, alignSelf: "flex-start" }}
         >
-          <If
-            when={props.live === "thinking"}
-            else={<Icon icon={Brain} size={13} tint={token("faint")} />}
-          >
-            <Spinner size={12} tint={token("muted-foreground")} />
-          </If>
-          <Text
-            style={{
-              fontSize: 13,
-              color: token("muted-foreground"),
-              fontVariant: ["tabular-nums"],
-            }}
-          >
-            {label()}
-          </Text>
+          <View style={head}>
+            <If
+              when={props.live === "thinking"}
+              else={<Icon icon={Brain} size={13} tint={token("faint")} />}
+            >
+              <Spinner size={12} tint={token("muted-foreground")} />
+            </If>
+            <Text
+              style={{
+                fontSize: 13,
+                color: token("muted-foreground"),
+                fontVariant: ["tabular-nums"],
+              }}
+            >
+              {label()}
+            </Text>
+          </View>
+        </CollapsibleTrigger>
+        <CollapsibleContent panel={{ start: 6 }}>
           <View
             style={{
-              transform: [{ rotate: props.open() ? "0deg" : "-90deg" }],
-              transitionProperty: "transform",
-              transitionDuration: 180,
-              transitionTimingFunction: "ease-out",
+              flexDirection: "row",
+              gap: 10,
+              paddingLeft: 10,
+              borderLeftWidth: 2,
+              borderLeftColor: token("line"),
             }}
           >
-            <Icon icon={ChevronDown} size={12} tint={token("faint")} />
+            <Text
+              style={{
+                userSelect: "text",
+                flex: 1,
+                fontSize: 13,
+                lineHeight: 19,
+                color: token("muted-foreground"),
+              }}
+            >
+              {props.text()}
+            </Text>
           </View>
-        </View>
-      </Pressable>
-      <If when={props.open()}>
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 10,
-            marginLeft: 6,
-            paddingLeft: 10,
-            borderLeftWidth: 2,
-            borderLeftColor: token("line"),
-          }}
-        >
-          <Text
-            style={{
-              userSelect: "text",
-              flex: 1,
-              fontSize: 13,
-              lineHeight: 19,
-              color: token("muted-foreground"),
-            }}
-          >
-            {props.text()}
-          </Text>
-        </View>
-      </If>
-    </View>
+        </CollapsibleContent>
+      </View>
+    </Collapsible>
   );
 }
