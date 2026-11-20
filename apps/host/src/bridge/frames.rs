@@ -9,8 +9,27 @@ pub(super) const OPEN: u8 = 1;
 pub(super) const DATA: u8 = 2;
 pub(super) const CLOSE: u8 = 3;
 
+/// Device → Bridge: `{"method","path","headers":[[name,value]…]}`. Opens an HTTP stream.
+pub(super) const HTTP_REQUEST: u8 = 1;
+/// Bridge → Device: `{"status","headers":[[name,value]…]}`.
+pub(super) const HTTP_RESPONSE: u8 = 2;
+pub(super) const BODY: u8 = 3;
+pub(super) const END: u8 = 4;
+/// Device → Bridge: `{"path","protocols":[name…]}`. Opens a websocket stream.
+pub(super) const WS_OPEN: u8 = 5;
+/// Bridge → Device: `{"protocol"}` — the negotiated subprotocol, or null.
+pub(super) const WS_ACCEPT: u8 = 6;
+pub(super) const WS_TEXT: u8 = 7;
+pub(super) const WS_BINARY: u8 = 8;
+/// `{"code","reason"}`.
+pub(super) const WS_CLOSE: u8 = 9;
+/// `{"code"}`; aborts this stream.
 pub(super) const RESET: u8 = 10;
 pub(super) const CONTROL: u8 = 11;
+
+/// Largest stream body Bridge emits in one frame. Ciphertext stays well under the Relay's
+/// 65 600-byte message limit and Noise's 65 535-byte message limit.
+pub(super) const MAX_FRAME_BODY: usize = 60 * 1024;
 
 /// Normal end, including after `device-revoked` or `revoked`.
 pub(super) const CLOSE_NORMAL: u16 = 1000;
@@ -67,6 +86,11 @@ pub(super) fn decode(bytes: &[u8]) -> Option<RelayFrame> {
         }),
         _ => None,
     }
+}
+
+/// `{"code":code}` — the body every `RESET` carries.
+pub(super) fn code(code: &str) -> Vec<u8> {
+    serde_json::json!({ "code": code }).to_string().into_bytes()
 }
 
 pub(super) fn stream(stream_id: u32, kind: u8, body: &[u8]) -> Vec<u8> {

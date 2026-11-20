@@ -11,7 +11,12 @@ pub use auth::{check_caller, check_token, matches, token};
 pub use routes::{Api, router};
 pub use status::{PHASES, Status, assert_connection_info, assert_public_status, parse_ready_url};
 
-use crate::{Config, Result, bridge::Bridge, dsh_process::Lifecycle, service::Registration};
+use crate::{
+    Config, Result,
+    bridge::{Bridge, DshEndpoint, DshSource},
+    dsh_process::Lifecycle,
+    service::Registration,
+};
 use std::{
     io::Write,
     sync::{
@@ -44,6 +49,26 @@ pub fn serve_on(
     runtime.block_on(serve_async(config, exit, ready))
 }
 
+/// Tells Bridge where the loopback dsh web is, without Bridge knowing the lifecycle: it asks
+/// for the ready connection URL each time it needs one, and the generation changes on every
+/// dsh restart so a stale Cookie is never reused.
+fn dsh_source(lifecycle: &Lifecycle) -> DshSource {
+    let lifecycle = lifecycle.clone();
+    Arc::new(move || {
+        let status = lifecycle.connection_info().ok()?;
+        let url = parse_ready_url(status.url.as_deref()?).ok()?;
+        let mut origin = url.clone();
+        origin.set_path("");
+        origin.set_query(None);
+        origin.set_fragment(None);
+        Some(DshEndpoint {
+            origin: origin.as_str().trim_end_matches('/').to_string(),
+            login: url.to_string(),
+            generation: status.generation.unwrap_or_default(),
+        })
+    })
+}
+
 async fn serve_async(
     config: Config,
     exit: &'static AtomicBool,
@@ -51,7 +76,7 @@ async fn serve_async(
 ) -> Result<()> {
     let lifecycle = Lifecycle::new(config.clone())?;
     let registration = Registration::from_config(&config);
-    let bridge = Bridge::open(&config)?;
+    let bridge = Bridge::open(&config, dsh_source(&lifecycle))?;
     let bridge_stop = Arc::new(AtomicBool::new(false));
     bridge.spawn(bridge_stop.clone());
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, config.port))

@@ -42,8 +42,11 @@ cargo test -p dsh-bot-host
 
 ## Bridge
 
-`src/bridge/` 是 Runner 侧的中继隧道：注册身份、Relay 连接、Noise、已配对 Device。帧契约在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)。`DSH_BOT_RELAY_URL` 覆盖 `src/bridge/mod.rs` 里编译进去的占位 `DEFAULT_RELAY_URL`；该占位不是真实地址，也不会被拨号。配对和设备列表走上面的 `/bridge/*`。`/watch` 在列表变化时另发 `{"event":"bridge.devices","devices":[...]}`。stream 0 应答 ping，其余 stream 被拒绝。本模块还不把 Device 流量转发到 dsh web。
+`src/bridge/` 是 Runner 侧的中继隧道：注册身份、Relay 连接、Noise、已配对 Device，以及 Bridge 转发。帧契约在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，这里不复述。`DSH_BOT_RELAY_URL` 覆盖 `src/bridge/mod.rs` 里编译进去的占位 `DEFAULT_RELAY_URL`；该占位不是真实地址，也不会被拨号。配对和设备列表走上面的 `/bridge/*`。`/watch` 在列表变化时另发 `{"event":"bridge.devices","devices":[...]}`。
+
+Bridge 转发把 Device 的一条 stream 变成对本 Host 启动的 dsh web 的回环请求：`POST /api/…` 走 HTTP，`/api/remote.mux` 走 WebSocket，其他一律以 forbidden 重置。它剥掉 Device 的 `Cookie`、`Authorization`、`Host`、`Origin` 和 `Sec-WebSocket-*`，换上自己的 Cookie，并且从不回传 `Set-Cookie`。Cookie 用 Host 登录 token 调 `/connect` 换取，按 dsh 的 origin 和 generation 缓存；遇到 401 或 dsh web 重启就重换一次。每条 stream 积压超过 1 MiB 时被当作 overloaded 重置。Bridge 始终读着回环 mux，因此自己回应 dsh 每两秒一次的 ping；Device 慢下来也不会让 mux 被断开。`src/bridge/dsh.rs` 是回环客户端与 Cookie 缓存，`http.rs` 是 HTTP stream，`ws.rs` 是 mux stream，`outbox.rs` 记积压。
 
 ## Known limitations
 
+- Bridge 转发由假 dsh web 上的测试覆盖。端到端仍需要 Relay 和已配对 Device，所以对真 dsh web 只手工走过回环这一段：Cookie 交换、一次 `POST /api/…` 和一条 `/api/remote.mux` 连接，后者在 dsh 每两秒一次的 ping 下保持打开。
 - `cargo test` 不证明签名成品上的 OS 登记：测试只快照 launchd plist、systemd 单元与 Windows `Run` 命令行，不安装任何东西。
