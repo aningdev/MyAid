@@ -19,7 +19,7 @@ dsh-bot 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh
 | `POST /dsh/stop`、`POST /dsh/restart`                  | 相位                                                                      |
 | `GET /registration`                                    | Host 的登记快照：`version`、`phase`、可选 `reason`                        |
 | `POST /registration/enable`、`POST /registration/stop` | 动词执行后的同一份快照                                                    |
-| `POST /bridge/pairing`                                 | `{"link","expiresAt"}`；没有可用 Relay 时 409                             |
+| `POST /bridge/pairing`                                 | `{"link","expiresAt"}`；Relay 地址不可用时 409                            |
 | `GET /bridge/devices`                                  | 已配对 Device，以及 Relay 链路状态                                        |
 | `DELETE /bridge/devices/{deviceId}`                    | 撤销该 Device；未知则 404                                                 |
 
@@ -42,7 +42,7 @@ cargo test -p dsh-bot-host
 
 ## Bridge
 
-`DSH_BOT_RELAY_URL` 必须是 `https`（或 `wss`）地址；只有 host 是回环（`localhost`、`127.0.0.1`、`::1`，供本地测试的 Relay）时才接受 `http` / `ws`。其他地址按未配置 Relay 处理，`POST /bridge/pairing` 回 409 并说明原因。
+`DSH_BOT_RELAY_URL` 必须是 `https`（或 `wss`）地址；只有 host 是回环（`localhost`、`127.0.0.1`、`::1`，供本地测试的 Relay）时才接受 `http` / `ws`。其他地址视为不可用：Host 不拨号，`POST /bridge/pairing` 回 409 并说明原因。
 
 `src/bridge/` 是 Runner 侧的中继隧道：注册身份、Relay 连接、Noise、已配对 Device，以及 Bridge 转发。帧契约在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，这里不复述。`DSH_BOT_RELAY_URL` 不设或为空时，用项目运营的 Relay，即 `src/bridge/mod.rs` 里的 `DEFAULT_RELAY_URL`（`https://relay.aning.dev`）；设成别的地址就用自建 Relay（[部署方法](../relay/README.zh.md#部署)）。配对和设备列表走上面的 `/bridge/*`。`/watch` 在列表变化时另发 `{"event":"bridge.devices","devices":[...]}`。
 

@@ -19,7 +19,7 @@ Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE
 | `POST /dsh/stop`, `POST /dsh/restart`                  | status                                                                                             |
 | `GET /registration`                                    | Host snapshot: `version`, `phase`, optional `reason`                                               |
 | `POST /registration/enable`, `POST /registration/stop` | the same snapshot after the verb                                                                   |
-| `POST /bridge/pairing`                                 | `{"link","expiresAt"}`, or 409 when no Relay is configured                                         |
+| `POST /bridge/pairing`                                 | `{"link","expiresAt"}`, or 409 when the Relay address is unusable                                  |
 | `GET /bridge/devices`                                  | paired Devices and the Relay link                                                                  |
 | `DELETE /bridge/devices/{deviceId}`                    | revoke that Device; 404 when it is unknown                                                         |
 
@@ -42,7 +42,7 @@ Default port `4872` (`DSH_BOT_HOST_PORT`, `--port`); default data root `~/.dsh-b
 
 ## Bridge
 
-`DSH_BOT_RELAY_URL` must be an `https` (or `wss`) address; `http` and `ws` are accepted only when the host is loopback (`localhost`, `127.0.0.1`, `::1`), for a local Relay under test. Anything else leaves the Relay unconfigured and `POST /bridge/pairing` answers 409 with the reason.
+`DSH_BOT_RELAY_URL` must be an `https` (or `wss`) address; `http` and `ws` are accepted only when the host is loopback (`localhost`, `127.0.0.1`, `::1`), for a local Relay under test. Any other address is unusable: the Host does not dial it, and `POST /bridge/pairing` answers 409 with the reason.
 
 `src/bridge/` is the Runner side of the relay tunnel: registration identity, the Relay link, Noise, paired Devices, and bridge forwarding. The frame contract is [relay-tunnel](../../docs/architecture/relay-tunnel.md); this section does not repeat it. Unset or empty, `DSH_BOT_RELAY_URL` means the project-run Relay, `DEFAULT_RELAY_URL` in `src/bridge/mod.rs` (`https://relay.aning.dev`); set it to use your own Relay ([deploy one](../relay/README.md#deploy)). Pairing and the device list are the `/bridge/*` routes above. `/watch` also sends `{"event":"bridge.devices","devices":[...]}` when that list changes.
 
