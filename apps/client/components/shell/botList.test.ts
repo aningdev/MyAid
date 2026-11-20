@@ -9,6 +9,7 @@ import {
   createBot,
   createTemplate,
   initializeBot,
+  mainBot,
 } from "../../test/bots-fixture";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { botList } from "./botList";
@@ -57,7 +58,7 @@ function registryAt(): BotRegistry {
   return claimSegment(withAda, "bob", "s-bob", "ws-bob");
 }
 
-test("unpinned Bots stay in Registry order, including when one worked later", () => {
+test("the rest of the Bots follow their latest activity, newest first", () => {
   const list = botList({
     registry: registryAt(),
     workspaces: projection({
@@ -67,12 +68,25 @@ test("unpinned Bots stay in Registry order, including when one worked later", ()
     rows: [],
     pins: [],
   });
-  expect(list.others.map((row) => row.bot.name)).toEqual(["Ada", "Bob"]);
+  expect(list.others.map((row) => row.bot.name)).toEqual(["Bob", "Ada"]);
   expect(list.pinned).toEqual([]);
   expect(list.archived).toEqual([]);
 });
 
-test("a Bot with no activity stays where the Registry put it", () => {
+test("the Main Bot leads the unpinned Bots, even when another worked later", () => {
+  const list = botList({
+    registry: mainBot(registryAt()),
+    workspaces: projection({
+      ada: "2026-11-01T00:00:00Z",
+      bob: "2026-11-02T00:00:00Z",
+    }),
+    rows: [],
+    pins: [],
+  });
+  expect(list.others.map((row) => row.bot.name)).toEqual(["Main Bot", "Bob", "Ada"]);
+});
+
+test("a Bot with no activity yet sorts after the rest, then by name", () => {
   const created = createTemplate(emptyRegistry(), TMPL, "tmpl");
   const registry = createBot(
     createBot(created, { name: "Zed", templateId: "tmpl" }, "zed"),
@@ -80,7 +94,7 @@ test("a Bot with no activity stays where the Registry put it", () => {
     "amy",
   );
   const list = botList({ registry, workspaces: projection({}), rows: [], pins: [] });
-  expect(list.others.map((row) => row.bot.name)).toEqual(["Zed", "Amy"]);
+  expect(list.others.map((row) => row.bot.name)).toEqual(["Amy", "Zed"]);
 });
 
 test("pinned Bots come first in pin order, and leave the rest", () => {

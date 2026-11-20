@@ -26,6 +26,8 @@ import {
   updateTemplateRequestSchema,
 } from "./wire.ts";
 
+export { MAIN_BOT_ID } from "./registry.ts";
+
 const PACKAGE = "dsh-bots";
 
 function codec<Value>(typeSymbol: string, schema: ZodType<Value>) {

@@ -1,18 +1,17 @@
-import { t } from "../../lib/i18n";
 /**
  * Registry as the Client shows it. The `bots` plugin owns every change; this
  * module only reads a snapshot (preset binding, segment ownership, Main Bot).
  */
+import { MAIN_BOT_ID } from "dsh-bots/remote";
+
+import { t } from "../../lib/i18n";
 import type { BotIdentity } from "./identity";
 
 /** Wire version of the Registry the plugin stores. */
 export const REGISTRY_VERSION = 6 as const;
 
-/**
- * Id of the Main Bot in a plugin snapshot. The plugin keeps this Bot first
- * and rejects archiving or deleting it (`packages/bots` README).
- */
-export const MAIN_BOT_ID = "bots-main";
+/** Id of the Main Bot in a plugin snapshot; the plugin owns it and rejects archiving or deleting it. */
+export { MAIN_BOT_ID };
 
 export type BotTemplate = {
   id: string;

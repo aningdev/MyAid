@@ -6,6 +6,7 @@ import { defaultIdentity, type BotIdentity } from "../features/bots/identity";
 import { BOTS_FIXTURE_KEY } from "../features/bots/memory";
 import {
   emptyRegistry,
+  MAIN_BOT_ID,
   REGISTRY_VERSION,
   type Bot,
   type BotRegistry,
@@ -154,7 +155,7 @@ export function mainBot(registry: BotRegistry = emptyRegistry()): BotRegistry {
     ...registry,
     bots: [
       {
-        id: "bots-main",
+        id: MAIN_BOT_ID,
         name: "Main Bot",
         description: null,
         templateId: "main",
@@ -169,7 +170,7 @@ export function mainBot(registry: BotRegistry = emptyRegistry()): BotRegistry {
         identity: { color: "indigo", shape: "round", face: "calm" },
         segments: [],
       },
-      ...registry.bots.filter((bot) => bot.id !== "bots-main"),
+      ...registry.bots.filter((bot) => bot.id !== MAIN_BOT_ID),
     ],
     templates: registry.templates.some((item) => item.id === "main")
       ? registry.templates
