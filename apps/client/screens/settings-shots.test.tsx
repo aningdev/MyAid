@@ -6,19 +6,23 @@
  *   nsh test screens/settings-shots.test.tsx --target macos
  */
 import { test } from "nsh/test";
+import type { App } from "nsh/test";
 
 import { open } from "../test/open";
 import { graphical, shoot, SHOTS_L3 } from "./shots";
 
-const GROUPS = [
+type Group = { id: string; name: string };
+
+const GROUPS: readonly Group[] = [
   { id: "providers", name: "providers" },
   { id: "general", name: "general" },
   { id: "background", name: "background" },
   { id: "about", name: "about" },
-] as const;
+];
 
-test("each Settings group in light and dark", async () => {
-  const app = await open("../features/settings/settings-harness.tsx", {
+/** Opens Settings and paints these groups in each appearance. */
+async function paint(groups: readonly Group[]): Promise<void> {
+  const app: App = await open("../features/settings/settings-harness.tsx", {
     platform: "macos" as const,
     width: 1200,
     height: 840,
@@ -27,7 +31,7 @@ test("each Settings group in light and dark", async () => {
   await app.press("label:Settings");
   await app.waitFor("id:settings-overlay", { timeout: 30000 });
 
-  for (const group of GROUPS) {
+  for (const group of groups) {
     await app.press(`id:settings-nav-${group.id}`);
     await app.waitFor(`id:settings-${group.id}`, { timeout: 30000 });
     await app.setColorScheme("light");
@@ -38,4 +42,12 @@ test("each Settings group in light and dark", async () => {
     await shoot(app, `settings-${group.name}-dark.png`, SHOTS_L3);
     await app.setColorScheme("light");
   }
-}, 90_000);
+}
+
+test("the provider and general Settings groups in light and dark", async () => {
+  await paint(GROUPS.slice(0, 2));
+});
+
+test("the background and about Settings groups in light and dark", async () => {
+  await paint(GROUPS.slice(2));
+});
