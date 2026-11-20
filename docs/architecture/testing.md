@@ -4,13 +4,13 @@ dsh-bot 的测试怎样分层，每层跑什么、预算多少，测试怎样写
 
 ## 分层
 
-| 层       | 命令                                                                                      | 跑什么                                                                                     | 预算                      | 何时跑                 |
-| -------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------- | ---------------------- |
-| 静态     | `bun run check`                                                                           | dsh 版本、文档、lint、类型、`nsh check` / `nsh build`、ui:diff、clippy                     | ≤ 60 s                    | 每次交付；CI           |
-| 门禁     | `bun run test`                                                                            | Cargo 测试、各插件包测试、Client headless `nsh test`                                       | ≤ 60 s（不含 Cargo 编译） | 每次交付；CI           |
-| 端到端   | `bun run test:e2e`                                                                        | 真 Relay、真 Host 和 Client 的 relay Carrier，只走 loopback，dsh web 是假的（`tests/e2e`） | ≤ 60 s（不含 Cargo 编译） | 每次交付；CI           |
-| 原生     | `nsh test --target macos <file>…`（在 `apps/client`）                                     | 截图、原生输入、焦点等 headless 证明不了的                                                 | 只跑改动涉及的文件        | 改到组件层或原生交互时 |
-| 人工冒烟 | `bun run dev --isolated`；Client 冒烟设 `DSH_BOT_SMOKE_HOST` 和回环的 `DSH_BOT_RELAY_URL` | 真 dsh、真模型                                                                             | 不进门禁                  | 发布前                 |
+| 层       | 命令                                                                                      | 跑什么                                                                                                                                                                | 预算                      | 何时跑                 |
+| -------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------- |
+| 静态     | `bun run check`                                                                           | dsh 版本、文档、lint、类型、`nsh check` / `nsh build`、ui:diff、clippy                                                                                                | ≤ 60 s                    | 每次交付；CI           |
+| 门禁     | `bun run test`                                                                            | Cargo 测试、各插件包测试、Client headless `nsh test`                                                                                                                  | ≤ 60 s（不含 Cargo 编译） | 每次交付；CI           |
+| 端到端   | `bun run test:e2e`                                                                        | 真 Relay、真 Host 和 Client 的 relay Carrier，只走 loopback；一套接假 dsh web，一套接钉住版本的真 dsh web（加本仓插件和 mock LLM），由两台 Device 驱动（`tests/e2e`） | ≤ 60 s（不含 Cargo 编译） | 每次交付；CI           |
+| 原生     | `nsh test --target macos <file>…`（在 `apps/client`）                                     | 截图、原生输入、焦点等 headless 证明不了的                                                                                                                            | 只跑改动涉及的文件        | 改到组件层或原生交互时 |
+| 人工冒烟 | `bun run dev --isolated`；Client 冒烟设 `DSH_BOT_SMOKE_HOST` 和回环的 `DSH_BOT_RELAY_URL` | 真 dsh、真模型                                                                                                                                                        | 不进门禁                  | 发布前                 |
 
 默认的测试不需要凭据、外网或正在运行的 Host；需要它们的只在人工冒烟里。测试和开发都不连项目 Relay：`bun run dev --isolated` 没设 `DSH_BOT_RELAY_URL` 时自己起一个只绑 127.0.0.1 的 Relay，Client 的真 Host 冒烟只有在 `DSH_BOT_RELAY_URL` 是回环地址时才准碰 Host（`apps/client/lib/data-root.ts` 的 `hostControlAllowed`）。
 

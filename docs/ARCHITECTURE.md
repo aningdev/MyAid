@@ -57,7 +57,7 @@ packages/
   source-<kind>/     一个 Source 一个插件，例如 source-feishu、source-github；目前只有测试用 fake
   dsh-web-protocol/  只给 Client 用的官方 Remote 类型再导出，插件不能依赖它
 tests/
-  e2e/               端到端：真 Relay、真 Host 和 Client 的 relay Carrier，loopback 加假 dsh web
+  e2e/               端到端：真 Relay、真 Host、Client 的 relay Carrier 和 Connection，loopback 上分别接假 dsh web 和钉住版本的真 dsh web
 scripts/             根编排：dev.mjs（唯一的 dev 入口）、nsh-test-parallel.mjs（Client 测试按文件并行）、dsh 版本检查、文档检查、pack-decorators（插件包共用的 decorator 降级）
 docs/                GLOSSARY · ARCHITECTURE · architecture/ · decisions/ · specs/ · agents/
 references/          只读的上游源码，不参与构建

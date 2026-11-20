@@ -25,7 +25,7 @@
 
 - **Vite+（vp）**：JS/TS 工作区统一用 `vp`（`vp run` / `vp check` / `vp pack` / `vp test` / `vp staged` / `vp fmt`）。根和各包都在 `package.json` 里保留 scripts；根用 `vp run pkg#task` / `--filter` 调度。同名任务不写进 `vite.config.ts` 的 `run.tasks`（两者互斥，见 [run](https://viteplus.dev/guide/run)）。
 - 根的 `check` / `test` **按发现运行**：`vp run -F '@dsh-bot/*' -F '!@dsh-bot/workspace' <task>` 会跑所有带该脚本的包，新包不用改根。Cargo 步骤单独一段（`test` 在前，`check` 在后）。
-- 轻量验收：`bun install && bun run check`（只检查不改文件）；`bun run fix` 修格式和可自动修的 lint；`bun run test` 跑 Cargo 测试和各包测试；`bun run test:e2e` 跑 `tests/*` 的端到端层。CI 三个都跑。
+- 轻量验收：`bun install && bun run check`（只检查不改文件）；`bun run fix` 修格式和可自动修的 lint；`bun run test` 跑 `scripts/` 的 pin 测试、Cargo 测试和各包测试；`bun run test:e2e` 跑 `tests/*` 的端到端层。CI 三个都跑。
 - **测试**：分层、预算和验收时跑什么见 [testing](docs/architecture/testing.md)。开发中只跑相关文件，交付前 `check`、`test`、`test:e2e` 各跑一次；不写固定等待，不用重试、加长超时或放宽断言兜底。
 - 启动入口只有一个：`bun run dev [target]`（`ios` / `android` / `web` / `mobile` / `windows` / `linux` / `gpui` / `macos`，默认是桌面）。低层的 `dev*` 脚本留在 `apps/client`。
 - 不带参数的 `bun run dev` 会读写**真实的 `~/.dsh-bot`**。Agent、脚本化验证和冒烟测试一律用 `bun run dev --isolated[=<name>]`（数据根 `~/.dsh-bot-dev/<name>`，端口 4873；没设 `DSH_BOT_RELAY_URL` 时自起只绑 127.0.0.1 的 Relay），绝不运行不带它的 `dev`。开发和测试都不连项目 Relay。

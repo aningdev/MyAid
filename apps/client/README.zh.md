@@ -93,7 +93,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 
 ## Carrier
 
-`lib/dsh` 只通过 `installConnection` 的 Carrier seam（`streamBaseUrl`、`fetch`、`createWebSocket`）访问 dsh。`lib/carrier/relay/` 是 Relay Carrier 的 Device 一侧；wire 契约只在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)。
+`lib/dsh` 只通过 `installConnection` 的 Carrier seam（`streamBaseUrl`、`fetch`、`createWebSocket`）访问 dsh。`lib/carrier/relay/` 是 Relay Carrier 的 Device 一侧；wire 契约只在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)。`lib/dsh/index.ts` 在 `package.json` 里导出为 `@dsh-bot/client/dsh`，端到端测试经它驱动真正的 Connection。
 
 - `noise.ts`：Noise IK（日常）与 IKpsk1（配对）握手状态，发起方与响应方。
 - `pairing.ts`：配对链接解析、Device 静态密钥、唯一一份配对记录，以及 `pairDevice` 的配对握手。

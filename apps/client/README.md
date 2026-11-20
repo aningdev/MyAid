@@ -93,7 +93,7 @@ One Client, two roles, decided by one question: is this the Runner?
 
 ## Carrier
 
-`lib/dsh` reaches dsh only through the Carrier seam `installConnection` takes: `streamBaseUrl`, `fetch` and `createWebSocket`. `lib/carrier/relay/` is the Device half of the Relay carrier; the wire contract lives in [relay-tunnel](../../docs/architecture/relay-tunnel.md).
+`lib/dsh` reaches dsh only through the Carrier seam `installConnection` takes: `streamBaseUrl`, `fetch` and `createWebSocket`. `lib/carrier/relay/` is the Device half of the Relay carrier; the wire contract lives in [relay-tunnel](../../docs/architecture/relay-tunnel.md). `lib/dsh/index.ts` is exported as `@dsh-bot/client/dsh`, so the end-to-end tests drive the real Connection through it.
 
 - `noise.ts` — Noise IK (daily) and IKpsk1 (pairing) handshake states, initiator and responder.
 - `pairing.ts` — pairing-link parsing, the Device's static key, the one pairing record, and the `pairDevice` handshake.

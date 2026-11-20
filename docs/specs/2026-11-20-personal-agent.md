@@ -32,10 +32,12 @@ Owner 在任何一台 Device 或已接入的 Source 上提出请求，Main Bot �
    例：在 Main Bot 的详情里看不到「归档」和「删除」；调用 `bots` Remote 删除它会被拒绝。_automated_
 4. **Registry 全端一致**：在一台 Device 上新建或修改 Bot，另一台已配对 Device 不用刷新就能看到。
    例：手机上把一个 Bot 改名为「研究员」，Runner 桌面的 Navigator 在几秒内更新。_manual_
+   （2026-11-21：两台 Device 经 Relay 驱动真 dsh web 的情形已由 `tests/e2e` 自动化；真机上的这一步仍是 _manual_。）
 5. **委派可见**：Owner 让 Main Bot 做一件需要其他 Bot 的事时，Main Bot 开出 Ticket，Ticket 出现在执行它的 Bot 下，Owner 可以打开它的 Session 看过程并发消息介入。
    例：对 Main Bot 说「让研究员查一下 X」，研究员下出现一个运行中的 Ticket；在里面追加「只要 2025 年以后的资料」，执行随之调整；结束后 Main Bot 在 Dialogue 里汇报结果。_manual_，Ticket 的生命周期 _automated_
 6. **Attention 全端可达**：Ticket 需要 Owner 回答时，每台 Device 都能看到这条 Attention，在任何一台上回答后，其他 Device 上的同一条 Attention 都会消失。
    例：Ticket 问「两个方案选哪个？」，在手机上选了 A，桌面上这条 Attention 随即消失，Ticket 继续执行。_manual_
+   （2026-11-21：两台 Device 经 Relay 驱动真 dsh web 的情形已由 `tests/e2e` 自动化；真机上的这一步仍是 _manual_。）
 7. **无需自备网络**：手机在蜂窝网络下扫 Runner 上的二维码配对后，可以和任意 Bot 对话；Runner 在家用 NAT 后面，没有开放任何端口。
    例：关掉手机 Wi-Fi 后给 Main Bot 发消息，回复以流式显示。_manual_
 8. **Relay 看不到内容**：Relay 收到的每一帧都只有 Device 公钥和密文。
