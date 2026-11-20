@@ -8,7 +8,7 @@ import { expect, test } from "nsh/test";
 
 import { open } from "../../test/open";
 
-const desktop = { platform: "web" as const, width: 1200, height: 900 };
+const desktop = { platform: "web" as const, width: 1200, height: 900, clock: {} };
 const composer = "id:composer";
 
 async function conversation() {
@@ -26,7 +26,6 @@ function atTheEnd(app: Awaited<ReturnType<typeof conversation>>): boolean {
 async function scrollToTop(app: Awaited<ReturnType<typeof conversation>>) {
   for (let attempt = 0; attempt < 8; attempt++) {
     await app.scroll("id:transcript", -1200).catch(() => undefined);
-    await app.wait(120);
     if (app.shows("text:the earlier answer")) return;
   }
 }

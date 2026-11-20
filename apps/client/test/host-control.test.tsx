@@ -89,12 +89,17 @@ test("a guarded transport never fetches, and answers the facts it can", async ()
 });
 
 test("a test app neither probes for a Host nor starts one", async () => {
-  const app = await open("../App.tsx", { platform: "macos", width: 1100, height: 800 });
+  const app = await open("../App.tsx", {
+    platform: "macos",
+    width: 1100,
+    height: 800,
+    clock: {},
+  });
   await app.waitFor("id:host-status", { timeout: 20000 });
   expect(app.shows("id:host-status >> text:Host disconnected")).toBe(true);
 
   // Longer than the launcher's probe (1.5 s) and a start attempt would need to show.
-  await app.wait(4000);
+  await app.clock!.runFor(4000);
   expect(app.shows("id:host-status >> text:Host disconnected")).toBe(true);
   expect(app.shows("id:host-status >> text:Starting Host…")).toBe(false);
   expect(app.shows("id:host-status >> text:Host connected")).toBe(false);

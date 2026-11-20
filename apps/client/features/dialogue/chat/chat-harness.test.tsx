@@ -8,7 +8,11 @@ import { expect, test } from "nsh/test";
 import { graphical } from "../../../test/graphical";
 import { open } from "../../../test/open";
 
-const desktop = { platform: "web" as const, width: 1200, height: 900 };
+const window = { platform: "web" as const, width: 1200, height: 900 };
+/** A drop asks for a pick, and the ask and its answer cross threads; a manual
+ * clock does not wait for them, the system's does. */
+const systemClock = { ...window };
+const desktop = { ...window, clock: {} };
 
 const composer = "id:composer";
 
@@ -133,7 +137,7 @@ test("a reply that has finished stops its script, so the transcript settles", as
   const settled = app.texts();
   // Nothing appends after that: the script's timer stopped with its turn, so a
   // reply is said once rather than once per tick of a timer left running.
-  await app.wait(1500);
+  await app.clock!.runFor(1500);
   expect(app.texts()).toEqual(settled);
 });
 
@@ -148,7 +152,7 @@ test("a slow reply says all its words and then waits, never repeating them", asy
   const written = reply();
   // The script has said everything it has: no word lands twice (the elapsed
   // clock beside it may, which is what a running turn does).
-  await app.wait(1200);
+  await app.clock!.runFor(1200);
   expect(reply()).toBe(written);
   // The turn is still open for Stop to take, which is what this script is for.
   expect(app.shows("label:Stop generating")).toBe(true);
@@ -226,7 +230,7 @@ test("a pasted or dropped file the app may read lands as a chip", async () => {
 
 test("a dropped file the app cannot read comes through the open dialog", async () => {
   const app = await openHeadless({
-    ...desktop,
+    ...window,
     // A path outside `capabilities.fs.read`: nsh.json grants the app's data.
     modules: { "fs/promises": { readFile: denial, "default.readFile": denial } },
   });
@@ -235,6 +239,8 @@ test("a dropped file the app cannot read comes through the open dialog", async (
   app.onPick(() => [{ name: "dropped-notes.md", type: "text/markdown", data: NOTES }]);
 
   await app.dropFiles("id:chat", ["file:///tmp/dropped-notes.md"]);
+  await app.waitUntil(() => app.picks().length > 0);
+  await app.wait(0);
   await app.waitFor("label:Remove dropped-notes.md");
   expect(app.picks().length).toBe(1);
   expect(app.picks()[0]?.kind).toBe("files");
@@ -250,6 +256,8 @@ test("a dropped file the app cannot read, with the dialog closed, says how to at
   app.onPick(() => null);
 
   await app.dropFiles("id:chat", ["file:///tmp/dropped-notes.md"]);
+  await app.waitUntil(() => app.picks().length > 0);
+  await app.wait(0);
   await app.waitFor(
     "text:Nothing was attached: dsh-bot reads local files through the open dialog.",
   );
