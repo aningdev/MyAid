@@ -11,6 +11,13 @@ Client 访问 dsh web 的唯一途径是 `lib/dsh` 的 Connection。它在一条
 | `loopback` | Runner 上的 Client | Host 给出登录 URL，Client 自己用 `/connect` 换 Cookie（见下文）                                                                                   |
 | `relay`    | 其他 Device        | Device 不持有 dsh 凭据：请求和 WebSocket 帧端到端加密后经 Relay 交给 Bridge，Bridge 用它自己的 Cookie 访问回环（[relay-tunnel](relay-tunnel.md)） |
 
+选哪条只由一个问题决定：这台终端是不是 Runner。
+
+- `components/shell/host.ts` 的 `hasHost`（桌面且非 web）说明这里跑着 Host，也就是 Runner；Connection 走 `loopback`。
+- 其余终端是 Device。`components/shell/device.ts` 读配对记录：有记录就 `createRelayCarrier` 建一个 Carrier，经 `lib/dsh/session.ts` 的 `useCarrier` 交给下一条 Connection（`connectThrough`）；没有记录就停在配对页，不建立 Connection，也不做任何 dsh 请求。
+
+配对记录只有一份 owner：`lib/carrier/relay/pairing.ts` 在 NSH Storage 里读写它，界面只读快照。
+
 ## loopback 认证
 
 dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口由 dsh 选）。认证分两步，之后同一枚 Cookie 同时用于 HTTP 和 WebSocket：
@@ -35,7 +42,9 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 
 ## 能力授权（`nsh.json` `capabilities.network`）
 
-端口每次启动都会重新分配，而 schema 只能写死一个 `port` 或者不写（任意端口），所以规则按 host 来定，再按方法和路径收窄：
+Device 在配对时才知道 Relay 的 host，因此 `network.hosts` 写 `["*"]`。NSH 不能表达「任意 host、只走 https/wss」：`network.http` 只能按 host 收窄协议，而 `hosts` 的 `"*"` 会把 http/ws 一并放行。协议规则因此由两端代码守住——Device 的 `parsePairingLink` / `loadPairing` 只接受 https，或 loopback（`localhost`、`127.0.0.1`、`::1`）上的 http；Bridge 解析 `DSH_BOT_RELAY_URL` 用同一条规则（[relay-tunnel](relay-tunnel.md)）。
+
+代价是下面 127.0.0.1 的条目不再构成实际边界（授权规则之间是「或」，`"*"` 已经覆盖它们）；它们保留为回环访问的清单。端口每次启动都会重新分配，schema 只能写死 `port` 或不写（任意端口），所以回环规则按 host 定，再按方法和路径收窄：
 
 | host        | methods | schemes      | 路径                         | 用途                         |
 | ----------- | ------- | ------------ | ---------------------------- | ---------------------------- |
@@ -43,7 +52,7 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 | `127.0.0.1` | `GET`   | `http`, `ws` | `paths: ["/api/remote.mux"]` | 事件流（ws 握手按 GET 校验） |
 | `127.0.0.1` | `POST`  | `http`       | `pathPrefixes: ["/api"]`     | Remote 一元调用              |
 
-Host 的控制面（`/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`）另有规则。公网 Relay 不在本机控制面里。未授权的 URL 会被 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
+Host 的控制面另有规则：`GET /`、`/status`、`/connection`、`/registration`、`/bridge/devices`，`POST /dsh/start|stop|restart`、`/registration/enable|stop`、`/bridge/pairing`，`DELETE /bridge/devices/…`，以及 `ws /watch`（其中 `bridge.devices` 是已配对 Device 的推送）。公网 Relay 不在本机控制面里。未授权的 URL 会被 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
 
 ## 已知限制：mux 心跳和读取阻塞
 
@@ -59,5 +68,5 @@ Host 的控制面（`/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/re
 
 ## 验证
 
-- `nsh test`：`lib/dsh/socket.test.ts`（握手头、EventTarget 语义、未授权 URL 的 `ERR_ACCESS_DENIED`）、`lib/dsh/official-client.test.ts`（官方 client model 在 NSH 运行时里装载并驱动事件窗口）。
+- `nsh test`：`lib/dsh/socket.test.ts`（握手头、EventTarget 语义、授权列表放行任意 Relay host 与 dsh 端点）、`lib/dsh/official-client.test.ts`（官方 client model 在 NSH 运行时里装载并驱动事件窗口）、`lib/dsh/carrier.test.ts`（Connection 经 relay Carrier 完成一次 dsh 调用）、`components/shell/device.test.ts`（配对页、链接错误、撤销后回到配对页）、`lib/carrier/relay/carrier.test.ts`（取消请求发 `RESET cancelled`、隧道断开、Relay 看不到明文）。
 - 真 Host 冒烟：`screens/real-turn.smoke.test.tsx`、`screens/session-model.smoke.test.tsx`（两个 Pane 并发、排队撤回、审批往返、Host 重启后窗口恢复、向上翻页）。

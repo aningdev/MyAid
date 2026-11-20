@@ -5,11 +5,22 @@
  * Session model itself belongs to the official Client (`ctx.sessions`).
  */
 import { resolveDshLoginUrl } from "../host/control";
-import { Connection, readableError } from "./connection";
+import { Connection, readableError, type DshCarrier } from "./connection";
 
 export { readableError };
 
 let shared: Connection | undefined;
+/**
+ * The Carrier every Connection runs on. A paired Device installs its Relay
+ * tunnel here before connecting; the Runner leaves it undefined and its
+ * Connection takes the loopback Host.
+ */
+let carrier: DshCarrier | undefined;
+
+/** Point later Connections at this Carrier (`undefined` is the Runner's loopback). */
+export function useCarrier(next: DshCarrier | undefined): void {
+  carrier = next;
+}
 /**
  * Handlers every Connection needs (approvals, generation changes). It runs on
  * each instance **before** it connects and on the current one when registered:
@@ -42,7 +53,10 @@ export async function ensureConnected(loginUrl?: string): Promise<Connection> {
   if (shared) await shared.dispose().catch(() => undefined);
   const connection = new Connection();
   prepare?.(connection);
-  await connection.connect(loginUrl ?? (await resolveDshLoginUrl()));
+  // An explicit login URL is a loopback Host (a smoke or a test fixture). A
+  // Device has neither: its Carrier carries every request to the Runner.
+  if (loginUrl === undefined && carrier) await connection.connectThrough(carrier);
+  else await connection.connect(loginUrl ?? (await resolveDshLoginUrl()));
   shared = connection;
   return connection;
 }

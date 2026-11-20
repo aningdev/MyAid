@@ -621,6 +621,34 @@ async fn unset_or_placeholder_relay_is_not_dialed() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn relay_address_without_tls_must_be_loopback() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let now = Arc::new(AtomicU64::new(1_800_000_000));
+    for setting in [
+        "https://relay.example",
+        "wss://relay.example",
+        "http://127.0.0.1:8080",
+        "ws://localhost:8080",
+        "http://[::1]:8080",
+    ] {
+        let bridge = Bridge::open_for_test(dir.path(), Some(setting), now.clone(), no_dsh());
+        let relay = bridge.devices().expect("devices").relay;
+        assert!(relay.configured, "{setting}");
+    }
+    for setting in [
+        "http://relay.example",
+        "ws://relay.example",
+        "http://192.168.1.10:8080",
+    ] {
+        let bridge = Bridge::open_for_test(dir.path(), Some(setting), now.clone(), no_dsh());
+        let relay = bridge.devices().expect("devices").relay;
+        assert!(!relay.configured, "{setting}");
+        let reason = relay.reason.expect("reason");
+        assert!(reason.contains("loopback"), "{reason}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fake_relay_verifies_the_registration_signature() {
     let signing = SigningKey::from_bytes(&random_key());
     let nonce = random_key();
@@ -969,6 +997,7 @@ struct DshState {
     pongs: AtomicU32,
     opened: AtomicU32,
     closed: AtomicU32,
+    cancelled: AtomicU32,
 }
 
 #[derive(Clone)]
@@ -1028,6 +1057,7 @@ async fn fake_dsh() -> Fake {
         .route("/api/unauthorized", post(unauthorized))
         .route("/api/refuse", post(refuse))
         .route("/api/large", post(large))
+        .route("/api/slow", post(slow))
         .route("/api/remote.mux", get(mux))
         .with_state(state.clone());
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
@@ -1156,6 +1186,52 @@ async fn large(State(state): State<Arc<DshState>>, headers: HeaderMap, body: Byt
         return StatusCode::UNAUTHORIZED.into_response();
     }
     (StatusCode::OK, "a".repeat(2 * 1024 * 1024)).into_response()
+}
+
+/// Streams ticks until the Device resets the stream; the guard counts an unfinished body.
+struct SlowGuard {
+    state: Arc<DshState>,
+    finished: bool,
+}
+
+impl SlowGuard {
+    fn finish(&mut self) {
+        self.finished = true;
+    }
+}
+
+impl Drop for SlowGuard {
+    fn drop(&mut self) {
+        if !self.finished {
+            self.state.cancelled.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+}
+
+async fn slow(State(state): State<Arc<DshState>>, headers: HeaderMap, body: Bytes) -> Response {
+    remember(&state, "/api/slow", &headers, &body);
+    if !authorized(&state, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let guard = SlowGuard {
+        state,
+        finished: false,
+    };
+    let stream = futures_util::stream::unfold((guard, 0u32), |(mut guard, ticks)| async move {
+        if ticks == 500 {
+            guard.finish();
+            return None;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        Some((
+            Ok::<_, std::io::Error>(Bytes::from_static(b"tick")),
+            (guard, ticks + 1),
+        ))
+    });
+    Response::builder()
+        .status(StatusCode::OK)
+        .body(axum::body::Body::from_stream(stream))
+        .expect("slow response")
 }
 
 async fn mux(ws: WebSocketUpgrade, State(state): State<Arc<DshState>>) -> Response {
@@ -1533,6 +1609,36 @@ async fn ws_stream_end_closes_the_loopback_mux() {
         "a reset stream to close its loopback mux",
     )
     .await;
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn device_reset_cancels_the_loopback_request() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"method": "POST", "path": "/api/slow", "headers": []});
+    device
+        .send(1, HTTP_REQUEST, head.to_string().as_bytes())
+        .await;
+    device.send(1, END, b"").await;
+    let (id, kind, _) = device.next().await;
+    assert_eq!((id, kind), (1, HTTP_RESPONSE));
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (1, BODY));
+    assert_eq!(body, b"tick");
+
+    device.send(1, RESET, br#"{"code":"cancelled"}"#).await;
+    wait_until(
+        || started.dsh.state.cancelled.load(Ordering::SeqCst) == 1,
+        "the loopback request to be cancelled",
+    )
+    .await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(300), device.next())
+            .await
+            .is_err(),
+        "the bridge must not answer a device reset"
+    );
     started.stop.store(true, Ordering::Relaxed);
 }
 

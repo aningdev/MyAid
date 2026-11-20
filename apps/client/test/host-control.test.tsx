@@ -74,7 +74,7 @@ test("a guarded transport never fetches, and answers the facts it can", async ()
 });
 
 test("a test app neither probes for a Host nor starts one", async () => {
-  const app = await open("../App.tsx", { width: 1100, height: 800 });
+  const app = await open("../App.tsx", { platform: "macos", width: 1100, height: 800 });
   await app.waitFor("id:host-status", { timeout: 20000 });
   expect(app.shows("id:host-status >> text:Host disconnected")).toBe(true);
 

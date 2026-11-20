@@ -36,8 +36,9 @@
 
 ## dsh 传输与产品层级
 
-- 认证 WS 用标准 `websocket`：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包装成官方 dsh 要的 EventTarget。`nsh.json` 的 `capabilities.network.http` 只放行回环 dsh 端点；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
-- **Relay Carrier 只经 `lib/carrier/relay/`**：Device 一侧的日常/配对握手、配对记录、隧道流复用与 `fetch` / `createWebSocket` 适配都在这里；wire 契约只看 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，不在本文件复述。隧道断开只让进行中的流失败，重连归官方 connection；收到 `device-revoked` / `revoked` 时清掉配对记录。
+- 认证 WS 用标准 `websocket`：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包装成官方 dsh 要的 EventTarget。`nsh.json` 的 `capabilities.network.http` 只放行回环 dsh 端点；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。`network.hosts` 是 `["*"]`：Device 在配对时才知道 Relay 的 host，而 NSH 表达不了「任意 host、只走 https/wss」。协议规则由代码守：Relay 地址必须 https/wss，只有 `localhost`、`127.0.0.1`、`::1` 上才允许 http/ws（`parsePairingLink` / `loadPairing` 与 Host 的 `DSH_BOT_RELAY_URL` 各一份，两侧都要拒）。
+- **Relay Carrier 只经 `lib/carrier/relay/`**：Device 一侧的日常/配对握手、配对记录、隧道流复用与 `fetch` / `createWebSocket` 适配都在这里；wire 契约只看 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，不在本文件复述。隧道断开只让进行中的流失败，重连归官方 connection；调用方取消的请求发 `RESET {"code":"cancelled"}`；收到 `device-revoked` / `revoked` 时清掉配对记录。
+- **这台终端是 Runner 还是 Device 只由 `hasHost` 决定**（`components/shell/host.ts`：桌面且非 web）。Runner 走回环；Device 的配对页与阶段在 `components/shell/device.ts`，记录只有 `lib/carrier/relay/pairing.ts` 读写。粘贴的链接只留在那一页的 signal，不落 Storage、不写日志；错误文案按 `RelayError.code` 选（`features/pairing/copy.ts`），不显示原始 `message`。
 - wire 类型从 [`@dsh-bot/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
 - Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
 - **段的落点是 dsh Workspace**（[GLOSSARY](../../docs/GLOSSARY.md)；产品形态见 [GLOSSARY](../../docs/GLOSSARY.md)）：`workspace.create` / `rename` / `insertSessionBefore` 等是 Workspace 字段的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。插件的 Registry 只存段的 `workspaceId`，Client 不在本地重建 path / title / 顺序。
@@ -67,13 +68,13 @@
 ## Bot 详情与设置
 
 - **Bot 详情**是一个弹窗（`features/bots/BotDetails.tsx`），由 Pane 标题的 `Bot details:` 按钮、行的右键菜单与命令面板打开；打开状态只在 `features/bots/details.ts`。里面对段的事实（路径、模型、用量、Compact）来自 `features/bots/sessionFacts.ts`，不在注册表另存。
-- **设置**是盖在 Pane 之上的整页覆盖层（`components/shell/SettingsOverlay.tsx`），不是 Navigator 分区或 Pane；Esc / Back 关掉它，Pane 状态不动。左栏：供应商（dsh 目录 + `settings` / `credentials` Remote）/ 通用（客户端外观与语言偏好）/ 后台（Host 事实 + Background Services 面板，后者内部归 N1）/ 设备（仅 Runner 本机 Client，`hasHost`）/ 关于。供应商字段与默认模型只经 dsh Remote 读写，Key 不进客户端文件。窄于 600 pt 时左栏改到顶部换行。
+- **设置**是盖在 Pane 之上的整页覆盖层（`components/shell/SettingsOverlay.tsx`），不是 Navigator 分区或 Pane；Esc / Back 关掉它，Pane 状态不动。左栏：供应商（dsh 目录 + `settings` / `credentials` Remote）/ 通用（客户端外观与语言偏好）/ 后台（Host 事实 + Background Services 面板，后者内部归 N1）/ 设备（仅 Runner，`hasHost`）/ 这台设备（仅 Device，断开只清本机记录）/ 关于。供应商字段与默认模型只经 dsh Remote 读写，Key 不进客户端文件。窄于 600 pt 时左栏改到顶部换行。
 - **已配对 Device 只有一个所有者**：`features/devices/state.ts`（先 `GET /bridge/devices`，再跟 `/watch` 的 `bridge.devices`；配对与撤销用返回值更新，不乐观更新）。配对链接只留在打开的设备页里，不进 Storage、不写日志。Relay 未配置时不发配对请求。撤销先经 `AlertDialog` 点名，再 `DELETE`。
 
 ## 验证
 
 - 应用生命周期走官方 `nsh check` / `nsh test`；工作区编排用 `vp run @dsh-bot/client#…`。命令清单在 README。
-- 组件层改动：`nsh check` → 相关 `nsh test <file>` → 收尾跑 `nsh test --target macos`（截图落在 `.handoff/shots`，不进 `/tmp`）→ `bun run ui:diff` 必须是 `No differences.`。
+- 组件层改动：`nsh check` → 相关 `nsh test <file>` → 收尾跑 `nsh test --target macos`（截图落在 `.handoff/shots`，不进 `/tmp`）→ `bun run ui:diff` 必须是 `No differences.`。配对页截图走 `screens/pairing-harness.tsx`：macOS target 不能开 phone 平台，窄屏用 390 pt 宽的桌面窗口。
 - Bun 单测不能证明 NSH 权限或原生绑定；触及这些能力时用 `nsh test` / 集成入口。
 - 真 Host 冒烟是 opt-in（`DSH_BOT_SMOKE_HOST`）；默认 `nsh test` 不得需要活 Host。测试应用（`test/open.ts` 的标记）**不得**探本机控制面端口、不得 spawn `dsh-bot-host`：判据在 `lib/data-root.ts` 的 `hostControlAllowed`，护栏测试 `test/host-control.test.tsx`。
 - 测试隔离：所有打开 app 的测试经 [`test/open`](test/open.ts)（`nsh test` 的 host 参数 `dshBotTest`），prefs 落到该 app 的 Storage，绝不用真实 `~/.dsh-bot`；`test/data-root.test.tsx` 是这条 seam 的 guard。没有 Host 的 app 把 Registry 夹具放在同一份 Storage（`dsh-bot.test.bots`），由内存 `bots` Remote 读出，这不是产品缓存。没有 Host 的 app 测试用 [`test/workspaces`](test/workspaces.ts) 预置 Workspace baseline（与 dsh 发出的帧同形），生产路径只读 `workspace.follow`。

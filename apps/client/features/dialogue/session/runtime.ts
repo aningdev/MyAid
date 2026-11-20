@@ -125,6 +125,18 @@ let host: HostControlApi | undefined;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 /** Stop the official list subscription when the Connection goes away. */
 let stopList: (() => void) | undefined;
+/**
+ * Whether a Host control plane answers beside this Client: the Runner asks it
+ * for status and watches for a new one; a Device has none and leaves the
+ * official Connection to retry its Carrier.
+ */
+let hosted = true;
+let disposing = false;
+let runtimeEpoch = 0;
+
+export function useHostControl(next: boolean): void {
+  hosted = next;
+}
 
 async function loadDsh(): Promise<DshSession> {
   if (!dsh) dsh = await import("../../../lib/dsh/session");
@@ -192,6 +204,7 @@ async function nameFromPrompt(sessionId: string, text: string): Promise<void> {
 }
 
 export async function refreshHostStatus(): Promise<HostStatus | null> {
+  if (!hosted) return null;
   try {
     const { hostAccess } = await loadHost();
     if (!(await hostAccess.reachable())) {
@@ -230,6 +243,9 @@ function listed(state: SessionListState | null): ListedSession[] | null {
 }
 
 function rebuildRoster(): void {
+  // Disposing controllers land here with a teardown in progress: there is no
+  // roster left to rebuild, and the signals they read are already going away.
+  if (disposing) return;
   rosterBase.set(
     buildSessionRoster({
       registry: untracked(registry),
@@ -326,7 +342,7 @@ function onGenerationChange(up: boolean): void {
     stopBots();
     stopTickets();
     sessionError.set(t("session.connectionLost"));
-    watchForHost();
+    if (hosted) watchForHost();
     return;
   }
   sessionError.set(null);
@@ -430,6 +446,9 @@ async function ensureClient(): Promise<ClaimedSessionClient> {
 export function connectSession(_sessionId?: string): Promise<void> {
   if (sessionReady() && claimed?.getHost()?.ready) return Promise.resolve();
   if (connectWork) return connectWork;
+  // A teardown makes everything below stale: its Disposal owns the state the
+  // work would otherwise write, and the next Connection starts from scratch.
+  const epoch = runtimeEpoch;
   const work = (async () => {
     sessionError.set(null);
     const client = await ensureClient();
@@ -443,6 +462,7 @@ export function connectSession(_sessionId?: string): Promise<void> {
       sessionControllers.rebind();
     }
     const hostApi = await client.ensureConnected();
+    if (epoch !== runtimeEpoch) return;
     await subscribeBots();
     // The Workspace projection holds the tree's paths, titles and order.
     startWorkspaces(hostApi.workspaces.list);
@@ -460,11 +480,12 @@ export function connectSession(_sessionId?: string): Promise<void> {
   })();
   connectWork = work
     .catch(async (error) => {
+      if (epoch !== runtimeEpoch) return;
       sessionReady.set(false);
       await failSession(error);
     })
     .finally(() => {
-      connectWork = undefined;
+      if (epoch === runtimeEpoch) connectWork = undefined;
     });
   return connectWork;
 }
@@ -554,18 +575,25 @@ export async function disposeRuntime(): Promise<void> {
     clearTimeout(reconnectTimer);
     reconnectTimer = undefined;
   }
-  sessionControllers.disposeAll();
-  sessionReady.set(false);
-  sessionError.set(null);
-  rosterBase.set([]);
-  listedSessions = null;
-  summaries.clear();
-  stopList?.();
-  stopList = undefined;
-  await stopWorkspaces();
-  if (claimed) await claimed.dispose().catch(() => undefined);
-  claimed = undefined;
-  if (dsh) await dsh.disposeSession().catch(() => undefined);
-  dsh = undefined;
-  host = undefined;
+  runtimeEpoch += 1;
+  connectWork = undefined;
+  disposing = true;
+  try {
+    sessionControllers.disposeAll();
+    sessionReady.set(false);
+    sessionError.set(null);
+    rosterBase.set([]);
+    listedSessions = null;
+    summaries.clear();
+    stopList?.();
+    stopList = undefined;
+    await stopWorkspaces();
+    if (claimed) await claimed.dispose().catch(() => undefined);
+    claimed = undefined;
+    if (dsh) await dsh.disposeSession().catch(() => undefined);
+    dsh = undefined;
+    host = undefined;
+  } finally {
+    disposing = false;
+  }
 }

@@ -24,7 +24,7 @@ use std::{
     io,
     sync::{Arc, Mutex, MutexGuard},
 };
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
 /// A request body up to this size is kept so a 401 can be retried; larger ones stream once.
 const MAX_REPLAY: usize = 1024 * 1024;
@@ -90,7 +90,7 @@ pub(super) async fn run(bridge: Bridge, head: Vec<u8>, up: UnboundedReceiver<Up>
 async fn forward(
     bridge: &Bridge,
     head: &[u8],
-    up: UnboundedReceiver<Up>,
+    mut up: UnboundedReceiver<Up>,
     down: &Sink,
 ) -> Result<(), Failure> {
     let head: Head = serde_json::from_slice(head).map_err(|_| Failure::Protocol)?;
@@ -107,7 +107,24 @@ async fn forward(
     })?;
     let headers = forwarded_headers(&head.headers)?;
 
-    let up = Arc::new(tokio::sync::Mutex::new(up));
+    // The Device's frames feed the request body; a `RESET` also cancels the loopback
+    // request, whose response may still be streaming back.
+    let (body_tx, body_rx) = unbounded_channel::<Up>();
+    let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+    tokio::spawn(async move {
+        while let Some(item) = up.recv().await {
+            let reset = matches!(item, Up::Frame { kind: RESET, .. });
+            if reset {
+                let _ = cancel_tx.send(true);
+            }
+            if body_tx.send(item).is_err() || reset {
+                return;
+            }
+        }
+        let _ = body_tx.send(Up::Closed);
+    });
+
+    let mut body_rx = Some(body_rx);
     let mut retry: Option<VecDeque<Bytes>> = None;
     for attempt in 0..2 {
         let replay = Arc::new(Mutex::new(Replay::default()));
@@ -116,7 +133,7 @@ async fn forward(
         let body = body_stream(Body {
             prefix,
             prefix_only,
-            rx: up.clone(),
+            rx: body_rx.take(),
             replay: replay.clone(),
         });
         let (mut sender, connection) = dsh::connect(&endpoint).await.map_err(|error| {
@@ -124,10 +141,17 @@ async fn forward(
             Failure::Unavailable
         })?;
         let request = build_request(&endpoint, &head.path, &cookie, &headers, body)?;
-        let response = sender.send_request(request).await.map_err(|error| {
-            tracing::debug!(%error, "bridge dsh request");
-            Failure::Unavailable
-        })?;
+        let response = match sender.send_request(request).await {
+            Ok(response) => response,
+            Err(_) if *cancel_rx.borrow() => {
+                connection.abort();
+                return Ok(());
+            }
+            Err(error) => {
+                tracing::debug!(%error, "bridge dsh request");
+                return Err(Failure::Unavailable);
+            }
+        };
         if response.status() == StatusCode::UNAUTHORIZED && attempt == 0 {
             connection.abort();
             let (finished, replayable) = {
@@ -165,7 +189,21 @@ async fn forward(
             .map_err(|_| Failure::Protocol)?,
         );
         let mut body = response.into_body();
-        while let Some(frame) = body.frame().await {
+        loop {
+            if *cancel_rx.borrow() {
+                connection.abort();
+                return Ok(());
+            }
+            let frame = tokio::select! {
+                _ = cancel_rx.changed() => {
+                    connection.abort();
+                    return Ok(());
+                }
+                frame = body.frame() => frame,
+            };
+            let Some(frame) = frame else {
+                break;
+            };
             let frame = frame.map_err(|error| {
                 tracing::debug!(%error, "bridge dsh response");
                 Failure::Unavailable
@@ -265,7 +303,7 @@ struct Replay {
 struct Body {
     prefix: VecDeque<Bytes>,
     prefix_only: bool,
-    rx: Arc<tokio::sync::Mutex<UnboundedReceiver<Up>>>,
+    rx: Option<UnboundedReceiver<Up>>,
     replay: Arc<Mutex<Replay>>,
 }
 
@@ -278,9 +316,9 @@ fn body_stream(body: Body) -> BoxBody<Bytes, io::Error> {
             return None;
         }
         loop {
-            let next = {
-                let mut rx = body.rx.lock().await;
-                rx.recv().await
+            let next = match body.rx.as_mut() {
+                Some(rx) => rx.recv().await,
+                None => None,
             };
             match next {
                 Some(Up::Frame {

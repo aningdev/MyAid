@@ -24,6 +24,15 @@ export const PAIRING_KEY = "dsh-bot.device.pairing";
 const PAIRING_VERSION = "1";
 const PAIRING_PATH = "/pair";
 const ID_PATTERN = /^[a-z2-7]{32}$/;
+/** Plain `http`/`ws` Relay addresses are for local development only. */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** A Relay address is `https` anywhere; `http` only on the local machine. */
+function isRelayAddressAllowed(url: URL): boolean {
+  return (
+    url.protocol === "https:" || (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname))
+  );
+}
 
 /** A parsed `<relay>/pair#…` link; `expiresAt` is Unix seconds. */
 export interface PairingInvite {
@@ -61,7 +70,7 @@ export function parsePairingLink(
   } catch {
     throw relayError("invalid-link");
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") throw relayError("invalid-link");
+  if (!isRelayAddressAllowed(url)) throw relayError("invalid-link");
   if (url.pathname !== PAIRING_PATH) throw relayError("invalid-link");
 
   const params = new URLSearchParams(url.hash.replace(/^#/, ""));
@@ -174,15 +183,17 @@ export async function loadPairing(storage: StorageLike = Storage): Promise<Pairi
     throw relayError("invalid-pairing");
   }
 
-  let origin: string;
+  let relay: URL;
   let key: Uint8Array;
   try {
-    origin = new URL(relayUrl).origin;
+    relay = new URL(relayUrl);
     key = b64urlDecode(runnerKey);
   } catch {
     throw relayError("invalid-pairing");
   }
-  if (origin !== relayUrl || key.length !== 32) throw relayError("invalid-pairing");
+  if (relay.origin !== relayUrl || !isRelayAddressAllowed(relay) || key.length !== 32) {
+    throw relayError("invalid-pairing");
+  }
 
   return { relayUrl, runnerId, runnerKey: key, deviceId };
 }

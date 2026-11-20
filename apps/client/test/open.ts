@@ -22,3 +22,20 @@ export function open(entry: string, options: OpenOptions = {}): Promise<App> {
     },
   });
 }
+
+/**
+ * `open`, or `undefined` where the run's target refuses the options: a phone
+ * platform on `--target macos`, which runs the app as a desktop instead. The
+ * caller returns there; the headless run is where its assertion happens.
+ */
+export async function openIfSupported(
+  entry: string,
+  options: OpenOptions = {},
+): Promise<App | undefined> {
+  try {
+    return await open(entry, options);
+  } catch (error) {
+    if ((error as { code?: string }).code === "ERR_NSH_TEST_UNSUPPORTED") return undefined;
+    throw error;
+  }
+}

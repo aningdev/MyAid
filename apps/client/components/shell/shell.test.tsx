@@ -17,7 +17,7 @@ import {
 import { open } from "../../test/open";
 import { workspaceStorage, workspaceRow } from "../../test/workspaces";
 
-const desktop = { platform: "web" as const, width: 1100, height: 800 };
+const desktop = { platform: "macos" as const, width: 1100, height: 800 };
 
 /** The app's start, with `registry` already on disk. */
 function start(registry: BotRegistry) {

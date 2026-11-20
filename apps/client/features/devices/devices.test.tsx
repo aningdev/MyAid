@@ -9,7 +9,7 @@ import { expect, test, type App, type Dialog } from "nsh/test";
 
 import { t } from "../../lib/i18n";
 import { graphical } from "../../test/graphical";
-import { open } from "../../test/open";
+import { open, openIfSupported } from "../../test/open";
 import { PAIRING_LINK } from "./fixture";
 
 /** Relative to `apps/client`, where `nsh test` is run. The driver writes these. */
@@ -120,19 +120,20 @@ test("a bridge.devices frame adds a Device and the page stays up", async () => {
   expect(app.shows("id:devices-down")).toBe(false);
 });
 
-test("a web Client has no Devices group", async () => {
-  const app = await open("./devices-harness.tsx", {
-    platform: "web",
-    width: 1100,
-    height: 800,
+test("a Device swaps Devices for This Device", async () => {
+  // A phone platform is refused on `--target macos`; the headless engine is
+  // where this Device-only group is asserted.
+  const app = await openIfSupported("./devices-harness.tsx", {
+    platform: "ios",
+    width: 390,
+    height: 844,
+    host: { params: { page: true } },
   });
-  await app.press(`label:${t("host.settings")}`);
-  await app.waitFor("id:settings-overlay");
-  // `nsh test --target macos` keeps `platform.os` as macos, so this open option
-  // is a web Client only on the headless engine. That run is the assertion.
-  if (app.shows("label:platform-macos")) return;
-  expect(app.shows("label:platform-web")).toBe(true);
+  if (!app) return;
+  await app.waitFor("id:settings-nav-providers");
+  expect(app.shows("label:platform-ios")).toBe(true);
   expect(app.shows("id:settings-nav-about")).toBe(true);
+  expect(app.shows("id:settings-nav-device")).toBe(true);
   expect(app.shows("id:settings-nav-devices")).toBe(false);
 });
 
