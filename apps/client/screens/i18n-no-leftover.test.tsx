@@ -27,7 +27,7 @@ import { workspaceRow, workspaceStorage } from "../test/workspaces";
 
 type Lang = "zh" | "en";
 
-const desktop = { platform: "macos" as const, width: 1100, height: 900 };
+const desktop = { platform: "macos" as const, width: 1100, height: 900, clock: {} };
 
 const CJK = /[\u3400-\u9fff]/;
 /** Text that is Chinese in every language: a language picker's endonyms. */
@@ -125,6 +125,16 @@ async function walkShell(lang: Lang, texts: string[]): Promise<void> {
   await app.press(`label:${say(lang, "panel.botDetails", { name: "Ada" })}`);
   await app.waitFor("id:bot-details");
   collect(texts, app);
+  // A press resolves before the panel it asked for is laid out, so each tab
+  // waits for words of its own.
+  const drawn = {
+    "bot.tab.runs": say(lang, "bot.thinking"),
+    "bot.tab.skills": say(lang, "bot.skills.base"),
+    // The heading without a preset names the tab's panel, not its rows: a
+    // backend that mounts nothing still shows it above the refusal.
+    "bot.tab.plugins": say(lang, "bot.plugins.heading", { preset: "" }).trim(),
+    "bot.tab.profile": say(lang, "bot.template"),
+  } as const;
   for (const tab of [
     "bot.tab.runs",
     "bot.tab.skills",
@@ -132,7 +142,7 @@ async function walkShell(lang: Lang, texts: string[]): Promise<void> {
     "bot.tab.profile",
   ] as const) {
     await app.press(`text:${say(lang, tab)}`);
-    await app.wait(80);
+    await app.waitUntil(() => app.texts().some((text) => text.includes(drawn[tab])));
     collect(texts, app);
   }
   await app.press(`label:${say(lang, "bot.closeDetails")}`);
@@ -142,15 +152,9 @@ async function walkShell(lang: Lang, texts: string[]): Promise<void> {
   await app.keyboard.press("mod+,");
   await app.waitFor("id:settings-overlay");
   collect(texts, app);
-  for (const group of [
-    "settings-nav-general",
-    "settings-nav-background",
-    "settings-nav-devices",
-    "settings-nav-about",
-    "settings-nav-providers",
-  ]) {
-    await app.press(`id:${group}`);
-    await app.wait(120);
+  for (const group of ["general", "background", "devices", "about", "providers"]) {
+    await app.press(`id:settings-nav-${group}`);
+    await app.waitFor(`id:settings-${group}`);
     collect(texts, app);
   }
   await app.keyboard.press("escape");
@@ -170,7 +174,6 @@ async function walkTranscript(lang: Lang, texts: string[]): Promise<void> {
   collect(texts, app);
   await app.hover("id:history-mark-s1");
   await app.waitFor("id:rail-card");
-  await app.wait(150);
   collect(texts, app);
 }
 
