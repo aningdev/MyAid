@@ -6,16 +6,15 @@
  */
 import { expect, test } from "nsh/test";
 
+import { emptyRegistry, type BotRegistry } from "../../features/bots/model";
 import {
+  BOTS_FIXTURE_KEY,
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
+} from "../../test/bots-fixture";
 import { open } from "../../test/open";
 import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import { emptyShellPrefs, serializeShellPrefs, SHELL_PREFS_STORAGE } from "./prefs";
@@ -47,7 +46,7 @@ function start(options: { prefs?: string; registry?: BotRegistry; workspaces?: s
   return open("../../App.tsx", {
     ...desktop,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(options.registry ?? sample()),
+      ...botsStorage(options.registry ?? sample()),
       ...(options.prefs ? { [SHELL_PREFS_STORAGE]: options.prefs } : {}),
       ...workspaceStorage({ rows }),
     },
@@ -140,7 +139,8 @@ test("archiving hides a Bot, and a search brings it back to unarchive", async ()
   await app.press("label:Unarchive Ada");
   await app.clear("id:nav-search");
   await app.waitFor("label:Ada");
-  expect(app.storage()[REGISTRY_STORAGE_KEY]).toContain('"archived": false');
+  const saved = JSON.parse(app.storage()[BOTS_FIXTURE_KEY] ?? "") as BotRegistry;
+  expect(saved.bots.find((bot) => bot.id === "ada")?.archived).toBe(false);
 });
 
 test("the search, the Composer and the title's field take the keys from code", async () => {

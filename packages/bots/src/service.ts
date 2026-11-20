@@ -139,8 +139,8 @@ export class BotsService extends TypertRemoteService {
     return this.change((registry) => updateTemplate(registry, request.id, request.patch));
   }
 
-  async deleteTemplate(id: string): Promise<BotsSnapshot> {
-    return this.change((registry) => deleteTemplate(registry, id));
+  async deleteTemplate(templateId: string): Promise<BotsSnapshot> {
+    return this.change((registry) => deleteTemplate(registry, templateId));
   }
 
   /** Upsert product templates from every non-derived dsh Agent preset. */
@@ -158,8 +158,8 @@ export class BotsService extends TypertRemoteService {
     return this.change((registry) => updateBot(registry, request.id, request.patch));
   }
 
-  async initializeBot(id: string): Promise<BotsSnapshot> {
-    return this.change((registry) => initializeBot(registry, id));
+  async initializeBot(botId: string): Promise<BotsSnapshot> {
+    return this.change((registry) => initializeBot(registry, botId));
   }
 
   async claimSegment(request: {
@@ -186,16 +186,16 @@ export class BotsService extends TypertRemoteService {
     return this.change((registry) => releaseSegment(registry, request.botId, request.sessionId));
   }
 
-  async archive(id: string): Promise<BotsSnapshot> {
-    return this.change((registry) => archiveBot(registry, id));
+  async archive(botId: string): Promise<BotsSnapshot> {
+    return this.change((registry) => archiveBot(registry, botId));
   }
 
-  async unarchive(id: string): Promise<BotsSnapshot> {
-    return this.change((registry) => unarchiveBot(registry, id));
+  async unarchive(botId: string): Promise<BotsSnapshot> {
+    return this.change((registry) => unarchiveBot(registry, botId));
   }
 
-  async deleteBot(id: string): Promise<BotsSnapshot> {
-    return this.change((registry) => deleteBot(registry, id));
+  async deleteBot(botId: string): Promise<BotsSnapshot> {
+    return this.change((registry) => deleteBot(registry, botId));
   }
 
   async assignPreset(request: { botId: string; presetId: string }): Promise<BotsSnapshot> {

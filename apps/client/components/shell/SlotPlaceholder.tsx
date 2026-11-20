@@ -10,7 +10,7 @@ import { Shortcut } from "../../components/app";
 import { BotMark } from "../../features/bots/BotMark";
 import { nextIdentity } from "../../features/bots/identity";
 import { openNewBot } from "../../features/bots/newBot";
-import { legacyRegistry, loadError, ready, registry } from "../../features/bots/state";
+import { loadError, ready, registry } from "../../features/bots/state";
 import { t } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { Button } from "../ui/button";
@@ -24,8 +24,7 @@ import {
 } from "../ui/empty";
 
 export function SlotPlaceholder() {
-  const firstLaunch = () =>
-    ready() && !loadError() && !legacyRegistry() && registry().bots.length === 0;
+  const firstLaunch = () => ready() && !loadError() && registry().bots.length === 0;
   return (
     <If
       when={ready() && !!loadError()}

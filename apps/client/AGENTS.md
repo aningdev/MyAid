@@ -20,7 +20,7 @@
 
 - 用 NSH 细粒度响应式；不套 React hooks，不引入 `solid-js`。
 - 订阅与原生句柄在 `cleanup` 中释放；组件卸载 ≠ 后台任务停止（运行中的 Session 在 Pane 关掉后继续）。
-- 每个状态 / 策略只有一个所有者：注册表写入口、`SessionController`、壳的 Pane 状态不各自复制一份。派生值用 `computed`（列表行见 `components/shell/botList.ts`），别在视图里重算第二套模型。
+- 每个状态 / 策略只有一个所有者：Registry 的读写只经 `features/bots/state.ts` 调 `bots` Remote（插件是 Registry 的所有者，Client 不落盘），`SessionController`、壳的 Pane 状态不各自复制一份。派生值用 `computed`（列表行见 `components/shell/botList.ts`），别在视图里重算第二套模型。Navigator 不按活动重排：Pin 区之后跟插件快照的顺序，Main Bot 由插件放在第一。
 - 一个 Bot 只在一个 Pane 里：打开走 `state.openBot`（已有 Pane 只切焦点），拖入走 `state.dropBot`；不要在视图里再拼一套去重。
 
 ## UI 边界
@@ -39,9 +39,9 @@
 - 认证 WS 用标准 `websocket`：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包装成官方 dsh 要的 EventTarget。`nsh.json` 的 `capabilities.network.http` 只放行回环 dsh 端点；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
 - wire 类型从 [`@dsh-bot/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
 - Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
-- **段的落点是 dsh Workspace**（[GLOSSARY](../../docs/GLOSSARY.md)；产品形态见 [GLOSSARY](../../docs/GLOSSARY.md)）：`workspace.create` / `rename` / `insertSessionBefore` 等是 Workspace 字段的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。注册表只存段的 `workspaceId`，不要在注册表里重建 path / title / 顺序。
+- **段的落点是 dsh Workspace**（[GLOSSARY](../../docs/GLOSSARY.md)；产品形态见 [GLOSSARY](../../docs/GLOSSARY.md)）：`workspace.create` / `rename` / `insertSessionBefore` 等是 Workspace 字段的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。插件的 Registry 只存段的 `workspaceId`，Client 不在本地重建 path / title / 顺序。
 - **官方 client model 是 Session / Workspace 状态的唯一所有者**：`lib/dsh/connection.ts` 在装好 Remote 的同一条 Cordis Context 上 `plugin` 官方 `ClientSessions`（`ctx.sessions`：列表、事件窗口、follow、分页、prompt/queue/control、投影）与 `ClientWorkspaceModel`（`ctx.workspaces`：行、顺序、归档、置顶）。产品只投影它们发布的 snapshot（[`features/dialogue/session`](features/dialogue/session/controller.ts)、[`features/workspace/state.ts`](features/workspace/state.ts)），不另建 follow / 重连 / 分页 / 回执映射，也不在视图里重算一遍。官方未提供的命令（模型目录与选择、skills、`/command`、插件清单、bot preset、上传、目录选择）留在 `Connection`。
-- 产品形态是**一个 Bot 一条长对话**，由按时间相连的段（Session）组成（[GLOSSARY](../../docs/GLOSSARY.md)）。注册表 v6 让 Bot 直接持有 `segments`（段 = 认领），段可跨 Workspace；只有最新段接受输入，旧段由 ChatPane 经官方 Session 模型向上加载（`features/bots/sessions.ts`、`features/dialogue/ChatPane.tsx`），别在视图里另挑一条或在注册表里造第二套分页。
+- 产品形态是**一个 Bot 一条长对话**，由按时间相连的段（Session）组成（[GLOSSARY](../../docs/GLOSSARY.md)）。插件的 Registry v6 让 Bot 直接持有 `segments`（段 = 认领），段可跨 Workspace。Client 只持有当前快照。只有最新段接受输入，旧段由 ChatPane 经官方 Session 模型向上加载（`features/bots/sessions.ts`、`features/dialogue/ChatPane.tsx`），别在视图里另挑一条或在本地再存一份。
 - `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下无 ESM `installConnection`；用 `bun run prepare:sdk` 打出的 `lib/dsh/sdk.js`（`nsh.json` 的 `resolve.conditions: ["node"]` 兜底）。勿手改该产物。
 - 官方 client model（session / workspace / file-upload 的 `lib/client.js`）是浏览器 `window.__ModuleLoader__.load({id, factory})` 产物，NSH 发行版禁用 `Function` 构造器（不跑字符串代码），因此 `prepare:sdk` 把 factory 主体原样包成静态 ESM，落在 `lib/dsh/generated/`（gitignore）。升 `@deepseek-ai/dsh-*` 后重跑 `prepare:sdk`；它按包版本重写文件，找不到 loader 外壳会直接报错。
 - 认证与心跳细节的唯一下沉文档：[dsh-connection](../../docs/architecture/dsh-connection.md)。
@@ -67,7 +67,7 @@
 - 组件层改动：`nsh check` → 相关 `nsh test <file>` → 收尾跑 `nsh test --target macos`（截图落在 `.handoff/shots`，不进 `/tmp`）→ `bun run ui:diff` 必须是 `No differences.`。
 - Bun 单测不能证明 NSH 权限或原生绑定；触及这些能力时用 `nsh test` / 集成入口。
 - 真 Host 冒烟是 opt-in（`DSH_BOT_SMOKE_HOST`）；默认 `nsh test` 不得需要活 Host。测试应用（`test/open.ts` 的标记）**不得**探本机控制面端口、不得 spawn `dsh-bot-host`：判据在 `lib/data-root.ts` 的 `hostControlAllowed`，护栏测试 `test/host-control.test.tsx`。
-- 测试隔离：所有打开 app 的测试经 [`test/open`](test/open.ts)（`nsh test` 的 host 参数 `dshBotTest`），注册表与 prefs 落到该 app 的 Storage，绝不用真实 `~/.dsh-bot`；`test/data-root.test.tsx` 是这条 seam 的 guard。没有 Host 的 app 测试用 [`test/workspaces`](test/workspaces.ts) 预置 Workspace baseline（与 dsh 发出的帧同形），生产路径只读 `workspace.follow`。
+- 测试隔离：所有打开 app 的测试经 [`test/open`](test/open.ts)（`nsh test` 的 host 参数 `dshBotTest`），prefs 落到该 app 的 Storage，绝不用真实 `~/.dsh-bot`；`test/data-root.test.tsx` 是这条 seam 的 guard。没有 Host 的 app 把 Registry 夹具放在同一份 Storage（`dsh-bot.test.bots`），由内存 `bots` Remote 读出，这不是产品缓存。没有 Host 的 app 测试用 [`test/workspaces`](test/workspaces.ts) 预置 Workspace baseline（与 dsh 发出的帧同形），生产路径只读 `workspace.follow`。
 - 宿主发现、generation、换连与退役清理应有单一协调者；切换对象后丢弃旧异步结果。
 
 ## 文档

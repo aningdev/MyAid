@@ -18,13 +18,14 @@ import { requestComposerFocus } from "../dialogue/chat/focus";
 import { startSegment } from "../workspace/conversation";
 import { BotIdentityPicker, BotMark } from "./BotMark";
 import { nextIdentity, type BotIdentity } from "./identity";
-import { createBot, initializeBot, newId } from "./model";
+import { newId } from "./model";
 import { closeNewBot, newBotOpen } from "./newBot";
 import {
   actionError,
-  changeRegistry,
   clearActionError,
-  importDshTemplates,
+  createBot,
+  importTemplates,
+  initializeBot,
   ready,
   registry,
   saving,
@@ -84,7 +85,7 @@ function Body() {
   effect(() => {
     if (!newBotOpen() || asked) return;
     asked = true;
-    if (templates().length === 0 && !writeBlocked()) void importDshTemplates();
+    if (templates().length === 0 && !writeBlocked()) void importTemplates();
   });
 
   // The first template arrives (or the chosen one disappeared): follow it.
@@ -121,21 +122,14 @@ function Body() {
     creating.set(true);
     localError.set(null);
     try {
-      const bot = await changeRegistry((reg) =>
-        initializeBot(
-          createBot(
-            reg,
-            {
-              name: name(),
-              templateId: template.id,
-              defaultWorkspacePath: path,
-              identity: identity(),
-            },
-            botId,
-          ),
-          botId,
-        ),
-      );
+      const drafted = await createBot({
+        id: botId,
+        name: name(),
+        templateId: template.id,
+        defaultWorkspacePath: path,
+        identity: identity(),
+      });
+      const bot = drafted && (await initializeBot(botId));
       if (!bot) {
         localError.set(actionError() ?? t("newBot.createFailed"));
         return;
@@ -193,7 +187,7 @@ function Body() {
                 size="sm"
                 disabled={writeBlocked()}
                 variant="secondary"
-                onPress={() => void importDshTemplates()}
+                onPress={() => void importTemplates()}
               >
                 {t("newBot.import")}
               </Button>

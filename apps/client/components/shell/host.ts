@@ -1,38 +1,20 @@
 /**
- * Host reachability for the shell: read the registry, then the Host, and
- * connect dsh when the Host answers. Web and other non-desktop runs have no
+ * Host reachability for the shell: connect dsh when the Host answers, and the
+ * Registry follows that connection. Web and other non-desktop runs have no
  * Host to ask, so the shell stays usable and the footer says "disconnected".
- *
- * A v3 / v4 / v5 registry is read-only until this happens: its Dialogues own
- * the Bot's conversation, which dsh must take over as one long conversation,
- * so the migration waits for the one Host that can own it (see
- * `features/workspace/migrate`).
+ * A Host-less test reads its Registry from the in-memory `bots` double.
  */
 import { platform } from "nsh";
 
-import {
-  acceptMigratedRegistry,
-  legacyRegistry,
-  loadRegistry,
-  migrationNotice,
-  registry,
-} from "../../features/bots/state";
+import { onRegistryReady, openTestBots, ready, registry } from "../../features/bots/state";
 import {
   connectSession,
   hostConnection,
   noteHostLost,
   refreshHostStatus,
 } from "../../features/dialogue/session/runtime";
-import { migrateRegistry } from "../../features/workspace/migrate";
-import {
-  loadStoredWorkspaces,
-  openWorkspace,
-  pinSession,
-  renameWorkspace,
-  unarchiveSession,
-  whenWorkspacesReady,
-  workspaces,
-} from "../../features/workspace/state";
+import { loadStoredWorkspaces } from "../../features/workspace/state";
+import { hostControlAllowed, usesTestStorage } from "../../lib/data-root";
 import {
   ensureHostRunning,
   hostLauncher,
@@ -112,87 +94,30 @@ export async function retryHost(): Promise<void> {
   }
   await refreshHost();
   await connectWhenHosted();
-  // An old file becomes v6 as soon as a Host can own its Workspaces and segments.
-  if (legacyRegistry() && hostConnection() === "up") await migrateLegacy();
 }
 
 export async function startShell(): Promise<void> {
-  await loadRegistry();
   const prefs = await loadShellPrefs();
+  let applied = false;
+  const apply = (): void => {
+    if (applied || !ready()) return;
+    applied = true;
+    applyShellPrefs(prefs, registry());
+    markPrefsLoaded();
+  };
+  // A snapshot can arrive from the test double or from the Host connection.
+  onRegistryReady(apply);
   // Nothing else in the app starts the Host: do it before the first probe.
   watchHostLauncher();
   // Quitting takes the Host this app started with it, so the next run launches
   // the binary it just built instead of adopting an old one.
   stopHostOnQuit();
+  // A real-Host smoke talks to the plugin. Every other test app uses the
+  // in-memory Remote, seeded from the fixture in its Storage.
+  if (usesTestStorage() && !hostControlAllowed()) await openTestBots();
   await startHost();
   await retryHost();
-  // A Host-less test app reads the baseline a fixture put in its Storage.
+  // A Host-less test app reads the Workspace baseline a fixture put in its Storage.
   await loadStoredWorkspaces();
-  // An old file that could not migrate yet keeps the notice; nothing else shows.
-  if (legacyRegistry()) return;
-  applyShellPrefs(prefs, registry());
-  markPrefsLoaded();
-}
-
-/** The one migration in flight; the shell's start and the footer's retry share it. */
-let migrating: Promise<void> | undefined;
-
-/**
- * Move an old registry's paths, names and archived Sessions into dsh, then
- * store the Bot's one long conversation (v6).
- * Every step is idempotent, so a retry after a failure starts over safely;
- * two callers never run it at once.
- */
-function migrateLegacy(): Promise<void> {
-  if (!legacyRegistry()) return Promise.resolve();
-  if (migrating) return migrating;
-  migrating = runMigration().finally(() => {
-    migrating = undefined;
-  });
-  return migrating;
-}
-
-async function runMigration(): Promise<void> {
-  const legacy = legacyRegistry();
-  if (!legacy) return;
-  try {
-    const { ensureConnected } = await import("../../lib/dsh/session");
-    const connection = await ensureConnected();
-    const model = connection.workspaces;
-    await whenWorkspacesReady();
-    const prefs = await loadShellPrefs();
-    const { registry: next, report } = await migrateRegistry(
-      legacy,
-      {
-        async create(path) {
-          const workspace = await openWorkspace(model, path);
-          return { workspaceId: workspace.id, title: workspace.title };
-        },
-        rename: async (workspaceId, title) => {
-          await renameWorkspace(model, workspaceId, title);
-        },
-        unarchiveSession: (sessionId) => unarchiveSession(model, sessionId),
-        pinSession: (sessionId) => pinSession(model, sessionId),
-        archived: () => workspaces().archived,
-        pinned: () => workspaces().pinned,
-        ready: () => whenWorkspacesReady(),
-      },
-      // A v4 Session pin was a place of its own; a Bot's conversation has
-      // segments now, so the migration pins nothing (the pins are dropped).
-      [],
-    );
-    if (await acceptMigratedRegistry(next)) {
-      applyShellPrefs(prefs, registry());
-      markPrefsLoaded();
-      if (report.skipped > 0) {
-        migrationNotice.set(t("registry.migrationSkipped", { count: report.skipped }));
-      }
-    }
-  } catch (error) {
-    migrationNotice.set(
-      t("registry.migrationFailed", {
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
-  }
+  apply();
 }

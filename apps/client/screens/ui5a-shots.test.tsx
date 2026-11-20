@@ -17,17 +17,15 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
+import { t } from "../lib/i18n";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { t } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 import { graphical, shoot, SHOTS_UI5A } from "./shots";
@@ -51,7 +49,7 @@ function shellStorage(): Record<string, string> {
   const prefs = emptyShellPrefs();
   prefs.pins = ["ada"];
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+    ...botsStorage(fixture()),
     [SHELL_PREFS_STORAGE]: serializeShellPrefs(prefs),
     ...workspaceStorage({
       rows: ["ada", "bob", "cleo"].map((id, index) =>
@@ -130,7 +128,7 @@ test("Bot details: the line over the current segment", async () => {
     width: 1100,
     height: 900,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+      ...botsStorage(fixture()),
       ...workspaceStorage({
         rows: [
           workspaceRow({

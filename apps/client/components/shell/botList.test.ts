@@ -1,16 +1,16 @@
 import { expect, test } from "nsh/test";
 
+import { emptyRegistry, type BotRegistry } from "../../features/bots/model";
+import type { SessionRow } from "../../features/dialogue/session/runtime";
+import type { WorkspaceProjection } from "../../features/workspace/state";
 import {
   archiveBot,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  type BotRegistry,
-} from "../../features/bots/model";
-import type { SessionRow } from "../../features/dialogue/session/runtime";
-import type { WorkspaceProjection } from "../../features/workspace/state";
+  mainBot,
+} from "../../test/bots-fixture";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { botList } from "./botList";
 
@@ -71,6 +71,19 @@ test("the rest of the Bots follow their latest activity, newest first", () => {
   expect(list.others.map((row) => row.bot.name)).toEqual(["Bob", "Ada"]);
   expect(list.pinned).toEqual([]);
   expect(list.archived).toEqual([]);
+});
+
+test("the Main Bot leads the unpinned Bots, even when another worked later", () => {
+  const list = botList({
+    registry: mainBot(registryAt()),
+    workspaces: projection({
+      ada: "2026-11-01T00:00:00Z",
+      bob: "2026-11-02T00:00:00Z",
+    }),
+    rows: [],
+    pins: [],
+  });
+  expect(list.others.map((row) => row.bot.name)).toEqual(["Main Bot", "Bob", "Ada"]);
 });
 
 test("a Bot with no activity yet sorts after the rest, then by name", () => {

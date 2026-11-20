@@ -8,8 +8,8 @@ import { type IconNode } from "lucide";
 import { Text, type JSX } from "nsh";
 
 import { openBotDetails } from "../../features/bots/details";
-import { archiveBot, type Bot, unarchiveBot } from "../../features/bots/model";
-import { changeRegistry } from "../../features/bots/state";
+import { isMainBot, type Bot } from "../../features/bots/model";
+import { archiveBot, unarchiveBot } from "../../features/bots/state";
 import { t, type MessageKey } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import {
@@ -59,29 +59,32 @@ export function contextEntries(bot: Bot | null, options: { pinned: boolean }): E
       icon: Type,
       onSelect: () => openRename({ botId: bot.id, value: bot.name }),
     },
-    { kind: "separator", id: "bot-separator" },
-    bot.archived
-      ? {
-          kind: "item",
-          id: "bot-unarchive",
-          label: "menu.unarchive",
-          icon: Archive,
-          onSelect: () => void setArchived(bot.id, false),
-        }
-      : {
-          kind: "item",
-          id: "bot-archive",
-          label: "menu.archive",
-          icon: Archive,
-          onSelect: () => void setArchived(bot.id, true),
-        },
+    ...(isMainBot(bot)
+      ? []
+      : [
+          { kind: "separator" as const, id: "bot-separator" },
+          bot.archived
+            ? {
+                kind: "item" as const,
+                id: "bot-unarchive",
+                label: "menu.unarchive" as const,
+                icon: Archive,
+                onSelect: () => void setArchived(bot.id, false),
+              }
+            : {
+                kind: "item" as const,
+                id: "bot-archive",
+                label: "menu.archive" as const,
+                icon: Archive,
+                onSelect: () => void setArchived(bot.id, true),
+              },
+        ]),
   ];
 }
 
 async function setArchived(botId: string, archived: boolean): Promise<void> {
-  await changeRegistry((registry) =>
-    archived ? archiveBot(registry, botId) : unarchiveBot(registry, botId),
-  );
+  if (archived) await archiveBot(botId);
+  else await unarchiveBot(botId);
 }
 
 /** Wrap a Bot row in its context menu. */

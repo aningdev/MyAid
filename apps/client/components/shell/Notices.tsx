@@ -1,27 +1,20 @@
 /**
  * The shell's standing notices above the Host footer: a Workspace stream that
- * is reconnecting, a registry that still needs the one Host that can migrate
- * it, and a failed command. Each is a refusal the person can act on, so each
- * carries its own retry or dismissal instead of a sentence in a Pane.
+ * is reconnecting, and a failed Registry command. Each is a refusal the person
+ * can act on, so each carries its own dismissal instead of a sentence in a Pane.
  */
 import { Info, TriangleAlert } from "lucide";
 import { Text, View, token } from "nsh";
 
-import {
-  actionError,
-  clearActionError,
-  legacyRegistry,
-  migrationNotice,
-} from "../../features/bots/state";
+import { actionError, clearActionError } from "../../features/bots/state";
 import { workspaceError } from "../../features/workspace/state";
 import { t } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { Alert, AlertDescription, ALERT_ICON } from "../ui/alert";
 import { Button } from "../ui/button";
-import { retryHost } from "./host";
 
 export function ShellNotices() {
-  const anyNotices = () => !!migrationNotice() || !!actionError() || !!workspaceError();
+  const anyNotices = () => !!actionError() || !!workspaceError();
   return (
     <If when={anyNotices()}>
       <View style={{ gap: 6, paddingHorizontal: 8, paddingBottom: 6 }}>
@@ -29,15 +22,6 @@ export function ShellNotices() {
           <Notice
             testID="workspace-stream-notice"
             text={t("notices.workspace", { error: workspaceError() ?? "" })}
-          />
-        </If>
-        <If when={!!migrationNotice()}>
-          <Notice
-            testID="migration-notice"
-            text={migrationNotice() ?? ""}
-            action={legacyRegistry() ? t("notices.connectHost") : undefined}
-            onAction={() => void retryHost()}
-            onDismiss={legacyRegistry() ? undefined : () => migrationNotice.set(null)}
           />
         </If>
         <If when={!!actionError()}>
@@ -57,7 +41,7 @@ export function ShellNotices() {
 function Notice(props: {
   testID: string;
   text: string;
-  /** A failure, rather than something to reconnect or migrate. */
+  /** A failure, rather than something to reconnect. */
   destructive?: boolean;
   action?: string;
   onAction?: () => void;

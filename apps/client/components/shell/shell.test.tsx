@@ -6,16 +6,14 @@
  */
 import { expect, test } from "nsh/test";
 
+import { emptyRegistry, type BotRegistry } from "../../features/bots/model";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
+} from "../../test/bots-fixture";
 import { open } from "../../test/open";
 import { workspaceStorage, workspaceRow } from "../../test/workspaces";
 
@@ -26,7 +24,7 @@ function start(registry: BotRegistry) {
   return open("../../App.tsx", {
     ...desktop,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+      ...botsStorage(registry),
       ...workspaceStorage({
         rows: [
           workspaceRow({

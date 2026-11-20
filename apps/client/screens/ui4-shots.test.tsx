@@ -16,17 +16,15 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
+import { t } from "../lib/i18n";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { t } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 import { graphical, shoot, SHOTS_UI4 } from "./shots";
@@ -47,7 +45,7 @@ function fixture(): BotRegistry {
 
 function shellStorage(): Record<string, string> {
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+    ...botsStorage(fixture()),
     [SHELL_PREFS_STORAGE]: serializeShellPrefs(emptyShellPrefs()),
     ...workspaceStorage({
       rows: ["ada", "bob", "cleo"].map((id, index) =>
@@ -121,7 +119,7 @@ test("a Bot's plugin rows are switches, on and off", async () => {
     width: 1200,
     height: 860,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+      ...botsStorage(fixture()),
       ...workspaceStorage({
         rows: [
           workspaceRow({

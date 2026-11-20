@@ -15,16 +15,14 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceStorage, workspaceRow } from "../test/workspaces";
 import { graphical, shoot, SHOTS_L1 } from "./shots";
@@ -50,7 +48,7 @@ test("the list, three Panes, Bot details and Settings", async () => {
     width: 1440,
     height: 900,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+      ...botsStorage(fixture()),
       [SHELL_PREFS_STORAGE]: serializeShellPrefs(prefs),
       ...workspaceStorage({
         rows: ["ada", "bob", "cleo"].map((id, index) =>

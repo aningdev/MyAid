@@ -1,6 +1,6 @@
 /**
- * Batch 5b of the shadcn-nsh copies: the `Alert` in the shell's notices, in
- * the Pane's connection banner and in the settings' background error, the
+ * Batch 5b of the shadcn-nsh copies: the `Alert` in the Pane's connection
+ * banner and in the settings' background error, the
  * `Skeleton` of the three loading places, the `Item` of a queued prompt and an
  * answered approval, the `Empty` of a registry that could not be read, the
  * spinner copy in a running tool row and the group's fields with the keys.
@@ -18,17 +18,16 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
+import { t } from "../lib/i18n";
 import {
+  BOTS_FIXTURE_KEY,
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { t } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 import { graphical, shoot, SHOTS_UI5B } from "./shots";
@@ -53,7 +52,7 @@ function fixture(): BotRegistry {
 
 function shellStorage(): Record<string, string> {
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+    ...botsStorage(fixture()),
     [SHELL_PREFS_STORAGE]: serializeShellPrefs(emptyShellPrefs()),
     ...workspaceStorage({
       rows: ["ada", "cleo"].map((id, index) =>
@@ -69,39 +68,7 @@ function shellStorage(): Record<string, string> {
   };
 }
 
-/** A v4 registry: read, never written, and its notice stands in the Navigator. */
-const V4 = `${JSON.stringify({
-  version: 4,
-  templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
-  bots: [
-    {
-      id: "bot",
-      name: "Ada",
-      description: null,
-      templateId: "tmpl",
-      defaultModel: null,
-      defaultThinking: null,
-      defaultWorkspacePath: "/work/dsh-bot",
-      hadDialogue: true,
-      status: "ready",
-      boundPresetId: "standard",
-      derivedPresetId: null,
-      identity: { color: "rose", shape: "round", face: "calm" },
-    },
-  ],
-  dialogues: [
-    {
-      id: "dlg",
-      botId: "bot",
-      workspacePath: "/work/dsh-bot",
-      name: "Release notes",
-      archived: false,
-      claims: [{ sessionId: "s1", title: "First run", archived: false }],
-    },
-  ],
-})}\n`;
-
-/** A registry file the app cannot read: its own state, not a first launch. */
+/** A fixture the in-memory Remote cannot parse: its own state, not a first launch. */
 const CORRUPT = "{ this is not a registry";
 
 /** The picture in both appearances. */
@@ -137,26 +104,12 @@ test("the Navigator's search with the keys, after ⌘F", async () => {
   expect(app.texts()).not.toContain("Ada");
 }, 120000);
 
-test("a notice, and the registry that could not be read", async () => {
-  const notice = await open("../App.tsx", {
-    platform: "macos" as const,
-    width: 1440,
-    height: 900,
-    storage: { [REGISTRY_STORAGE_KEY]: V4 },
-  });
-  if (!(await graphical(notice))) return;
-  await notice.waitFor("id:migration-notice");
-  await notice.wait(300);
-  await both(notice, "21-notice.png");
-  expect(
-    notice.texts().some((text) => text.includes(t("registry.migrationTooOld", { version: 4 }))),
-  ).toBe(true);
-
+test("a registry that could not be read", async () => {
   const broken = await open("../App.tsx", {
     platform: "macos" as const,
     width: 1440,
     height: 900,
-    storage: { [REGISTRY_STORAGE_KEY]: CORRUPT },
+    storage: { [BOTS_FIXTURE_KEY]: CORRUPT },
   });
   if (!(await graphical(broken))) return;
   await broken.waitFor(`text:${t("empty.registryTitle")}`);

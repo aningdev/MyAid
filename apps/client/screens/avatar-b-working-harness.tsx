@@ -15,20 +15,14 @@ import { botList } from "../components/shell/botList";
 import { Pressable } from "../components/ui/pressable";
 import { holdAvatarClock } from "../features/bots/avatarClock";
 import { BotMark } from "../features/bots/BotMark";
-import {
-  claimSegment,
-  createBot,
-  createTemplate,
-  emptyRegistry,
-  initializeBot,
-  type BotRegistry,
-} from "../features/bots/model";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
 import { ready, registry } from "../features/bots/state";
 import { ChatPane } from "../features/dialogue/ChatPane";
 import type { SessionHost } from "../features/dialogue/session/claimed";
 import { SessionRegistry } from "../features/dialogue/session/controller";
 import type { SessionRow } from "../features/dialogue/session/roster";
 import { workspaces } from "../features/workspace/state";
+import { claimSegment, createBot, createTemplate, initializeBot } from "../test/bots-fixture";
 import {
   durable,
   liveChunk,

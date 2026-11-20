@@ -2,8 +2,9 @@ import { Plus, Search, X } from "lucide";
 /**
  * Navigator: the flat Bot list under its search field.
  *
- * Pinned Bots first, the rest by recent activity, then "New Bot"; an archived
- * Bot shows only in a search, with the way back. A row opens the Bot's Pane
+ * Pinned Bots first, then the rest in the Registry's order (the plugin keeps
+ * the Main Bot first), then "New Bot"; an archived Bot shows only in a search,
+ * with the way back. A row opens the Bot's Pane
  * (or brings it to the front), a secondary click offers its verbs, and a drag
  * to the right drops it into the Workbench as a new Pane.
  */
@@ -11,9 +12,8 @@ import { effect, platform, Scroll, Text, token, View, type InputRef } from "nsh"
 
 import { Shortcut } from "../../components/app";
 import { BotMark } from "../../features/bots/BotMark";
-import { unarchiveBot } from "../../features/bots/model";
 import { openNewBot } from "../../features/bots/newBot";
-import { changeRegistry, registry } from "../../features/bots/state";
+import { registry, unarchiveBot } from "../../features/bots/state";
 import { t, tCount } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { hovered, radius } from "../../lib/theme";
@@ -298,7 +298,7 @@ function Unarchive(props: { botId: string; name: string }) {
 }
 
 async function unarchive(botId: string): Promise<void> {
-  await changeRegistry((registry) => unarchiveBot(registry, botId));
+  await unarchiveBot(botId);
 }
 
 /** The list's last row: the one way to make another Bot. */

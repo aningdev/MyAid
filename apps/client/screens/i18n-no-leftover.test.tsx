@@ -13,17 +13,15 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
+import { messages, setLanguagePref, type MessageKey, type MessageValues } from "../lib/i18n";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { messages, setLanguagePref, type MessageKey, type MessageValues } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 
@@ -43,7 +41,7 @@ function say(lang: Lang, key: MessageKey, values: MessageValues = {}): string {
   );
 }
 
-/** Ada and Bob, each with one segment; Bob worked last. */
+/** Ada and Bob, each with one segment, in Registry order. */
 function sample(): BotRegistry {
   const created = createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl");
   const ada = createBot(created, { name: "Ada", templateId: "tmpl" }, "ada");
@@ -60,7 +58,7 @@ function storage(): Record<string, string> {
     activePanelId: "panel-1",
   };
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(sample()),
+    ...botsStorage(sample()),
     [SHELL_PREFS_STORAGE]: serializeShellPrefs(prefs),
     ...workspaceStorage({
       rows: [

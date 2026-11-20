@@ -1,14 +1,8 @@
 import { expect, test } from "nsh/test";
 
+import { claimSegment, createBot, createTemplate, initializeBot } from "../../test/bots-fixture";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
-import {
-  claimSegment,
-  createBot,
-  createTemplate,
-  emptyRegistry,
-  initializeBot,
-  type BotRegistry,
-} from "../bots/model";
+import { emptyRegistry, type BotRegistry } from "../bots/model";
 import { registry } from "../bots/state";
 import {
   changeWorkingDirectory,

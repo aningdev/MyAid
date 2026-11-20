@@ -1,31 +1,18 @@
+/**
+ * Read-only Registry helpers. The plugin owns every change; these tests only
+ * check how the Client reads a snapshot it was given.
+ */
 import { expect, test } from "nsh/test";
 
 import { t } from "../../lib/i18n";
-import { defaultIdentity } from "./identity";
 import {
-  archiveBot,
-  assignDerivedPreset,
   claimSegment,
   createBot,
   createTemplate,
-  deleteBot,
-  deleteTemplate,
-  emptyRegistry,
-  importTemplatesFromPresets,
   initializeBot,
-  parseRegistry,
-  presetBinding,
-  presetForBot,
-  RegistryRejection,
-  releaseSegment,
-  renameSegment,
-  segmentOwner,
-  serializeRegistry,
-  unarchiveBot,
-  updateBot,
-  updateTemplate,
-} from "./model";
-import { BotRegistryRepository, memoryStore } from "./store";
+  mainBot,
+} from "../../test/bots-fixture";
+import { emptyRegistry, isMainBot, presetBinding, presetForBot, segmentOwner } from "./model";
 
 function codingDraft() {
   const withTemplate = createTemplate(
@@ -36,447 +23,46 @@ function codingDraft() {
   return createBot(withTemplate, { name: "Ada", templateId: "tmpl" }, "bot");
 }
 
-function readyWithSegment() {
-  const registry = initializeBot(codingDraft(), "bot");
-  return claimSegment(registry, "bot", "s1", "ws-work");
-}
-
 test("a draft follows the template preset", () => {
-  let registry = codingDraft();
-  expect(presetForBot(registry, "bot")).toBe("standard");
-  expect(presetBinding(registry.bots[0], registry.templates[0]).binding).toBe("inherit");
-
-  registry = updateTemplate(registry, "tmpl", { presetId: "minimal" });
-  expect(presetForBot(registry, "bot")).toBe("minimal");
-  expect(registry.bots[0].boundPresetId).toBe(null);
-});
-
-test("initialization binds the template preset without a workspace", () => {
-  let registry = codingDraft();
-  registry = initializeBot(registry, "bot");
-  expect(registry.bots[0].status).toBe("ready");
-  expect(registry.bots[0].boundPresetId).toBe("standard");
-  expect(presetBinding(registry.bots[0], registry.templates[0]).binding).toBe("bound");
-
-  registry = updateTemplate(registry, "tmpl", { presetId: "minimal" });
-  expect(presetForBot(registry, "bot")).toBe("standard");
-
-  const draft = createBot(registry, { name: "Bea", templateId: "tmpl" }, "bea");
-  expect(presetForBot(draft, "bea")).toBe("minimal");
-});
-
-test("a derived preset wins and the template reference stays", () => {
-  let registry = initializeBot(codingDraft(), "bot");
-  registry = assignDerivedPreset(registry, "bot", "bot-ada");
-  expect(presetForBot(registry, "bot")).toBe("bot-ada");
-  expect(presetBinding(registry.bots[0], registry.templates[0]).binding).toBe("custom");
-  expect(registry.bots[0].templateId).toBe("tmpl");
-  expect(() => updateBot(registry, "bot", { templateId: "other" })).toThrow(RegistryRejection);
-  const renamed = updateBot(registry, "bot", { name: "Ada 2", defaultModel: "deepseek" });
-  expect(renamed.bots[0].name).toBe("Ada 2");
-  expect(renamed.bots[0].defaultModel).toBe("deepseek");
-  expect(renamed.bots[0].templateId).toBe("tmpl");
-});
-
-test("deleting a template that a bot still uses is refused", () => {
   const registry = codingDraft();
-  expect(() => deleteTemplate(registry, "tmpl")).toThrow(RegistryRejection);
-  expect(registry.templates.length).toBe(1);
-  const gone = deleteTemplate({ ...registry, bots: [] }, "tmpl");
-  expect(gone.templates.length).toBe(0);
+  expect(presetForBot(registry, "bot")).toBe("standard");
+  expect(presetBinding(registry.bots[0]!, registry.templates[0]!).binding).toBe("inherit");
 });
 
-test("claiming a segment requires a ready Bot and a dsh Workspace id", () => {
-  const registry = initializeBot(codingDraft(), "bot");
-  expect(() => claimSegment(registry, "bot", "s1", "  ")).toThrow(RegistryRejection);
-  expect(() => claimSegment(codingDraft(), "bot", "s1", "ws-work")).toThrow(RegistryRejection);
-  expect(registry.bots[0]?.segments).toHaveLength(0);
+test("a ready Bot keeps the preset it bound, then a derived preset", () => {
+  const ready = initializeBot(codingDraft(), "bot");
+  expect(presetBinding(ready.bots[0]!, ready.templates[0]!).binding).toBe("bound");
+  expect(presetForBot(ready, "bot")).toBe("standard");
+  const custom = {
+    ...ready,
+    bots: ready.bots.map((bot) => ({ ...bot, derivedPresetId: "bots-bot" })),
+  };
+  expect(presetBinding(custom.bots[0]!, custom.templates[0]!).binding).toBe("custom");
+  expect(presetForBot(custom, "bot")).toBe("bots-bot");
 });
 
-test("a corrupt registry is reported and not overwritten", async () => {
-  const store = memoryStore("{");
-  const repo = new BotRegistryRepository(store);
-  const loaded = await repo.load();
-  expect(loaded.corrupt).toBe(t("registry.notJson"));
-  await expect(
-    repo.commit((registry) =>
-      createTemplate(registry, { name: "Coding", presetId: "standard" }, "tmpl"),
-    ),
-  ).rejects.toMatchObject({ issue: { code: "corrupt" } });
-  expect(store.text()).toBe("{");
-});
-
-test("a ready bot claims segments, and cannot be deleted afterwards", () => {
-  let registry = initializeBot(codingDraft(), "bot");
-  expect(deleteBot(registry, "bot").bots).toHaveLength(0);
-
-  registry = readyWithSegment();
-  expect(registry.bots[0].hadDialogue).toBe(true);
-  expect(registry.bots[0].segments[0]?.workspaceId).toBe("ws-work");
-  registry = releaseSegment(registry, "bot", "s1");
-  expect(registry.bots[0].segments).toHaveLength(0);
-  expect(() => deleteBot(registry, "bot")).toThrow(RegistryRejection);
-  expect(() => claimSegment(initializeBot(codingDraft(), "bot"), "missing", "s2", "ws")).toThrow(
-    RegistryRejection,
+test("a missing template is named when nothing else is bound", () => {
+  const registry = codingDraft();
+  expect(() => presetForBot({ ...registry, templates: [] }, "bot")).toThrow(
+    t("registry.templateGone"),
   );
+  expect(() => presetBinding(registry.bots[0]!, null)).toThrow(t("registry.templateGone"));
 });
 
-test("a Bot's segments may span Workspaces and keep their order", () => {
-  let registry = claimSegment(readyWithSegment(), "bot", "s2", "ws-other");
-  expect(registry.bots[0].segments.map((item) => item.workspaceId)).toEqual([
-    "ws-work",
-    "ws-other",
-  ]);
-  const owner = segmentOwner(registry, "s2");
-  expect(owner?.bot.id).toBe("bot");
-  expect(owner?.segment.workspaceId).toBe("ws-other");
-  // A Session belongs to exactly one Bot.
-  registry = initializeBot(createBot(registry, { name: "Bea", templateId: "tmpl" }, "bea"), "bea");
-  expect(() => claimSegment(registry, "bea", "s2", "ws-other")).toThrow(RegistryRejection);
+test("an unknown Bot cannot resolve a preset", () => {
+  expect(() => presetForBot(emptyRegistry(), "missing")).toThrow(t("workspace.botMissing"));
 });
 
-test("dsh presets become templates keyed by preset id", () => {
-  const imported = importTemplatesFromPresets(emptyRegistry(), [
-    { id: "standard", name: "Standard" },
-    { id: "minimal", name: "Minimal", broken: "offline" },
-    { id: "coding", name: "Coding" },
-  ]);
-  expect(imported.templates.map((item) => item.id)).toEqual(["standard", "coding"]);
-  expect(imported.templates[0]?.presetId).toBe("standard");
-  const renamed = importTemplatesFromPresets(imported, [{ id: "standard", name: "标准" }]);
-  expect(renamed.templates.find((item) => item.id === "standard")?.name).toBe("标准");
+test("segmentOwner finds the Bot that claimed a Session", () => {
+  const registry = claimSegment(initializeBot(codingDraft(), "bot"), "bot", "s1", "ws-work");
+  expect(segmentOwner(registry, "s1")?.bot.id).toBe("bot");
+  expect(segmentOwner(registry, "s1")?.segment.workspaceId).toBe("ws-work");
+  expect(segmentOwner(registry, "missing")).toBeNull();
 });
 
-test("legacy registry versions are rejected", () => {
-  const parsed = parseRegistry(
-    JSON.stringify({
-      version: 2,
-      templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
-      bots: [],
-      dialogues: [],
-    }),
-  );
-  expect(parsed.ok).toBe(false);
-  if (parsed.ok) return;
-  expect(parsed.message).toContain("bots.json");
-});
-
-test("a derived preset id from another writer is dropped, so the Bot inherits its template again", () => {
-  const file = JSON.parse(serializeRegistry(initializeBot(codingDraft(), "bot"))) as {
-    bots: Record<string, unknown>[];
-  };
-  // A Bot that runs only its derived preset, named in the pre-rename namespace:
-  // nothing registers those any more, and this app cannot read or update them
-  // through the `bots` plugin.
-  file.bots[0]!.boundPresetId = null;
-  file.bots[0]!.derivedPresetId = "legacy-preset-bot-1f2e3d4c";
-
-  const parsed = parseRegistry(JSON.stringify(file));
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok || parsed.state !== "current") return;
-  const bot = parsed.registry.bots[0];
-  expect(bot?.derivedPresetId).toBe(null);
-  // A ready Bot still resolves: the template's preset takes over until the
-  // next capability save derives a new preset.
-  expect(bot && presetBinding(bot, parsed.registry.templates[0]!).binding).toBe("inherit");
-
-  const kept = JSON.parse(JSON.stringify(file)) as { bots: Record<string, unknown>[] };
-  kept.bots[0]!.derivedPresetId = "bots-bot-1f2e3d4c";
-  const read = parseRegistry(JSON.stringify(kept));
-  expect(read.ok && read.state === "current" ? read.registry.bots[0]?.derivedPresetId : null).toBe(
-    "bots-bot-1f2e3d4c",
-  );
-});
-
-test("a missing registry starts empty and commits stay serial", async () => {
-  const store = memoryStore(null);
-  const repo = new BotRegistryRepository(store);
-  const loaded = await repo.load();
-  expect(loaded.corrupt).toBe(null);
-  expect(loaded.legacy).toBe(null);
-  expect(loaded.registry.templates).toHaveLength(0);
-  expect(loaded.registry.bots).toHaveLength(0);
-
-  await Promise.all([
-    repo.commit((registry) => createTemplate(registry, { name: "A", presetId: "one" }, "a")),
-    repo.commit((registry) => createTemplate(registry, { name: "B", presetId: "two" }, "b")),
-  ]);
-  const parsed = parseRegistry(store.text() ?? "");
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok || parsed.state !== "current") return;
-  expect(parsed.registry.templates.map((item) => item.id).sort()).toEqual(["a", "b"]);
-  expect(parsed.registry.version).toBe(6);
-});
-
-test("Bot preferences — description, thinking, default workspace — round-trip and stay optional", () => {
-  let registry = createBot(
-    createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-    {
-      name: "Ada",
-      description: "Keeps the release branch tidy",
-      templateId: "tmpl",
-      defaultModel: "deepseek/deepseek-chat",
-      defaultThinking: "high",
-      defaultWorkspacePath: "/work/dsh-bot",
-    },
-    "bot",
-  );
-  registry = updateBot(registry, "bot", { defaultThinking: "low" });
-  const parsed = parseRegistry(serializeRegistry(registry));
-  expect(parsed.ok).toBe(true);
-  const bot = parsed.ok && parsed.state === "current" ? parsed.registry.bots[0] : undefined;
-  expect(bot?.description).toBe("Keeps the release branch tidy");
-  expect(bot?.defaultThinking).toBe("low");
-  expect(bot?.defaultWorkspacePath).toBe("/work/dsh-bot");
-
-  // A v6 file written before these preferences existed still loads, as null.
-  const older = JSON.parse(serializeRegistry(registry)) as {
-    bots: Record<string, unknown>[];
-  };
-  delete older.bots[0]!.description;
-  delete older.bots[0]!.defaultThinking;
-  delete older.bots[0]!.defaultWorkspacePath;
-  const legacy = parseRegistry(JSON.stringify(older));
-  expect(legacy.ok).toBe(true);
-  const restored = legacy.ok && legacy.state === "current" ? legacy.registry.bots[0] : undefined;
-  expect(restored?.description).toBe(null);
-  expect(restored?.defaultThinking).toBe(null);
-  expect(restored?.defaultWorkspacePath).toBe(null);
-});
-
-test("a v4 registry is read as legacy: its Dialogues still own path, name and archive", () => {
-  const v4 = {
-    version: 4,
-    templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
-    bots: [
-      {
-        id: "bot",
-        name: "Ada",
-        templateId: "tmpl",
-        defaultModel: null,
-        hadDialogue: true,
-        status: "ready",
-        boundPresetId: "standard",
-        derivedPresetId: null,
-        identity: defaultIdentity("bot"),
-      },
-    ],
-    dialogues: [
-      {
-        id: "dlg",
-        botId: "bot",
-        workspacePath: "/work",
-        name: "Release notes",
-        archived: false,
-        claims: [{ sessionId: "s1", title: "First run", archived: true }],
-      },
-    ],
-  };
-
-  const parsed = parseRegistry(JSON.stringify(v4));
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok || parsed.state !== "legacy") return;
-  const dialogue = parsed.legacy.dialogues[0];
-  expect(dialogue && "workspacePath" in dialogue ? dialogue.workspacePath : null).toBe("/work");
-  expect(dialogue && "name" in dialogue ? dialogue.name : null).toBe("Release notes");
-  const claim = dialogue?.claims[0];
-  expect(claim && "archived" in claim ? claim.archived : undefined).toBe(true);
-  expect(parsed.legacy.bots[0]?.identity).toEqual(defaultIdentity("bot"));
-  expect(parsed.legacy.version).toBe(4);
-});
-
-test("a v5 registry is read as legacy: its Dialogues already name Workspaces", () => {
-  const registry = readyWithSegment();
-  const v5 = {
-    version: 5,
-    templates: registry.templates,
-    bots: registry.bots.map(({ segments: _segments, ...bot }) => bot),
-    dialogues: [
-      {
-        id: "dlg",
-        botId: "bot",
-        workspaceId: "ws-work",
-        claims: [{ sessionId: "s1", title: "First run" }],
-      },
-    ],
-  };
-  const parsed = parseRegistry(JSON.stringify(v5));
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok || parsed.state !== "legacy") return;
-  expect(parsed.legacy.version).toBe(5);
-  const dialogue = parsed.legacy.dialogues[0];
-  expect(dialogue && "workspaceId" in dialogue ? dialogue.workspaceId : null).toBe("ws-work");
-  expect(dialogue?.claims[0]?.title).toBe("First run");
-});
-
-test("a v3 registry is read as legacy: identity derived, no name, no archived claim", () => {
-  const v3 = {
-    version: 3,
-    templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
-    bots: [
-      {
-        id: "bot",
-        name: "Ada",
-        templateId: "tmpl",
-        defaultModel: null,
-        hadDialogue: true,
-        status: "ready",
-        boundPresetId: "standard",
-        derivedPresetId: null,
-      },
-    ],
-    dialogues: [
-      {
-        id: "dlg",
-        botId: "bot",
-        workspacePath: "/work",
-        archived: false,
-        claims: [{ sessionId: "s1", title: "First run" }],
-      },
-    ],
-  };
-
-  const parsed = parseRegistry(JSON.stringify(v3));
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok || parsed.state !== "legacy") return;
-  // The mark is derived from the Bot's id, so every read agrees.
-  expect(parsed.legacy.bots[0]?.identity).toEqual(defaultIdentity("bot"));
-  const dialogue = parsed.legacy.dialogues[0];
-  expect(dialogue && "name" in dialogue ? dialogue.name : undefined).toBe(null);
-  const claim = dialogue?.claims[0];
-  expect(claim && "archived" in claim ? claim.archived : undefined).toBe(false);
-});
-
-test("a v6 registry round-trips with its segments and Workspace ids", () => {
-  let registry = claimSegment(readyWithSegment(), "bot", "s2", "ws-other");
-  registry = renameSegment(registry, "bot", "s1", "Release notes");
-  const parsed = parseRegistry(serializeRegistry(registry));
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok || parsed.state !== "current") return;
-  expect(parsed.registry.bots[0]?.segments).toEqual([
-    { sessionId: "s1", workspaceId: "ws-work", title: "Release notes" },
-    { sessionId: "s2", workspaceId: "ws-other", title: null },
-  ]);
-});
-
-test("a Bot's archive flag round-trips, and an older file reads as unarchived", () => {
-  const archived = archiveBot(readyWithSegment(), "bot");
-  expect(archived.bots[0]?.archived).toBe(true);
-  const parsed = parseRegistry(serializeRegistry(archived));
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok || parsed.state !== "current") return;
-  expect(parsed.registry.bots[0]?.archived).toBe(true);
-  expect(unarchiveBot(parsed.registry, "bot").bots[0]?.archived).toBe(false);
-
-  // The field shipped after v3: a file without it is a Bot that is not archived.
-  const older: unknown = JSON.parse(serializeRegistry(readyWithSegment()));
-  if (typeof older === "object" && older !== null && "bots" in older) {
-    const bots = (older as { bots: Record<string, unknown>[] }).bots;
-    for (const bot of bots) delete bot.archived;
-  }
-  const read = parseRegistry(JSON.stringify(older));
-  expect(read.ok).toBe(true);
-  if (!read.ok || read.state !== "current") return;
-  expect(read.registry.bots[0]?.archived).toBe(false);
-});
-
-test("a file that becomes unreadable drops the previous snapshot", async () => {
-  let text = serializeRegistry(
-    createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-  );
-  const repo = new BotRegistryRepository({
-    read: async () => text,
-    write: async (next) => {
-      text = next;
-    },
-  });
-  const first = await repo.load();
-  expect(first.registry.templates).toHaveLength(1);
-  // The file is edited into nonsense between two reads: nothing stale survives.
-  text = "{";
-  const second = await repo.load();
-  expect(second.corrupt).toBe(t("registry.notJson"));
-  expect(second.registry.templates).toHaveLength(0);
-  expect(second.legacy).toBe(null);
-});
-
-test("an old file is never written over by a commit; only a migration replaces it", async () => {
-  const v4 = {
-    version: 4,
-    templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
-    bots: [],
-    dialogues: [],
-  };
-  const store = memoryStore(JSON.stringify(v4));
-  const repo = new BotRegistryRepository(store);
-  const loaded = await repo.load();
-  expect(loaded.legacy).not.toBe(null);
-  await expect(
-    repo.commit((registry) => createTemplate(registry, { name: "A", presetId: "one" }, "a")),
-  ).rejects.toMatchObject({ issue: { code: "legacy-version" } });
-  expect(store.text()).toBe(JSON.stringify(v4));
-
-  const migrated = await repo.replace(emptyRegistry());
-  expect(migrated.version).toBe(6);
-  // The pre-migration text is kept beside the new file.
-  expect(store.backupText()).toBe(JSON.stringify(v4));
-  expect(store.text()).toContain('"version": 6');
-});
-
-test("a Bot's identity round-trips; an unknown one falls back to the default", () => {
-  let registry = createBot(
-    createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl"),
-    {
-      name: "Ada",
-      templateId: "tmpl",
-      identity: { color: "rose", shape: "flower", face: "wink" },
-    },
-    "bot",
-  );
-  const parsed = parseRegistry(serializeRegistry(registry));
-  expect(
-    parsed.ok && parsed.state === "current" ? parsed.registry.bots[0]?.identity : null,
-  ).toEqual({
-    color: "rose",
-    shape: "flower",
-    face: "wink",
-  });
-
-  // The file it wrote also carries the v4 glyph, so an older client reads it.
-  const file = JSON.parse(serializeRegistry(registry)) as {
-    bots: { identity: { color: string; shape: string; face: string; glyph?: string } }[];
-  };
-  expect(file.bots[0]?.identity.glyph).toBe("petal");
-
-  const broken = JSON.parse(serializeRegistry(registry)) as {
-    bots: { identity: Record<string, string> }[];
-  };
-  broken.bots[0]!.identity = { color: "burgundy", shape: "hexagon", face: "smug" };
-  const fallback = parseRegistry(JSON.stringify(broken));
-  expect(
-    fallback.ok && fallback.state === "current" ? fallback.registry.bots[0]?.identity : null,
-  ).toEqual(defaultIdentity("bot"));
-  registry = parsed.ok && parsed.state === "current" ? parsed.registry : registry;
-  expect(registry.bots[0]?.identity.color).toBe("rose");
-
-  // A file with only a v4 glyph: the color stays, the shape comes from the glyph.
-  const old = JSON.parse(serializeRegistry(registry)) as {
-    bots: { identity: Record<string, string> }[];
-  };
-  old.bots[0]!.identity = { color: "teal", glyph: "bolt" };
-  const read = parseRegistry(JSON.stringify(old));
-  expect(read.ok && read.state === "current" ? read.registry.bots[0]?.identity : null).toEqual({
-    color: "teal",
-    shape: "drop",
-    face: defaultIdentity("bot").face,
-  });
-});
-
-test("a segment carries the person's own title and can leave the conversation", () => {
-  let registry = readyWithSegment();
-  registry = renameSegment(registry, "bot", "s1", "Release notes");
-  expect(registry.bots[0]?.segments[0]?.title).toBe("Release notes");
-  registry = renameSegment(registry, "bot", "s1", "  ");
-  expect(registry.bots[0]?.segments[0]?.title).toBe(null);
-  expect(() => releaseSegment(registry, "bot", "s2")).toThrow(RegistryRejection);
+test("isMainBot matches the plugin's Main Bot id", () => {
+  const registry = mainBot();
+  expect(isMainBot(registry.bots[0]!)).toBe(true);
+  expect(registry.bots[0]?.id).toBe("bots-main");
+  expect(isMainBot({ id: "ada" })).toBe(false);
 });

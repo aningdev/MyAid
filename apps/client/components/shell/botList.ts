@@ -4,14 +4,15 @@
  * order and its live marks are testable without a window; the Navigator only
  * draws what it returns.
  *
- * Order: pinned Bots in the person's pin order, then the rest by recent
- * activity (a Bot's Workspaces and Sessions, newest first), then by name.
+ * Order: pinned Bots in the person's pin order, then the rest with the Main
+ * Bot first and the others by recent activity (a Bot's Workspaces and
+ * Sessions, newest first), then by name.
  * Archived Bots leave the list; a search still finds them, so they can be
  * brought back.
  */
 import { computed } from "nsh";
 
-import type { Bot, BotRegistry } from "../../features/bots/model";
+import { isMainBot, type Bot, type BotRegistry } from "../../features/bots/model";
 import { botActivity } from "../../features/bots/sessions";
 import { registry } from "../../features/bots/state";
 import { sessionList, type SessionRow } from "../../features/dialogue/session/runtime";
@@ -93,6 +94,8 @@ export function botList(input: BotListInput): BotList {
     .filter((bot) => !bot.archived && !pinnedIds.has(bot.id) && matches(bot, query))
     .map(toRow)
     .sort((left, right) => {
+      const main = Number(isMainBot(right.bot)) - Number(isMainBot(left.bot));
+      if (main !== 0) return main;
       if (left.activity !== right.activity) return right.activity - left.activity;
       return left.bot.name.localeCompare(right.bot.name);
     });

@@ -1,15 +1,9 @@
 import { expect, test } from "nsh/test";
 
 import { t } from "../../../lib/i18n";
+import { claimSegment, createBot, createTemplate, initializeBot } from "../../../test/bots-fixture";
 import { scriptedHost, scriptedSessions } from "../../../test/sessions";
-import {
-  claimSegment,
-  createBot,
-  createTemplate,
-  emptyRegistry,
-  initializeBot,
-  type BotRegistry,
-} from "../../bots/model";
+import { emptyRegistry, type BotRegistry } from "../../bots/model";
 import {
   ClaimedSessionClient,
   occupancyBlock,

@@ -9,16 +9,19 @@
 import type { ISessions, SessionListState, SessionSummary } from "@dsh-bot/dsh-web-protocol/client";
 import { computed, signal, untracked } from "nsh";
 
+import { liveBots } from "../../../lib/dsh/bots-live";
 import { t } from "../../../lib/i18n";
+import { presetForBot, segmentOwner } from "../../bots/model";
+import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
 import {
   claimSegment,
-  presetForBot,
+  followBots,
+  ready,
+  registry,
   releaseSegment,
   renameSegment,
-  segmentOwner,
-} from "../../bots/model";
-import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
-import { changeRegistry, ready, registry } from "../../bots/state";
+  stopBots,
+} from "../../bots/state";
 import {
   isSessionArchived,
   startWorkspaces,
@@ -177,7 +180,7 @@ async function nameFromPrompt(sessionId: string, text: string): Promise<void> {
   if (!title) return;
   const owner = segmentOwner(untracked(registry), sessionId);
   if (!owner || owner.segment.title) return;
-  const saved = await changeRegistry((reg) => renameSegment(reg, owner.bot.id, sessionId, title));
+  const saved = await renameSegment(owner.bot.id, sessionId, title);
   if (!saved) return;
   await refreshSessionList().catch(() => undefined);
   void claimed
@@ -298,11 +301,26 @@ function wrapConnection(connection: import("../../../lib/dsh/connection").Connec
   };
 }
 
+/**
+ * Read the Registry and follow `bots/watch`. Uses the connection that is
+ * already up: calling `ensureConnected` from the generation callback would
+ * open a second one, because that callback runs inside `connect` before the
+ * shared connection is stored.
+ */
+async function subscribeBots(): Promise<void> {
+  const api = await loadDsh();
+  const connection = api.connectedSession() ?? (await api.ensureConnected());
+  await followBots(liveBots(connection.botsNamespace()));
+}
+
 function onGenerationChange(up: boolean): void {
   sessionReady.set(up);
   if (!up) {
     // The official models keep the last published window while their streams
     // reconnect; the product only names the gap until the next frame.
+    // The Registry subscription ends with the connection and starts again
+    // when the next generation is up.
+    stopBots();
     sessionError.set(t("session.connectionLost"));
     watchForHost();
     return;
@@ -310,6 +328,12 @@ function onGenerationChange(up: boolean): void {
   sessionError.set(null);
   sessionControllers.reattach();
   void refreshSessionList().catch(() => undefined);
+  void (async () => {
+    const api = await loadDsh();
+    const connection = api.connectedSession();
+    if (!connection) return;
+    await followBots(liveBots(connection.botsNamespace()));
+  })().catch(() => undefined);
 }
 
 /**
@@ -387,10 +411,7 @@ async function ensureClient(): Promise<ClaimedSessionClient> {
       const connection = await api.ensureConnected();
       return wrapConnection(connection);
     },
-    claim: async (botId, workspaceId, sessionId) => {
-      const saved = await changeRegistry((reg) => claimSegment(reg, botId, sessionId, workspaceId));
-      return !!saved;
-    },
+    claim: async (botId, workspaceId, sessionId) => claimSegment(botId, sessionId, workspaceId),
     registry: () => untracked(registry),
   });
   return claimed;
@@ -417,6 +438,7 @@ export function connectSession(_sessionId?: string): Promise<void> {
       sessionControllers.rebind();
     }
     const hostApi = await client.ensureConnected();
+    await subscribeBots();
     // The Workspace projection holds the tree's paths, titles and order.
     startWorkspaces(hostApi.workspaces.list);
     // Restored Panel addresses need a Workspace title and path.
@@ -500,7 +522,7 @@ export async function releaseMissingSession(sessionId: string): Promise<void> {
   }
   const owner = segmentOwner(untracked(registry), sessionId);
   if (!owner) return;
-  const saved = await changeRegistry((reg) => releaseSegment(reg, owner.bot.id, sessionId));
+  const saved = await releaseSegment(owner.bot.id, sessionId);
   if (saved) await refreshSessionList();
 }
 
@@ -508,9 +530,7 @@ export async function renameSession(sessionId: string, title: string): Promise<v
   const owner = segmentOwner(untracked(registry), sessionId);
   if (!owner) return;
   const trimmed = title.trim();
-  const saved = await changeRegistry((reg) =>
-    renameSegment(reg, owner.bot.id, sessionId, trimmed || null),
-  );
+  const saved = await renameSegment(owner.bot.id, sessionId, trimmed || null);
   if (!saved) return;
   const hostApi = claimed?.getHost();
   if (trimmed && hostApi?.ready) {

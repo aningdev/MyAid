@@ -1,6 +1,7 @@
 import { expect, test } from "nsh/test";
 
-import { archiveBot, createBot, createTemplate, emptyRegistry } from "../../features/bots/model";
+import { emptyRegistry } from "../../features/bots/model";
+import { archiveBot, createBot, createTemplate } from "../../test/bots-fixture";
 import {
   emptyShellPrefs,
   parseShellPrefs,

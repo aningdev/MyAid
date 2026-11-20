@@ -104,7 +104,10 @@ a second launch that restores all three segments. Its pictures go to
 command line: `vp run dsh-bots#build`, then point `DSH_BOT_PATCH` at an
 overlay that `--patch`es the built `packages/bots/lib/index.js`. It saves a
 plugin switch, checks the derived preset through `agentPresets.read`, and
-starts a new Session under it.
+starts a new Session under it. The same file creates a Bot named `Smoke Bot`
+through New Bot and checks that `$DSH_BOT_HOME/bots/registry.json` contains it
+and the Navigator shows it. `DSH_BOT_HOME` must be a directory under
+`~/.dsh-bot-dev`; the test refuses any other root.
 
 `nsh test --target macos` can drive presses, typing and screenshots, but not
 the gestures that need a system dialog or dropped paths: `onPick` is headless

@@ -74,17 +74,7 @@ import { BotIdentityPicker, BotMark } from "./BotMark";
 import { botDetailsFor, closeBotDetails } from "./details";
 import { botFactsSource } from "./facts";
 import { defaultIdentity, type BotIdentity } from "./identity";
-import {
-  archiveBot,
-  assignDerivedPreset,
-  deleteBot,
-  presetBinding,
-  unarchiveBot,
-  updateBot,
-  type Bot,
-  type BotTemplate,
-  type PresetBinding,
-} from "./model";
+import { isMainBot, presetBinding, type Bot, type BotTemplate, type PresetBinding } from "./model";
 import { presetWriter, presetWriteGap } from "./presets";
 import {
   canReveal,
@@ -99,7 +89,17 @@ import {
   type UsageRead,
 } from "./sessionFacts";
 import { currentSegmentOf } from "./sessions";
-import { actionError, changeRegistry, ready, registry, saving } from "./state";
+import {
+  actionError,
+  archiveBot,
+  assignPreset,
+  deleteBot,
+  ready,
+  registry,
+  saving,
+  unarchiveBot,
+  updateBot,
+} from "./state";
 
 type Tab = "profile" | "runs" | "skills" | "plugins";
 
@@ -312,20 +312,19 @@ function Body(props: { botId: string; onClose: () => void }) {
         skillsDirty.set(false);
         derivedPresetId = result.presetId;
       }
-      const next = await changeRegistry((registry) => {
-        const updated = updateBot(registry, current.id, {
-          name: name(),
-          description: description(),
-          defaultModel: modelKey() || null,
-          defaultThinking: thinking() || null,
-          defaultWorkspacePath: workspace() || null,
-          identity: identity(),
-        });
-        return derivedPresetId && derivedPresetId !== current.derivedPresetId
-          ? assignDerivedPreset(updated, current.id, derivedPresetId)
-          : updated;
+      const saved = await updateBot(current.id, {
+        name: name(),
+        description: description(),
+        defaultModel: modelKey() || null,
+        defaultThinking: thinking() || null,
+        defaultWorkspacePath: workspace() || null,
+        identity: identity(),
       });
-      if (next) {
+      const assigned =
+        !saved || !derivedPresetId || derivedPresetId === current.derivedPresetId
+          ? saved
+          : await assignPreset(current.id, derivedPresetId);
+      if (assigned) {
         props.onClose();
         return;
       }
@@ -338,7 +337,7 @@ function Body(props: { botId: string; onClose: () => void }) {
   const remove = async (): Promise<void> => {
     const current = bot();
     if (!current) return;
-    const next = await changeRegistry((registry) => deleteBot(registry, current.id));
+    const next = await deleteBot(current.id);
     if (next) {
       props.onClose();
       return;
@@ -349,9 +348,7 @@ function Body(props: { botId: string; onClose: () => void }) {
   const setArchived = async (archived: boolean): Promise<void> => {
     const current = bot();
     if (!current) return;
-    const next = await changeRegistry((registry) =>
-      archived ? archiveBot(registry, current.id) : unarchiveBot(registry, current.id),
-    );
+    const next = archived ? await archiveBot(current.id) : await unarchiveBot(current.id);
     if (next && archived) props.onClose();
   };
 
@@ -474,7 +471,7 @@ function Body(props: { botId: string; onClose: () => void }) {
         </Text>
       </If>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <If when={!!bot()}>
+        <If when={!!bot() && !isMainBot(bot()!)}>
           <Button
             variant="ghost"
             size="sm"
