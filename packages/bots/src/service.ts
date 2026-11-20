@@ -98,6 +98,7 @@ export class BotsService extends TypertRemoteService {
   }
 
   /** The current Registry and its revision. */
+  @Remote("snapshot")
   async snapshot(): Promise<BotsSnapshot> {
     await this.ready;
     return this.store.snapshot();
@@ -107,6 +108,7 @@ export class BotsService extends TypertRemoteService {
    * Stream the snapshot on subscription, then again after every write.
    * @param signal - subscription lifetime; aborting ends only this stream.
    */
+  @Remote({ mode: "stream" })
   async *watch(signal: AbortSignal): AsyncIterable<BotsSnapshot> {
     await this.ready;
     let wake = Promise.withResolvers<void>();
@@ -131,37 +133,45 @@ export class BotsService extends TypertRemoteService {
     }
   }
 
+  @Remote("createTemplate")
   async createTemplate(request: TemplateInput): Promise<BotsSnapshot> {
     return this.change((registry) => createTemplate(registry, request));
   }
 
+  @Remote("updateTemplate")
   async updateTemplate(request: { id: string; patch: TemplatePatch }): Promise<BotsSnapshot> {
     return this.change((registry) => updateTemplate(registry, request.id, request.patch));
   }
 
+  @Remote("deleteTemplate")
   async deleteTemplate(templateId: string): Promise<BotsSnapshot> {
     return this.change((registry) => deleteTemplate(registry, templateId));
   }
 
   /** Upsert product templates from every non-derived dsh Agent preset. */
+  @Remote("importTemplates")
   async importTemplates(): Promise<BotsSnapshot> {
     await this.ready;
     const presets = await this.ctx.agentPresets.list();
     return this.change((registry) => importTemplates(registry, presets));
   }
 
+  @Remote("createBot")
   async createBot(request: BotInput): Promise<BotsSnapshot> {
     return this.change((registry) => createBot(registry, request));
   }
 
+  @Remote("updateBot")
   async updateBot(request: { id: string; patch: BotPatch }): Promise<BotsSnapshot> {
     return this.change((registry) => updateBot(registry, request.id, request.patch));
   }
 
+  @Remote("initializeBot")
   async initializeBot(botId: string): Promise<BotsSnapshot> {
     return this.change((registry) => initializeBot(registry, botId));
   }
 
+  @Remote("claimSegment")
   async claimSegment(request: {
     botId: string;
     sessionId: string;
@@ -172,6 +182,7 @@ export class BotsService extends TypertRemoteService {
     );
   }
 
+  @Remote("renameSegment")
   async renameSegment(request: {
     botId: string;
     sessionId: string;
@@ -182,38 +193,46 @@ export class BotsService extends TypertRemoteService {
     );
   }
 
+  @Remote("releaseSegment")
   async releaseSegment(request: { botId: string; sessionId: string }): Promise<BotsSnapshot> {
     return this.change((registry) => releaseSegment(registry, request.botId, request.sessionId));
   }
 
+  @Remote("archive")
   async archive(botId: string): Promise<BotsSnapshot> {
     return this.change((registry) => archiveBot(registry, botId));
   }
 
+  @Remote("unarchive")
   async unarchive(botId: string): Promise<BotsSnapshot> {
     return this.change((registry) => unarchiveBot(registry, botId));
   }
 
+  @Remote("deleteBot")
   async deleteBot(botId: string): Promise<BotsSnapshot> {
     return this.change((registry) => deleteBot(registry, botId));
   }
 
+  @Remote("assignPreset")
   async assignPreset(request: { botId: string; presetId: string }): Promise<BotsSnapshot> {
     return this.change((registry) =>
       assignDerivedPreset(registry, request.botId, request.presetId),
     );
   }
 
+  @Remote("derivePreset")
   async derivePreset(request: DerivedPresetDeriveRequest): Promise<DerivedPresetDeriveResult> {
     await this.ready;
     return this.presets.derive(request);
   }
 
+  @Remote("readPreset")
   async readPreset(presetId: string): Promise<DerivedPresetRecord> {
     await this.ready;
     return this.presets.read(presetId);
   }
 
+  @Remote("updatePreset")
   async updatePreset(
     presetId: string,
     patch: DerivedPresetUpdateRequest,
@@ -222,6 +241,7 @@ export class BotsService extends TypertRemoteService {
     return this.presets.update(presetId, patch);
   }
 
+  @Remote("discardPreset")
   async discardPreset(presetId: string): Promise<DerivedPresetRemoveResult> {
     await this.ready;
     return this.presets.remove(presetId);
@@ -271,62 +291,4 @@ export class BotsService extends TypertRemoteService {
     await this.ready;
     return this.store.write(change);
   }
-}
-
-// `vp pack` leaves standard-decorator syntax in place, and Node cannot parse
-// it. Mark the same methods through the exported decorator API instead: the
-// Gateway reads exactly the descriptor `@Remote` would have written.
-for (const [method, exportName, stream] of [
-  ["snapshot", "snapshot", false],
-  ["watch", "watch", true],
-  ["createTemplate", "createTemplate", false],
-  ["updateTemplate", "updateTemplate", false],
-  ["deleteTemplate", "deleteTemplate", false],
-  ["importTemplates", "importTemplates", false],
-  ["createBot", "createBot", false],
-  ["updateBot", "updateBot", false],
-  ["initializeBot", "initializeBot", false],
-  ["claimSegment", "claimSegment", false],
-  ["renameSegment", "renameSegment", false],
-  ["releaseSegment", "releaseSegment", false],
-  ["archive", "archive", false],
-  ["unarchive", "unarchive", false],
-  ["deleteBot", "deleteBot", false],
-  ["assignPreset", "assignPreset", false],
-  ["derivePreset", "derivePreset", false],
-  ["readPreset", "readPreset", false],
-  ["updatePreset", "updatePreset", false],
-  ["discardPreset", "discardPreset", false],
-] as const) {
-  markRemoteMethod(BotsService.prototype, method, exportName, stream);
-}
-
-function markRemoteMethod(
-  prototype: object,
-  method: string,
-  exportName: string,
-  stream: boolean,
-): void {
-  const member = (prototype as Record<string, unknown>)[method];
-  if (typeof member !== "function") {
-    throw new TypeError(`bots: ${method} is not a method`);
-  }
-  const context = {
-    kind: "method",
-    name: method,
-    static: false,
-    private: false,
-    access: { has: () => true, get: () => undefined },
-    addInitializer(initializer: (this: object) => void) {
-      // The decorator initializer runs once per instance and only reads the
-      // prototype; a bare prototype child gives it the same target.
-      initializer.call(Object.create(prototype));
-    },
-    metadata: {},
-  } as unknown as ClassMethodDecoratorContext;
-  type Mark = (member: never, context: ClassMethodDecoratorContext) => void;
-  const decorate = stream
-    ? (Remote as unknown as (options: { mode: "stream" }) => Mark)({ mode: "stream" })
-    : (Remote as unknown as (name: string) => Mark)(exportName);
-  decorate(member as never, context);
 }
