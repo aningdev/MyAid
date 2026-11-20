@@ -31,7 +31,7 @@ export const ownerIdentitySchema = z.object({
 });
 export type OwnerIdentity = z.infer<typeof ownerIdentitySchema>;
 
-/** One conversation a Source can write into. */
+/** One thread a Source can write into. */
 export const channelRefSchema = z.object({
   /** The configured Source instance. */
   source: z.string(),
@@ -72,14 +72,14 @@ export const sourceSummarySchema = z.object({
 export type SourceSummary = z.infer<typeof sourceSummarySchema>;
 
 /** One Source thread kept in the Main Bot's Dialogue. */
-export const conversationSchema = z.object({
+export const sourceThreadSchema = z.object({
   id: z.string(),
   source: z.string(),
   thread: z.string(),
   sessionId: z.string(),
   createdAt: z.number(),
 });
-export type Conversation = z.infer<typeof conversationSchema>;
+export type SourceThread = z.infer<typeof sourceThreadSchema>;
 
 /** A Trigger that already got its one Channel reply. */
 export const triggerAnswerSchema = z.object({

@@ -8,7 +8,7 @@
  * this service; the Tickets core decides what to do with them.
  *
  * This service holds no state of its own beyond the registrations; Triggers,
- * conversations and Tickets live in the Tickets file.
+ * sourceThreads and Tickets live in the Tickets file.
  */
 import { Service } from "@deepseek-ai/cordis";
 import { z } from "zod";
@@ -19,7 +19,7 @@ import { TicketError, type SourceSummary, type Trigger } from "./domain.ts";
 export type SourceDelivery = {
   /** Stable on that Source; the same id twice is the same Trigger. */
   id: string;
-  /** The Source's thread, conversation or channel. */
+  /** The Source's own thread, for example a group chat or a pull request. */
   thread: string;
   /** Where inside that thread a reply goes. */
   address: string;
@@ -31,10 +31,10 @@ export type SourceDelivery = {
   text: string;
 };
 
-/** What one Channel write did: `gone` means the conversation disappeared. */
+/** What one Channel write did: `gone` means the Source thread disappeared. */
 export type SourceSendResult = "sent" | "gone";
 
-/** One message written into a Source conversation. */
+/** One message written into a Source thread. */
 export type SourceOutbound = {
   thread: string;
   address: string;
@@ -58,7 +58,7 @@ export type SourceKind<Config> = {
   config: z.ZodType<Config>;
   /** The Owner's identity (their account id) on this Source. */
   owner(config: Config): string;
-  /** How this Source writes a message back into a conversation. */
+  /** How this Source writes a message back into a Source thread. */
   channel: SourceChannel<Config>;
 };
 
@@ -150,7 +150,7 @@ export class SourceRegistry {
       .sort((left, right) => left.id.localeCompare(right.id));
   }
 
-  /** Write one message back into a Source conversation. */
+  /** Write one message back into a Source thread. */
   async send(sourceId: string, message: SourceOutbound): Promise<SourceSendResult> {
     const source = this.sources.get(sourceId);
     if (source === undefined) {

@@ -32,7 +32,7 @@ import {
   type Attention,
   type AttentionAnswer,
   type AttentionQuestion,
-  type Conversation,
+  type SourceThread,
   type Ticket,
   type TicketEnd,
   type TicketOrigin,
@@ -40,7 +40,7 @@ import {
 } from "./domain.ts";
 import {
   newAttentionId,
-  newConversationId,
+  newSourceThreadId,
   newTicketId,
   sessionIdFor,
   sourceSessionIdFor,
@@ -169,7 +169,7 @@ export class TicketsCore {
     const trigger = await this.pendingTrigger(input.origin.sessionId);
     const source = trigger === null ? null : this.sources.get(trigger.source);
     // A request that came in through a Source keeps that Source as its origin,
-    // so its result goes back to the same conversation.
+    // so its result goes back to the same Source thread.
     const origin: TicketOrigin =
       trigger === null || source === null
         ? input.origin
@@ -258,19 +258,19 @@ export class TicketsCore {
     );
     if (trigger.disposition === "ignored") return { status: "ignored", trigger };
     const routing = await this.bots.routing();
-    const conversation = await this.conversationFor(
+    const sourceThread = await this.sourceThreadFor(
       trigger,
       `${source.title.zh} · ${trigger.thread}`,
       routing.mainBot.presetId,
     );
-    if (conversation === null) {
+    if (sourceThread === null) {
       throw new TicketError(
         "tickets/invalid",
         `无法为 ${trigger.source}/${trigger.thread} 打开 Main Bot Session。`,
       );
     }
     await this.sessions.trigger(
-      conversation.sessionId,
+      sourceThread.sessionId,
       { triggerId: trigger.id, source: trigger.source },
       triggerPrompt(source.title.zh, trigger),
     );
@@ -695,8 +695,8 @@ export class TicketsCore {
    */
   private async pendingTrigger(sessionId: string): Promise<Trigger | null> {
     const state = await this.store.snapshot();
-    const conversation = state.conversations.find((item) => item.sessionId === sessionId);
-    if (conversation === undefined) return null;
+    const sourceThread = state.sourceThreads.find((item) => item.sessionId === sessionId);
+    if (sourceThread === undefined) return null;
     const answered = new Set(state.answers.map((answer) => answer.triggerId));
     const linked = new Set(
       state.tickets.flatMap((ticket) =>
@@ -707,8 +707,8 @@ export class TicketsCore {
       state.triggers
         .filter(
           (trigger) =>
-            trigger.source === conversation.source &&
-            trigger.thread === conversation.thread &&
+            trigger.source === sourceThread.source &&
+            trigger.thread === sourceThread.thread &&
             trigger.disposition === "accepted" &&
             !answered.has(trigger.id) &&
             !linked.has(trigger.id),
@@ -717,40 +717,40 @@ export class TicketsCore {
     );
   }
 
-  /** Find or create, and start, the Main Bot Session that follows one thread. */
-  private async conversationFor(
+  /** Find or create, and start, the Main Bot Session that follows one Source thread. */
+  private async sourceThreadFor(
     trigger: Trigger,
     title: string,
     agentPreset: string,
-  ): Promise<Conversation | null> {
+  ): Promise<SourceThread | null> {
     const state = await this.store.snapshot();
-    const existing = state.conversations.find(
+    const existing = state.sourceThreads.find(
       (item) => item.source === trigger.source && item.thread === trigger.thread,
     );
     if (existing !== undefined) return existing;
-    const conversation: Conversation = {
-      id: newConversationId(),
+    const sourceThread: SourceThread = {
+      id: newSourceThreadId(),
       source: trigger.source,
       thread: trigger.thread,
       sessionId: "",
       createdAt: this.now(),
     };
-    conversation.sessionId = sourceSessionIdFor(conversation.id);
+    sourceThread.sessionId = sourceSessionIdFor(sourceThread.id);
     let created = false;
     await this.store.write((document) => {
       if (
-        document.conversations.some(
+        document.sourceThreads.some(
           (item) => item.source === trigger.source && item.thread === trigger.thread,
         )
       ) {
         return document;
       }
       created = true;
-      return { ...document, conversations: [...document.conversations, conversation] };
+      return { ...document, sourceThreads: [...document.sourceThreads, sourceThread] };
     });
     const written =
-      (await this.store.snapshot()).conversations.find((item) => item.id === conversation.id) ??
-      conversation;
+      (await this.store.snapshot()).sourceThreads.find((item) => item.id === sourceThread.id) ??
+      sourceThread;
     if (!created) return written;
     try {
       await this.sessions.start({
@@ -760,11 +760,11 @@ export class TicketsCore {
         title,
       });
     } catch (error) {
-      // Do not keep a conversation no Session follows; the next Trigger retries.
+      // Do not keep a Source thread no Session follows; the next Trigger retries.
       this.logger.warn(`tickets: could not start Session ${written.sessionId}: ${String(error)}`);
       await this.store.write((document) => ({
         ...document,
-        conversations: document.conversations.filter((item) => item.id !== written.id),
+        sourceThreads: document.sourceThreads.filter((item) => item.id !== written.id),
       }));
       return null;
     }
@@ -772,7 +772,7 @@ export class TicketsCore {
   }
 
   /**
-   * Write one reply into the Trigger's own conversation and remember that this
+   * Write one reply into the Trigger's own Source thread and remember that this
    * Trigger has had its reply, so a later turn does not send it twice.
    */
   private async reply(trigger: Trigger, text: string): Promise<void> {

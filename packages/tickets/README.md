@@ -56,7 +56,7 @@ The Trigger is immutable once delivered and is stored with its disposition; a re
 
 An accepted Trigger goes to the Main Bot Session that follows that `(Source, thread)` — created on first use with the Main Bot preset and named after the Source and thread — as a `tickets` message carrying the trigger marker. The Main Bot answers in that Session:
 
-- `ticket_open` binds the oldest pending Trigger of that conversation, records it as the Ticket's origin (Source, kind, trigger id, thread, address), and sends exactly one Channel confirmation;
+- `ticket_open` binds the oldest pending Trigger of that thread, records it as the Ticket's origin (Source, kind, trigger id, thread, address), and sends exactly one Channel confirmation;
 - ending the turn without a Ticket writes the last assistant message back through the same Channel, once;
 - when the Ticket ends, its result goes back through the same Channel to the original address.
 
@@ -75,7 +75,7 @@ Tools are attached when an Agent is created: `ticket_open` on the Main Bot's own
 | `ticket_open`   | `bot` (name or id) · `title` · `task` · `workspacePath` |
 | `ticket_report` | `status` (`completed` or `failed`) · `result`           |
 
-`ticket_open`'s description lists the ready Bots, so the Main Bot picks one without another round trip. `ticket_report` is how a Ticket's Bot ends its work; reporting again after the end is refused. When a Ticket from a Main Bot conversation ends, the result is delivered back into the opening Session as a `tickets` report message.
+`ticket_open`'s description lists the ready Bots, so the Main Bot picks one without another round trip. `ticket_report` is how a Ticket's Bot ends its work; reporting again after the end is refused. When a Ticket opened in a Main Bot Session ends, the result is delivered back into the opening Session as a `tickets` report message.
 
 ## Attention
 

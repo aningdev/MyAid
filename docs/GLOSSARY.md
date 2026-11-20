@@ -51,6 +51,9 @@ _Avoid_：Notification（只是送达方式）、Approval（dsh 的工具审批�
 **Source（来源）**：一条外部事件流，例如 IM 会话、GitHub 仓库或定时规则。Owner 可以通过 Source 向 dsh-bot 提出请求，不必打开 Client。
 _Avoid_：Integration、Connector、Channel
 
+**Source thread（来源会话）**：Source 里一处可以来回说话的地方，例如一个 IM 群聊或话题、一个 PR。Trigger 来自它，Channel 写回它；Main Bot 为每个 Source thread 用一条自己的 Session。
+_Avoid_：Conversation、Chat
+
 **Trigger（触发）**：Source 产生的一条不可变事件。只有 Owner identity 发来的 Trigger 才能开启新工作。
 _Avoid_：Event、Message
 

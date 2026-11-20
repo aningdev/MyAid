@@ -13,14 +13,14 @@ import { z } from "zod";
 
 import {
   attentionSchema,
-  conversationSchema,
+  sourceThreadSchema,
   resumeTicketWork,
   ticketSchema,
   triggerAnswerSchema,
   triggerSchema,
   withdrawAttention,
   type Attention,
-  type Conversation,
+  type SourceThread,
   type Ticket,
   type Trigger,
   type TriggerAnswer,
@@ -35,7 +35,7 @@ export const ticketsFileSchema = z.object({
   tickets: z.array(ticketSchema),
   attentions: z.array(attentionSchema),
   triggers: z.array(triggerSchema),
-  conversations: z.array(conversationSchema),
+  sourceThreads: z.array(sourceThreadSchema),
   answers: z.array(triggerAnswerSchema),
 });
 export type TicketsFile = z.infer<typeof ticketsFileSchema>;
@@ -45,7 +45,7 @@ export type TicketsDocument = {
   tickets: Ticket[];
   attentions: Attention[];
   triggers: Trigger[];
-  conversations: Conversation[];
+  sourceThreads: SourceThread[];
   answers: TriggerAnswer[];
 };
 
@@ -55,7 +55,7 @@ export type TicketState = {
   tickets: Ticket[];
   attentions: Attention[];
   triggers: Trigger[];
-  conversations: Conversation[];
+  sourceThreads: SourceThread[];
   answers: TriggerAnswer[];
 };
 
@@ -101,7 +101,7 @@ export class TicketsStore {
         tickets: structuredClone(state.tickets),
         attentions: structuredClone(state.attentions),
         triggers: structuredClone(state.triggers),
-        conversations: structuredClone(state.conversations),
+        sourceThreads: structuredClone(state.sourceThreads),
         answers: structuredClone(state.answers),
       });
       const written: TicketsFile = {
@@ -110,7 +110,7 @@ export class TicketsStore {
         tickets: document.tickets,
         attentions: document.attentions,
         triggers: document.triggers,
-        conversations: document.conversations,
+        sourceThreads: document.sourceThreads,
         answers: document.answers,
       };
       await this.persist(written);
@@ -136,13 +136,13 @@ export class TicketsStore {
   }
 
   private current(): TicketState {
-    const { revision, tickets, attentions, triggers, conversations, answers } = this.currentState();
+    const { revision, tickets, attentions, triggers, sourceThreads, answers } = this.currentState();
     return {
       revision,
       tickets,
       attentions: attentions.filter((attention) => attention.status === "pending"),
       triggers,
-      conversations,
+      sourceThreads,
       answers,
     };
   }
@@ -156,7 +156,7 @@ export class TicketsStore {
         tickets: [],
         attentions: [],
         triggers: [],
-        conversations: [],
+        sourceThreads: [],
         answers: [],
       };
       await this.persist(this.state);

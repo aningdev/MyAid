@@ -6,7 +6,7 @@ import { z } from "zod";
 import {
   attentionAnswerSchema,
   attentionSchema,
-  conversationSchema,
+  sourceThreadSchema,
   sourceSummarySchema,
   ticketSchema,
   triggerSchema,
@@ -22,7 +22,7 @@ export const ticketsSnapshotSchema = z.object({
   /** Delivered Triggers, ignored ones included, as history. */
   triggers: z.array(triggerSchema),
   /** Source Threads that already have a Main Bot Session. */
-  conversations: z.array(conversationSchema),
+  sourceThreads: z.array(sourceThreadSchema),
 });
 export type TicketsSnapshot = z.infer<typeof ticketsSnapshotSchema>;
 

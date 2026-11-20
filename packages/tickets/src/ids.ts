@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 const TICKET_PREFIX = "ticket-";
 const SESSION_PREFIX = "ticket-session-";
 const ATTENTION_PREFIX = "attention-";
-const CONVERSATION_PREFIX = "source-conversation-";
+const SOURCE_THREAD_PREFIX = "source-thread-";
 const SOURCE_SESSION_PREFIX = "source-session-";
 
 function token(): string {
@@ -25,13 +25,13 @@ export function sessionIdFor(ticketId: string): string {
 }
 
 /** The Main Bot Session that follows one Source thread. */
-export function sourceSessionIdFor(conversationId: string): string {
-  return `${SOURCE_SESSION_PREFIX}${conversationId.slice(CONVERSATION_PREFIX.length)}`;
+export function sourceSessionIdFor(threadId: string): string {
+  return `${SOURCE_SESSION_PREFIX}${threadId.slice(SOURCE_THREAD_PREFIX.length)}`;
 }
 
-/** A new Source conversation identity. */
-export function newConversationId(): string {
-  return `${CONVERSATION_PREFIX}${token()}`;
+/** A new Source thread identity. */
+export function newSourceThreadId(): string {
+  return `${SOURCE_THREAD_PREFIX}${token()}`;
 }
 
 /** A new Attention identity. */

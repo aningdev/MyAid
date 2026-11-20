@@ -57,7 +57,7 @@ export {
   type TriggerIntake,
 } from "./sources.ts";
 export { REPORT_TICKET_TOOL, reportTicketToolInput } from "./tool.ts";
-export { newConversationId, sourceSessionIdFor } from "./ids.ts";
+export { newSourceThreadId, sourceSessionIdFor } from "./ids.ts";
 export { TICKETS_VERSION } from "./store.ts";
 export type { TicketsSnapshot, AnswerAttentionRequest } from "./wire.ts";
 export type { OpenTicketRequest, TicketBots } from "./core.ts";

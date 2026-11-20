@@ -12,7 +12,7 @@
 | -------------------------- | ------------------------------------------------------------ |
 | Ticket、Attention、Trigger | `<dataDir>/tickets.json`；`dataDir` 默认 `$DSH_HOME/tickets` |
 
-文件是一份 version 2 文档加单调递增的 `revision`。每次写入先写临时文件再改名，并把 Ticket 与它的 Attention 放进同一次写入，读的人不会看到半个状态转移。`snapshot` 返回 Ticket、仍处于 pending 的 Attention、已配置的 Source、投递过的全部 Trigger，以及已经开出 Main Bot Session 的 Source 会话；已回答、已撤回和已忽略的留在文件里作为历史。
+文件是一份 version 2 文档加单调递增的 `revision`。每次写入先写临时文件再改名，并把 Ticket 与它的 Attention 放进同一次写入，读的人不会看到半个状态转移。`snapshot` 返回 Ticket、仍处于 pending 的 Attention、已配置的 Source、投递过的全部 Trigger，以及已经开出 Main Bot Session 的 Source thread；已回答、已撤回和已忽略的留在文件里作为历史。
 
 停机中的 Host 无法回答它等待的问题：加载时会把所有 pending 的 Attention 撤回，对应 Ticket 回到 `open`。
 
@@ -54,9 +54,9 @@ ctx.sources.register({
 
 Trigger 投递后不可变，并连同处理结果一起落盘；同一个 Source 上重复的 `id` 得到 `duplicate`，什么都不改。只有 `human.id` 等于 Source 的 Owner 身份的 Trigger 是 `accepted`；其余记为 `ignored`，不开 Session、不调用模型、不写 Channel。
 
-被接受的 Trigger 进入跟随该 `(Source, thread)` 的 Main Bot Session——首次使用时用 Main Bot 的 preset 创建，按 Source 和会话命名——是一条带 trigger 标记的 `tickets` 消息。Main Bot 在这个 Session 里回应：
+被接受的 Trigger 进入跟随该 `(Source, thread)` 的 Main Bot Session——首次使用时用 Main Bot 的 preset 创建，按 Source 和 thread 命名——是一条带 trigger 标记的 `tickets` 消息。Main Bot 在这个 Session 里回应：
 
-- `ticket_open` 绑定该会话最老的待处理 Trigger，把它记作 Ticket 的 origin（Source、kind、trigger id、thread、address），并通过 Channel 只发一次确认；
+- `ticket_open` 绑定该 Source thread 最老的待处理 Trigger，把它记作 Ticket 的 origin（Source、kind、trigger id、thread、address），并通过 Channel 只发一次确认；
 - 这一轮结束却没开 Ticket 时，把最后一条 assistant 消息经同一个 Channel 写回一次；
 - Ticket 结束时，结果经同一个 Channel 回到原来的地址。
 
@@ -75,7 +75,7 @@ Trigger 投递后不可变，并连同处理结果一起落盘；同一个 Sourc
 | `ticket_open`   | `bot`（名字或 id）· `title` · `task` · `workspacePath` |
 | `ticket_report` | `status`（`completed` 或 `failed`）· `result`          |
 
-`ticket_open` 的描述里列出已就绪的 Bot，Main Bot 不用再问一轮。`ticket_report` 是 Ticket 的 Bot 结束工作的方式；结束之后再报告会被拒绝。来自 Main Bot 对话的 Ticket 结束后，结果以 `tickets` 汇报消息投回开出它的 Session。
+`ticket_open` 的描述里列出已就绪的 Bot，Main Bot 不用再问一轮。`ticket_report` 是 Ticket 的 Bot 结束工作的方式；结束之后再报告会被拒绝。从 Main Bot Session 开出的 Ticket 结束后，结果以 `tickets` 汇报消息投回开出它的 Session。
 
 ## Attention
 

@@ -145,16 +145,16 @@ describe("Source → Trigger → Channel", () => {
     const delivered = await deliver(core, source);
     expect(delivered.status).toBe("accepted");
 
-    const conversation = (await core.snapshot()).conversations[0]!;
-    expect(conversation.source).toBe(source.instanceId);
-    expect(conversation.thread).toBe("pr-review");
+    const thread = (await core.snapshot()).sourceThreads[0]!;
+    expect(thread.source).toBe(source.instanceId);
+    expect(thread.thread).toBe("pr-review");
     expect(sessions.starts[0]).toMatchObject({
-      sessionId: conversation.sessionId,
+      sessionId: thread.sessionId,
       agentPreset: "bots-main-preset",
     });
     expect(sessions.triggers[0]).toContain("@bot 总结今天的 PR");
 
-    const main = fakeAgent(conversation.sessionId);
+    const main = fakeAgent(thread.sessionId);
     await core.attachMainBotTool(main.agent);
     const open = main.tools.find((tool) => tool.name === OPEN_TICKET_TOOL)!;
     const opened = (await open.execute(
@@ -218,8 +218,8 @@ describe("Source → Trigger → Channel", () => {
   test("Main Bot 不开 Ticket、直接回答时，回答写回同一个对话且只写一次", async () => {
     const { core, sessions, source } = await makeCore();
     await deliver(core, source);
-    const conversation = (await core.snapshot()).conversations[0]!;
-    const main = fakeAgent(conversation.sessionId);
+    const thread = (await core.snapshot()).sourceThreads[0]!;
+    const main = fakeAgent(thread.sessionId);
     main.events.push({
       type: "assistant/message",
       data: { message: { content: [{ type: "text", text: "今天的 PR 都看完了。" }] } },

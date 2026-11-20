@@ -62,7 +62,7 @@ describe("TicketsStore", () => {
       tickets: [],
       attentions: [],
       triggers: [],
-      conversations: [],
+      sourceThreads: [],
       answers: [],
     });
     const written = JSON.parse(await readFile(file, "utf8"));
