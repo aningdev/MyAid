@@ -44,6 +44,30 @@ export function usesTestStorage(): boolean {
 /** The environment variable a real-Host smoke sets: the only opt-in past the test marker. */
 export const SMOKE_ENV = "DSH_BOT_SMOKE_HOST";
 
+/** The environment variable that points the Host's Bridge at a Relay. */
+export const RELAY_ENV = "DSH_BOT_RELAY_URL";
+
+/** Hosts a test may name as its Relay: this machine, never the project's. */
+const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+
+/**
+ * Whether `address` names a Relay on this machine. A smoke's Host dials whatever
+ * `DSH_BOT_RELAY_URL` says, and the Host's default is the project's public Relay: a
+ * test run must name a local one (or an unused local port) rather than reach it.
+ */
+export function relayIsLocal(address: string | undefined): boolean {
+  if (!address) return false;
+  try {
+    const url = new URL(address);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      LOOPBACK_HOSTS.includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Whether this app may talk to the local Host control plane at all — probe a port, read
  * a `serve-token`, start a Host.
@@ -51,13 +75,17 @@ export const SMOKE_ENV = "DSH_BOT_SMOKE_HOST";
  * A test app may not: the user's real Host may be listening on 4872 with the real `~/.dsh-bot`, so
  * a test that probed it would read, or start work on, the person's own machine. `test/open.ts`
  * marks every app it opens, and `test/host-control.test.tsx` proves such an app neither probes
- * nor spawns. A real-Host smoke opts in with `DSH_BOT_SMOKE_HOST`.
+ * nor spawns. A real-Host smoke opts in with `DSH_BOT_SMOKE_HOST`, and only while
+ * `DSH_BOT_RELAY_URL` names a Relay on this machine, so no smoke dials the project's.
  */
 export function hostControlAllowed(
   testApp: boolean = usesTestStorage(),
   smoke: string | undefined = typeof process !== "undefined" && process.env
     ? process.env[SMOKE_ENV]
     : undefined,
+  relay: string | undefined = typeof process !== "undefined" && process.env
+    ? process.env[RELAY_ENV]
+    : undefined,
 ): boolean {
-  return !testApp || !!smoke;
+  return !testApp || (!!smoke && relayIsLocal(relay));
 }

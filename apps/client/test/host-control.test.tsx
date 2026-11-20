@@ -10,7 +10,7 @@
  */
 import { expect, test } from "nsh/test";
 
-import { hostControlAllowed } from "../lib/data-root";
+import { hostControlAllowed, relayIsLocal } from "../lib/data-root";
 import { createHostTransport } from "../lib/host/client";
 import { createHostRegistrationTransport } from "../lib/host/registration";
 import { t } from "../lib/i18n";
@@ -18,13 +18,28 @@ import { open } from "./open";
 
 test("only a smoke may reach the local control plane", () => {
   // Opened by `test/open.ts`, no smoke: nothing to probe, nothing to spawn.
-  expect(hostControlAllowed(true, undefined)).toBe(false);
-  expect(hostControlAllowed(true, "")).toBe(false);
+  expect(hostControlAllowed(true, undefined, LOCAL)).toBe(false);
+  expect(hostControlAllowed(true, "", LOCAL)).toBe(false);
   // The smoke opt-in.
-  expect(hostControlAllowed(true, "1")).toBe(true);
-  expect(hostControlAllowed(true, "empty")).toBe(true);
+  expect(hostControlAllowed(true, "1", LOCAL)).toBe(true);
+  expect(hostControlAllowed(true, "empty", LOCAL)).toBe(true);
   // The product itself.
-  expect(hostControlAllowed(false, undefined)).toBe(true);
+  expect(hostControlAllowed(false, undefined, undefined)).toBe(true);
+});
+
+const LOCAL = "http://127.0.0.1:9";
+
+test("a smoke never dials the project's Relay: its Host must be told a local one", () => {
+  // Unset, the Host would fall back to the project's public Relay.
+  expect(hostControlAllowed(true, "1", undefined)).toBe(false);
+  expect(hostControlAllowed(true, "1", "")).toBe(false);
+  expect(hostControlAllowed(true, "1", "https://relay.aning.dev")).toBe(false);
+  expect(hostControlAllowed(true, "1", "http://relay.aning.dev:8787")).toBe(false);
+  expect(hostControlAllowed(true, "1", "not a url")).toBe(false);
+  expect(hostControlAllowed(true, "1", "http://localhost:8787")).toBe(true);
+  expect(hostControlAllowed(true, "1", "http://[::1]:8787")).toBe(true);
+  expect(hostControlAllowed(true, "1", LOCAL)).toBe(true);
+  expect(relayIsLocal("http://127.0.0.1.evil.example")).toBe(false);
 });
 
 /** A fetch that records what it was asked for: a guarded transport must ask nothing. */

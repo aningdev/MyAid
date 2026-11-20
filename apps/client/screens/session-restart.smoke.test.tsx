@@ -14,7 +14,7 @@
  *   SC=$PWD/.dsh-bot-smoke
  *   node apps/client/screens/host-restart-watch.mjs \
  *     --root "$SC/home/.dsh-bot" --port 4879 --after-turns 1 &
- *   HOME="$SC/home" DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
+ *   HOME="$SC/home" DSH_BOT_SMOKE_HOST=1 DSH_BOT_RELAY_URL=http://127.0.0.1:9 DSH_BOT_HOST_PORT=4879 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/session-restart.smoke.test.tsx --target macos
  *
