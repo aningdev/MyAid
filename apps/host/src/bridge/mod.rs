@@ -1,20 +1,25 @@
 //! Bridge: the Runner's side of the relay tunnel.
 //!
 //! Owns the registration key, the X25519 static key, the Relay connection, the
-//! one-time pairing psk, and the paired-Device file. Noise transport beyond
-//! stream 0 is refused. The frame contract is `docs/architecture/relay-tunnel.md`.
+//! one-time pairing psk, and the paired-Device file. Streams beyond stream 0 are
+//! forwarded to the loopback dsh web as the contract allows. The frame contract
+//! is `docs/architecture/relay-tunnel.md`.
 //!
-//! Lock order: `pairing`, then `devices`, then `online`. `identity` and `link`
-//! are not part of that order.
+//! Lock order: `pairing`, then `devices`, then `online`. `identity`, `link` and
+//! `cookie` are not part of that order.
 
 mod channel;
 mod devices;
 mod disk;
+mod dsh;
 mod encode;
 mod frames;
+mod http;
 mod identity;
 mod link;
 mod noise;
+mod outbox;
+mod ws;
 
 #[cfg(test)]
 mod tests;
@@ -22,6 +27,7 @@ mod tests;
 use crate::{Config, Result};
 use channel::Inbound;
 use devices::Record;
+pub use dsh::{DshEndpoint, DshSource};
 use serde::Serialize;
 #[cfg(test)]
 use std::path::Path;
@@ -116,6 +122,7 @@ struct Shared {
     dir: PathBuf,
     plan: RelayPlan,
     now: Arc<dyn Fn() -> u64 + Send + Sync>,
+    dsh: DshSource,
     identity: Mutex<Option<identity::Identity>>,
     devices: Mutex<DeviceMemory>,
     pairing: Mutex<Option<Psk>>,
@@ -124,6 +131,7 @@ struct Shared {
     session_ids: AtomicU64,
     list_generation: AtomicU64,
     link: Mutex<LinkState>,
+    cookie: Mutex<Option<dsh::Cached>>,
 }
 
 #[derive(Clone)]
@@ -150,26 +158,38 @@ impl Drop for Session {
 }
 
 impl Bridge {
-    pub fn open(config: &Config) -> Result<Self> {
+    pub fn open(config: &Config, dsh: DshSource) -> Result<Self> {
         let setting = std::env::var("DSH_BOT_RELAY_URL").ok();
         Ok(Self::build(
             config.root.join("host/bridge"),
             setting.as_deref(),
             Arc::new(crate::now),
+            dsh,
         ))
     }
 
     #[cfg(test)]
-    fn open_for_test(root: &Path, relay: Option<&str>, now: Arc<AtomicU64>) -> Self {
+    fn open_for_test(
+        root: &Path,
+        relay: Option<&str>,
+        now: Arc<AtomicU64>,
+        dsh: DshSource,
+    ) -> Self {
         let clock = now.clone();
         Self::build(
             root.join("host/bridge"),
             relay,
             Arc::new(move || clock.load(Ordering::Relaxed)),
+            dsh,
         )
     }
 
-    fn build(dir: PathBuf, relay: Option<&str>, now: Arc<dyn Fn() -> u64 + Send + Sync>) -> Self {
+    fn build(
+        dir: PathBuf,
+        relay: Option<&str>,
+        now: Arc<dyn Fn() -> u64 + Send + Sync>,
+        dsh: DshSource,
+    ) -> Self {
         let plan = plan_from(relay);
         let (records, error) = match devices::load(&dir.join("devices.json")) {
             Ok(records) => (records, None),
@@ -185,6 +205,7 @@ impl Bridge {
                 dir,
                 plan,
                 now,
+                dsh,
                 identity: Mutex::new(None),
                 devices: Mutex::new(DeviceMemory { records, error }),
                 pairing: Mutex::new(None),
@@ -196,6 +217,7 @@ impl Bridge {
                     connected: false,
                     reason,
                 }),
+                cookie: Mutex::new(None),
             }),
         }
     }

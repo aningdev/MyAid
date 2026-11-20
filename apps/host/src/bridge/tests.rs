@@ -2,9 +2,26 @@
 //! product Relay.
 
 use super::{
-    Bridge, DEFAULT_RELAY_URL, encode, frames,
-    frames::{CONTROL, MODE_DAILY, MODE_PAIR, RESET},
+    Bridge, DEFAULT_RELAY_URL, DshEndpoint, DshSource, channel,
+    channel::Inbound,
+    encode, frames,
+    frames::{
+        BODY, CONTROL, END, HTTP_REQUEST, HTTP_RESPONSE, MODE_DAILY, MODE_PAIR, RESET, WS_ACCEPT,
+        WS_BINARY, WS_CLOSE, WS_OPEN, WS_TEXT,
+    },
     identity, noise,
+    outbox::OutFrame,
+};
+use axum::{
+    Router,
+    body::Bytes,
+    extract::{
+        Query, State,
+        ws::{Message as WsMessage, WebSocket, WebSocketUpgrade},
+    },
+    http::{HeaderMap, StatusCode, header},
+    response::{IntoResponse, Response},
+    routing::{get, post},
 };
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use futures_util::{SinkExt, StreamExt};
@@ -155,14 +172,16 @@ struct Started {
     bridge: Bridge,
     stop: Arc<AtomicBool>,
     port: u16,
+    dsh: Fake,
 }
 
 async fn start() -> Started {
+    let dsh = fake_dsh().await;
     let relay = Relay::bind().await;
     let dir = tempfile::tempdir().expect("tempdir");
     let now = Arc::new(AtomicU64::new(1_800_000_000));
     let url = format!("ws://127.0.0.1:{}", relay.port);
-    let bridge = Bridge::open_for_test(dir.path(), Some(&url), now.clone());
+    let bridge = Bridge::open_for_test(dir.path(), Some(&url), now.clone(), dsh_source(&dsh));
     let stop = Arc::new(AtomicBool::new(false));
     bridge.spawn(stop.clone());
     wait_connected(&bridge).await;
@@ -172,7 +191,12 @@ async fn start() -> Started {
         bridge,
         stop,
         port: relay.port,
+        dsh,
     }
+}
+
+fn no_dsh() -> DshSource {
+    Arc::new(|| None)
 }
 
 async fn wait_connected(bridge: &Bridge) {
@@ -579,7 +603,7 @@ async fn unset_or_placeholder_relay_is_not_dialed() {
     let dir = tempfile::tempdir().expect("tempdir");
     let now = Arc::new(AtomicU64::new(1_800_000_000));
     for setting in [None, Some(""), Some(DEFAULT_RELAY_URL), Some("not a url")] {
-        let bridge = Bridge::open_for_test(dir.path(), setting, now.clone());
+        let bridge = Bridge::open_for_test(dir.path(), setting, now.clone(), no_dsh());
         bridge.spawn(Arc::new(AtomicBool::new(false)));
         tokio::time::sleep(Duration::from_millis(30)).await;
         let body = bridge.devices().expect("devices");
@@ -592,7 +616,7 @@ async fn unset_or_placeholder_relay_is_not_dialed() {
         );
     }
     assert!(!dir.path().join("host/bridge/identity.json").exists());
-    let broken = Bridge::open_for_test(dir.path(), Some("ftp://relay.example"), now);
+    let broken = Bridge::open_for_test(dir.path(), Some("ftp://relay.example"), now, no_dsh());
     assert!(!broken.devices().expect("devices").relay.configured);
 }
 
@@ -651,7 +675,7 @@ async fn fake_relay_verifies_the_registration_signature() {
             & 0o777;
         assert_eq!(mode, 0o600);
     }
-    let again = Bridge::open_for_test(started.dir.path(), None, started.now.clone());
+    let again = Bridge::open_for_test(started.dir.path(), None, started.now.clone(), no_dsh());
     assert_eq!(
         again.identity().expect("reloaded").runner_id,
         identity.runner_id
@@ -846,18 +870,6 @@ async fn daily_connection_answers_ping_with_pong() {
         frames::stream(0, CONTROL, br#"{"type":"pong"}"#)
     );
 
-    let other = frames::stream(4, CONTROL, b"{}");
-    socket
-        .send(Message::binary(write_transport(&mut transport, &other)))
-        .await
-        .expect("other stream");
-    let PeerMsg::Binary(reset) = next_peer(&mut socket).await else {
-        panic!("missing reset");
-    };
-    assert_eq!(
-        read_transport(&mut transport, &reset),
-        frames::stream(4, RESET, br#"{"code":"forbidden"}"#)
-    );
     started.stop.store(true, Ordering::Relaxed);
 }
 
@@ -943,5 +955,709 @@ async fn revoke_notifies_the_live_channel_and_the_next_handshake() {
         .await
         .expect("next handshake");
     assert_eq!(payload, br#"{"error":"device-revoked"}"#);
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+// ---- A fake loopback dsh web -------------------------------------------------------------
+
+#[derive(Default)]
+struct DshState {
+    session: Mutex<Option<String>>,
+    connects: AtomicU32,
+    attempts: AtomicU32,
+    seen: Mutex<Vec<Seen>>,
+    pongs: AtomicU32,
+    opened: AtomicU32,
+    closed: AtomicU32,
+}
+
+#[derive(Clone)]
+struct Seen {
+    path: String,
+    headers: Vec<(String, String)>,
+    body: Vec<u8>,
+}
+
+struct Fake {
+    port: u16,
+    state: Arc<DshState>,
+}
+
+impl Fake {
+    fn origin(&self) -> String {
+        format!("http://127.0.0.1:{}", self.port)
+    }
+
+    fn login(&self) -> String {
+        format!(
+            "http://127.0.0.1:{}/connect?token=test-token&interactions=answer",
+            self.port
+        )
+    }
+
+    fn seen(&self, path: &str) -> Option<Seen> {
+        self.state
+            .seen
+            .lock()
+            .expect("seen")
+            .iter()
+            .rev()
+            .find(|seen| seen.path == path)
+            .cloned()
+    }
+}
+
+fn dsh_source(dsh: &Fake) -> DshSource {
+    let origin = dsh.origin();
+    let login = dsh.login();
+    Arc::new(move || {
+        Some(DshEndpoint {
+            origin: origin.clone(),
+            login: login.clone(),
+            generation: "g1".into(),
+        })
+    })
+}
+
+async fn fake_dsh() -> Fake {
+    let state = Arc::new(DshState::default());
+    let app = Router::new()
+        .route("/connect", get(connect))
+        .route("/api/echo", post(echo))
+        .route("/api/setcookie", post(setcookie))
+        .route("/api/unauthorized", post(unauthorized))
+        .route("/api/refuse", post(refuse))
+        .route("/api/large", post(large))
+        .route("/api/remote.mux", get(mux))
+        .with_state(state.clone());
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+        .await
+        .expect("dsh bind");
+    let port = listener.local_addr().expect("dsh addr").port();
+    tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+    Fake { port, state }
+}
+
+async fn connect(
+    State(state): State<Arc<DshState>>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    assert_eq!(
+        query.get("token").map(String::as_str),
+        Some("test-token"),
+        "the login token the Host wrote"
+    );
+    let session = format!("s{}", state.connects.fetch_add(1, Ordering::SeqCst) + 1);
+    *state.session.lock().expect("session") = Some(session.clone());
+    // The real dsh answers its token-carrying root with 303; `/connect` answers 302.
+    let mut response = (StatusCode::SEE_OTHER, "").into_response();
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        format!("session={session}; Path=/; HttpOnly")
+            .parse()
+            .expect("cookie"),
+    );
+    response
+        .headers_mut()
+        .insert(header::LOCATION, "/".parse().expect("location"));
+    response
+}
+
+fn authorized(state: &DshState, headers: &HeaderMap) -> bool {
+    let session = state.session.lock().expect("session").clone();
+    let Some(session) = session else {
+        return false;
+    };
+    let Some(cookie) = headers
+        .get(header::COOKIE)
+        .and_then(|value| value.to_str().ok())
+    else {
+        return false;
+    };
+    cookie
+        .split("; ")
+        .any(|pair| pair == format!("session={session}"))
+}
+
+fn remember(state: &DshState, path: &str, headers: &HeaderMap, body: &[u8]) {
+    let mut seen = state.seen.lock().expect("seen");
+    seen.push(Seen {
+        path: path.to_string(),
+        headers: headers
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.as_str().to_string(),
+                    String::from_utf8_lossy(value.as_bytes()).into_owned(),
+                )
+            })
+            .collect(),
+        body: body.to_vec(),
+    });
+}
+
+async fn echo(State(state): State<Arc<DshState>>, headers: HeaderMap, body: Bytes) -> Response {
+    remember(&state, "/api/echo", &headers, &body);
+    if !authorized(&state, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let mut payload = b"echo:".to_vec();
+    payload.extend_from_slice(&body);
+    (StatusCode::OK, payload).into_response()
+}
+
+async fn setcookie(
+    State(state): State<Arc<DshState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    remember(&state, "/api/setcookie", &headers, &body);
+    if !authorized(&state, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let mut response = (StatusCode::OK, b"echo:".to_vec()).into_response();
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        "leaked=1; Path=/; HttpOnly".parse().expect("cookie"),
+    );
+    response
+}
+
+async fn unauthorized(
+    State(state): State<Arc<DshState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    remember(&state, "/api/unauthorized", &headers, &body);
+    if state.attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+        *state.session.lock().expect("session") = None;
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    if !authorized(&state, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let mut payload = b"echo:".to_vec();
+    payload.extend_from_slice(&body);
+    (StatusCode::OK, payload).into_response()
+}
+
+/// Always answers 401 and drops the session, so the Bridge re-exchanges the Cookie and still fails.
+async fn refuse(State(state): State<Arc<DshState>>, headers: HeaderMap, body: Bytes) -> Response {
+    remember(&state, "/api/refuse", &headers, &body);
+    *state.session.lock().expect("session") = None;
+    StatusCode::UNAUTHORIZED.into_response()
+}
+
+async fn large(State(state): State<Arc<DshState>>, headers: HeaderMap, body: Bytes) -> Response {
+    remember(&state, "/api/large", &headers, &body);
+    if !authorized(&state, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    (StatusCode::OK, "a".repeat(2 * 1024 * 1024)).into_response()
+}
+
+async fn mux(ws: WebSocketUpgrade, State(state): State<Arc<DshState>>) -> Response {
+    ws.protocols(["mux.v1"]).on_upgrade(move |socket| {
+        let state = state.clone();
+        async move { serve_mux(socket, state).await }
+    })
+}
+
+async fn serve_mux(socket: WebSocket, state: Arc<DshState>) {
+    state.opened.fetch_add(1, Ordering::SeqCst);
+    let (mut sink, mut stream) = futures_util::StreamExt::split(socket);
+    let mut tick = tokio::time::interval(Duration::from_millis(50));
+    loop {
+        tokio::select! {
+            _ = tick.tick() => {
+                if sink.send(WsMessage::Ping(Vec::new().into())).await.is_err() {
+                    break;
+                }
+            }
+            message = futures_util::StreamExt::next(&mut stream) => match message {
+                Some(Ok(WsMessage::Pong(_))) => {
+                    state.pongs.fetch_add(1, Ordering::SeqCst);
+                }
+                Some(Ok(WsMessage::Text(text))) => {
+                    let _ = sink.send(WsMessage::Text(format!("echo:{text}").into())).await;
+                }
+                Some(Ok(WsMessage::Binary(data))) => {
+                    let mut payload = b"echo:".to_vec();
+                    payload.extend_from_slice(&data);
+                    let _ = sink.send(WsMessage::Binary(payload.into())).await;
+                }
+                Some(Ok(_)) => {}
+                _ => break,
+            },
+        }
+    }
+    state.closed.fetch_add(1, Ordering::SeqCst);
+}
+
+// ---- Devices that speak the stream contract ----------------------------------------------
+
+struct Device {
+    socket: Socket,
+    transport: snow::TransportState,
+    device_id: String,
+    private: [u8; 32],
+}
+
+/// Pairs a Device through the relay and keeps the channel open, so tests can open streams on
+/// the transport the pairing left behind.
+async fn paired_device(started: &Started) -> Device {
+    let ticket = issue(&started.bridge, &started.now, started.port);
+    let private = random_key();
+    let mut socket = connect_device(started.port, &ticket.runner_id).await;
+    let state = initiator(
+        MODE_PAIR,
+        &ticket.runner_id,
+        &ticket.static_public,
+        &private,
+        Some(&ticket.psk),
+    );
+    let (handshake, payload) = exchange(
+        &mut socket,
+        state,
+        MODE_PAIR,
+        br#"{"name":"Desk","platform":"test"}"#,
+    )
+    .await
+    .expect("pair");
+    let device_id =
+        serde_json::from_slice::<serde_json::Value>(&payload).expect("json")["deviceId"]
+            .as_str()
+            .expect("device id")
+            .to_string();
+    let transport = handshake.into_transport_mode().expect("transport");
+    Device {
+        socket,
+        transport,
+        device_id,
+        private,
+    }
+}
+
+impl Device {
+    async fn send(&mut self, stream: u32, kind: u8, body: &[u8]) {
+        let plain = frames::stream(stream, kind, body);
+        let sealed = write_transport(&mut self.transport, &plain);
+        self.socket
+            .send(Message::binary(sealed))
+            .await
+            .expect("send stream frame");
+    }
+
+    async fn next(&mut self) -> (u32, u8, Vec<u8>) {
+        let PeerMsg::Binary(bytes) = next_peer(&mut self.socket).await else {
+            panic!("the relay channel closed");
+        };
+        let plain = read_transport(&mut self.transport, &bytes);
+        let (stream, kind, body) = frames::parse_stream(&plain).expect("stream frame");
+        (stream, kind, body.to_vec())
+    }
+}
+
+async fn http_response(device: &mut Device, stream: u32) -> (u16, Vec<(String, String)>, Vec<u8>) {
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (stream, HTTP_RESPONSE));
+    let head: serde_json::Value = serde_json::from_slice(&body).expect("response json");
+    let status = head["status"].as_u64().expect("status") as u16;
+    let headers = head["headers"]
+        .as_array()
+        .expect("headers")
+        .iter()
+        .map(|pair| {
+            (
+                pair[0].as_str().unwrap_or_default().to_string(),
+                pair[1].as_str().unwrap_or_default().to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut body = Vec::new();
+    loop {
+        let (id, kind, chunk) = device.next().await;
+        assert_eq!(id, stream);
+        match kind {
+            BODY => body.extend_from_slice(&chunk),
+            END => return (status, headers, body),
+            other => panic!("unexpected stream frame {other}"),
+        }
+    }
+}
+
+async fn wait_until(mut check: impl FnMut() -> bool, what: &str) {
+    for _ in 0..200 {
+        if check() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("timed out waiting for {what}");
+}
+
+fn echo_head() -> Vec<u8> {
+    serde_json::json!({ "method": "POST", "path": "/api/echo", "headers": [] })
+        .to_string()
+        .into_bytes()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http_post_round_trip_reaches_the_dsh_web() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({
+        "method": "POST",
+        "path": "/api/echo",
+        "headers": [
+            ["Cookie", "session=device-secret"],
+            ["Authorization", "Bearer device-secret"],
+            ["Origin", "http://evil.example"],
+            ["Host", "evil.example"],
+            ["X-Kept", "yes"],
+        ],
+    });
+    device
+        .send(1, HTTP_REQUEST, head.to_string().as_bytes())
+        .await;
+    device.send(1, BODY, b"hello ").await;
+    device.send(1, BODY, b"world").await;
+    device.send(1, END, b"").await;
+
+    let (status, headers, body) = http_response(&mut device, 1).await;
+    assert_eq!(status, 200);
+    assert_eq!(body, b"echo:hello world");
+    assert!(
+        headers.iter().all(|(name, _)| name != "set-cookie"),
+        "{headers:?}"
+    );
+
+    let seen = started.dsh.seen("/api/echo").expect("dsh saw the request");
+    assert_eq!(seen.body, b"hello world");
+    let header = |wanted: &str| {
+        seen.headers
+            .iter()
+            .find(|(name, _)| name == wanted)
+            .map(|(_, value)| value.as_str())
+    };
+    assert_eq!(header("x-kept"), Some("yes"));
+    assert!(
+        header("authorization").is_none(),
+        "the Device's credentials stay behind"
+    );
+    assert!(header("origin").is_none());
+    assert_eq!(
+        header("host"),
+        Some(format!("127.0.0.1:{}", started.dsh.port).as_str())
+    );
+    let cookie = header("cookie").expect("Bridge's own Cookie");
+    assert!(cookie.starts_with("session=s"), "{cookie}");
+    assert!(!cookie.contains("device-secret"));
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http_refuses_paths_and_methods_outside_the_api() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let requests = [
+        (
+            1,
+            serde_json::json!({"method": "GET", "path": "/api/echo", "headers": []}),
+        ),
+        (
+            3,
+            serde_json::json!({"method": "POST", "path": "/connect?token=x", "headers": []}),
+        ),
+        (
+            5,
+            serde_json::json!({"method": "POST", "path": "/pair", "headers": []}),
+        ),
+        (
+            7,
+            serde_json::json!({"method": "POST", "path": "//api/echo", "headers": []}),
+        ),
+    ];
+    for (stream, head) in requests {
+        device
+            .send(stream, HTTP_REQUEST, head.to_string().as_bytes())
+            .await;
+        let (id, kind, body) = device.next().await;
+        assert_eq!((id, kind), (stream, RESET));
+        assert_eq!(body, br#"{"code":"forbidden"}"#, "stream {stream}");
+    }
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http_response_carries_no_set_cookie() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"method": "POST", "path": "/api/setcookie", "headers": []});
+    device
+        .send(1, HTTP_REQUEST, head.to_string().as_bytes())
+        .await;
+    device.send(1, END, b"").await;
+    let (status, headers, body) = http_response(&mut device, 1).await;
+    assert_eq!(status, 200);
+    assert_eq!(body, b"echo:");
+    assert!(
+        headers.iter().all(|(name, _)| name != "set-cookie"),
+        "{headers:?}"
+    );
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http_reports_unavailable_when_the_cookie_keeps_failing() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"method": "POST", "path": "/api/refuse", "headers": []});
+    device
+        .send(1, HTTP_REQUEST, head.to_string().as_bytes())
+        .await;
+    device.send(1, BODY, b"no-good").await;
+    device.send(1, END, b"").await;
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (1, RESET));
+    assert_eq!(body, br#"{"code":"unavailable"}"#);
+    assert_eq!(
+        started.dsh.state.connects.load(Ordering::SeqCst),
+        2,
+        "the Bridge re-exchanged the Cookie exactly once before giving up"
+    );
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http_re_exchanges_the_cookie_after_unauthorized() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"method": "POST", "path": "/api/unauthorized", "headers": []});
+    device
+        .send(1, HTTP_REQUEST, head.to_string().as_bytes())
+        .await;
+    device.send(1, BODY, b"retry-me").await;
+    device.send(1, END, b"").await;
+
+    let (status, _, body) = http_response(&mut device, 1).await;
+    assert_eq!(status, 200, "the retried request succeeded");
+    assert_eq!(body, b"echo:retry-me");
+    assert_eq!(
+        started.dsh.state.connects.load(Ordering::SeqCst),
+        2,
+        "a 401 exchanges the Cookie exactly once more"
+    );
+    let seen = started.dsh.state.seen.lock().expect("seen");
+    let attempts = seen
+        .iter()
+        .filter(|seen| seen.path == "/api/unauthorized")
+        .collect::<Vec<_>>();
+    assert_eq!(attempts.len(), 2);
+    assert_eq!(attempts[0].body, b"retry-me");
+    assert_eq!(attempts[1].body, b"retry-me", "the body was replayed");
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ws_mux_round_trip_carries_fragments() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"path": "/api/remote.mux", "protocols": ["mux.v1"]});
+    device.send(1, WS_OPEN, head.to_string().as_bytes()).await;
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (1, WS_ACCEPT));
+    let accept: serde_json::Value = serde_json::from_slice(&body).expect("accept json");
+    assert_eq!(accept["protocol"], "mux.v1");
+
+    device.send(1, WS_TEXT, b"\x00he").await;
+    device.send(1, WS_TEXT, b"\x01llo").await;
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (1, WS_TEXT));
+    assert_eq!(body[0], 1, "the last fragment carries fin");
+    assert_eq!(&body[1..], b"echo:hello");
+
+    device.send(1, WS_BINARY, b"\x01bin").await;
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (1, WS_BINARY));
+    assert_eq!(body[0], 1);
+    assert_eq!(&body[1..], b"echo:bin");
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ws_bridge_answers_mux_pings_without_the_device() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"path": "/api/remote.mux", "protocols": []});
+    device.send(1, WS_OPEN, head.to_string().as_bytes()).await;
+    let (id, kind, _) = device.next().await;
+    assert_eq!((id, kind), (1, WS_ACCEPT));
+
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let pongs = started.dsh.state.pongs.load(Ordering::SeqCst);
+    assert!(pongs >= 2, "Bridge answered only {pongs} of dsh's pings");
+    assert_eq!(
+        started.dsh.state.closed.load(Ordering::SeqCst),
+        0,
+        "the Device sent no heartbeat and its mux must stay open"
+    );
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ws_stream_end_closes_the_loopback_mux() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"path": "/api/remote.mux", "protocols": []});
+    device.send(1, WS_OPEN, head.to_string().as_bytes()).await;
+    let (_, kind, _) = device.next().await;
+    assert_eq!(kind, WS_ACCEPT);
+    device
+        .send(1, WS_CLOSE, br#"{"code":1000,"reason":"bye"}"#)
+        .await;
+    wait_until(
+        || started.dsh.state.closed.load(Ordering::SeqCst) == 1,
+        "dsh to close the loopback mux",
+    )
+    .await;
+
+    device.send(3, WS_OPEN, head.to_string().as_bytes()).await;
+    let (_, kind, _) = device.next().await;
+    assert_eq!(kind, WS_ACCEPT);
+    device.send(3, RESET, br#"{"code":"protocol"}"#).await;
+    wait_until(
+        || started.dsh.state.closed.load(Ordering::SeqCst) == 2,
+        "a reset stream to close its loopback mux",
+    )
+    .await;
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stream_ids_must_be_odd_and_increasing() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+
+    device.send(4, HTTP_REQUEST, &echo_head()).await;
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (4, RESET));
+    assert_eq!(body, br#"{"code":"protocol"}"#);
+
+    device.send(5, BODY, b"x").await;
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (5, RESET));
+    assert_eq!(
+        body, br#"{"code":"protocol"}"#,
+        "a frame cannot open a stream"
+    );
+
+    device.send(1, HTTP_REQUEST, &echo_head()).await;
+    device.send(1, END, b"").await;
+    let (status, _, body) = http_response(&mut device, 1).await;
+    assert_eq!(status, 200);
+    assert_eq!(body, b"echo:");
+
+    device.send(1, HTTP_REQUEST, &echo_head()).await;
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (1, RESET));
+    assert_eq!(body, br#"{"code":"protocol"}"#, "a stream id is used once");
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stream_backlog_over_the_limit_resets_the_stream() {
+    use tokio::sync::mpsc::unbounded_channel;
+
+    let started = start().await;
+    let device = paired_device(&started).await;
+    let identity = started.bridge.identity().expect("identity");
+    // The same Device key, so `begin_daily` finds the paired record. Its relay channel is
+    // bypassed on purpose: the test drives a `channel::run` directly and never reads `out_rx`.
+    let mut initiator = initiator(
+        MODE_DAILY,
+        &identity.runner_id,
+        identity.static_public(),
+        &device.private,
+        None,
+    );
+    let first = write_handshake(&mut initiator, b"{}");
+    let (tx, rx) = unbounded_channel::<Inbound>();
+    let (out_tx, mut out_rx) = unbounded_channel::<OutFrame>();
+    tokio::spawn(channel::run(
+        started.bridge.clone(),
+        77,
+        tx.clone(),
+        rx,
+        out_tx,
+    ));
+
+    let mut hello = vec![MODE_DAILY];
+    hello.extend(first);
+    tx.send(Inbound::Data(hello)).expect("handshake");
+    let second = out_rx.recv().await.expect("message 2");
+    let Some(frames::RelayFrame::Data { payload, .. }) = frames::decode(&second.bytes) else {
+        panic!("message 2 arrived as {:?}", second.bytes.len());
+    };
+    let payload = read_handshake(&mut initiator, &payload);
+    assert_eq!(payload, br#"{"ok":true}"#);
+    let mut transport = initiator.into_transport_mode().expect("transport");
+
+    let head = serde_json::json!({"method": "POST", "path": "/api/large", "headers": []});
+    let request = frames::stream(1, HTTP_REQUEST, head.to_string().as_bytes());
+    tx.send(Inbound::Data(write_transport(&mut transport, &request)))
+        .expect("request");
+    let end = frames::stream(1, END, b"");
+    tx.send(Inbound::Data(write_transport(&mut transport, &end)))
+        .expect("end");
+
+    // Nothing drains these frames, so the stream's backlog grows past the contract's limit.
+    let reset = loop {
+        let frame = tokio::time::timeout(Duration::from_secs(10), out_rx.recv())
+            .await
+            .expect("the stream is reset, not left to grow")
+            .expect("frame");
+        let Some(frames::RelayFrame::Data { payload, .. }) = frames::decode(&frame.bytes) else {
+            panic!("a stream frame must be relay data");
+        };
+        let plain = read_transport(&mut transport, &payload);
+        let (id, kind, body) = frames::parse_stream(&plain).expect("stream frame");
+        assert_eq!(id, 1);
+        if kind == RESET {
+            break body.to_vec();
+        }
+    };
+    assert_eq!(reset, br#"{"code":"overloaded"}"#);
+    started.stop.store(true, Ordering::Relaxed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn revoking_a_device_closes_its_open_streams() {
+    let started = start().await;
+    let mut device = paired_device(&started).await;
+    let head = serde_json::json!({"path": "/api/remote.mux", "protocols": []});
+    device.send(1, WS_OPEN, head.to_string().as_bytes()).await;
+    let (_, kind, _) = device.next().await;
+    assert_eq!(kind, WS_ACCEPT);
+
+    started
+        .bridge
+        .revoke(&device.device_id)
+        .expect("revoke")
+        .expect("known device");
+    let (id, kind, body) = device.next().await;
+    assert_eq!((id, kind), (0, CONTROL));
+    assert_eq!(body, br#"{"type":"revoked"}"#);
+    match next_peer(&mut device.socket).await {
+        PeerMsg::Closed(code) => assert_eq!(code, 1000),
+        PeerMsg::Binary(_) => panic!("a revoked channel stays open"),
+    }
+    wait_until(
+        || started.dsh.state.closed.load(Ordering::SeqCst) == 1,
+        "revocation to close the loopback mux",
+    )
+    .await;
     started.stop.store(true, Ordering::Relaxed);
 }

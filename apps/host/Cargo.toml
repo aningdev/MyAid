@@ -7,12 +7,16 @@ publish = false
 [dependencies]
 axum = { version = "0.8", features = ["ws"] }
 base64 = "0.22.1"
+bytes = "1"
 curve25519-dalek = "5.0.0"
 data-encoding = "2.11.1"
 ed25519-dalek = "3.0.0"
 fs2 = "0.4"
 futures-util = "0.3.34"
 getrandom = "0.3"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 libc = "0.2"
 # tokio-tungstenite builds rustls with default features off, which leaves it with no crypto
 # provider. Enabling `ring` here selects one for wss.

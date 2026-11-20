@@ -5,6 +5,7 @@ use super::{
     channel::{self, Inbound},
     encode, frames,
     frames::RelayFrame,
+    outbox::OutFrame,
 };
 use crate::Result;
 use futures_util::{SinkExt, StreamExt};
@@ -74,7 +75,7 @@ async fn session(
     .map_err(|error| error.to_string())?;
     register(bridge, &mut socket).await?;
     bridge.set_link(true, None);
-    let (out_tx, mut out_rx) = unbounded_channel::<Vec<u8>>();
+    let (out_tx, mut out_rx) = unbounded_channel::<OutFrame>();
     let mut sessions: HashMap<u32, UnboundedSender<Inbound>> = HashMap::new();
     loop {
         tokio::select! {
@@ -82,9 +83,10 @@ async fn session(
             outgoing = out_rx.recv() => {
                 let Some(frame) = outgoing else { break };
                 socket
-                    .send(Message::binary(frame))
+                    .send(Message::binary(frame.bytes))
                     .await
                     .map_err(|error| error.to_string())?;
+                frame.outbox.release(frame.stream, frame.size);
             }
             incoming = socket.next() => match incoming {
                 Some(Ok(Message::Binary(bytes))) => {
@@ -161,7 +163,7 @@ fn dispatch(
     bridge: &Bridge,
     bytes: &[u8],
     sessions: &mut HashMap<u32, UnboundedSender<Inbound>>,
-    outbound: &UnboundedSender<Vec<u8>>,
+    outbound: &UnboundedSender<OutFrame>,
 ) {
     let Some(frame) = frames::decode(bytes) else {
         return;
