@@ -113,7 +113,7 @@ Device 的第一条消息是 `[u8 模式][Noise 握手消息 1]`：
 - **消息上限**：一条 WS 消息重组后最多 8 MiB（与 NSH 的单条上限相同），超过就 `RESET {"code":"overloaded"}`。
 - `WS_ACCEPT` 的 `protocol` 在 dsh 没有选定子协议时为 `null`。
 
-`RESET` 的 `code` 只有这四个，Device 一律让这条流失败：
+Bridge 发出的 `RESET` 的 `code` 只有这四个，Device 一律让这条流失败：
 
 | code          | 何时                                                            |
 | ------------- | --------------------------------------------------------------- |
@@ -121,6 +121,8 @@ Device 的第一条消息是 `[u8 模式][Noise 握手消息 1]`：
 | `protocol`    | 流号不是递增的奇数，或帧不符合本节格式                          |
 | `overloaded`  | 积压超过 1 MiB，或 WS 消息超过 8 MiB                            |
 | `unavailable` | dsh web 没有就绪，或 Bridge 重新换过 Cookie 后 dsh web 仍回 401 |
+
+Device 不再需要一条流时（请求被取消、连接被关闭），发 `RESET {"code":"cancelled"}`。Bridge 收到 Device 的 `RESET`，就关掉这条流对应的回环请求或回环 WS，不再回复。
 
 ## Bridge 的转发
 
@@ -150,7 +152,9 @@ Runner 上的 Client 经 Host 本机控制面管理配对（这些路由和其�
 
 ## Relay 地址
 
-Bridge 连接的 Relay 地址取自 `DSH_BOT_RELAY_URL`；没有设置时，用编译进 Host 的项目默认 Relay 地址。Device 用的 Relay 地址来自配对链接。
+Bridge 连接的 Relay 地址取自 `DSH_BOT_RELAY_URL`；没有设置时，用编译进 Host 的项目默认 Relay 地址。Device 用的 Relay 地址来自配对链接。Relay 地址必须是 `https`（WS 用 `wss`），只有 loopback 主机（`localhost`、`127.0.0.1`、`::1`）可以用 `http`（`ws`），供本机开发和测试；Host 解析 `DSH_BOT_RELAY_URL`、Device 解析配对链接，都按这条规则拒绝其他地址。
+
+Relay 可以自建，Device 要到配对时才知道它的主机名，所以 Client 的 NSH network 授权对任意主机开放（`"*"`）。隧道内容端到端加密，这个授权不会让 Relay 看到明文。
 
 ## Client 的 relay Carrier
 
