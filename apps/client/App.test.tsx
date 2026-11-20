@@ -1,7 +1,7 @@
 import { expect, test } from "nsh/test";
 
 import { t } from "./lib/i18n";
-import { open } from "./test/open";
+import { open, openIfSupported } from "./test/open";
 
 /** The Runner: a desktop that owns a Host, wide enough for the desktop shell. */
 const desktop = { platform: "macos" as const, width: 1100, height: 800 };
@@ -87,7 +87,11 @@ test("⌘, opens Settings, and Escape comes back", async () => {
 });
 
 test("a Device without a pairing record asks for one", async () => {
-  const app = await open("./App.tsx", { platform: "ios", width: 390, height: 844 });
+  // A phone platform is refused on `--target macos`, so the gate is asserted on
+  // the headless engine; `screens/pairing-shots.test.tsx` draws the pairing
+  // screen on the macOS target.
+  const app = await openIfSupported("./App.tsx", { platform: "ios", width: 390, height: 844 });
+  if (!app) return;
   const texts = app.texts();
   expect(texts).toContain("Connect to your Runner");
   expect(texts.some((text) => text.includes("pairing link"))).toBe(true);
