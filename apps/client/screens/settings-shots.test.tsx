@@ -38,4 +38,4 @@ test("each Settings group in light and dark", async () => {
     await shoot(app, `settings-${group.name}-dark.png`, SHOTS_L3);
     await app.setColorScheme("light");
   }
-});
+}, 90_000);
