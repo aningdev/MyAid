@@ -79,6 +79,7 @@ fn start() -> Host {
         .arg(&dsh)
         .args(["--port", "0", "--ready-stdout"])
         .env("DSH_BOT_PATCH", "")
+        .env_remove("DSH_BOT_RELAY_URL")
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -303,6 +304,74 @@ fn attach_does_not_lift_a_users_stop_and_user_start_does() {
         status == 200
             && serde_json::from_str::<serde_json::Value>(&body).unwrap()["phase"] == "ready"
     });
+}
+
+#[test]
+fn bridge_routes_reject_an_unauthenticated_caller() {
+    let host = start();
+    for (method, path) in [
+        ("GET", "/bridge/devices"),
+        ("POST", "/bridge/pairing"),
+        ("DELETE", "/bridge/devices/unknown"),
+    ] {
+        let (status, _) = request(host.port, method, path, &[], None);
+        assert_eq!(status, 401, "{method} {path} without a token");
+    }
+}
+
+#[test]
+fn a_page_origin_is_refused_on_the_bridge_device_list() {
+    let host = start();
+    let (status, _) = request(
+        host.port,
+        "GET",
+        "/bridge/devices",
+        &bearer(&host.token)
+            .into_iter()
+            .chain([("Origin", "https://example.com".to_string())])
+            .collect::<Vec<_>>(),
+        None,
+    );
+    assert_eq!(status, 403);
+}
+
+#[test]
+fn an_unconfigured_relay_is_reported_and_pairing_is_refused() {
+    let host = start();
+    let (status, body) = request(
+        host.port,
+        "GET",
+        "/bridge/devices",
+        &bearer(&host.token),
+        None,
+    );
+    assert_eq!(status, 200, "{body}");
+    let reported: serde_json::Value = serde_json::from_str(&body).expect("devices json");
+    assert_eq!(reported["devices"].as_array().map(Vec::len), Some(0));
+    assert_eq!(reported["relay"]["configured"], false);
+    assert_eq!(reported["relay"]["connected"], false);
+    let reason = reported["relay"]["reason"].as_str().expect("reason");
+    assert!(reason.contains("default-relay-url.invalid"), "{reason}");
+    assert!(!host._dir.path().join("host/bridge/identity.json").exists());
+
+    let (status, body) = request(
+        host.port,
+        "POST",
+        "/bridge/pairing",
+        &bearer(&host.token),
+        None,
+    );
+    assert_eq!(status, 409, "{body}");
+    let refused: serde_json::Value = serde_json::from_str(&body).expect("error json");
+    assert!(
+        refused["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("default-relay-url.invalid")
+    );
+
+    let (status, _) = request(host.port, "GET", "/status", &bearer(&host.token), None);
+    assert_eq!(status, 200);
 }
 
 #[test]

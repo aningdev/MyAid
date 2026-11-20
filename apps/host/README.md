@@ -14,11 +14,14 @@ Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE
 | ------------------------------------------------------ | ---------------------------------------------------- |
 | `GET /status`                                          | public lifecycle status (no login URL)               |
 | `GET /connection`                                      | the dsh login URL, only while ready                  |
-| `GET /watch`                                           | a WebSocket that pushes each changed public status   |
+| `GET /watch`                                           | a WebSocket: each changed public status, and a `bridge.devices` event when the paired list changes |
 | `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → status          |
 | `POST /dsh/stop`, `POST /dsh/restart`                  | status                                               |
 | `GET /registration`                                    | Host snapshot: `version`, `phase`, optional `reason` |
 | `POST /registration/enable`, `POST /registration/stop` | the same snapshot after the verb                     |
+| `POST /bridge/pairing`                                 | `{"link","expiresAt"}`, or 409 when no Relay is configured |
+| `GET /bridge/devices`                                  | paired Devices and the Relay link                    |
+| `DELETE /bridge/devices/{deviceId}`                    | revoke that Device; 404 when it is unknown           |
 
 ## Commands
 
@@ -37,7 +40,10 @@ Smoke the control API: `apps/host/scripts/smoke-control.mjs` (or `.sh`). Day-to-
 
 Default port `4872` (`DSH_BOT_HOST_PORT`, `--port`); default data root `~/.dsh-bot` (`DSH_BOT_HOME`). The App's launcher spawns `dsh-bot-host serve-app`, so the binary has to resolve on `PATH` (`cargo build -p dsh-bot-host` puts it in `target/debug`).
 
+## Bridge
+
+`src/bridge/` is the Runner side of the relay tunnel: registration identity, the Relay link, Noise, and paired Devices. The frame contract is [relay-tunnel](../../docs/architecture/relay-tunnel.md). `DSH_BOT_RELAY_URL` overrides the compiled placeholder `DEFAULT_RELAY_URL` in `src/bridge/mod.rs`; that placeholder is not a real address and is not dialed. Pairing and the device list are the `/bridge/*` routes above. `/watch` also sends `{"event":"bridge.devices","devices":[...]}` when that list changes. Stream 0 answers a ping; other streams are refused. This module does not forward Device traffic to dsh web.
+
 ## Known limitations
 
 - Signed-product OS registration is not proven by `cargo test`: the tests snapshot the launchd plist, the systemd unit and the Windows `Run` command without installing anything.
-- The control API carries no multi-device traffic yet; `bridge` is an empty module.
