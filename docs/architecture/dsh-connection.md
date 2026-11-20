@@ -16,7 +16,7 @@ Client 访问 dsh web 的唯一途径是 `lib/dsh` 的 Connection。它在一条
 - `components/shell/host.ts` 的 `hasHost`（桌面且非 web）说明这里跑着 Host，也就是 Runner；Connection 走 `loopback`。
 - 其余终端是 Device。`components/shell/device.ts` 读配对记录：有记录就 `createRelayCarrier` 建一个 Carrier，经 `lib/dsh/session.ts` 的 `useCarrier` 交给下一条 Connection（`connectThrough`）；没有记录就停在配对页，不建立 Connection，也不做任何 dsh 请求。
 
-配对记录只有一份 owner：`lib/carrier/relay/pairing.ts` 在 NSH Storage 里读写它，界面只读快照。
+配对记录只有一份 owner：`lib/carrier/relay/pairing.ts` 经 `DeviceStore` 在 NSH Storage 里读写它，界面只读快照。
 
 ## loopback 认证
 

@@ -1,5 +1,7 @@
 # 0009 Device 的密钥和配对记录存在数据根里
 
+已被 [0010](0010-the-device-key-lives-in-nsh-storage.md) 取代。
+
 ## Context
 
 [0008](0008-the-relay-tunnel-speaks-noise-over-a-stateless-relay.md) 把 Device 的 X25519 私钥放在 NSH Storage 里。这样一来，同一台机器上有两份 Device 数据：偏好在数据根的文件里，身份却在 NSH Storage 里，备份、迁移、排查都要分开找。NSH 没有 keychain API。lorca 是这样做的：每台机器的密钥是 `~/.lorca/machine.json` 一个文件，只有本用户能读写。
