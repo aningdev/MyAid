@@ -1,6 +1,8 @@
 // Byte helpers the relay Carrier shares: no platform APIs beyond `crypto`,
 // so the same code runs in the nsh runtime and in tests.
 
+import { sha256 } from "@noble/hashes/sha2.js";
+
 const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
 
@@ -110,6 +112,11 @@ export function base32Lower(bytes: Uint8Array): string {
   }
   if (bits > 0) out += BASE32[(buffer << (5 - bits)) & 31];
   return out;
+}
+
+/** The public id of a static key: sha256's first 20 bytes in lowercase base32. */
+export function publicId(publicKey: Uint8Array): string {
+  return base32Lower(sha256(publicKey).slice(0, 20));
 }
 
 export function utf8Encode(text: string): Uint8Array {

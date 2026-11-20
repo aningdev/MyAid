@@ -19,7 +19,9 @@ export type RelayErrorCode =
   | "protocol"
   | "unavailable"
   | "ping-timeout"
-  | "closed";
+  | "closed"
+  | "invalid-identity"
+  | "invalid-pairing";
 
 /** A typed relay failure; `closeCode` is the relay's WS close code when it had one. */
 export class RelayError extends Error {
@@ -62,6 +64,8 @@ const MESSAGES: Record<RelayErrorCode, string> = {
   unavailable: "The Runner cannot reach dsh web.",
   "ping-timeout": "The Runner stopped answering.",
   closed: "The connection to the Runner closed.",
+  "invalid-identity": "The stored Device key is damaged.",
+  "invalid-pairing": "The stored pairing is damaged.",
 };
 
 /** The typed failure for a relay close code, or `closed` for 1000 and unknown codes. */
