@@ -7,7 +7,7 @@
  * new snapshot and a revision greater than the one before it.
  */
 import type { Context } from "@deepseek-ai/cordis";
-import { Remote, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
+import { Remote, RemoteError, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 
 import type {
   DerivedPresetDeriveRequest,
@@ -27,6 +27,8 @@ import {
   deleteTemplate,
   importTemplates,
   initializeBot,
+  MAIN_BOT_ID,
+  presetForBot,
   releaseSegment,
   renameSegment,
   unarchiveBot,
@@ -36,6 +38,30 @@ import {
 } from "./registry.ts";
 import type { BotInput, BotPatch, TemplateInput, TemplatePatch } from "./registry.ts";
 import { BotsRegistryStore, type BotsSnapshot } from "./store.ts";
+
+declare module "@deepseek-ai/cordis" {
+  interface Context {
+    bots: BotsService;
+  }
+}
+
+/** One Bot another product plugin may hand work to. */
+export type BotRoute = {
+  id: string;
+  name: string;
+  description: string | null;
+  /** The Bot's effective dsh Agent preset: its own edits, else its template's. */
+  presetId: string;
+  defaultModel: string | null;
+  defaultThinking: string | null;
+  workspacePath: string | null;
+};
+
+/** The ready Bots plus the Main Bot, as routing decisions need them. */
+export type BotsRouting = {
+  mainBot: { id: string; name: string; presetId: string };
+  bots: BotRoute[];
+};
 
 export type BotsServiceOptions = {
   dataDir: string;
@@ -199,6 +225,46 @@ export class BotsService extends TypertRemoteService {
   async discardPreset(presetId: string): Promise<DerivedPresetRemoveResult> {
     await this.ready;
     return this.presets.remove(presetId);
+  }
+
+  /**
+   * Ready, unarchived Bots plus the Main Bot, with the preset each one runs.
+   * Other product plugins route work through this instead of reading the file.
+   */
+  async routing(): Promise<BotsRouting> {
+    await this.ready;
+    const { registry } = await this.store.snapshot();
+    const main = registry.bots.find((bot) => bot.id === MAIN_BOT_ID);
+    if (main === undefined) {
+      throw new RemoteError("bots/not-found", `缺少 ${MAIN_BOT_ID}。`, {
+        kind: "bot",
+        id: MAIN_BOT_ID,
+      });
+    }
+    return {
+      mainBot: { id: main.id, name: main.name, presetId: presetForBot(registry, main.id) },
+      bots: registry.bots
+        .filter((bot) => bot.status === "ready" && !bot.archived)
+        .map((bot) => ({
+          id: bot.id,
+          name: bot.name,
+          description: bot.description,
+          presetId: presetForBot(registry, bot.id),
+          defaultModel: bot.defaultModel,
+          defaultThinking: bot.defaultThinking,
+          workspacePath: bot.defaultWorkspacePath,
+        })),
+    };
+  }
+
+  /** The Bot whose Dialogue owns one Session, or null when no Bot does. */
+  async botForSession(sessionId: string): Promise<string | null> {
+    await this.ready;
+    const { registry } = await this.store.snapshot();
+    const owner = registry.bots.find((bot) =>
+      bot.segments.some((segment) => segment.sessionId === sessionId),
+    );
+    return owner?.id ?? null;
   }
 
   private async change(change: (registry: BotRegistry) => BotRegistry): Promise<BotsSnapshot> {

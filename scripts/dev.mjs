@@ -400,15 +400,24 @@ async function sweepStaleHost() {
 }
 
 /**
- * Build the bots plugin and point the app at it through an overlay patch.
+ * Build the workspace plugins and point the app at them through an overlay patch.
  * @returns the patch file inside the worktree.
  */
 async function prepareOverlay() {
-  await completed(run("bun", ["x", "vp", "run", "dsh-bots#build"]), "构建 dsh-bots 失败");
+  const plugins = ["bots", "tickets"];
+  for (const plugin of plugins) {
+    await completed(
+      run("bun", ["x", "vp", "run", `dsh-${plugin}#build`]),
+      `构建 dsh-${plugin} 失败`,
+    );
+  }
   mkdirSync(DEV_DIR, { recursive: true });
-  const patch = join(DEV_DIR, "bots.patch.yml");
-  const entry = pathToFileURL(join(root, "packages/bots/lib/index.js")).href;
-  writeFileSync(patch, `- insert:\n    - id: bots\n      name: ${JSON.stringify(entry)}\n`);
+  const patch = join(DEV_DIR, "plugins.patch.yml");
+  const inserted = plugins.map((plugin) => {
+    const entry = pathToFileURL(join(root, "packages", plugin, "lib/index.js")).href;
+    return `    - id: ${plugin}\n      name: ${JSON.stringify(entry)}\n`;
+  });
+  writeFileSync(patch, `- insert:\n${inserted.join("")}`);
   return patch;
 }
 
