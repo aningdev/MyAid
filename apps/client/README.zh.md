@@ -78,6 +78,16 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 
 `components/shell/commands.ts` 是键盘、应用菜单与命令面板共用的唯一命令表。`components/shell/attention.ts` 把不在前台的段的回复结束或新审批变成系统通知（说的是 Bot 名）与 Dock badge；点通知把那个 Bot 开进 Pane。
 
+## Carrier
+
+`lib/dsh` 只通过 `installConnection` 的 Carrier seam（`streamBaseUrl`、`fetch`、`createWebSocket`）访问 dsh。`lib/carrier/relay/` 是 Relay Carrier 的 Device 一侧；wire 契约只在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)。
+
+- `noise.ts`：Noise IK（日常）与 IKpsk1（配对）握手状态，发起方与响应方。
+- `pairing.ts`：配对链接解析、Device 静态密钥、唯一一份配对记录，以及 `pairDevice` 的配对握手。
+- `tunnel.ts`：一条 Relay WebSocket——模式字节、握手、`[流号][类型][正文]` 帧、保活与关闭码。
+- `carrier.ts`：跑在这条隧道上的 HTTP 与 WebSocket 流：`fetch`（响应体流式）与 EventTarget 形状的 socket。隧道断开时进行中的流全部失败；重连归官方 connection。
+- `bytes.ts` / `errors.ts`：共享编码与带 code 的错误。
+
 ## 数据
 
 - Ticket 与 Attention：`tickets` 插件拥有它们；Client 经 `tickets` Remote 读一份快照（先 `snapshot`，再订阅 `watch`），也经它写回答与取消（[`features/tickets/state.ts`](features/tickets/state.ts)）。快照是 Device 上唯一的副本；Ticket 的 Session 不写进 Bot 注册表。

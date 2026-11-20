@@ -79,6 +79,16 @@ vp run @dsh-bot/client#package:web      # also package:windows / linux / gpui / 
 
 `components/shell/commands.ts` is the one command table behind the keyboard, the application menu and the palette. `components/shell/attention.ts` turns a finished reply or a new approval in an unwatched Session into a system notification (the Bot's name) and a Dock badge; pressing it opens that Bot's Pane.
 
+## Carrier
+
+`lib/dsh` reaches dsh only through the Carrier seam `installConnection` takes: `streamBaseUrl`, `fetch` and `createWebSocket`. `lib/carrier/relay/` is the Device half of the Relay carrier; the wire contract lives in [relay-tunnel](../../docs/architecture/relay-tunnel.md).
+
+- `noise.ts` — Noise IK (daily) and IKpsk1 (pairing) handshake states, initiator and responder.
+- `pairing.ts` — pairing-link parsing, the Device's static key, the one pairing record, and the `pairDevice` handshake.
+- `tunnel.ts` — one Relay WebSocket: mode byte, handshake, `[stream][type][body]` frames, keepalive and close codes.
+- `carrier.ts` — HTTP and WebSocket streams over that tunnel: `fetch` with a streamed response body, and an EventTarget socket. A dropped tunnel fails every stream in flight; reconnecting belongs to the official connection.
+- `bytes.ts` / `errors.ts` — shared encodings and typed errors.
+
 ## Data
 
 - Tickets and Attentions: the `tickets` plugin owns them; the Client reads one snapshot through the `tickets` Remote (`snapshot`, then `watch`) and writes answers and cancellations through it ([`features/tickets/state.ts`](features/tickets/state.ts)). The snapshot is the only copy on the Device; no Ticket Session is written into the Bot registry.
