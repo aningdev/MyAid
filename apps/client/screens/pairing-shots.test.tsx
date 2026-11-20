@@ -14,7 +14,7 @@ import { PAIRING_SHOT_KEY } from "./pairing-harness";
 import { graphical, shoot } from "./shots";
 
 /** Pictures for this batch live with the handoff, beside its summary. */
-const SHOTS = new URL("../../../.handoff/shots", import.meta.url).pathname;
+const SHOTS = "../../.handoff/shots";
 
 test("pairing entry, refused link and removed notice", async () => {
   const desktop = await open("./pairing-harness.tsx", {
