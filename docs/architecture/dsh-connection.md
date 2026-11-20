@@ -6,10 +6,10 @@ Client 访问 dsh web 的唯一途径是 `lib/dsh` 的 Connection。它在一条
 
 官方 `installConnection(ctx, options)` 支持由外层提供载体：Carrier 提供 `fetch`、`createWebSocket` 和 `streamBaseUrl`，其余逻辑（Remote 一元调用、`/api/remote.mux` 事件流、重连、generation 切换）都归官方。
 
-| Adapter    | 用在哪             | 认证                                                                                                                                                                                                          |
-| ---------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `loopback` | Runner 上的 Client | Host 给出登录 URL，Client 自己用 `/connect` 换 Cookie（见下文）                                                                                                                                               |
-| `relay`    | 其他 Device        | Device 不持有 dsh 凭据：请求和 WebSocket 帧端到端加密后经 Relay 交给 Bridge，Bridge 用它自己的 Cookie 访问回环（[0003](../decisions/0003-every-device-reaches-the-runner-through-a-zero-knowledge-relay.md)） |
+| Adapter    | 用在哪             | 认证                                                                                                                                              |
+| ---------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `loopback` | Runner 上的 Client | Host 给出登录 URL，Client 自己用 `/connect` 换 Cookie（见下文）                                                                                   |
+| `relay`    | 其他 Device        | Device 不持有 dsh 凭据：请求和 WebSocket 帧端到端加密后经 Relay 交给 Bridge，Bridge 用它自己的 Cookie 访问回环（[relay-tunnel](relay-tunnel.md)） |
 
 ## loopback 认证
 

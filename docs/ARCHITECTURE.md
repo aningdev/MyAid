@@ -75,13 +75,13 @@ references/          只读的上游源码，不参与构建
 
 ## 数据归属
 
-| 数据                                         | 归谁                                 | 访问方式                                                                      |
-| -------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
-| Session、Workspace、设置、凭据、Agent preset | dsh                                  | 官方 Remote 和 client model（`ctx.sessions` / `ctx.workspaces`）              |
-| Registry、Main Bot                           | `bots` 插件，存在 `$DSH_BOT_HOME`    | `bots` Remote（[0004](decisions/0004-the-registry-lives-in-a-dsh-plugin.md)） |
-| Ticket、Attention                            | `tickets` 插件，存在 `$DSH_BOT_HOME` | `tickets` Remote                                                              |
-| 配对的公钥                                   | Host 的 Bridge，存在数据根下         | Runner 上的本机控制面                                                         |
-| Pin、Pane 布局、主题、语言                   | 各 Device 自己                       | Device 偏好存储                                                               |
+| 数据                                         | 归谁                                 | 访问方式                                                                         |
+| -------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------- |
+| Session、Workspace、设置、凭据、Agent preset | dsh                                  | 官方 Remote 和 client model（`ctx.sessions` / `ctx.workspaces`）                 |
+| Registry、Main Bot                           | `bots` 插件，存在 `$DSH_BOT_HOME`    | `bots` Remote（[0004](decisions/0004-the-registry-lives-in-a-dsh-plugin.md)）    |
+| Ticket、Attention                            | `tickets` 插件，存在 `$DSH_BOT_HOME` | `tickets` Remote                                                                 |
+| 配对的公钥                                   | Host 的 Bridge，存在数据根下         | Runner 上的本机控制面（[relay-tunnel](architecture/relay-tunnel.md#配对与撤销)） |
+| Pin、Pane 布局、主题、语言                   | 各 Device 自己                       | Device 偏好存储                                                                  |
 
 Runner 的数据根是 `$DSH_BOT_HOME`（默认 `~/.dsh-bot`）。Host 启动 dsh web 时把它作为 dsh 的 `DSH_HOME` 传入，所以 dsh 和本仓插件的数据都在这里；`DSH_HOME` 只出现在这一个交接点，本仓其余文档和代码都用 `DSH_BOT_HOME`。隔离开发用 `~/.dsh-bot-dev/<name>`。
 
@@ -98,6 +98,7 @@ dsh 的版本只写在三个地方：根 `package.json` 的 `workspaces.catalog`
 
 ## Subjects
 
-| 文档                                             | 主题                                                          |
-| ------------------------------------------------ | ------------------------------------------------------------- |
-| [dsh-connection](architecture/dsh-connection.md) | Client 怎样认证并连到 dsh web：Cookie、mux、能力授权、Carrier |
+| 文档                                             | 主题                                                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| [dsh-connection](architecture/dsh-connection.md) | Client 怎样认证并连到 dsh web：Cookie、mux、能力授权、Carrier                          |
+| [relay-tunnel](architecture/relay-tunnel.md)     | 其他 Device 怎样经 Relay 到达 Bridge：密钥、Relay 协议、Noise 握手、流复用、配对与撤销 |
