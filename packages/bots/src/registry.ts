@@ -1,6 +1,6 @@
 /**
  * The product Registry: Bots, their templates, and each Bot's one long
- * conversation as segments. Pure data and pure writes; the file, its revision
+ * Dialogue as segments. Pure data and pure writes; the file, its revision
  * and the watchers live in `store.ts`.
  */
 import { RemoteError } from "@deepseek-ai/dsh-typert-protocol";
@@ -89,7 +89,7 @@ export const botSchema = z.object({
   derivedPresetId: z.string().nullable(),
   archived: z.boolean(),
   identity: botIdentitySchema,
-  /** The Bot's one long conversation, oldest segment first. */
+  /** The Bot's Dialogue, oldest segment first. */
   segments: z.array(segmentSchema),
 });
 

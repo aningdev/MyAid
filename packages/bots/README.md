@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Owns the product Registry — every Bot, its identity mark, its one long conversation as segments, and the templates a new Bot can start from — plus the Main Bot and the writable half of Bot Agent presets. Every Device reads and writes the single copy through the `bots` Remote.
+Owns the product Registry — every Bot, its identity mark, its Dialogue as segments, and the templates a new Bot can start from — plus the Main Bot and the writable half of Bot Agent presets. Every Device reads and writes the single copy through the `bots` Remote.
 
 Decision: [0004](../../docs/decisions/0004-the-registry-lives-in-a-dsh-plugin.md). Terms: [GLOSSARY](../../docs/GLOSSARY.md). Plugin rules: [packages/AGENTS.md](../AGENTS.md).
 
