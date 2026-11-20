@@ -3,7 +3,7 @@
 
 import { expect, test } from "nsh/test";
 
-import { publicId } from "./bytes";
+import { publicId, randomBytes } from "./bytes";
 import { createRelayCarrier, type RelayCarrier, type RelaySocket } from "./carrier";
 import { RelayError } from "./errors";
 import { generateKeyPair, type KeyPair } from "./noise";
@@ -46,7 +46,7 @@ function setup(
   const identity = generateKeyPair();
   const pairing: Pairing = {
     relayUrl: "http://relay.test",
-    runnerId: publicId(runner.publicKey),
+    runnerId: publicId(randomBytes(32)),
     runnerKey: runner.publicKey,
     deviceId: publicId(identity.publicKey),
   };

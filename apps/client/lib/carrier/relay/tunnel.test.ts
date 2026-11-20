@@ -32,7 +32,7 @@ function setup(
 ) {
   const runner = generateKeyPair();
   const identity = generateKeyPair();
-  const runnerId = publicId(runner.publicKey);
+  const runnerId = publicId(randomBytes(32));
   const deviceId = publicId(identity.publicKey);
   const psk = randomBytes(32);
   const relay = new FakeRelay({ mode, runner, runnerId, deviceId, psk, ...options });

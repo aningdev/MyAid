@@ -85,7 +85,6 @@ export function parsePairingLink(
     throw relayError("invalid-link");
   }
   if (runnerKey.length !== 32 || psk.length !== 32) throw relayError("invalid-link");
-  if (publicId(runnerKey) !== runnerId) throw relayError("invalid-link");
 
   const expires = single("e");
   if (!/^\d{1,10}$/.test(expires)) throw relayError("invalid-link");
@@ -183,8 +182,7 @@ export async function loadPairing(storage: StorageLike = Storage): Promise<Pairi
   } catch {
     throw relayError("invalid-pairing");
   }
-  if (origin !== relayUrl || key.length !== 32 || publicId(key) !== runnerId)
-    throw relayError("invalid-pairing");
+  if (origin !== relayUrl || key.length !== 32) throw relayError("invalid-pairing");
 
   return { relayUrl, runnerId, runnerKey: key, deviceId };
 }

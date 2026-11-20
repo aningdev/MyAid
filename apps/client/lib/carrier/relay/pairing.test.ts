@@ -1,6 +1,6 @@
 import { expect, test } from "nsh/test";
 
-import { b64urlEncode, publicId } from "./bytes";
+import { b64urlEncode, publicId, randomBytes } from "./bytes";
 import { relayError } from "./errors";
 import { RelayError } from "./errors";
 import { generateKeyPair, type KeyPair } from "./noise";
@@ -38,12 +38,14 @@ class FakeStorage implements StorageLike {
 function pairingLink(options: { version?: string; expiresAt?: number; runnerId?: string } = {}): {
   link: string;
   runner: KeyPair;
+  runnerId: string;
   runnerKey: Uint8Array;
   psk: Uint8Array;
 } {
   const runner = generateKeyPair();
   const psk = generateKeyPair().privateKey;
-  const runnerId = options.runnerId ?? publicId(runner.publicKey);
+  // A real runner id derives from the Runner's registration key, which is not its Noise key.
+  const runnerId = options.runnerId ?? publicId(randomBytes(32));
   const params = [
     `v=${options.version ?? "1"}`,
     `r=${runnerId}`,
@@ -54,6 +56,7 @@ function pairingLink(options: { version?: string; expiresAt?: number; runnerId?:
   return {
     link: `https://relay.example.com/pair#${params.join("&")}`,
     runner,
+    runnerId,
     runnerKey: runner.publicKey,
     psk,
   };
@@ -69,13 +72,19 @@ function codeOf(run: () => unknown): string {
 }
 
 test("a pairing link yields the relay, runner and psk", () => {
-  const { link, runnerKey, psk } = pairingLink();
+  const { link, runnerId, runnerKey, psk } = pairingLink();
   const invite = parsePairingLink(link, now);
   expect(invite.relayUrl).toBe("https://relay.example.com");
-  expect(invite.runnerId).toBe(publicId(runnerKey));
+  expect(invite.runnerId).toBe(runnerId);
   expect(invite.runnerKey).toEqual(runnerKey);
   expect(invite.psk).toEqual(psk);
   expect(invite.expiresAt).toBe(now + 60);
+});
+
+test("the runner id is taken as given, not derived from the runner key", () => {
+  const { link, runnerId, runnerKey } = pairingLink();
+  expect(runnerId).not.toBe(publicId(runnerKey));
+  expect(parsePairingLink(link, now).runnerId).toBe(runnerId);
 });
 
 test("a link keeps a non-default relay port", () => {
@@ -92,7 +101,7 @@ test("a malformed pairing link is invalid", () => {
     pairingLink({ version: "2" }).link,
     pairingLink().link.replace("v=1", "v=1&v=1"),
     pairingLink().link.replace(/k=[^&]+/, "k=AAAA"),
-    pairingLink({ runnerId: "a".repeat(32) }).link,
+    pairingLink({ runnerId: "A".repeat(32) }).link,
   ];
   for (const link of cases) {
     expect(codeOf(() => parsePairingLink(link, now))).toBe("invalid-link");
@@ -127,10 +136,10 @@ test("a damaged device key is reported, not replaced", async () => {
 test("a pairing round-trips through storage and can be cleared", async () => {
   const storage = new FakeStorage();
   const identity = await loadDeviceIdentity(storage);
-  const { runnerKey } = pairingLink();
+  const { runnerId, runnerKey } = pairingLink();
   const pairing = {
     relayUrl: "https://relay.example.com",
-    runnerId: publicId(runnerKey),
+    runnerId,
     runnerKey,
     deviceId: identity.id,
   };
@@ -164,12 +173,12 @@ async function failure(promise: Promise<unknown>): Promise<RelayError> {
 
 test("pairing with a Runner stores the record once the handshake completes", async () => {
   const storage = new FakeStorage();
-  const { link, runner, psk } = pairingLink();
+  const { link, runner, runnerId, psk } = pairingLink();
   const identity = await loadDeviceIdentity(storage);
   const relay = new FakeRelay({
     mode: "pair",
     runner,
-    runnerId: publicId(runner.publicKey),
+    runnerId,
     deviceId: identity.id,
     psk,
   });
@@ -183,7 +192,7 @@ test("pairing with a Runner stores the record once the handshake completes", asy
   });
   expect(result.pairing.deviceId).toBe(identity.id);
   expect(await loadPairing(storage)).toMatchObject({
-    runnerId: publicId(runner.publicKey),
+    runnerId,
     deviceId: identity.id,
   });
   result.tunnel.close();
@@ -192,12 +201,12 @@ test("pairing with a Runner stores the record once the handshake completes", asy
 
 test("a rejected pairing leaves no record", async () => {
   const storage = new FakeStorage();
-  const { link, runner } = pairingLink();
+  const { link, runner, runnerId } = pairingLink();
   const identity = await loadDeviceIdentity(storage);
   const relay = new FakeRelay({
     mode: "pair",
     runner,
-    runnerId: publicId(runner.publicKey),
+    runnerId,
     deviceId: identity.id,
     psk: generateKeyPair().privateKey,
     rejectCloseCode: 4010,
