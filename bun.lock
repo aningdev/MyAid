@@ -142,6 +142,7 @@
       "name": "@dsh-bot/e2e",
       "version": "0.1.0",
       "devDependencies": {
+        "@deepseek-ai/dsh-llm-mock-server": "catalog:",
         "@dsh-bot/client": "workspace:*",
         "@types/node": "catalog:",
         "@types/ws": "^8.18.1",
@@ -171,6 +172,7 @@
     "@deepseek-ai/dsh-host-directory-picker": "0.2.2-rc.5",
     "@deepseek-ai/dsh-host-plugin-inventory": "0.2.2-rc.5",
     "@deepseek-ai/dsh-llm": "0.2.2-rc.5",
+    "@deepseek-ai/dsh-llm-mock-server": "0.2.2-rc.5",
     "@deepseek-ai/dsh-plugin-manager": "0.2.2-rc.5",
     "@deepseek-ai/dsh-plugin-market": "0.2.2-rc.5",
     "@deepseek-ai/dsh-session": "0.2.2-rc.5",
@@ -281,6 +283,8 @@
     "@deepseek-ai/dsh-launch-environment": ["@deepseek-ai/dsh-launch-environment@0.2.2-rc.5", "", { "peerDependencies": { "@deepseek-ai/cordis": "~4.1.0" } }, "sha512-6oNclqwW4z8x6Z3S+WtoE7n3Nxx9lv86VYtbRRkRersTMqepSx30nvWW1M6BoHEdvSoZsd9G9+iGp/jOoWfs9A=="],
 
     "@deepseek-ai/dsh-llm": ["@deepseek-ai/dsh-llm@0.2.2-rc.5", "", { "dependencies": { "@deepseek-ai/dsh-brand": "0.2.2-rc.5", "@deepseek-ai/dsh-timeout": "0.2.2-rc.5", "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.5", "@deepseek-ai/dsh-util-crypto": "0.2.2-rc.5", "@deepseek-ai/dsh-util-values": "0.2.2-rc.5", "@deepseek-ai/schemastery": "~3.19.0", "zod": "4.6.6" }, "peerDependencies": { "@deepseek-ai/cordis": "~4.1.0", "@deepseek-ai/dsh-error": "0.2.2-rc.5" } }, "sha512-zT/KCq/lQ5H/wqOaZH8sa6Uq+9x8du1w4MvbbCgdsK3JA2kxh0T5GEcWcvIvU5s7h0L43tnOV7Df5hZNZ+Sj0A=="],
+
+    "@deepseek-ai/dsh-llm-mock-server": ["@deepseek-ai/dsh-llm-mock-server@0.2.2-rc.5", "", { "peerDependencies": { "@deepseek-ai/cordis": "~4.1.0" } }, "sha512-Ih9SjkuO3xnM0v8kxIkIWliUtKI9hTz9CyZZI8TVwV4IHQwE3NyzYlP4Gh+jhRZ/78IKuxsNFiATWagCfasVKQ=="],
 
     "@deepseek-ai/dsh-native-command": ["@deepseek-ai/dsh-native-command@0.2.2-rc.5", "", { "peerDependencies": { "@deepseek-ai/cordis": "~4.1.0" } }, "sha512-+98bS64J2wksKiAgBLvTDtqAiHCCSLgvfm0ZopMC77NMD+HepmXnyjOWucV34JkGttNDg2SdlZTay6nTUwCbTA=="],
 

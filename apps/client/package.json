@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./relay": "./lib/carrier/relay/index.ts"
+    "./relay": "./lib/carrier/relay/index.ts",
+    "./dsh": "./lib/dsh/index.ts"
   },
   "scripts": {
     "prepare:sdk": "bun ./scripts/prepare-sdk.mjs",

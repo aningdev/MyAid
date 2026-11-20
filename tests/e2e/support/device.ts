@@ -1,6 +1,7 @@
 // The Device side of a case: an in-memory Storage and the Client's real relay
 // Carrier. Nothing here speaks Noise itself.
 
+import { Connection, liveBots, liveTickets } from "@dsh-bot/client/dsh";
 import {
   createRelayCarrier,
   loadDeviceIdentity,
@@ -10,7 +11,7 @@ import {
   type StorageLike,
 } from "@dsh-bot/client/relay";
 
-import type { Stack } from "./harness";
+import type { Plumbing } from "./harness";
 
 export function memoryStorage(): StorageLike & { readonly values: Map<string, string> } {
   const values = new Map<string, string>();
@@ -32,7 +33,7 @@ export interface Device {
 }
 
 /** Pairs a new Device through the Host's control surface and opens its Carrier. */
-export async function pairedDevice(stack: Stack, name: string): Promise<Device> {
+export async function pairedDevice(stack: Plumbing, name: string): Promise<Device> {
   const answer = (await (await stack.host("/bridge/pairing", { method: "POST" })).json()) as {
     link: string;
   };
@@ -57,4 +58,40 @@ export async function pairedDevice(stack: Stack, name: string): Promise<Device> 
     revoked,
     url: (path) => new URL(path, carrier.streamBaseUrl).href,
   };
+}
+
+/** A paired Device with the Client's own Connection to dsh, through its Carrier. */
+export interface ConnectedDevice extends Device {
+  readonly connection: Connection;
+  readonly bots: ReturnType<typeof liveBots>;
+  readonly tickets: ReturnType<typeof liveTickets>;
+  close(): Promise<void>;
+}
+
+export async function connectedDevice(stack: Plumbing, name: string): Promise<ConnectedDevice> {
+  const device = await pairedDevice(stack, name);
+  const connection = new Connection();
+  await connection.connectThrough(device.carrier);
+  return {
+    ...device,
+    connection,
+    bots: liveBots(connection.botsNamespace()),
+    tickets: liveTickets(connection.ticketsNamespace()),
+    async close() {
+      await connection.dispose();
+      device.carrier.close();
+    },
+  };
+}
+
+/** A Session the way a chat panel holds it: retained, ready, with the official face to prompt. */
+export async function openSession(device: ConnectedDevice, sessionId: string) {
+  const reference = device.connection.sessions.retain(
+    sessionId as never,
+    {
+      source: "panel",
+    } as never,
+  );
+  await reference.ready;
+  return { session: reference.binding.session, release: () => reference.release() };
 }
