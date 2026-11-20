@@ -45,8 +45,7 @@ fn init_logging() {
         .try_init();
 }
 
-const USAGE: &str =
-    "Usage: dsh-bot-relay serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH]";
+const USAGE: &str = "Usage: dsh-bot-relay serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH] [--trusted-proxy IP]";
 
 fn main() {
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
