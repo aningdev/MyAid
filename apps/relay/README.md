@@ -40,7 +40,7 @@ The Relay allocates the channel number; it is unique within one Runner link only
 | 4002 | replaced         | the same runner registered a newer link                                                                                                           |
 | 4003 | overloaded       | one direction queued more than 1 MiB, or one message exceeded 65 600 bytes (channel header included, so a Device message is at most 65 595 bytes) |
 | 4004 | bad-auth         | registration failed: bad `hello`, protocol or signature                                                                                           |
-| 4005 | too-many         | the runner already has 64 channels, or the source IP exceeded its rate                                                                            |
+| 4005 | too-many         | the runner already has 64 channels, or the client IP exceeded its rate                                                                            |
 | 4006 | idle             | the Device sent no first message within 10 seconds                                                                                                |
 | 4010 | pairing-rejected | sent by the Bridge: the pairing handshake was refused                                                                                             |
 | 4011 | handshake-failed | sent by the Bridge: unknown mode byte, or its first message failed                                                                                |
@@ -66,9 +66,53 @@ cargo test -p dsh-bot-relay --features frame-tap
 
 `--frame-tap PATH` appends every relayed binary frame as one JSON line — `{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}` — which is how the end-to-end test proves the Relay only ever sees ciphertext. The flag exists only in builds with the `frame-tap` feature, so a release build cannot record frames at all; the second `cargo test` line above turns it on for the test that reads the file back.
 
+## Deploy
+
+[`deploy/deploy.sh`](deploy/deploy.sh) puts the Relay on a VPS with one command; running it again upgrades.
+
+### Before you start
+
+| You need     | Requirement                                                                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A VPS        | Debian or Ubuntu, x86_64 or arm64, systemd; SSH as root or as a user with sudo. 512 MB of memory is enough                                                                      |
+| A domain     | An A record (plus AAAA with IPv6) pointing at the VPS. On Cloudflare make it DNS only (grey cloud): Caddy obtains the certificate itself and long-lived WebSockets skip the CDN |
+| Ports        | 80 and 443 open to the internet (cloud security groups included) and not held by another program                                                                                |
+| This machine | A checkout of this repository, `rustup`, `cargo` and `ssh`. No Docker or cross toolchain                                                                                        |
+
+### One command
+
+```sh
+apps/relay/deploy/deploy.sh <ssh-target> <domain>
+# e.g. apps/relay/deploy/deploy.sh root@203.0.113.7 relay.example.com
+```
+
+`<ssh-target>` can be a Host alias from `~/.ssh/config`. The script builds a static musl binary for the VPS's CPU on this machine (linked by Rust's own `rust-lld`), uploads it with [`deploy/install.sh`](deploy/install.sh) and runs that as root on the VPS, which:
+
+1. checks that the domain resolves to the machine and that 80/443 are free;
+2. installs Caddy from Caddy's official apt repository when it is missing;
+3. installs `/usr/local/bin/dsh-bot-relay` and the systemd service `dsh-bot-relay`: `DynamicUser`, listening on `127.0.0.1:8787` only, `--trusted-proxy 127.0.0.1`;
+4. writes `/etc/caddy/dsh-bot-relay.caddy` and imports it into the Caddyfile, so Caddy obtains and renews the certificate;
+5. opens 80/443 when ufw is active;
+6. waits until `https://<domain>/v1/health` answers.
+
+Behind NAT, where the public IP is not on an interface, add `--skip-dns-check`.
+
+### Afterwards
+
+- **Point a Runner at it**: set `DSH_BOT_RELAY_URL=https://<domain>` for the Host. Not needed for the project's default Relay.
+- **Upgrade**: pull and run the same command. The restart drops every tunnel; Runners and Devices reconnect.
+- **Troubleshoot**: `curl https://<domain>/v1/health`; on the VPS, `journalctl -u dsh-bot-relay -u caddy -n 50`.
+- **Remove** (on the VPS; Caddy stays):
+
+```sh
+systemctl disable --now dsh-bot-relay
+rm /etc/systemd/system/dsh-bot-relay.service /usr/local/bin/dsh-bot-relay /etc/caddy/dsh-bot-relay.caddy
+sed -i '\|^import /etc/caddy/dsh-bot-relay.caddy$|d' /etc/caddy/Caddyfile && systemctl reload caddy
+```
+
 ## Known limitations
 
 - It does not host the web Client. A browser reaches a Runner through its own transport, not this process.
 - All state is in memory: a restart drops registrations and channels, and Devices reconnect.
-- No persistence, no metrics endpoint, no per-owner accounting, no TLS termination of its own — deploy it behind a reverse proxy when it is public.
+- No persistence, no metrics endpoint, no per-owner accounting, no TLS termination of its own — deploy it behind a reverse proxy when it is public (see [Deploy](#deploy)).
 - The connection rate limit counts each client IP in memory. Behind a reverse proxy, pass that proxy's address with `--trusted-proxy` (a loopback Caddy is `127.0.0.1`) so the Relay takes the client from `X-Forwarded-For`. Without it, every Device shares the proxy's one limit.

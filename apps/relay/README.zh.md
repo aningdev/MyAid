@@ -40,7 +40,7 @@ Relay 先发文本帧 `{"type":"challenge","nonce":"<32 个随机字节，base64
 | 4002   | replaced         | 同一个 runner 有了新的登记连接                                                                       |
 | 4003   | overloaded       | 某个方向积压超过 1 MiB，或者单条消息超过 65 600 字节（含通道头，所以 Device 的消息最多 65 595 字节） |
 | 4004   | bad-auth         | 登记失败：`hello` 不对、协议版本不对或验签不过                                                       |
-| 4005   | too-many         | 这个 runner 已有 64 条通道，或者来源 IP 超过了连接速率限制                                           |
+| 4005   | too-many         | 这个 runner 已有 64 条通道，或者客户端 IP 超过了连接速率限制                                         |
 | 4006   | idle             | Device 连上后 10 秒内没有发出第一条消息                                                              |
 | 4010   | pairing-rejected | 由 Bridge 发出：配对握手被拒                                                                         |
 | 4011   | handshake-failed | 由 Bridge 发出：模式字节未知，或日常握手的第 1 条解不开                                              |
@@ -66,9 +66,53 @@ cargo test -p dsh-bot-relay --features frame-tap
 
 `--frame-tap PATH` 把每一帧转发的二进制帧追加成一行 JSON——`{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}`——端到端测试靠它证明 Relay 只见过密文。这个 flag 只存在于启用 `frame-tap` feature 的构建里，release 构建根本无法录制；上面第二条 `cargo test` 会打开它跑那个读文件的用例。
 
+## 部署
+
+[`deploy/deploy.sh`](deploy/deploy.sh) 一条命令把 Relay 部署到一台 VPS 上，重跑一次就是升级。
+
+### 前提
+
+| 需要 | 要求                                                                                                                                      |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| VPS  | Debian 或 Ubuntu，x86_64 或 arm64，systemd；能用 SSH 以 root 或带 sudo 的用户登录。512 MB 内存就够                                        |
+| 域名 | 一条 A 记录（有 IPv6 再加 AAAA）指向这台 VPS。用 Cloudflare 时设成「仅 DNS」（灰云）：证书由 Caddy 直接签发，WebSocket 长连接也不经过 CDN |
+| 端口 | 80 和 443 对公网开放（包括云厂商的安全组），且没被别的程序占用                                                                            |
+| 本机 | 本仓的检出、`rustup`、`cargo`、`ssh`。不需要 Docker 或交叉编译工具链                                                                      |
+
+### 一条命令
+
+```sh
+apps/relay/deploy/deploy.sh <ssh-target> <domain>
+# 例：apps/relay/deploy/deploy.sh root@203.0.113.7 relay.example.com
+```
+
+`<ssh-target>` 也可以是 `~/.ssh/config` 里的 Host 别名。脚本在本机按 VPS 的 CPU 编出 musl 静态二进制（用 Rust 自带的 `rust-lld` 链接），连同 [`deploy/install.sh`](deploy/install.sh) 上传，在 VPS 上以 root 运行：
+
+1. 检查域名已经解析到这台机器，且 80/443 空闲；
+2. 没有 Caddy 时从 Caddy 官方 apt 源安装；
+3. 安装 `/usr/local/bin/dsh-bot-relay` 和 systemd 服务 `dsh-bot-relay`：`DynamicUser`，只监听 `127.0.0.1:8787`，`--trusted-proxy 127.0.0.1`；
+4. 写 `/etc/caddy/dsh-bot-relay.caddy` 并 import 进 Caddyfile，由 Caddy 自动签发、续期证书；
+5. ufw 开着时放行 80/443；
+6. 等到 `https://<domain>/v1/health` 有回答为止。
+
+在 NAT 后面、公网 IP 不在网卡上的机器，加 `--skip-dns-check`。
+
+### 之后
+
+- **让 Runner 用它**：Host 的环境变量设 `DSH_BOT_RELAY_URL=https://<domain>`。用项目默认 Relay 时不用设。
+- **升级**：拉取新代码后重跑同一条命令。服务重启会断开所有隧道，Runner 和 Device 会自动重连。
+- **排查**：`curl https://<domain>/v1/health`；在 VPS 上看 `journalctl -u dsh-bot-relay -u caddy -n 50`。
+- **卸载**（在 VPS 上，Caddy 保留）：
+
+```sh
+systemctl disable --now dsh-bot-relay
+rm /etc/systemd/system/dsh-bot-relay.service /usr/local/bin/dsh-bot-relay /etc/caddy/dsh-bot-relay.caddy
+sed -i '\|^import /etc/caddy/dsh-bot-relay.caddy$|d' /etc/caddy/Caddyfile && systemctl reload caddy
+```
+
 ## Known limitations
 
 - 不托管 web 版 Client。浏览器经它自己的通道到 Runner，不经过本进程。
 - 状态全在内存：重启后登记和通道都没了，Device 重连。
-- 没有持久化、没有 metrics 入口、没有按 Owner 计费，也不自己做 TLS——公网部署时放在反向代理后面。
+- 没有持久化、没有 metrics 入口、没有按 Owner 计费，也不自己做 TLS——公网部署时放在反向代理后面（见[部署](#部署)）。
 - 连接速率限制按客户端 IP 在内存里计数。放在反向代理后面时，用 `--trusted-proxy` 标出代理地址（本机 Caddy 是 `127.0.0.1`），Relay 才从 `X-Forwarded-For` 取客户端；不标的话，所有 Device 共用代理的那一个限额。

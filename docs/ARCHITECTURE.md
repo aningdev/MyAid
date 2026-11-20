@@ -50,7 +50,7 @@ apps/
     lib/             dsh/（Connection）· carrier/（loopback · relay）· host/（仅 Runner：控制面、launcher）· i18n/
     screens/         open(…) 入口、截图和真 Host 冒烟
   host/              Rust：dsh_process/ · local_api/ · service/（OS 登记）· bridge/（Relay 链路、配对、转发）
-  relay/             Rust：配对会合、密文帧转发
+  relay/             Rust：配对会合、密文帧转发 · deploy/（一键部署到 VPS）
 packages/
   bots/              Registry 和 Main Bot（Remote `bots`）
   tickets/           Ticket、Attention、`sources` 服务（Remote `tickets`）

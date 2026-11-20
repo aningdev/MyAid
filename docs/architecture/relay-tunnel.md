@@ -69,7 +69,7 @@ Relay 只有三个入口，全都不需要存储：
 | 4002   | replaced         | 同一个 runner 有了新的登记连接                                                                       |
 | 4003   | overloaded       | 某个方向积压超过 1 MiB，或者单条消息超过 65 600 字节（含通道头，所以 Device 的消息最多 65 595 字节） |
 | 4004   | bad-auth         | Runner 登记失败                                                                                      |
-| 4005   | too-many         | 一个 runner 已经有 64 条通道，或者来源 IP 超过了连接速率限制                                         |
+| 4005   | too-many         | 一个 runner 已经有 64 条通道，或者客户端 IP 超过了连接速率限制                                       |
 | 4006   | idle             | Device 连上后 10 秒内没有发出第一条消息                                                              |
 | 4010   | pairing-rejected | 由 Bridge 发出：配对握手被拒（见「握手」）                                                           |
 | 4011   | handshake-failed | 由 Bridge 发出：模式字节未知，或日常握手的第 1 条解不开                                              |
