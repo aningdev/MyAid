@@ -11,11 +11,11 @@ mod state;
 use crate::{Config, Result, Status};
 pub use guardian::run as run_guardian;
 use lifecycle::DshProcess;
+use state::ProcessState;
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicU64, Ordering},
 };
-use state::ProcessState;
 
 /// Serializes lifecycle mutations; snapshots remain readable during a slow start.
 #[derive(Clone)]

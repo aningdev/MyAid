@@ -150,10 +150,9 @@ mod tests {
             ok: bool,
         }
 
-        let fixture: Fixture = serde_json::from_str(include_str!(
-            "../../testdata/host-contract-cases.json"
-        ))
-        .expect("fixture json");
+        let fixture: Fixture =
+            serde_json::from_str(include_str!("../../testdata/host-contract-cases.json"))
+                .expect("fixture json");
 
         for case in fixture.cases {
             let result = match case.kind.as_str() {

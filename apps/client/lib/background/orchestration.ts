@@ -1,27 +1,20 @@
 import { t } from "../i18n";
-import {
-  mergeProductRegistration,
-  type ProductBackgroundRegistration,
-  type RegistrationSnapshot,
-  type UnitRegistration,
-} from "./protocol";
+import { type RegistrationSnapshot } from "./protocol";
 
 export type BackgroundRegistrationClient = {
-  side: "host" | "relay";
   reachable(): Promise<boolean>;
   registrationQuery(): Promise<RegistrationSnapshot>;
-  registrationEnable(): Promise<UnitRegistration>;
-  registrationStop(): Promise<UnitRegistration>;
+  registrationEnable(): Promise<RegistrationSnapshot>;
+  registrationStop(): Promise<RegistrationSnapshot>;
 };
 
 export type BackgroundOrchestration = {
   host: BackgroundRegistrationClient;
-  relay: BackgroundRegistrationClient;
 };
 
-export type ProductBackgroundView = ProductBackgroundRegistration & {
-  /** Per-unit enable errors after user enable; empty when query-only. */
-  enableErrors?: Partial<Record<"host" | "relay", string>>;
+export type ProductBackgroundView = RegistrationSnapshot & {
+  /** Set when the user's enable failed; absent on a query. */
+  enableError?: string;
 };
 
 let orchestration: BackgroundOrchestration | null = null;
@@ -37,50 +30,29 @@ function deps(): BackgroundOrchestration {
   return orchestration;
 }
 
-async function queryBoth(): Promise<ProductBackgroundRegistration> {
-  const { host, relay } = deps();
-  const [fromHost, fromRelay] = await Promise.all([
-    host.registrationQuery(),
-    relay.registrationQuery(),
-  ]);
-  return mergeProductRegistration(fromHost, fromRelay);
+async function queryHost(): Promise<RegistrationSnapshot> {
+  return deps().host.registrationQuery();
 }
 
 export async function queryProductBackground(): Promise<ProductBackgroundView> {
-  return queryBoth();
+  return queryHost();
 }
 
-async function tryRegistrationEnable(
-  client: BackgroundRegistrationClient,
-): Promise<string | undefined> {
-  try {
-    await client.registrationEnable();
-    return undefined;
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
-/** User enable: orchestrate Host and Relay registration independently (ADR-0002). */
+/** User enable: ask the Host to register, and keep the failure beside the snapshot. */
 export async function enableProductBackground(): Promise<ProductBackgroundView> {
-  const { host, relay } = deps();
-  const [hostError, relayError] = await Promise.all([
-    tryRegistrationEnable(host),
-    tryRegistrationEnable(relay),
-  ]);
-  const view = await queryBoth();
-  const enableErrors: ProductBackgroundView["enableErrors"] = {};
-  if (hostError) enableErrors.host = hostError;
-  if (relayError) enableErrors.relay = relayError;
-  return Object.keys(enableErrors).length ? { ...view, enableErrors } : view;
+  const { host } = deps();
+  let enableError: string | undefined;
+  try {
+    await host.registrationEnable();
+  } catch (error) {
+    enableError = error instanceof Error ? error.message : String(error);
+  }
+  const view = await queryHost();
+  return enableError ? { ...view, enableError } : view;
 }
 
-/** Stop product Background: registration stop on both units only — not Registry or sessions. */
+/** Withdraw the Host's OS registration. Does not touch the Registry or Sessions. */
 export async function stopProductBackground(): Promise<ProductBackgroundView> {
-  const { host, relay } = deps();
-  await Promise.all([
-    host.registrationStop().catch(() => undefined),
-    relay.registrationStop().catch(() => undefined),
-  ]);
-  return queryBoth();
+  await deps().host.registrationStop().catch(() => undefined);
+  return queryHost();
 }

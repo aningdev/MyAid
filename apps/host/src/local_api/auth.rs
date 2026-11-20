@@ -21,7 +21,10 @@ pub fn token(config: &Config) -> Result<String> {
     }
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(|error| error.to_string())?;
-    let token = bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+    let token = bytes
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
     let mut file = private_file(&config.serve_token_path())?;
     file.set_len(0).map_err(|error| error.to_string())?;
     file.write_all(token.as_bytes())
@@ -46,12 +49,9 @@ pub fn check_caller(headers: &HeaderMap, port: u16) -> std::result::Result<(), &
         .get(header::HOST)
         .and_then(|host| host.to_str().ok())
         .unwrap_or_default();
-    if ![
-        format!("127.0.0.1:{port}"),
-        format!("localhost:{port}"),
-    ]
-    .iter()
-    .any(|local| host.eq_ignore_ascii_case(local))
+    if ![format!("127.0.0.1:{port}"), format!("localhost:{port}")]
+        .iter()
+        .any(|local| host.eq_ignore_ascii_case(local))
     {
         return Err("its Host is not this port on loopback");
     }

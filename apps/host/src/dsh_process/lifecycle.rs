@@ -45,7 +45,10 @@ impl DshProcess {
         Self::with_launcher(config, Box::new(GuardianLauncher))
     }
 
-    pub(super) fn with_launcher(config: Config, launcher: Box<dyn ProcessLauncher>) -> Result<Self> {
+    pub(super) fn with_launcher(
+        config: Config,
+        launcher: Box<dyn ProcessLauncher>,
+    ) -> Result<Self> {
         let mut durable = Durable::load(&config)?;
         let recover = durable.user_started && !durable.stopped && !durable.exhausted;
         if recover {
@@ -149,17 +152,11 @@ impl DshProcess {
             if self.state.lock().unwrap().phase == "ready" {
                 return Ok(());
             }
-            if self
-                .running
-                .as_mut()
-                .unwrap()
-                .child
-                .try_wait()?
-                .is_some()
-            {
+            if self.running.as_mut().unwrap().child.try_wait()?.is_some() {
                 let reason = self.state.lock().unwrap().reason.clone();
-                return Err(reason
-                    .unwrap_or_else(|| "dsh 启动前退出；请检查安装、版本与受限日志".into()));
+                return Err(
+                    reason.unwrap_or_else(|| "dsh 启动前退出；请检查安装、版本与受限日志".into())
+                );
             }
             if Instant::now() >= deadline {
                 return Err("dsh ready 超时".into());
@@ -278,14 +275,7 @@ impl DshProcess {
             if let Err(error) = self.drain() {
                 return self.failure(error);
             }
-            if self
-                .running
-                .as_mut()
-                .unwrap()
-                .child
-                .try_wait()?
-                .is_some()
-            {
+            if self.running.as_mut().unwrap().child.try_wait()?.is_some() {
                 self.failure("dsh 意外退出".into())?;
             }
         }
@@ -315,9 +305,7 @@ mod tests {
     };
     use std::time::Duration;
 
-    fn test_env(
-        launcher: Box<dyn ProcessLauncher>,
-    ) -> (tempfile::TempDir, DshProcess) {
+    fn test_env(launcher: Box<dyn ProcessLauncher>) -> (tempfile::TempDir, DshProcess) {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().to_path_buf();
         let config = Config {

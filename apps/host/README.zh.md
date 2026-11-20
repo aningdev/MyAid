@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-dsh-bot 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh` 进程生命周期，并在 `127.0.0.1:4872` 提供回环控制 API——Client 自己启动它、探活它、订阅它。OS 登记归本单元的 `service` 模块（launchd / systemd / Windows `Run` 键），共用的启动计划在 [`dsh-bot-service`](../../crates/dsh-bot-service/README.zh.md)。
+dsh-bot 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh` 进程生命周期，并在 `127.0.0.1:4872` 提供回环控制 API——Client 自己启动它、探活它、订阅它。OS 登记在本单元的 `service` 模块（`src/service/`：launchd、systemd、Windows `Run` 键）。登记快照只描述 Host。
 
 约束：[AGENTS.md](AGENTS.md)。请读 [ARCHITECTURE](../../docs/ARCHITECTURE.md)、[0006](../../docs/decisions/0006-host-is-the-only-background-service.md)、[0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)。
 
@@ -17,8 +17,8 @@ dsh-bot 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh
 | `GET /watch`                                           | WebSocket，推送每次变化的公开相位         |
 | `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → 相位 |
 | `POST /dsh/stop`、`POST /dsh/restart`                  | 相位                                      |
-| `GET /registration`                                    | 本单元的登记事实                          |
-| `POST /registration/enable`、`POST /registration/stop` | 本单元的登记动词                          |
+| `GET /registration`                                    | Host 的登记快照：`version`、`phase`、可选 `reason` |
+| `POST /registration/enable`、`POST /registration/stop` | 动词执行后的同一份快照                              |
 
 ## 命令
 

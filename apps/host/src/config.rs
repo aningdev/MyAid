@@ -224,9 +224,10 @@ fn patches_from_env() -> Result<Vec<PathBuf>> {
 /// `DSH_BOT_HOST_PORT`, else [`DEFAULT_PORT`].
 fn port_from_env() -> Result<u16> {
     match std::env::var("DSH_BOT_HOST_PORT") {
-        Ok(text) if !text.trim().is_empty() => {
-            text.trim().parse::<u16>().map_err(|_| "Invalid port".into())
-        }
+        Ok(text) if !text.trim().is_empty() => text
+            .trim()
+            .parse::<u16>()
+            .map_err(|_| "Invalid port".into()),
         _ => Ok(DEFAULT_PORT),
     }
 }
@@ -234,8 +235,5 @@ fn port_from_env() -> Result<u16> {
 fn pinned_version() -> Result<String> {
     let pin: serde_json::Value =
         serde_json::from_str(SUPPORTED_DSH).map_err(|_| "无效发行版配置")?;
-    Ok(pin["version"]
-        .as_str()
-        .ok_or("缺少发行版版本")?
-        .to_owned())
+    Ok(pin["version"].as_str().ok_or("缺少发行版版本")?.to_owned())
 }

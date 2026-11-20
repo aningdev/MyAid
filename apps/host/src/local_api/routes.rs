@@ -4,7 +4,11 @@ use super::{
     Status, assert_connection_info, assert_public_status,
     auth::{check_caller, check_token, matches},
 };
-use crate::{Result, dsh_process::Lifecycle, service::Registration};
+use crate::{
+    Result,
+    dsh_process::Lifecycle,
+    service::{Registration, RegistrationSnapshot},
+};
 use axum::{
     Json, Router,
     extract::{
@@ -16,7 +20,6 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use dsh_bot_service::RegistrationSnapshot;
 use serde::Deserialize;
 use std::{sync::Arc, sync::atomic::AtomicBool};
 
@@ -55,7 +58,12 @@ async fn index() -> &'static str {
 }
 
 /// A refusal is the caller's, not the Host's: 403 for a page or another host, 401 for no token.
-async fn authorize(State(api): State<Api>, headers: HeaderMap, request: axum::extract::Request, next: Next) -> Response {
+async fn authorize(
+    State(api): State<Api>,
+    headers: HeaderMap,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
     if let Err(reason) = check_caller(&headers, api.port) {
         // Debug: a page can send these as often as it likes.
         tracing::debug!(path = %request.uri().path(), "refused a request: {reason}");
@@ -107,7 +115,11 @@ async fn connection(State(api): State<Api>) -> Response {
     .await;
     match result {
         Ok(info) => Json(info).into_response(),
-        Err(error) => (StatusCode::CONFLICT, Json(serde_json::json!({ "error": error }))).into_response(),
+        Err(error) => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "error": error })),
+        )
+            .into_response(),
     }
 }
 
@@ -161,7 +173,7 @@ async fn registration_snapshot(State(api): State<Api>) -> Json<RegistrationSnaps
 async fn registration_enable(State(api): State<Api>) -> Response {
     let registration = api.registration.clone();
     match blocking(move || registration.enable()).await {
-        Ok(unit) => Json(unit).into_response(),
+        Ok(snapshot) => Json(snapshot).into_response(),
         Err(error) => failed(error),
     }
 }
@@ -169,7 +181,7 @@ async fn registration_enable(State(api): State<Api>) -> Response {
 async fn registration_stop(State(api): State<Api>) -> Response {
     let registration = api.registration.clone();
     match blocking(move || registration.stop()).await {
-        Ok(unit) => Json(unit).into_response(),
+        Ok(snapshot) => Json(snapshot).into_response(),
         Err(error) => failed(error),
     }
 }
@@ -213,7 +225,11 @@ async fn stream(mut socket: WebSocket, api: Api) {
             Err(_) => break,
         };
         if encoded != previous {
-            if socket.send(Message::Text(encoded.clone().into())).await.is_err() {
+            if socket
+                .send(Message::Text(encoded.clone().into()))
+                .await
+                .is_err()
+            {
                 break;
             }
             previous = encoded;

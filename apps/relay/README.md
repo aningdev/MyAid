@@ -2,25 +2,23 @@
 
 English | [中文](README.zh.md)
 
-The resident Relay process, laid out after lorca's `crates/relay`: `config.rs` (paths, port, logging), `routes.rs` (the local control API), `run.rs` (bind, token, graceful stop) and `service.rs` (this unit's OS registration). `GET /` answers `dsh-bot-relay` and `GET /v1/health` answers the version and protocol, both without a token; `/registration*` takes the data root's `relay/serve-token`.
+Public zero-knowledge Relay. It will meet Devices for Pairing and forward ciphertext frames without decrypting them. Pairing and forwarding are not implemented; this process only serves `GET /` (`dsh-bot-relay`) and `GET /v1/health` (service, version, protocol, uptime).
 
-Encrypted frame forwarding, identity keys and pairing are **not built yet**: mobile is not in this round, and the shape follows lorca when it starts ([0006](../../docs/decisions/0006-host-is-the-only-background-service.md)). It never decrypts payloads, holds owner credentials, or replaces Host Bridge authorization.
+It is not a Background Service: no OS registration on any Device, no data root, and no `DSH_BOT_HOME`. It does not hold Owner credentials or replace the Host's Bridge.
 
-Constraints: [AGENTS.md](AGENTS.md). Architecture §7 / Bridge–Relay: [ARCHITECTURE](../../docs/ARCHITECTURE.md), [0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md). Shared launch plan: [`dsh-bot-service`](../../crates/dsh-bot-service/README.md).
+Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE.md), [0003](../../docs/decisions/0003-every-device-reaches-the-runner-through-a-zero-knowledge-relay.md), [0006](../../docs/decisions/0006-host-is-the-only-background-service.md).
 
 ## Commands
 
 ```sh
-cargo run -p dsh-bot-relay -- serve-app --port 8787
-cargo run -p dsh-bot-relay -- serve --data-root PATH [--port N]
-cargo run -p dsh-bot-relay -- service install|uninstall|status
+cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout]
 cargo check -p dsh-bot-relay
 cargo test -p dsh-bot-relay
 ```
 
-Default port `8787` (`DSH_BOT_RELAY_PORT`), data root `~/.dsh-bot` (`DSH_BOT_HOME`), log level `RUST_LOG`.
+`--bind` is an IP address, default `127.0.0.1`. `--port` defaults to `8787`. Log level is `RUST_LOG`.
 
 ## Known limitations
 
-- No store, no identity, no pairing and no forwarding yet; there is deliberately no database until forwarding starts.
-- OS registration is snapshotted in tests and never installed by them.
+- Pairing, identity keys and encrypted forwarding are not built, and there is no store.
+- Nothing here registers with launchd, systemd, or the Windows `Run` key.
