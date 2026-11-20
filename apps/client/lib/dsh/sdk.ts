@@ -7,6 +7,7 @@ export { default as sessionRemote } from "@deepseek-ai/dsh-api-session-controlle
 export { default as llmRemote } from "@deepseek-ai/dsh-llm/remote";
 export { default as agentPresetsRemote } from "@deepseek-ai/dsh-agent-preset-registry/remote";
 export { default as botsRemote } from "dsh-bots/remote";
+export { default as ticketsRemote } from "dsh-tickets/remote";
 export { default as workspaceRemote } from "@deepseek-ai/dsh-api-workspace-controller/remote";
 export { default as settingsRemote } from "@deepseek-ai/dsh-api-settings-controller/remote";
 export { default as fileUploadsRemote } from "@deepseek-ai/dsh-client-file-upload/remote";

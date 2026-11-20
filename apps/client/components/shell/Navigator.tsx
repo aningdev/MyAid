@@ -1,4 +1,4 @@
-import { Plus, Search, X } from "lucide";
+import { Inbox, Plus, Search, X } from "lucide";
 /**
  * Navigator: the flat Bot list under its search field.
  *
@@ -14,9 +14,12 @@ import { Shortcut } from "../../components/app";
 import { BotMark } from "../../features/bots/BotMark";
 import { openNewBot } from "../../features/bots/newBot";
 import { registry, unarchiveBot } from "../../features/bots/state";
+import { openAttentionInbox } from "../../features/tickets/board";
+import { pendingAttentions } from "../../features/tickets/state";
 import { t, tCount } from "../../lib/i18n";
 import { Icon } from "../../lib/icons";
 import { hovered, radius } from "../../lib/theme";
+import { Badge } from "../ui/badge";
 import { buttonGlyph } from "../ui/button";
 import {
   InputGroup,
@@ -85,6 +88,31 @@ export function Navigator() {
             </InputGroupAddon>
           </If>
         </InputGroup>
+      </View>
+      <View style={{ paddingHorizontal: 6, paddingBottom: 4 }}>
+        <Pressable
+          testID="nav-attention"
+          accessibilityLabel={t("nav.needsYou")}
+          onPress={openAttentionInbox}
+          style={{
+            minHeight: platform.idiom === "desktop" ? 30 : 44,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            paddingHorizontal: 8,
+            borderRadius: radius.control,
+          }}
+          hoverStyle={{ backgroundColor: token("accent") }}
+          activeStyle={{ opacity: 0.7 }}
+        >
+          <Icon icon={Inbox} size={14} tint={token("muted-foreground")} />
+          <Text style={{ flex: 1, fontSize: 13, color: token("foreground") }}>
+            {t("nav.needsYou")}
+          </Text>
+          <Badge tone={pendingAttentions().length > 0 ? "warn" : "neutral"}>
+            {String(pendingAttentions().length)}
+          </Badge>
+        </Pressable>
       </View>
       <Scroll style={{ flex: 1 }} contentStyle={{ paddingHorizontal: 6, paddingBottom: 6 }}>
         <If when={botRows().pinned.length > 0}>

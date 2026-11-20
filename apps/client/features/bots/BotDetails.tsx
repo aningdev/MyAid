@@ -349,7 +349,7 @@ function Body(props: { botId: string; onClose: () => void }) {
     const current = bot();
     if (!current) return;
     const next = archived ? await archiveBot(current.id) : await unarchiveBot(current.id);
-    if (next && archived) props.onClose();
+    if (next) props.onClose();
   };
 
   const chooseWorkspace = async (): Promise<void> => {

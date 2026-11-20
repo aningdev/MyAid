@@ -65,6 +65,7 @@ import {
   sessionRemote,
   settingsRemote,
   subagentsRemote,
+  ticketsRemote,
   workspaceRemote,
 } from "./sdk.js";
 import { AuthenticatedSocket } from "./socket";
@@ -434,6 +435,7 @@ export class Connection {
       await ctx.remote.$mount(sessionRemote);
       await ctx.remote.$mount(agentPresetsRemote);
       await ctx.remote.$mount(botsRemote);
+      await ctx.remote.$mount(ticketsRemote);
       await ctx.remote.$mount(workspaceRemote);
       await ctx.remote.$mount(settingsRemote);
       await ctx.remote.$mount(llmRemote);
@@ -575,6 +577,11 @@ export class Connection {
   /** The mounted `bots` namespace (Registry snapshot, watch, and writes). */
   botsNamespace(): import("./bots-gateway").BotsNamespace {
     return this.remote.bots as import("./bots-gateway").BotsNamespace;
+  }
+
+  /** The mounted `tickets` namespace (snapshot, watch, answer and cancel). */
+  ticketsNamespace(): import("./tickets-gateway").TicketsNamespace {
+    return this.remote.tickets as import("./tickets-gateway").TicketsNamespace;
   }
 
   async modelCatalog(): Promise<FlatModelCatalog> {

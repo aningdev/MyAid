@@ -19,6 +19,7 @@ import type { BotPresetRecord } from "@dsh-bot/dsh-web-protocol/bots";
 import type { ISessions } from "@dsh-bot/dsh-web-protocol/client";
 import type { ApprovalOutcome } from "@dsh-bot/dsh-web-protocol/interaction";
 import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
+import type { TicketsSnapshot } from "@dsh-bot/dsh-web-protocol/tickets";
 ```
 
 优先用**领域子路径**。根入口把同样的模块再导出为**命名空间**别名（`Client`、`Session`、`Llm` …）以避免跨域同名冲突；稳定导入风格仍是子路径。
@@ -39,6 +40,7 @@ import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
 | `/interaction` | user-questions、user-approval                                                                                             |
 | `/plugins`     | plugin-manager、plugin-market、plugin-inventory、plugin-manager 的 Remote 类型                                            |
 | `/bots`        | `dsh-bots` 的 Registry 与派生 preset DTO —— 不依赖 dsh                                                                    |
+| `/tickets`     | `dsh-tickets` 的 Ticket、Attention、Source、Trigger 线协议 DTO —— 不依赖 dsh                                              |
 
 **不在这里：** 产品还没调用的 Remote —— account、analytics、commands、gateway / connection、feedback、goals、jobs、terminal、schedule、subagent、uploads、docs、preset registry、access。要加一个域，连同第一个调用方一起加：先在 `references/deepseek-harness` 读上游面，加子路径，把它再导出的包按 `"catalog:"` 写进本包 `package.json`，再在 Client 里 `$mount` 该 Remote。
 
@@ -68,7 +70,7 @@ import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
 
 ## Client 挂载现状（`lib/dsh/connection.ts`）
 
-`Connection.connect` 常驻挂载：`session`（含 `skills` / `fileReferences`）、`agentPresets`、`bots`（`dsh-bots/remote`）、`directoryPicker`（经 workspace-controller）、`settings`（含 `credentials`）、`fileUploads`、`pluginManager`、`pluginInventory`、`commands`。
+`Connection.connect` 常驻挂载：`session`（含 `skills` / `fileReferences`）、`agentPresets`、`bots`（`dsh-bots/remote`）、`tickets`（`dsh-tickets/remote`）、`directoryPicker`（经 workspace-controller）、`settings`（含 `credentials`）、`fileUploads`、`pluginManager`、`pluginInventory`、`commands`。
 
 对话提示词接受 `PromptContentPart`（文本 / 图片 / 文件回执）。图片走内联 image part；非图片文件由 `fileUploads.upload` 暂存；`session.attachment` 读回持久图片。
 

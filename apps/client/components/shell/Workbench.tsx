@@ -1,5 +1,7 @@
 import { Text, View, token } from "nsh";
 
+import { ticketBoard } from "../../features/tickets/board";
+import { TicketBoard } from "../../features/tickets/TicketBoard";
 import { t } from "../../lib/i18n";
 import { alpha } from "../../lib/theme";
 import { DockArea, type DockAreaRef, type DockPanel } from "../ui/dock-area";
@@ -48,6 +50,20 @@ export function Workbench() {
           </View>
         )}
       />
+      <If when={ticketBoard()}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: token("background"),
+          }}
+        >
+          <TicketBoard />
+        </View>
+      </If>
       <If when={settingsOpen()}>
         <View
           style={{
