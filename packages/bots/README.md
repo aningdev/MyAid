@@ -63,7 +63,7 @@ vp run dsh-bots#test
 vp run dsh-bots#check
 ```
 
-`scripts/dev.mjs` builds this package and adds its row to the development overlay (`bots.patch.yml`).
+`scripts/dev.mjs` builds this package and adds its row to the development overlay (`plugins.patch.yml`).
 
 ## Known limitations
 

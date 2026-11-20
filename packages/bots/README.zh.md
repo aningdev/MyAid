@@ -63,7 +63,7 @@ vp run dsh-bots#test
 vp run dsh-bots#check
 ```
 
-`scripts/dev.mjs` 会构建本包并把它的行加入开发 overlay（`bots.patch.yml`）。
+`scripts/dev.mjs` 会构建本包并把它的行加入开发 overlay（`plugins.patch.yml`）。
 
 ## 已知限制
 

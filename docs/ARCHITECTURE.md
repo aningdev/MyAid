@@ -38,7 +38,7 @@ flowchart TB
 - **lib/dsh** 只通过 Carrier 访问 dsh web，不知道自己走的是 loopback 还是 relay。`lib/host` 只在 Runner 上装载。
 - **Host** 只管进程和连接：dsh web 的生命周期、本机控制面、OS 登记和 Bridge。它不调用任何业务 Remote，Bridge 只负责鉴权之后的转发。
 - **Relay** 只负责配对会合和转发密文帧，不解密，也不含业务逻辑。配对和转发尚未实现，目前只有 `serve`、`GET /` 和 `GET /v1/health`。
-- **插件**只依赖 dsh 的公开服务（`ctx.get`），插件之间只通过声明的服务互相调用。Source 插件依赖 `tickets` 提供的 `sources` 服务。
+- **插件**只依赖 dsh 的公开服务（`ctx.get`），插件之间只通过声明的服务互相调用。Source 插件将依赖 `tickets` 提供的 `sources` 服务；Source 注册尚未实现。
 
 ## Layout
 
@@ -53,7 +53,7 @@ apps/
   relay/             Rust：配对会合、密文帧转发
 packages/
   bots/              Registry 和 Main Bot（Remote `bots`）
-  tickets/           Ticket、Attention、Source 注册面（Remote `tickets`，服务 `sources`）
+  tickets/           Ticket、Attention（Remote `tickets`）；Source 注册面尚未实现
   source-<kind>/     一个 Source 一个插件，例如 source-feishu、source-github
   dsh-web-protocol/  只给 Client 用的官方 Remote 类型再导出，插件不能依赖它
 scripts/             根编排：dev.mjs（唯一的 dev 入口）、dsh 版本检查、文档检查
@@ -68,20 +68,20 @@ references/          只读的上游源码，不参与构建
 | Seam            | 接口                                                                                 | Adapters                                                                                 |
 | --------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | Carrier         | 给官方 `installConnection` 注入的 `fetch` 和 `createWebSocket`，外加 `streamBaseUrl` | `loopback`（Runner 上的 Client，用 Cookie 直连）· `relay`（其他 Device，端到端加密隧道） |
-| Source          | `sources` 服务：注册一种 Source，交付 Trigger，经 Channel 写回                       | `source-feishu` · `source-github` · 测试用 fake                                          |
+| Source          | `sources` 服务：注册一种 Source，交付 Trigger，经 Channel 写回（尚未实现）           | `source-feishu` · `source-github` · 测试用 fake                                          |
 | OS 登记         | Host 的 `service` 模块：生成并执行登记计划                                           | launchd · systemd · Windows Run 键加监督器 · 测试只生成快照                              |
 | dsh 子进程      | Host 的 `ChildHandle`                                                                | 真实进程 · 测试用 fake                                                                   |
 | Device 偏好存储 | Client 偏好的读写                                                                    | 桌面写数据根下的文件 · 移动端和 web 用 NSH Storage                                       |
 
 ## 数据归属
 
-| 数据                                         | 归谁                                               | 访问方式                                                                      |
-| -------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Session、Workspace、设置、凭据、Agent preset | dsh                                                | 官方 Remote 和 client model（`ctx.sessions` / `ctx.workspaces`）              |
-| Registry、Main Bot                           | `bots` 插件，存在 `$DSH_BOT_HOME`                  | `bots` Remote（[0004](decisions/0004-the-registry-lives-in-a-dsh-plugin.md)） |
-| Ticket、Attention、Source 配置和读取位置     | `tickets` 和 `source-*` 插件，存在 `$DSH_BOT_HOME` | `tickets` Remote                                                              |
-| 配对的公钥                                   | Host 的 Bridge，存在数据根下                       | Runner 上的本机控制面                                                         |
-| Pin、Pane 布局、主题、语言                   | 各 Device 自己                                     | Device 偏好存储                                                               |
+| 数据                                         | 归谁                                 | 访问方式                                                                      |
+| -------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
+| Session、Workspace、设置、凭据、Agent preset | dsh                                  | 官方 Remote 和 client model（`ctx.sessions` / `ctx.workspaces`）              |
+| Registry、Main Bot                           | `bots` 插件，存在 `$DSH_BOT_HOME`    | `bots` Remote（[0004](decisions/0004-the-registry-lives-in-a-dsh-plugin.md)） |
+| Ticket、Attention                            | `tickets` 插件，存在 `$DSH_BOT_HOME` | `tickets` Remote                                                              |
+| 配对的公钥                                   | Host 的 Bridge，存在数据根下         | Runner 上的本机控制面                                                         |
+| Pin、Pane 布局、主题、语言                   | 各 Device 自己                       | Device 偏好存储                                                               |
 
 Runner 的数据根是 `$DSH_BOT_HOME`（默认 `~/.dsh-bot`）。Host 启动 dsh web 时把它作为 dsh 的 `DSH_HOME` 传入，所以 dsh 和本仓插件的数据都在这里；`DSH_HOME` 只出现在这一个交接点，本仓其余文档和代码都用 `DSH_BOT_HOME`。隔离开发用 `~/.dsh-bot-dev/<name>`。
 
