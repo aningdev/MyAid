@@ -610,7 +610,15 @@ fn endpoint(setting: &str) -> Result<(Url, String)> {
     url.set_query(None);
     let (ws_scheme, http_scheme) = match url.scheme() {
         "wss" | "https" => ("wss", "https"),
-        "ws" | "http" => ("ws", "http"),
+        "ws" | "http" => {
+            if !loopback(&url) {
+                return Err(
+                    "DSH_BOT_RELAY_URL uses ws or http for a host that is not loopback; use wss or https"
+                        .into(),
+                );
+            }
+            ("ws", "http")
+        }
         _ => {
             return Err("DSH_BOT_RELAY_URL scheme is not ws, wss, http, or https".into());
         }
@@ -620,6 +628,15 @@ fn endpoint(setting: &str) -> Result<(Url, String)> {
         .map_err(|_| "DSH_BOT_RELAY_URL scheme".to_string())?;
     url.set_path("/v1/runner");
     Ok((url, origin))
+}
+
+fn loopback(url: &Url) -> bool {
+    match url.host() {
+        Some(url::Host::Domain("localhost")) => true,
+        Some(url::Host::Ipv4(address)) => address.is_loopback(),
+        Some(url::Host::Ipv6(address)) => address.is_loopback(),
+        _ => false,
+    }
 }
 
 fn http_origin(url: &Url, scheme: &str) -> Result<String> {
