@@ -1,27 +1,40 @@
 /**
  * Settings, a whole-page overlay over the Panes. The groups are Model
- * providers, General, Background and About; the left rail switches them and
- * the overlay keeps the Panes underneath untouched. Each section owns its own
- * read, so one slow Host call never holds the others blank.
+ * providers, General, Background, Devices (the Runner's Client only) and
+ * About. The rail switches them and the overlay keeps the Panes underneath
+ * untouched. Each section owns its own read, so one slow Host call never
+ * holds the others blank. A narrow window stacks the rail on top.
  */
-import { Scroll, signal, Text, View, token } from "nsh";
+import { platform, Scroll, signal, Text, View, token } from "nsh";
 
 import { Pressable } from "../../components/ui/pressable";
 import { t, type MessageKey } from "../../lib/i18n";
+import { narrowWindow } from "../../lib/surface";
 import { radius, toneTint } from "../../lib/theme";
+import { DevicesSection } from "../devices/DevicesSection";
 import { AboutSection } from "./About";
 import { BackgroundSection } from "./Background";
 import { GeneralSection } from "./General";
 import { ProvidersSection } from "./ModelProviders";
 
-export type SettingsGroup = "providers" | "general" | "background" | "about";
+export type SettingsGroup = "providers" | "general" | "background" | "devices" | "about";
 
 const GROUPS: readonly { id: SettingsGroup; label: MessageKey }[] = [
   { id: "providers", label: "settings.nav.providers" },
   { id: "general", label: "settings.nav.general" },
   { id: "background", label: "settings.nav.background" },
+  { id: "devices", label: "settings.nav.devices" },
   { id: "about", label: "settings.nav.about" },
 ];
+
+/**
+ * Devices only where a Host runs beside this Client. Same rule as `hasHost`
+ * (`components/shell/host.ts`), read when this page is built.
+ */
+function visibleGroups(): readonly { id: SettingsGroup; label: MessageKey }[] {
+  const runner = platform.idiom === "desktop" && platform.os !== "web";
+  return runner ? GROUPS : GROUPS.filter((entry) => entry.id !== "devices");
+}
 
 const group = signal<SettingsGroup>("providers");
 
@@ -31,19 +44,37 @@ export function settingsGroup(): SettingsGroup {
 }
 
 export function SettingsPage() {
+  const stacked = narrowWindow;
   return (
-    <View style={{ flex: 1, minHeight: 0, minWidth: 0, flexDirection: "row" }}>
+    <View
+      style={{
+        flex: 1,
+        minHeight: 0,
+        minWidth: 0,
+        flexDirection: stacked() ? "column" : "row",
+      }}
+    >
       <View
         style={{
-          width: 176,
+          width: stacked() ? undefined : 176,
           flexShrink: 0,
+          alignSelf: stacked() ? "stretch" : undefined,
           backgroundColor: token("inset"),
-          borderRightWidth: 1,
+          borderRightWidth: stacked() ? 0 : 1,
+          borderBottomWidth: stacked() ? 1 : 0,
           borderRightColor: token("line"),
+          borderBottomColor: token("line"),
         }}
       >
-        <Scroll contentStyle={{ padding: 10, gap: 2 }}>
-          <Each of={GROUPS}>
+        <Scroll
+          style={stacked() ? { maxHeight: 132 } : { flex: 1 }}
+          contentStyle={
+            stacked()
+              ? { flexDirection: "row", flexWrap: "wrap", padding: 8, gap: 4 }
+              : { padding: 10, gap: 2 }
+          }
+        >
+          <Each of={visibleGroups()}>
             {(entry) => (
               <Pressable
                 testID={`settings-nav-${entry().id}`}
@@ -81,6 +112,9 @@ export function SettingsPage() {
         </If>
         <If when={group() === "background"}>
           <BackgroundSection />
+        </If>
+        <If when={group() === "devices"}>
+          <DevicesSection />
         </If>
         <If when={group() === "about"}>
           <AboutSection />

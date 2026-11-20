@@ -55,10 +55,11 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 - **Pane 标题**：Bot 标记（工作中呼吸）、名字、工作目录（点一下可改，换成别的目录会开新段），然后是 **Bot 详情** 与拆分 / 放大 / 关闭并排。Pane 主体是对话，段的事实收在弹窗里。
 - **Ticket 与 Attention**：Bot 的 Pane 顶部是它执行过的 Ticket（标题、状态、最后更新）；打开 Ticket 看它自己的 Session（可读、可回复）与它等待的 Attention，这个 Session 不会成为该 Bot 的段。Navigator 的 **Needs you** 行数出本 Device 上所有 pending Attention 并打开收件箱；问题可选一个或多个选项，也可补充自定义回答，审批可选 Allow 或 Reject，都经 `tickets` Remote（`answer`、`cancel`），所以回答后所有 Device 的列表里都会消失。不做推送：Client 打开时 Attention 才会提醒。
 - **Bot 详情**（`features/bots/BotDetails.tsx`）：盖在 Pane 上的一个弹窗——Profile / Runs with / Skills / Plugins、当前段的工作目录、模型、用量 / 上下文与 dsh 的 **Compact**，以及删除 / 归档。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成，preset writer 可用时派生它自己的 preset，否则如实说明写不了。
-- **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。左栏是 **模型供应商 / 通用 / 后台 / 关于**；Back 或 Esc 返回。
+- **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。Runner 本机桌面 Client 的左栏是 **模型供应商 / 通用 / 后台 / 设备 / 关于**；没有旁边 Host 的 Client（web 等，`components/shell/host.ts` 的 `hasHost`）不显示 **设备**。窗口窄于 600 pt 时，这栏改到顶部换行。Back 或 Esc 返回。
   - **模型供应商**（`features/settings/ModelProviders.tsx`）：列出 dsh 报告的每个供应商（`llm.listProviders` 合并 `llm.listConfigurableProviders`）与它的 Key 状态。Key 只经 `credentials.describe/set/unset` 写入供应商设置命名空间指定的引用（没有时用 dsh 的 `<ROUTE>_API_KEY` 推导）；页面不保存 Key。供应商字段（base URL 起）与默认模型经 `settings.describe/update` 写入——默认模型在 dsh 描述的 `agent-default-model` 命名空间里，不是写死的清单。没有 Host 时说明原因、不提供输入。
   - **通用**：语言行（跟随系统 / 简体中文 / English）、外观（跟随系统 / 浅色 / 深色）与颜色（中性 / 柑橘 — 即 shadcn-nsh 随应用携带的主题；选一个即刻重绘所有面，不需重启）。全部立即生效，并保存在客户端偏好里；跟随系统时把 `zh*` 读作简体中文、其余读作 English，并跟随系统变化。
   - **后台**：Host 与 dsh web 的相位、Host 自身版本、dsh 实际版本与要求版本（不一致时两者并列并说明 Host 拒绝启动）、最近错误、启动 / 停止 / 重启 dsh，以及 Background Services 登记面板。
+  - **设备**（`features/devices/`）：这台 Runner 上已配对的 Device。列表（名称、平台、在线、最后出现、配对时间）的唯一所有者是 `features/devices/state.ts`：先 `GET /bridge/devices`，再跟 `/watch` 里 `event` 为 `bridge.devices` 的帧。**添加设备**向 Host 要一条配对链接，画成二维码，并可复制、看倒计时；过期后提示重新生成，生成新的会作废还没使用的旧链接。链接只留在这一页：不进存储、不写日志。Relay 未配置时只说明原因，不发配对请求。撤销先在确认框里点名，再 `DELETE /bridge/devices/{deviceId}`，列表改成返回的那份。
   - **关于**：dsh-bot / Host / dsh 版本与 **复制诊断信息**（只有版本与连接状态，没有 Key、令牌或会话内容）。
 - **对话**：一个 Bot 的 Pane 就是它的那条长对话，按时间把段（Session）连成一条连续 transcript，用 shadcn-nsh 的 `message-scroller`（视口、内容、每行与回到最新的按钮）画出，里面是 `message`（一轮）、`bubble`（这一轮的外框）、`marker`（日期与段分隔线，以及一轮留下的说明）、`attachment`（消息带上的文件、输入框里的文件）与 `collapsible`（一次调用、一组步骤、一段思考折叠的内容）。读者在末尾时跟着最新一条走，一旦向上滚开就停下，最后一行上方随即出现回到最新的按钮；滚到顶部加载更早的页与段，读者原先看的那一行留在原处。段与段之间的分隔线写日期与工作目录（在主目录下显示为 `~/…`，完整路径留在 tooltip）；滚到顶部时，更早的段与段内更早的页都经官方 Session 模型加载。右侧历史轨每段一个刻度（当前段高亮）：悬停打开带背景的卡片，显示名称、时间与中间截断的目录，点击跳到该段开头；整条轨道是一个键盘停点，↑ / ↓ / Return 可用，并带 VoiceOver 标签。只有最新段接受输入，旧段可复制、可定位。命令面板的 **新话题** 或 `/new` 在当前目录开新段；在标题处改工作目录就在新目录开新段。接近上下文上限时 **Compact** 留在同一段内。没有段的 Bot 可以在默认工作目录开始第一段。
 - **运行态归属**：dsh 状态归官方 React-free client model（`ctx.sessions`：列表、事件窗口、follow、分页、prompt / queue / cancel、投影；`ctx.workspaces`：行、顺序、归档、置顶）。`SessionController` 只保留产品新增的部分——草稿、附件、审批展示、本地这一轮（`TurnProjection`）与 Pane 视图。两个 Pane 的两条 Session（跨 Workspace）可并行流式。
@@ -88,7 +89,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 
 ## 语言
 
-整套界面是简体中文或 English。所有用户可见文案——Navigator、Pane 标题与控件、transcript 与历史轨、Bot 详情、新建 Bot、⌘K、右键菜单、应用菜单与快捷键说明、通知、空状态、设置四组，以及 Client 自己的 Host / 启动器 / Background Services 消息——只有一个目录 [`lib/i18n/messages.ts`](lib/i18n/messages.ts)，键为类型：缺键或缺一种语言都会让 `nsh check` 失败。视图只经 `t(key, values)` 取文案，所以在设置 › 通用里切换语言会原地重绘，无需重启；选择与其他客户端偏好一起保存，**跟随系统**读取 NSH 的 `locale()`（`zh*` 为简体中文，其余为 English）并跟随变化。见 [ARCHITECTURE §5](../../docs/ARCHITECTURE.md)。
+整套界面是简体中文或 English。所有用户可见文案——Navigator、Pane 标题与控件、transcript 与历史轨、Bot 详情、新建 Bot、⌘K、右键菜单、应用菜单与快捷键说明、通知、空状态、设置各组，以及 Client 自己的 Host / 启动器 / Background Services 消息——只有一个目录 [`lib/i18n/messages.ts`](lib/i18n/messages.ts)，键为类型：缺键或缺一种语言都会让 `nsh check` 失败。视图只经 `t(key, values)` 取文案，所以在设置 › 通用里切换语言会原地重绘，无需重启；选择与其他客户端偏好一起保存，**跟随系统**读取 NSH 的 `locale()`（`zh*` 为简体中文，其余为 English）并跟随变化。见 [ARCHITECTURE §5](../../docs/ARCHITECTURE.md)。
 
 按设计不翻译：用户输入与 Bot 的名字（Bot 名、消息与模型回复、段标题）、产品与专名（dsh-bot、Host、dsh、Relay、DeepSeek、模型 id、Agent preset id、`/new`）、dsh 自己返回的文本（provider 名与 dsh 错误正文，放在已翻译的框里原样显示）、shell 命令、键盘键名与文件路径。语言选择器用各语言自己的写法（简体中文、English）。
 
@@ -105,7 +106,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 本应用没有 Rust（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。Host 是 `127.0.0.1:4872`（`DSH_BOT_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证。OS 登记是 Host 自己的快照（`version`、`phase`、可选 `reason`）；公网 Relay 不是本机控制面，也不向系统登记。
 
 - `lib/host/launcher.ts`：没有 Host 就起（`dsh-bot-host serve-app`），有就复用，退出后 1 秒起、翻倍到 15 秒重启；要求 `dsh-bot-host` 在 `PATH` 上（`cargo build -p dsh-bot-host` 产出在 `target/debug`，`scripts/run-with-host-path.mjs` 为桌面端的 `dev*` 脚本（`dev`、`dev:macos`、`dev:windows`、`dev:linux`、`dev:gpui`）把它放前面）。日常用根目录 `bun run dev [target]`，它在 Host 源码变新时重建二进制，并且只给桌面目标接上这个 `PATH`。
-- `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`）。Host 的公开状态还带 `hostVersion` 与 guardian 实际找到的 `dshVersion`，供后台与关于页显示。
+- `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`，以及 `bridgeAccess` 的 `GET /bridge/devices`、`POST /bridge/pairing`、`DELETE /bridge/devices/{deviceId}`）。`/watch` 同一条 socket 上既有公开状态帧，也有 `bridge.devices`；未知 `event` 只记日志并忽略，不当成 Host 断开。Host 的公开状态还带 `hostVersion` 与 guardian 实际找到的 `dshVersion`，供后台与关于页显示。
 - 启动器起不来时，侧栏页脚就是 Host 空状态：原因 + 手动的 `dsh-bot-host serve-app`。
 - `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` 不起 Host——其他 Device 经公网 Relay 访问 Runner，不走本机 Host。
 

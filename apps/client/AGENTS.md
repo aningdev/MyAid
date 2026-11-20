@@ -53,7 +53,7 @@
 - **`fs` 只授应用自己的数据**：`read` / `write` 都是 `${homeDir}/.dsh-bot`。nsh 0.6 仍没有「用户选中才可读」的授权，别为附件放宽回 `${homeDir}`。
 - **附件只走系统选择器**：回形针直接拿字节；拖放 / 粘贴只给 `file:` URL，授权外或读不了时由 [`chat/attach.ts`](features/dialogue/chat/attach.ts) 开同一文件的 `Picker`。策略只此一处。
 - 本机控制端点（Unix socket / named pipe）、`SMAppService` 仅在标准 API 缺口核实后添加；升级后复核可否迁回。
-- 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理与登记事实，不当业务网关。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。
+- 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理、登记事实和已配对 Device（`bridgeAccess`），不当业务网关。`/watch` 上未知 `event` 忽略，不算断开。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。
 - Settings ⇢ Background 是 [0006](../../docs/decisions/0006-host-is-the-only-background-service.md) 的客户端侧：只编排 Host 的 query / enable / stop，不代 Host 做登记决定；事实经 Host 的回环 HTTP 控制面取（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。
 
 ## Ticket 与 Attention
@@ -66,7 +66,8 @@
 ## Bot 详情与设置
 
 - **Bot 详情**是一个弹窗（`features/bots/BotDetails.tsx`），由 Pane 标题的 `Bot details:` 按钮、行的右键菜单与命令面板打开；打开状态只在 `features/bots/details.ts`。里面对段的事实（路径、模型、用量、Compact）来自 `features/bots/sessionFacts.ts`，不在注册表另存。
-- **设置**是盖在 Pane 之上的整页覆盖层（`components/shell/SettingsOverlay.tsx`），不是 Navigator 分区或 Pane；Esc / Back 关掉它，Pane 状态不动。左栏四组：供应商（dsh 目录 + `settings` / `credentials` Remote）/ 通用（客户端外观与语言偏好）/ 后台（Host 事实 + Background Services 面板，后者内部归 N1）/ 关于。供应商字段与默认模型只经 dsh Remote 读写，Key 不进客户端文件。
+- **设置**是盖在 Pane 之上的整页覆盖层（`components/shell/SettingsOverlay.tsx`），不是 Navigator 分区或 Pane；Esc / Back 关掉它，Pane 状态不动。左栏：供应商（dsh 目录 + `settings` / `credentials` Remote）/ 通用（客户端外观与语言偏好）/ 后台（Host 事实 + Background Services 面板，后者内部归 N1）/ 设备（仅 Runner 本机 Client，`hasHost`）/ 关于。供应商字段与默认模型只经 dsh Remote 读写，Key 不进客户端文件。窄于 600 pt 时左栏改到顶部换行。
+- **已配对 Device 只有一个所有者**：`features/devices/state.ts`（先 `GET /bridge/devices`，再跟 `/watch` 的 `bridge.devices`；配对与撤销用返回值更新，不乐观更新）。配对链接只留在打开的设备页里，不进 Storage、不写日志。Relay 未配置时不发配对请求。撤销先经 `AlertDialog` 点名，再 `DELETE`。
 
 ## 验证
 

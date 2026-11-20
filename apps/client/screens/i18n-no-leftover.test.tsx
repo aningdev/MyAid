@@ -145,6 +145,7 @@ async function walkShell(lang: Lang, texts: string[]): Promise<void> {
   for (const group of [
     "settings-nav-general",
     "settings-nav-background",
+    "settings-nav-devices",
     "settings-nav-about",
     "settings-nav-providers",
   ]) {
@@ -183,6 +184,9 @@ const NOT_TRANSLATED = new Set([
   "dsh-bot",
   "Host",
   "Relay",
+  "Device",
+  "Devices",
+  "Runner",
   "dsh",
   "DeepSeek",
   "Background",

@@ -149,9 +149,58 @@ export const messages = {
   "settings.nav.providers": { zh: "模型供应商", en: "Model providers" },
   "settings.nav.general": { zh: "通用", en: "General" },
   "settings.nav.background": { zh: "后台", en: "Background" },
+  "settings.nav.devices": { zh: "设备", en: "Devices" },
   "settings.nav.about": { zh: "关于", en: "About" },
 
   // --- Settings › General ---------------------------------------------------
+  // --- Settings › Devices (Runner's Client only) ---------------------------
+  "devices.title": { zh: "设备", en: "Devices" },
+  "devices.note": {
+    zh: "在这台 Runner 上管理已配对的 Device。配对链接只出现在这一页，不会写入本机存储。",
+    en: "Manage paired Devices on this Runner. The pairing link appears only on this page and is not stored.",
+  },
+  "devices.pairingTitle": { zh: "配对", en: "Pairing" },
+  "devices.listTitle": { zh: "已配对", en: "Paired" },
+  "devices.add": { zh: "添加设备", en: "Add a Device" },
+  "devices.regenerate": { zh: "重新生成", en: "Generate again" },
+  "devices.replaces": {
+    zh: "生成新的配对链接会作废还没使用的旧链接。",
+    en: "A new pairing link replaces the unused one.",
+  },
+  "devices.copy": { zh: "复制链接", en: "Copy link" },
+  "devices.copied": { zh: "已复制", en: "Copied" },
+  "devices.expiresIn": { zh: "{time} 后失效", en: "Expires in {time}" },
+  "devices.expired": {
+    zh: "配对链接已过期。重新生成一个。",
+    en: "This pairing link has expired. Generate another.",
+  },
+  "devices.empty": { zh: "还没有配对的 Device。", en: "No Device is paired yet." },
+  "devices.online": { zh: "在线", en: "Online" },
+  "devices.offline": { zh: "离线", en: "Offline" },
+  "devices.lastSeen": { zh: "最后出现 {time}", en: "Last seen {time}" },
+  "devices.paired": { zh: "配对于 {time}", en: "Paired {time}" },
+  "devices.neverSeen": { zh: "还没出现", en: "Not seen yet" },
+  "devices.platform": { zh: "平台 {platform}", en: "Platform {platform}" },
+  "devices.revoke": { zh: "撤销", en: "Revoke" },
+  "devices.revokeTitle": { zh: "撤销 {name}？", en: "Revoke {name}?" },
+  "devices.revokeNote": {
+    zh: "这台 Device 会立刻失去访问，而且这个操作不能撤回。",
+    en: "This Device loses access at once, and the revoke cannot be undone.",
+  },
+  "devices.revokeName": { zh: "撤销 {name}", en: "Revoke {name}" },
+  "devices.relay.connected": { zh: "Relay 已连接", en: "Relay connected" },
+  "devices.relay.connecting": { zh: "Relay 正在连接", en: "Relay is connecting" },
+  "devices.relay.unset": {
+    zh: "还没有可用的 Relay 地址，所以不能生成配对链接。",
+    en: "No Relay address is configured, so a pairing link cannot be generated.",
+  },
+  "devices.relay.badAddress": {
+    zh: "Relay 地址无法使用，所以不能生成配对链接。",
+    en: "The Relay address cannot be used, so a pairing link cannot be generated.",
+  },
+  "devices.relay.unavailable": { zh: "Relay 暂不可用。", en: "The Relay is unavailable." },
+  "devices.down": { zh: "读不到已配对的 Device。", en: "The paired Devices could not be read." },
+
   "settings.general.title": { zh: "通用", en: "General" },
   "settings.general.note": {
     zh: "语言、外观与颜色保存在本机偏好里，重启后保留。",
