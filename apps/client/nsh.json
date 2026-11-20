@@ -25,7 +25,7 @@
           "host": "127.0.0.1",
           "methods": ["GET"],
           "schemes": ["http"],
-          "paths": ["/", "/status", "/connection", "/registration"]
+          "paths": ["/", "/status", "/connection", "/registration", "/bridge/devices"]
         },
         {
           "host": "127.0.0.1",
@@ -42,8 +42,15 @@
             "/dsh/stop",
             "/dsh/restart",
             "/registration/enable",
-            "/registration/stop"
+            "/registration/stop",
+            "/bridge/pairing"
           ]
+        },
+        {
+          "host": "127.0.0.1",
+          "methods": ["DELETE"],
+          "schemes": ["http"],
+          "pathPrefixes": ["/bridge/devices/"]
         },
         {
           "host": "127.0.0.1",

@@ -4,9 +4,9 @@
  */
 import { t } from "../i18n";
 import { createHostTransport, type EnsureSource, type HostOp, type HostTransport } from "./client";
-import { decodeHostStatus, type HostStatus, type HostView } from "./protocol";
+import { decodeHostStatus, type HostStatus, type HostView, type PairedDevice } from "./protocol";
 
-export type { EnsureSource, HostOp, HostStatus, HostTransport, HostView };
+export type { EnsureSource, HostOp, HostStatus, HostTransport, HostView, PairedDevice };
 
 /** The message every "no Host" path carries, with the command that starts one by hand. */
 export function hostNotRunning(): string {
@@ -39,6 +39,21 @@ export const hostAccess = {
   restart: (): Promise<HostStatus> => transport.call({ op: "restartDsh" }),
 
   connectionInfo: (): Promise<HostStatus> => transport.call({ op: "connectionInfo" }),
+};
+
+/** Pairing and the paired-Device list. The same serve-token transport as `hostAccess`. */
+export const bridgeAccess = {
+  devices: () => transport.devices(),
+
+  issuePairing: () => transport.issuePairing(),
+
+  revoke: (deviceId: string) => transport.revokeDevice(deviceId),
+
+  watch: (
+    onStatus: (status: HostStatus) => void,
+    onDown: (reason: string) => void,
+    onDevices: (devices: PairedDevice[]) => void,
+  ): Promise<() => void> => transport.watch(onStatus, onDown, onDevices),
 };
 
 /**

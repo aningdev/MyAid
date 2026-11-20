@@ -51,13 +51,16 @@ async function openSettings(options: Parameters<typeof open>[1] = desktop) {
   return app;
 }
 
-test("the four groups switch in the overlay and Back returns to the Panes", async () => {
+test("the groups switch in the overlay and Back returns to the Panes", async () => {
   const app = await openSettings();
   expect(app.shows("id:settings-providers")).toBe(true);
   await app.press("id:settings-nav-general");
   await app.waitFor("id:settings-general");
   await app.press("id:settings-nav-background");
   await app.waitFor("id:settings-background");
+  await app.press("id:settings-nav-devices");
+  await app.waitFor("id:settings-devices");
+  expect(app.shows(`text:${t("test.noControl")}`)).toBe(true);
   await app.press("id:settings-nav-about");
   await app.waitFor("id:settings-about");
   await app.press(`label:${t("settings.backLabel")}`);

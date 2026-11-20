@@ -51,6 +51,7 @@
     "dsh-tickets": "workspace:*",
     "immer": "^10.1.1",
     "lucide": "1.66.0",
+    "uqr": "catalog:",
     "zustand": "~4.5.7"
   },
   "devDependencies": {

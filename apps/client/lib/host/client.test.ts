@@ -176,3 +176,140 @@ test("a watch without a token reports down instead of opening a socket", async (
   expect(sockets).toBe(0);
   expect(down[0]).toContain(t("host.error.noToken"));
 });
+
+const DEVICES_BODY = {
+  devices: [
+    {
+      deviceId: "phone-1",
+      name: "Pocket",
+      platform: "ios",
+      pairedAt: 10,
+      lastSeenAt: 20,
+      online: true,
+    },
+  ],
+  relay: { configured: true, connected: true, runnerId: "runner", reason: null },
+};
+
+test("the bridge routes carry the token", async () => {
+  const { calls, fetch } = recorder((call) =>
+    call.url.endsWith("/bridge/pairing")
+      ? { link: "https://relay.example/pair#fixture", expiresAt: 10 }
+      : DEVICES_BODY,
+  );
+  const transport = createHostTransport({
+    allow: () => true,
+    token: async () => "tok",
+    fetch,
+    port: () => 4873,
+  });
+  const snapshot = await transport.devices();
+  expect(snapshot.devices[0]?.name).toBe("Pocket");
+  const link = await transport.issuePairing();
+  expect(link.expiresAt).toBe(10);
+  const after = await transport.revokeDevice("phone/1");
+  expect(after.relay.configured).toBe(true);
+  expect(
+    calls.map((call) => `${call.method} ${call.url.replace("http://127.0.0.1:4873", "")}`),
+  ).toEqual(["GET /bridge/devices", "POST /bridge/pairing", "DELETE /bridge/devices/phone%2F1"]);
+  expect(calls.every((call) => call.headers.Authorization === "Bearer tok")).toBe(true);
+  expect(calls[1]?.body).toBeUndefined();
+});
+
+test("a bridge.devices frame updates the list and is not a disconnect", async () => {
+  let socket: HostSocket | undefined;
+  const transport = createHostTransport({
+    allow: () => true,
+    token: async () => "tok",
+    port: () => 4873,
+    fetch: (async () => reply(status("stopped"))) as FakeFetch,
+    socket: () => {
+      socket = {
+        onopen: null,
+        onmessage: null,
+        onclose: null,
+        onerror: null,
+        close: () => undefined,
+      };
+      return socket;
+    },
+  });
+  const phases: string[] = [];
+  const names: string[][] = [];
+  const down: string[] = [];
+  await transport.watch(
+    (next) => phases.push(next.phase),
+    (reason) => down.push(reason),
+    (devices) => names.push(devices.map((device) => device.name)),
+  );
+  socket?.onmessage?.({ data: JSON.stringify(status("ready")) });
+  socket?.onmessage?.({
+    data: JSON.stringify({ event: "bridge.devices", devices: DEVICES_BODY.devices }),
+  });
+  socket?.onmessage?.({
+    data: JSON.stringify({ event: "bridge.devices", devices: [{ deviceId: "" }] }),
+  });
+  expect(phases).toEqual(["ready"]);
+  expect(names).toEqual([["Pocket"]]);
+  expect(down).toEqual([]);
+});
+
+test("an unknown watch event is ignored and is not a disconnect", async () => {
+  let socket: HostSocket | undefined;
+  const transport = createHostTransport({
+    allow: () => true,
+    token: async () => "tok",
+    port: () => 4873,
+    fetch: (async () => reply(status("stopped"))) as FakeFetch,
+    socket: () => {
+      socket = {
+        onopen: null,
+        onmessage: null,
+        onclose: null,
+        onerror: null,
+        close: () => undefined,
+      };
+      return socket;
+    },
+  });
+  const warned: string[] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warned.push(args.map((arg) => String(arg)).join(" "));
+  };
+  const phases: string[] = [];
+  const down: string[] = [];
+  try {
+    await transport.watch(
+      (next) => phases.push(next.phase),
+      (reason) => down.push(reason),
+    );
+    socket?.onmessage?.({
+      data: JSON.stringify({ event: "bridge.later", secret: "do-not-log-this-body" }),
+    });
+    socket?.onmessage?.({ data: "{" });
+  } finally {
+    console.warn = original;
+  }
+  expect(phases).toEqual([]);
+  expect(down.length).toBe(1);
+  expect(warned).toEqual(["host watch: ignored event bridge.later"]);
+  expect(warned.join(" ")).not.toContain("do-not-log-this-body");
+});
+
+test("a test app's bridge calls do not fetch", async () => {
+  let fetches = 0;
+  const transport = createHostTransport({
+    allow: () => false,
+    token: async () => "tok",
+    port: () => 4873,
+    fetch: (async () => {
+      fetches += 1;
+      return reply(DEVICES_BODY);
+    }) as FakeFetch,
+  });
+  await expect(transport.devices()).rejects.toThrow(t("test.noControl"));
+  await expect(transport.issuePairing()).rejects.toThrow(t("test.noControl"));
+  await expect(transport.revokeDevice("phone-1")).rejects.toThrow(t("test.noControl"));
+  expect(fetches).toBe(0);
+});
