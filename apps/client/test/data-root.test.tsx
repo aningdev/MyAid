@@ -21,6 +21,7 @@ test("a test app keeps the bots fixture and prefs in its isolated storage", asyn
     "tmpl",
   );
   const app = await open("../App.tsx", {
+    platform: "macos",
     width: 1200,
     height: 860,
     storage: { ...botsStorage(template) },

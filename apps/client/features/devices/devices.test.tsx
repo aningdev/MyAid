@@ -120,19 +120,20 @@ test("a bridge.devices frame adds a Device and the page stays up", async () => {
   expect(app.shows("id:devices-down")).toBe(false);
 });
 
-test("a web Client has no Devices group", async () => {
+test("a Device swaps Devices for This Device", async () => {
   const app = await open("./devices-harness.tsx", {
-    platform: "web",
-    width: 1100,
-    height: 800,
+    platform: "ios",
+    width: 390,
+    height: 844,
+    host: { params: { page: true } },
   });
-  await app.press(`label:${t("host.settings")}`);
-  await app.waitFor("id:settings-overlay");
+  await app.waitFor("id:settings-nav-providers");
   // `nsh test --target macos` keeps `platform.os` as macos, so this open option
-  // is a web Client only on the headless engine. That run is the assertion.
+  // is a Device only on the headless engine. That run is the assertion.
   if (app.shows("label:platform-macos")) return;
-  expect(app.shows("label:platform-web")).toBe(true);
+  expect(app.shows("label:platform-ios")).toBe(true);
   expect(app.shows("id:settings-nav-about")).toBe(true);
+  expect(app.shows("id:settings-nav-device")).toBe(true);
   expect(app.shows("id:settings-nav-devices")).toBe(false);
 });
 

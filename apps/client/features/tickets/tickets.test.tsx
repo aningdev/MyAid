@@ -17,7 +17,7 @@ import {
 } from "../../test/tickets-fixture";
 import { MAIN_BOT_ID } from "../bots/model";
 
-const desktop = { platform: "web" as const, width: 1200, height: 860 };
+const desktop = { platform: "macos" as const, width: 1200, height: 860 };
 
 function storage(attentions: ReturnType<typeof attention>[] = []): Record<string, string> {
   return {

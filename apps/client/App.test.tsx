@@ -3,8 +3,8 @@ import { expect, test } from "nsh/test";
 import { t } from "./lib/i18n";
 import { open } from "./test/open";
 
-/** Wide enough for the desktop shell on both desktop (700) and other (900) idioms. */
-const desktop = { platform: "web" as const, width: 1100, height: 800 };
+/** The Runner: a desktop that owns a Host, wide enough for the desktop shell. */
+const desktop = { platform: "macos" as const, width: 1100, height: 800 };
 
 test("shows the flat Bot list and the Host footer", async () => {
   const app = await open("./App.tsx", desktop);
@@ -30,7 +30,7 @@ test("collapses the navigator to a drag strip", async () => {
 });
 
 test("narrow window keeps the placeholder", async () => {
-  const app = await open("./App.tsx", { platform: "web" as const, width: 600, height: 800 });
+  const app = await open("./App.tsx", { platform: "macos" as const, width: 600, height: 800 });
   const texts = app.texts();
   expect(texts.some((t) => t.includes("Workspace Shell"))).toBe(true);
   expect(app.shows("label:Collapse navigator")).toBe(false);
@@ -84,4 +84,13 @@ test("⌘, opens Settings, and Escape comes back", async () => {
   await app.keyboard.press("escape");
   await app.waitUntil(() => !app.shows("id:settings-overlay"));
   expect(app.shows("id:tab-panel-1")).toBe(true);
+});
+
+test("a Device without a pairing record asks for one", async () => {
+  const app = await open("./App.tsx", { platform: "ios", width: 390, height: 844 });
+  const texts = app.texts();
+  expect(texts).toContain("Connect to your Runner");
+  expect(texts.some((text) => text.includes("pairing link"))).toBe(true);
+  expect(app.shows("label:Collapse navigator")).toBe(false);
+  expect(texts).not.toContain("Host disconnected");
 });

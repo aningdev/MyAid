@@ -22,7 +22,7 @@ import { open } from "../../test/open";
 import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import { emptyRegistry, type BotRegistry } from "./model";
 
-const desktop = { platform: "web" as const, width: 1200, height: 860 };
+const desktop = { platform: "macos" as const, width: 1200, height: 860 };
 
 /** Ada (ready, template-bound) → one segment. `model` is the Bot's default route. */
 function sampleRegistry(model: string | null = null): BotRegistry {
