@@ -1,30 +1,26 @@
-// The Device side of a case: an in-memory Storage and the Client's real relay
+// The Device side of a case: a data root of its own in the stack's temporary
+// directory, the Client's real file store over it, and the Client's real relay
 // Carrier. Nothing here speaks Noise itself.
+
+import { join } from "node:path";
 
 import { Connection, liveBots, liveTickets } from "@dsh-bot/client/dsh";
 import {
   createRelayCarrier,
+  fileDeviceStore,
   loadDeviceIdentity,
   loadPairing,
   pairDevice,
+  type DeviceStore,
   type RelayCarrier,
-  type StorageLike,
 } from "@dsh-bot/client/relay";
 
 import type { Plumbing } from "./harness";
 
-export function memoryStorage(): StorageLike & { readonly values: Map<string, string> } {
-  const values = new Map<string, string>();
-  return {
-    values,
-    getItem: async (key) => values.get(key) ?? null,
-    setItem: async (key, value) => void values.set(key, value),
-    removeItem: async (key) => void values.delete(key),
-  };
-}
-
 export interface Device {
-  readonly storage: ReturnType<typeof memoryStorage>;
+  /** The Device's data root: its key and pairing are files under `device/`. */
+  readonly dataRoot: string;
+  readonly store: DeviceStore;
   readonly carrier: RelayCarrier;
   readonly deviceId: string;
   /** How often `onRevoked` fired. */
@@ -37,22 +33,24 @@ export async function pairedDevice(stack: Plumbing, name: string): Promise<Devic
   const answer = (await (await stack.host("/bridge/pairing", { method: "POST" })).json()) as {
     link: string;
   };
-  const storage = memoryStorage();
+  const dataRoot = join(stack.root, "devices", name);
+  const store = fileDeviceStore(dataRoot);
   // The link stays in memory: it goes straight to the Device and nowhere else.
-  const paired = await pairDevice(answer.link, { name, platform: "e2e", storage });
+  const paired = await pairDevice(answer.link, { name, platform: "e2e", store });
   paired.tunnel.close();
-  const identity = await loadDeviceIdentity(storage);
-  const pairing = await loadPairing(storage);
+  const identity = await loadDeviceIdentity(store);
+  const pairing = await loadPairing(store);
   if (!pairing) throw new Error("pairing was not stored");
   const revoked = { count: 0 };
   const carrier = createRelayCarrier({
     pairing,
     identity,
-    storage,
+    store,
     onRevoked: () => void (revoked.count += 1),
   });
   return {
-    storage,
+    dataRoot,
+    store,
     carrier,
     deviceId: pairing.deviceId,
     revoked,

@@ -1,25 +1,12 @@
 // Pairing with a Runner: the link the Runner shows, the Device's own static
-// key, and the single pairing record kept in nsh Storage. Parsing and record
+// key, and the single pairing record kept in a DeviceStore. Parsing and record
 // validation stay pure so tests and the UI decide when storage is touched.
 
-import { Storage } from "nsh";
-
 import { b64urlDecode, b64urlEncode, publicId } from "./bytes";
+import type { DeviceStore } from "./device-store";
 import { relayError } from "./errors";
 import { generateKeyPair, keyPairFromPrivate, type KeyPair } from "./noise";
 import { openTunnel, type Tunnel, type TunnelConnector } from "./tunnel";
-
-/** The part of nsh's storage this module uses; a Map-backed object suffices in tests. */
-export interface StorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-}
-
-/** Where the Device's static X25519 key lives. */
-export const DEVICE_IDENTITY_KEY = "dsh-bot.device.identity";
-/** Where the one pairing with this Device's Runner lives. */
-export const PAIRING_KEY = "dsh-bot.device.pairing";
 
 const PAIRING_VERSION = "1";
 const PAIRING_PATH = "/pair";
@@ -104,15 +91,12 @@ export function parsePairingLink(
 }
 
 /** Loads the Device key, creating and storing one on first use. */
-export async function loadDeviceIdentity(storage: StorageLike = Storage): Promise<DeviceIdentity> {
-  const stored = await storage.getItem(DEVICE_IDENTITY_KEY);
+export async function loadDeviceIdentity(store: DeviceStore): Promise<DeviceIdentity> {
+  const stored = await store.read("identity");
   if (stored === null) {
     const keyPair = generateKeyPair();
     const identity = identityOf(keyPair);
-    await storage.setItem(
-      DEVICE_IDENTITY_KEY,
-      JSON.stringify({ privateKey: b64urlEncode(keyPair.privateKey) }),
-    );
+    await store.write("identity", JSON.stringify({ privateKey: b64urlEncode(keyPair.privateKey) }));
     return identity;
   }
   return identityOf(parseIdentity(stored));
@@ -147,9 +131,9 @@ function identityOf(keyPair: KeyPair): DeviceIdentity {
 }
 
 /** Stores the pairing, replacing any earlier one. */
-export async function savePairing(pairing: Pairing, storage: StorageLike = Storage): Promise<void> {
-  await storage.setItem(
-    PAIRING_KEY,
+export async function savePairing(pairing: Pairing, store: DeviceStore): Promise<void> {
+  await store.write(
+    "pairing",
     JSON.stringify({
       relayUrl: pairing.relayUrl,
       runnerId: pairing.runnerId,
@@ -160,8 +144,8 @@ export async function savePairing(pairing: Pairing, storage: StorageLike = Stora
 }
 
 /** Reads the stored pairing; `null` when this Device has none. */
-export async function loadPairing(storage: StorageLike = Storage): Promise<Pairing | null> {
-  const stored = await storage.getItem(PAIRING_KEY);
+export async function loadPairing(store: DeviceStore): Promise<Pairing | null> {
+  const stored = await store.read("pairing");
   if (stored === null) return null;
 
   let record: unknown;
@@ -199,15 +183,15 @@ export async function loadPairing(storage: StorageLike = Storage): Promise<Pairi
 }
 
 /** Forgets the pairing, as a `device-revoked` or `revoked` answer requires. */
-export async function clearPairing(storage: StorageLike = Storage): Promise<void> {
-  await storage.removeItem(PAIRING_KEY);
+export async function clearPairing(store: DeviceStore): Promise<void> {
+  await store.remove("pairing");
 }
 
 /** Options for the one pairing handshake the link authorizes. */
 export interface PairDeviceOptions {
   name: string;
   platform: string;
-  storage?: StorageLike;
+  store: DeviceStore;
   connect?: TunnelConnector;
   nowSeconds?: number;
 }
@@ -226,7 +210,7 @@ export interface PairedDevice {
  */
 export async function pairDevice(link: string, options: PairDeviceOptions): Promise<PairedDevice> {
   const invite = parsePairingLink(link, options.nowSeconds);
-  const identity = await loadDeviceIdentity(options.storage);
+  const identity = await loadDeviceIdentity(options.store);
   const tunnel = await openTunnel(
     {
       mode: "pair",
@@ -252,6 +236,6 @@ export async function pairDevice(link: string, options: PairDeviceOptions): Prom
     runnerKey: invite.runnerKey,
     deviceId: identity.id,
   };
-  await savePairing(pairing, options.storage);
+  await savePairing(pairing, options.store);
   return { pairing, tunnel };
 }

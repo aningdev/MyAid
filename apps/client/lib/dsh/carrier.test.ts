@@ -10,6 +10,7 @@ import { generateKeyPair } from "../carrier/relay/noise";
 import type { Pairing } from "../carrier/relay/pairing";
 import { FakeBridge } from "../carrier/relay/test-support/fake-bridge";
 import { fakeDsh } from "../carrier/relay/test-support/fake-dsh";
+import { memoryDeviceStore } from "../carrier/relay/test-support/memory-store";
 import { Connection } from "./connection";
 
 function setup(): { bridge: FakeBridge; carrier: RelayCarrier } {
@@ -33,6 +34,7 @@ function setup(): { bridge: FakeBridge; carrier: RelayCarrier } {
   const carrier = createRelayCarrier({
     pairing,
     identity,
+    store: memoryDeviceStore(),
     connect: bridge.connector,
     pingIntervalMs: 10_000,
   });

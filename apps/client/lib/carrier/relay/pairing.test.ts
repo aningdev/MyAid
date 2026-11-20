@@ -6,34 +6,16 @@ import { RelayError } from "./errors";
 import { generateKeyPair, type KeyPair } from "./noise";
 import {
   clearPairing,
-  DEVICE_IDENTITY_KEY,
   loadDeviceIdentity,
   loadPairing,
-  PAIRING_KEY,
   pairDevice,
   parsePairingLink,
   savePairing,
-  type StorageLike,
 } from "./pairing";
 import { FakeRelay } from "./test-support/fake-relay";
+import { memoryDeviceStore } from "./test-support/memory-store";
 
 const now = 1_700_000_000;
-
-class FakeStorage implements StorageLike {
-  readonly values = new Map<string, string>();
-
-  async getItem(key: string): Promise<string | null> {
-    return this.values.get(key) ?? null;
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    this.values.set(key, value);
-  }
-
-  async removeItem(key: string): Promise<void> {
-    this.values.delete(key);
-  }
-}
 
 function pairingLink(
   options: { version?: string; expiresAt?: number; runnerId?: string; relay?: string } = {},
@@ -129,28 +111,28 @@ test("an expired pairing link says so", () => {
 });
 
 test("the device key is created once and kept", async () => {
-  const storage = new FakeStorage();
-  const first = await loadDeviceIdentity(storage);
-  const second = await loadDeviceIdentity(storage);
+  const store = memoryDeviceStore();
+  const first = await loadDeviceIdentity(store);
+  const second = await loadDeviceIdentity(store);
 
   expect(first.id).toMatch(/^[a-z2-7]{32}$/);
   expect(second.id).toBe(first.id);
   expect(second.privateKey).toEqual(first.privateKey);
-  expect(storage.values.has(DEVICE_IDENTITY_KEY)).toBe(true);
+  expect(store.records.has("identity")).toBe(true);
 });
 
 test("a damaged device key is reported, not replaced", async () => {
-  const storage = new FakeStorage();
-  storage.values.set(DEVICE_IDENTITY_KEY, "{");
-  await expect(loadDeviceIdentity(storage)).rejects.toMatchObject({ code: "invalid-identity" });
+  const store = memoryDeviceStore();
+  store.records.set("identity", "{");
+  await expect(loadDeviceIdentity(store)).rejects.toMatchObject({ code: "invalid-identity" });
 
-  storage.values.set(DEVICE_IDENTITY_KEY, JSON.stringify({ privateKey: "AAAA" }));
-  await expect(loadDeviceIdentity(storage)).rejects.toMatchObject({ code: "invalid-identity" });
+  store.records.set("identity", JSON.stringify({ privateKey: "AAAA" }));
+  await expect(loadDeviceIdentity(store)).rejects.toMatchObject({ code: "invalid-identity" });
 });
 
-test("a pairing round-trips through storage and can be cleared", async () => {
-  const storage = new FakeStorage();
-  const identity = await loadDeviceIdentity(storage);
+test("a pairing round-trips through the store and can be cleared", async () => {
+  const store = memoryDeviceStore();
+  const identity = await loadDeviceIdentity(store);
   const { runnerId, runnerKey } = pairingLink();
   const pairing = {
     relayUrl: "https://relay.example.com",
@@ -159,18 +141,18 @@ test("a pairing round-trips through storage and can be cleared", async () => {
     deviceId: identity.id,
   };
 
-  await savePairing(pairing, storage);
-  expect(storage.values.has(PAIRING_KEY)).toBe(true);
-  expect(await loadPairing(storage)).toEqual(pairing);
+  await savePairing(pairing, store);
+  expect(store.records.has("pairing")).toBe(true);
+  expect(await loadPairing(store)).toEqual(pairing);
 
-  await clearPairing(storage);
-  expect(await loadPairing(storage)).toBeNull();
+  await clearPairing(store);
+  expect(await loadPairing(store)).toBeNull();
 });
 
 test("a damaged pairing is reported", async () => {
-  const storage = new FakeStorage();
-  storage.values.set(PAIRING_KEY, JSON.stringify({ relayUrl: "https://relay.example.com" }));
-  await expect(loadPairing(storage)).rejects.toMatchObject({ code: "invalid-pairing" });
+  const store = memoryDeviceStore();
+  store.records.set("pairing", JSON.stringify({ relayUrl: "https://relay.example.com" }));
+  await expect(loadPairing(store)).rejects.toMatchObject({ code: "invalid-pairing" });
 });
 
 test("the errors carry their messages", () => {
@@ -187,9 +169,9 @@ async function failure(promise: Promise<unknown>): Promise<RelayError> {
 }
 
 test("pairing with a Runner stores the record once the handshake completes", async () => {
-  const storage = new FakeStorage();
+  const store = memoryDeviceStore();
   const { link, runner, runnerId, psk } = pairingLink();
-  const identity = await loadDeviceIdentity(storage);
+  const identity = await loadDeviceIdentity(store);
   const relay = new FakeRelay({
     mode: "pair",
     runner,
@@ -201,12 +183,12 @@ test("pairing with a Runner stores the record once the handshake completes", asy
   const result = await pairDevice(link, {
     name: "Ada's phone",
     platform: "ios",
-    storage,
+    store,
     connect: relay.connector,
     nowSeconds: now,
   });
   expect(result.pairing.deviceId).toBe(identity.id);
-  expect(await loadPairing(storage)).toMatchObject({
+  expect(await loadPairing(store)).toMatchObject({
     runnerId,
     deviceId: identity.id,
   });
@@ -215,9 +197,9 @@ test("pairing with a Runner stores the record once the handshake completes", asy
 });
 
 test("a rejected pairing leaves no record", async () => {
-  const storage = new FakeStorage();
+  const store = memoryDeviceStore();
   const { link, runner, runnerId } = pairingLink();
-  const identity = await loadDeviceIdentity(storage);
+  const identity = await loadDeviceIdentity(store);
   const relay = new FakeRelay({
     mode: "pair",
     runner,
@@ -231,11 +213,11 @@ test("a rejected pairing leaves no record", async () => {
     pairDevice(link, {
       name: "phone",
       platform: "ios",
-      storage,
+      store,
       connect: relay.connector,
       nowSeconds: now,
     }),
   );
   expect(error.code).toBe("pairing-rejected");
-  expect(await loadPairing(storage)).toBeNull();
+  expect(await loadPairing(store)).toBeNull();
 });

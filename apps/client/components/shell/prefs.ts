@@ -17,7 +17,7 @@ import { dirname } from "path";
  * written before it reads as the defaults; `theme` joined the section the same
  * way, `null` being the theme the app was built with.
  */
-import { platform, signal } from "nsh";
+import { signal } from "nsh";
 import { Storage } from "nsh";
 
 import type { BotRegistry } from "../../features/bots/model";
@@ -27,7 +27,7 @@ import {
   appearanceScheme,
   type AppearanceScheme,
 } from "../../lib/appearance";
-import { prefsPath, usesTestStorage } from "../../lib/data-root";
+import { prefsPath, usesDataRootFiles } from "../../lib/data-root";
 import { LANGUAGES, languagePref, setLanguagePref, type LanguagePref } from "../../lib/i18n";
 import { THEMES, applyTheme, themePref, type ThemeId } from "../../lib/themes";
 import type { DockAreaLayout, DockNode } from "../ui/dock-area";
@@ -198,10 +198,7 @@ interface PrefsStore {
 }
 
 export function prefsStore(): PrefsStore {
-  if (
-    (platform.os === "macos" || platform.os === "windows" || platform.os === "linux") &&
-    !usesTestStorage()
-  ) {
+  if (usesDataRootFiles()) {
     const path = defaultPrefsPath();
     return {
       async read() {

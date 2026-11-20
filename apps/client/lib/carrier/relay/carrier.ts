@@ -3,8 +3,9 @@
 // numbered here; the tunnel below only moves opaque frames.
 
 import { concatBytes, utf8Decode, utf8Encode } from "./bytes";
+import type { DeviceStore } from "./device-store";
 import { RelayError, relayError } from "./errors";
-import { clearPairing, type Pairing, type StorageLike } from "./pairing";
+import { clearPairing, type Pairing } from "./pairing";
 import {
   openTunnel,
   MAX_FRAME_BODY,
@@ -35,7 +36,8 @@ export interface RelayCarrierOptions {
   pairing: Pairing;
   /** The Device's static key pair; its public id is the device id. */
   identity: { privateKey: Uint8Array; publicKey: Uint8Array };
-  storage?: StorageLike;
+  /** Where the pairing is forgotten when the Runner revokes this Device. */
+  store: DeviceStore;
   /** A test seam for the tunnel's websocket. */
   connect?: TunnelConnector;
   pingIntervalMs?: number;
@@ -570,8 +572,10 @@ class RelayCarrierImpl implements RelayCarrier {
 
   /** The Runner removed this Device: forget the pairing once, whoever noticed. */
   private revoked(): void {
-    void clearPairing(this.options.storage);
-    this.options.onRevoked?.();
+    // The callback comes after the record is gone, so whoever it tells finds it so.
+    void clearPairing(this.options.store)
+      .catch(() => undefined)
+      .then(() => this.options.onRevoked?.());
   }
 
   private resetError(body: Uint8Array): RelayError {

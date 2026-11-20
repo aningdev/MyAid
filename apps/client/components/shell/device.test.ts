@@ -8,12 +8,12 @@ import { expect, test } from "nsh/test";
 
 import { disposeRuntime } from "../../features/dialogue/session/runtime";
 import { b64urlEncode, publicId, randomBytes } from "../../lib/carrier/relay/bytes";
+import { storageDeviceStore } from "../../lib/carrier/relay/device-store";
 import { generateKeyPair, type KeyPair } from "../../lib/carrier/relay/noise";
 import {
   clearPairing,
   loadDeviceIdentity,
   loadPairing,
-  PAIRING_KEY,
   savePairing,
   type Pairing,
 } from "../../lib/carrier/relay/pairing";
@@ -28,6 +28,8 @@ import {
   pairWithLink,
   startDevice,
 } from "./device";
+
+const store = storageDeviceStore(Storage);
 
 interface Runner {
   runner: KeyPair;
@@ -60,7 +62,7 @@ async function runnerForPairing(
   fixture: Runner,
   options: { rejectCloseCode?: number } = {},
 ): Promise<{ daily: FakeBridge; connector: TunnelConnector }> {
-  const identity = await loadDeviceIdentity();
+  const identity = await loadDeviceIdentity(store);
   const dsh = fakeDsh();
   const pairable = new FakeBridge({
     mode: "pair",
@@ -93,81 +95,81 @@ async function until(predicate: () => boolean, timeoutMs = 5000): Promise<void> 
 }
 
 async function reset(): Promise<void> {
-  await disconnectDevice();
+  await disconnectDevice({ store });
   await disposeRuntime();
-  await clearPairing().catch(() => undefined);
+  await clearPairing(store).catch(() => undefined);
 }
 
 test("a Client without a pairing record shows the pairing entry", async () => {
   await reset();
-  await startDevice();
+  await startDevice({ store });
   expect(devicePhase()).toBe("unpaired");
   expect(pairingError()).toBeNull();
 });
 
 test("an invalid link keeps the pairing entry and says why", async () => {
   await reset();
-  await startDevice();
-  await pairWithLink("not a pairing link");
+  await startDevice({ store });
+  await pairWithLink("not a pairing link", { store });
   expect(devicePhase()).toBe("unpaired");
   expect(pairingError()).toBe("invalid-link");
 });
 
 test("an expired link says so", async () => {
   await reset();
-  await startDevice();
-  await pairWithLink(linkOf(runner(), Math.floor(Date.now() / 1000) - 1));
+  await startDevice({ store });
+  await pairWithLink(linkOf(runner(), Math.floor(Date.now() / 1000) - 1), { store });
   expect(devicePhase()).toBe("unpaired");
   expect(pairingError()).toBe("expired-link");
 });
 
 test("pasting a valid link pairs and reaches dsh through the Carrier", async () => {
   await reset();
-  await startDevice();
+  await startDevice({ store });
   const fixture = runner();
   const runners = await runnerForPairing(fixture);
 
-  await pairWithLink(linkOf(fixture), { connect: runners.connector });
+  await pairWithLink(linkOf(fixture), { connect: runners.connector, store });
 
   expect(devicePhase()).toBe("paired");
   expect(pairingError()).toBeNull();
-  const record = await loadPairing();
+  const record = await loadPairing(store);
   expect(record?.runnerId).toBe(fixture.runnerId);
   // Only the record survives: neither the link nor its psk reaches storage.
-  const stored = (await Storage.getItem(PAIRING_KEY)) ?? "";
+  const stored = (await store.read("pairing")) ?? "";
   expect(stored).not.toContain(b64urlEncode(fixture.psk));
   expect(stored).not.toContain("#");
 
   await until(() => runners.daily.sockets.size > 0);
   expect(runners.daily.sockets.get(1)?.path).toBe("/api/remote.mux");
 
-  await disconnectDevice();
+  await disconnectDevice({ store });
 });
 
 test("a rejected link says so and stores nothing", async () => {
   await reset();
-  await startDevice();
+  await startDevice({ store });
   const fixture = runner();
   const runners = await runnerForPairing(fixture, { rejectCloseCode: 4010 });
 
-  await pairWithLink(linkOf(fixture), { connect: runners.connector });
+  await pairWithLink(linkOf(fixture), { connect: runners.connector, store });
 
   expect(devicePhase()).toBe("unpaired");
   expect(pairingError()).toBe("pairing-rejected");
-  expect(await loadPairing()).toBeNull();
+  expect(await loadPairing(store)).toBeNull();
 });
 
 test("a revoked device returns to the pairing entry with the notice", async () => {
   await reset();
   const fixture = runner();
-  const identity = await loadDeviceIdentity();
+  const identity = await loadDeviceIdentity(store);
   const record: Pairing = {
     relayUrl: "https://relay.example.com",
     runnerId: fixture.runnerId,
     runnerKey: fixture.runner.publicKey,
     deviceId: identity.id,
   };
-  await savePairing(record);
+  await savePairing(record, store);
   const dsh = fakeDsh();
   const bridge = new FakeBridge({
     mode: "daily",
@@ -186,5 +188,5 @@ test("a revoked device returns to the pairing entry with the notice", async () =
 
   await until(() => devicePhase() === "unpaired");
   expect(deviceNotice()).toBe("removed");
-  expect(await loadPairing()).toBeNull();
+  expect(await loadPairing(store)).toBeNull();
 });

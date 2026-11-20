@@ -89,14 +89,15 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 - `hasHost`（`components/shell/host.ts`：桌面且非 web）说明这里跑着 Host，即 Runner：Connection 走回环 Host 的 `/connect`（见 [dsh-connection](../../docs/architecture/dsh-connection.md)）。
 - 其余终端是 Device。还没有配对记录时，整个应用就是配对页（`features/pairing/`）：粘贴 Runner 在 设置 › 设备 里给出的链接，给这台 Device 起名（默认取平台名），然后连接。错误按 `RelayError.code` 选文案，从不显示原始 `message`；粘贴的链接只活在那一页的 signal 里，不落盘、不进日志——只有 `pairDevice` 写下的记录会留下。配对成功后 Carrier 交给 Shell，正常界面替换配对页。
 - 握手的 `device-revoked` 或隧道里的 `revoked`：Carrier 清掉记录，应用回到配对页，并提示 Runner 已移除这台 Device。
-- `components/shell/device.ts` 拥有本机的阶段、名称草稿与提示；配对记录本身仍只由 `lib/carrier/relay/pairing.ts` 读写 Storage（`dsh-bot.device.pairing`）。
+- `components/shell/device.ts` 拥有本机的阶段、名称草稿与提示；配对记录本身仍只由 `lib/carrier/relay/pairing.ts` 读写，它经 `DeviceStore` 保存记录和 Device 密钥：桌面端是数据根下的 `device/identity.json` 与 `device/pairing.json`，其他目标和测试 app 用 Storage（`dsh-bot.device.identity`、`dsh-bot.device.pairing`）。选哪种只在 `device.ts` 的 `defaultDeviceStore()` 里决定，和偏好用同一个 `usesDataRootFiles()`。NSH 的 `fs` 没有 `chmod` 或文件模式，所以文件用进程默认权限，不是 0600。
 
 ## Carrier
 
 `lib/dsh` 只通过 `installConnection` 的 Carrier seam（`streamBaseUrl`、`fetch`、`createWebSocket`）访问 dsh。`lib/carrier/relay/` 是 Relay Carrier 的 Device 一侧；wire 契约只在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)。`lib/dsh/index.ts` 在 `package.json` 里导出为 `@dsh-bot/client/dsh`，端到端测试经它驱动真正的 Connection。
 
 - `noise.ts`：Noise IK（日常）与 IKpsk1（配对）握手状态，发起方与响应方。
-- `pairing.ts`：配对链接解析、Device 静态密钥、唯一一份配对记录，以及 `pairDevice` 的配对握手。
+- `pairing.ts`：配对链接解析、Device 静态密钥、唯一一份配对记录，以及 `pairDevice` 的配对握手；记录经 `DeviceStore` 以文本读写。
+- `device-store.ts`：`DeviceStore` seam 和两个实现：`fileDeviceStore(root)`（先写临时文件，再 rename 覆盖 `<root>/device/<记录>.json`）与 `storageDeviceStore(storage)`。
 - `tunnel.ts`：一条 Relay WebSocket——模式字节、握手、`[流号][类型][正文]` 帧、保活与关闭码。
 - `index.ts`：公开 Interface，在 `package.json` 里导出为 `@dsh-bot/client/relay`；端到端测试（[`tests/e2e`](../../tests/e2e/README.zh.md)）经它使用 Carrier。这个目录里的其他文件不被 Client 之外的代码导入。
 - `carrier.ts`：跑在这条隧道上的 HTTP 与 WebSocket 流：`fetch`（响应体流式）与 EventTarget 形状的 socket。调用方取消的请求（signal 中止，或响应体被取消）会发 `RESET {"code":"cancelled"}` 并结束该流。隧道断开时进行中的流全部失败；重连归官方 connection。

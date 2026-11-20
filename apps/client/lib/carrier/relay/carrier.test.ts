@@ -7,36 +7,21 @@ import { publicId, randomBytes } from "./bytes";
 import { createRelayCarrier, type RelayCarrier, type RelaySocket } from "./carrier";
 import { RelayError } from "./errors";
 import { generateKeyPair, type KeyPair } from "./noise";
-import { DEVICE_IDENTITY_KEY, PAIRING_KEY, type Pairing, type StorageLike } from "./pairing";
+import type { Pairing } from "./pairing";
 import { FakeBridge } from "./test-support/fake-bridge";
-
-class FakeStorage implements StorageLike {
-  readonly values = new Map<string, string>();
-
-  async getItem(key: string): Promise<string | null> {
-    return this.values.get(key) ?? null;
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    this.values.set(key, value);
-  }
-
-  async removeItem(key: string): Promise<void> {
-    this.values.delete(key);
-  }
-}
+import { memoryDeviceStore } from "./test-support/memory-store";
 
 interface Setup {
   bridge: FakeBridge;
   carrier: RelayCarrier;
   identity: KeyPair;
   pairing: Pairing;
-  storage: FakeStorage;
+  store: ReturnType<typeof memoryDeviceStore>;
 }
 
 function setup(
   options: {
-    storage?: FakeStorage;
+    store?: ReturnType<typeof memoryDeviceStore>;
     answerHttp?: boolean;
     wsFragments?: number;
     revoked?: boolean;
@@ -61,14 +46,15 @@ function setup(
     revoked: options.revoked,
     respondHttp: options.respondHttp,
   });
+  const store = options.store ?? memoryDeviceStore();
   const carrier = createRelayCarrier({
     pairing,
     identity,
-    storage: options.storage,
+    store,
     connect: bridge.connector,
     pingIntervalMs: 10_000,
   });
-  return { bridge, carrier, identity, pairing, storage: options.storage ?? new FakeStorage() };
+  return { bridge, carrier, identity, pairing, store };
 }
 
 function once(target: EventTarget, event: string): Promise<Record<string, unknown>> {
@@ -149,10 +135,10 @@ test("an in-flight request fails when the tunnel drops", async () => {
 });
 
 test("a revoked device loses its stored pairing", async () => {
-  const storage = new FakeStorage();
-  await storage.setItem(DEVICE_IDENTITY_KEY, "device-key");
-  await storage.setItem(PAIRING_KEY, "pairing");
-  const { bridge, carrier } = setup({ storage, answerHttp: false });
+  const store = memoryDeviceStore();
+  await store.write("identity", "device-key");
+  await store.write("pairing", "pairing");
+  const { bridge, carrier } = setup({ store, answerHttp: false });
   const request = carrier.fetch("https://relay.invalid/api/echo", { method: "POST", body: "x" });
   while (bridge.requests.length === 0) await new Promise((resolve) => setTimeout(resolve, 1));
   bridge.control("revoked");
@@ -160,18 +146,18 @@ test("a revoked device loses its stored pairing", async () => {
   const error = await failure(request);
   expect(error.code).toBe("device-revoked");
   await new Promise((resolve) => setTimeout(resolve, 1));
-  expect(await storage.getItem(PAIRING_KEY)).toBeNull();
+  expect(await store.read("pairing")).toBeNull();
   carrier.close();
 });
 
 test("a revoked device loses its pairing when the handshake says so", async () => {
-  const storage = new FakeStorage();
-  await storage.setItem(PAIRING_KEY, "pairing");
-  const { carrier } = setup({ storage, revoked: true });
+  const store = memoryDeviceStore();
+  await store.write("pairing", "pairing");
+  const { carrier } = setup({ store, revoked: true });
 
   const error = await failure(carrier.fetch("https://relay.invalid/api/echo"));
   expect(error.code).toBe("device-revoked");
-  expect(await storage.getItem(PAIRING_KEY)).toBeNull();
+  expect(await store.read("pairing")).toBeNull();
   carrier.close();
 });
 
