@@ -97,10 +97,46 @@
         "typescript": "catalog:",
       },
     },
+    "packages/tickets": {
+      "name": "dsh-tickets",
+      "version": "0.1.0",
+      "dependencies": {
+        "@deepseek-ai/schemastery": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@deepseek-ai/cordis": "catalog:",
+        "@deepseek-ai/dsh-agent": "catalog:",
+        "@deepseek-ai/dsh-api-session-controller": "catalog:",
+        "@deepseek-ai/dsh-home-paths": "catalog:",
+        "@deepseek-ai/dsh-llm": "catalog:",
+        "@deepseek-ai/dsh-session": "catalog:",
+        "@deepseek-ai/dsh-tools": "catalog:",
+        "@deepseek-ai/dsh-typert-protocol": "catalog:",
+        "@deepseek-ai/dsh-user-approval": "catalog:",
+        "@deepseek-ai/dsh-user-questions": "catalog:",
+        "@types/node": "catalog:",
+        "dsh-bots": "workspace:*",
+        "typescript": "catalog:",
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "catalog:",
+        "@deepseek-ai/dsh-agent": "catalog:",
+        "@deepseek-ai/dsh-api-session-controller": "catalog:",
+        "@deepseek-ai/dsh-home-paths": "catalog:",
+        "@deepseek-ai/dsh-llm": "catalog:",
+        "@deepseek-ai/dsh-session": "catalog:",
+        "@deepseek-ai/dsh-tools": "catalog:",
+        "@deepseek-ai/dsh-typert-protocol": "catalog:",
+        "@deepseek-ai/dsh-user-approval": "catalog:",
+        "@deepseek-ai/dsh-user-questions": "catalog:",
+      },
+    },
   },
   "catalog": {
     "@deepseek-ai/cordis": "~4.1.0",
     "@deepseek-ai/cordis-plugin-include": "~1.1.0",
+    "@deepseek-ai/dsh-agent": "0.2.2-rc.5",
     "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.5",
     "@deepseek-ai/dsh-api-gateway": "0.2.2-rc.5",
     "@deepseek-ai/dsh-api-session-controller": "0.2.2-rc.5",
@@ -127,6 +163,7 @@
     "@deepseek-ai/dsh-settings": "0.2.2-rc.5",
     "@deepseek-ai/dsh-storage-domain": "0.2.2-rc.5",
     "@deepseek-ai/dsh-subagent": "0.2.2-rc.5",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.5",
     "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.5",
     "@deepseek-ai/dsh-typert-registry": "0.2.2-rc.5",
     "@deepseek-ai/dsh-user-approval": "0.2.2-rc.5",
@@ -628,6 +665,8 @@
     "dom-accessibility-api": ["dom-accessibility-api@0.5.16", "", {}, "sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg=="],
 
     "dsh-bots": ["dsh-bots@workspace:packages/bots"],
+
+    "dsh-tickets": ["dsh-tickets@workspace:packages/tickets"],
 
     "es-module-lexer": ["es-module-lexer@2.3.2", "", {}, "sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw=="],
 
