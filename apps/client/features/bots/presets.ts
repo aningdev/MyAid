@@ -5,7 +5,7 @@
  * writer and exposes it as the `botPresets` Remote.
  *
  * The seam stays here rather than in the dialog: the Client keeps the
- * registry's derived-preset rule (BOT_SESSION_MAP "身份与能力"), and the dialog
+ * registry's derived-preset rule (docs/GLOSSARY.md, Bot), and the dialog
  * never invents a preset id. A Host without the plugin keeps today's honest
  * read-only note.
  */

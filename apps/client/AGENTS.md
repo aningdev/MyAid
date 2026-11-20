@@ -12,7 +12,7 @@
 
 ## 布局（NSH TSX）
 
-- 本目录是纯 TSX 应用：`App.tsx` 入口，`nsh.json` 无 `"rust"` 键，没有 `Cargo.toml` / `src/`（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。原生层是 `lib/host` / `lib/relay` 里的回环 HTTP / WebSocket 客户端与启动器。
+- 本目录是纯 TSX 应用：`App.tsx` 入口，`nsh.json` 无 `"rust"` 键，没有 `Cargo.toml` / `src/`（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。原生层是 `lib/host` / `lib/relay` 里的回环 HTTP / WebSocket 客户端与启动器。
 - `components/` 是壳与样式：壳在 `components/shell/`（UI 与状态同目录），组件层 `components/ui/`（只放 shadcn-nsh 复制件）与 `components/app/`（产品组合）；`features/` 放产品域，由 Pane 按 Bot id 挂；`lib/` 放协议、宿主与产品后台适配。
 - 不另起平行 `frontend/{ui,application,infrastructure}` 树。新增文件先落现有目录；线框不混入产品路径。
 
@@ -39,12 +39,12 @@
 - 认证 WS 用标准 `websocket`：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包装成官方 dsh 要的 EventTarget。`nsh.json` 的 `capabilities.network.http` 只放行回环 dsh 端点；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
 - wire 类型从 [`@myaid/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
 - Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
-- **段的落点是 dsh Workspace**（[ADR 0005](../../docs/adr/0005-dialogue-on-dsh-workspace.md)；产品形态见 [ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）：`workspace.create` / `rename` / `insertSessionBefore` 等是 Workspace 字段的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。注册表只存段的 `workspaceId`，不要在注册表里重建 path / title / 顺序。
+- **段的落点是 dsh Workspace**（[GLOSSARY](../../docs/GLOSSARY.md)；产品形态见 [GLOSSARY](../../docs/GLOSSARY.md)）：`workspace.create` / `rename` / `insertSessionBefore` 等是 Workspace 字段的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。注册表只存段的 `workspaceId`，不要在注册表里重建 path / title / 顺序。
 - **官方 client model 是 Session / Workspace 状态的唯一所有者**：`lib/dsh/connection.ts` 在装好 Remote 的同一条 Cordis Context 上 `plugin` 官方 `ClientSessions`（`ctx.sessions`：列表、事件窗口、follow、分页、prompt/queue/control、投影）与 `ClientWorkspaceModel`（`ctx.workspaces`：行、顺序、归档、置顶）。产品只投影它们发布的 snapshot（[`features/dialogue/session`](features/dialogue/session/controller.ts)、[`features/workspace/state.ts`](features/workspace/state.ts)），不另建 follow / 重连 / 分页 / 回执映射，也不在视图里重算一遍。官方未提供的命令（模型目录与选择、skills、`/command`、插件清单、bot preset、上传、目录选择）留在 `Connection`。
-- 产品形态是**一个 Bot 一条长对话**，由按时间相连的段（Session）组成（[ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）。注册表 v6 让 Bot 直接持有 `segments`（段 = 认领），段可跨 Workspace；只有最新段接受输入，旧段由 ChatPane 经官方 Session 模型向上加载（`features/bots/sessions.ts`、`features/dialogue/ChatPane.tsx`），别在视图里另挑一条或在注册表里造第二套分页。
+- 产品形态是**一个 Bot 一条长对话**，由按时间相连的段（Session）组成（[GLOSSARY](../../docs/GLOSSARY.md)）。注册表 v6 让 Bot 直接持有 `segments`（段 = 认领），段可跨 Workspace；只有最新段接受输入，旧段由 ChatPane 经官方 Session 模型向上加载（`features/bots/sessions.ts`、`features/dialogue/ChatPane.tsx`），别在视图里另挑一条或在注册表里造第二套分页。
 - `@deepseek-ai/dsh-*` 的 `/client` 在默认 `browser` 条件下无 ESM `installConnection`；用 `bun run prepare:sdk` 打出的 `lib/dsh/sdk.js`（`nsh.json` 的 `resolve.conditions: ["node"]` 兜底）。勿手改该产物。
 - 官方 client model（session / workspace / file-upload 的 `lib/client.js`）是浏览器 `window.__ModuleLoader__.load({id, factory})` 产物，NSH 发行版禁用 `Function` 构造器（不跑字符串代码），因此 `prepare:sdk` 把 factory 主体原样包成静态 ESM，落在 `lib/dsh/generated/`（gitignore）。升 `@deepseek-ai/dsh-*` 后重跑 `prepare:sdk`；它按包版本重写文件，找不到 loader 外壳会直接报错。
-- 认证与心跳细节的唯一下沉文档：[docs/DSH_CLIENT_AUTH.md](../../docs/DSH_CLIENT_AUTH.md)。
+- 认证与心跳细节的唯一下沉文档：[dsh-connection](../../docs/architecture/dsh-connection.md)。
 
 ## 原生接口与权限
 
@@ -54,7 +54,7 @@
 - **附件只走系统选择器**：回形针直接拿字节；拖放 / 粘贴只给 `file:` URL，授权外或读不了时由 [`chat/attach.ts`](features/dialogue/chat/attach.ts) 开同一文件的 `Picker`。策略只此一处。
 - 本机控制端点（Unix socket / named pipe）、`SMAppService` 仅在标准 API 缺口核实后添加；升级后复核可否迁回。
 - 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理与登记事实，不当业务网关。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。
-- Settings ⇢ Background Services 是 [ADR 0002](../../docs/adr/0002-dual-background-services.md) 的客户端侧：只编排 query / enable / stop，不代 Host / Relay 做决定；事实经两个单元自己的回环 HTTP 控制面取（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。
+- Settings ⇢ Background Services 是 [0006](../../docs/decisions/0006-host-is-the-only-background-service.md) 的客户端侧：只编排 query / enable / stop，不代 Host / Relay 做决定；事实经两个单元自己的回环 HTTP 控制面取（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。
 
 ## Bot 详情与设置
 
@@ -72,4 +72,4 @@
 
 ## 文档
 
-改行为先改真源（[ARCHITECTURE](../../docs/ARCHITECTURE.md) / [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md) / ADR），再改 README 与本文的指针。本文只留护栏与去向，不写教程、清单复述或历史。
+改行为先改真源（[ARCHITECTURE](../../docs/ARCHITECTURE.md) / [0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md) / ADR），再改 README 与本文的指针。本文只留护栏与去向，不写教程、清单复述或历史。

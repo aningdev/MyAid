@@ -198,7 +198,7 @@ const NOT_TRANSLATED = new Set([
   "Key",
   "URL",
   "SKILL",
-  // Glossary terms the Chinese UI keeps in English (GLOSSARY.md), and the
+  // Glossary terms the Chinese UI keeps in English (docs/GLOSSARY.md), and the
   // palette's uppercased group heading.
   "Bot",
   "Bots",

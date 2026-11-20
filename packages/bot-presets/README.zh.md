@@ -4,7 +4,7 @@
 
 Host 侧插件，给一个 Bot 自己的 dsh Agent preset：复制该 Bot 的基础组合，把人对插件 / 技能的编辑存进 dsh 的 storage domain，再经官方 `agentPresets.register` 注册。执行仍以 dsh 为真源；插件只拥有派生 preset 的数据。
 
-约束：[packages/AGENTS.md](../AGENTS.md)。原则：[DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md) §4、[ARCHITECTURE](../../docs/ARCHITECTURE.md) §4。映射：[BOT_SESSION_MAP](../../docs/BOT_SESSION_MAP.md)。
+约束：[packages/AGENTS.md](../AGENTS.md)。原则：[0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)、[ARCHITECTURE](../../docs/ARCHITECTURE.md)。映射：[GLOSSARY](../../docs/GLOSSARY.md)。
 
 ## 为什么存在
 

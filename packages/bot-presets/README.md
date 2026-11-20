@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 Host plugin that gives a Bot its own dsh Agent preset: it copies the Bot's base composition, saves the person's plugin/skill edits in dsh's storage domain, and registers the result through the official `agentPresets.register`. dsh stays the source of truth for execution; the plugin owns only the derived-preset data.
 
-Rules: [packages/AGENTS.md](../AGENTS.md). Principles: [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md) §4, [ARCHITECTURE](../../docs/ARCHITECTURE.md) §4. Mapping: [BOT_SESSION_MAP](../../docs/BOT_SESSION_MAP.md).
+Rules: [packages/AGENTS.md](../AGENTS.md). Principles: [0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md), [ARCHITECTURE](../../docs/ARCHITECTURE.md) Mapping: [GLOSSARY](../../docs/GLOSSARY.md).
 
 ## Why this exists
 

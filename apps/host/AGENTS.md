@@ -1,6 +1,6 @@
 # Rust 宿主约束
 
-补充[根约束](../../AGENTS.md)。修改宿主、回环控制面、服务登记或 macOS 打包时适用。读 [ARCHITECTURE](../../docs/ARCHITECTURE.md)、[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)、[DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md)。
+补充[根约束](../../AGENTS.md)。修改宿主、回环控制面、服务登记或 macOS 打包时适用。读 [ARCHITECTURE](../../docs/ARCHITECTURE.md)、[0006](../../docs/decisions/0006-host-is-the-only-background-service.md)、[0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)。
 
 ## 模块与生命周期
 

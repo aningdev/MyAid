@@ -2,13 +2,15 @@
  * The workspace's one dsh version source: `package.json` → `workspaces.catalog`.
  *
  * Every `@deepseek-ai/*` pin lives there and packages reference it with
- * `"catalog:"`. `apps/host/supported-dsh.json` still names the dsh version for
- * the Host (it compiles that file in), so the two must agree — `check`, `dev`
- * and the Client's `prepare:sdk` read both from here instead of hardcoding.
+ * `"catalog:"`. Two other places must agree with it: `apps/host/supported-dsh.json`
+ * (the Host compiles it in) and the `dsh-v<version>` tag checked out in
+ * `references/deepseek-harness`. `check`, `dev` and the Client's `prepare:sdk`
+ * read them from here instead of hardcoding.
  *
- * Upgrade: edit the catalog's dsh entries and `apps/host/supported-dsh.json`
- * together, then `bun install`.
+ * Upgrade: edit the catalog's dsh entries and `apps/host/supported-dsh.json`,
+ * check out the matching tag in the submodule, then `bun install`.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -219,8 +221,22 @@ function inRange(version, range) {
 }
 
 /**
+ * The tags on the commit `references/deepseek-harness` has checked out.
+ * @param rootDir - repository root.
+ * @returns the tag names, or null when the submodule is not checked out.
+ */
+export function harnessTags(rootDir = root) {
+  const harness = join(rootDir, "references/deepseek-harness");
+  if (!existsSync(join(harness, ".git"))) return null;
+  return execFileSync("git", ["-C", harness, "tag", "--points-at", "HEAD"], { encoding: "utf8" })
+    .split("\n")
+    .filter((tag) => tag !== "");
+}
+
+/**
  * Everything that must agree for the version source to hold: the catalog's dsh
- * version against `apps/host/supported-dsh.json`, every workspace package
+ * version against `apps/host/supported-dsh.json` and the checked-out
+ * `references/deepseek-harness` tag (skipped when the submodule is absent), every workspace package
  * against `"catalog:"` instead of a hand-written dsh pin, and every declared
  * `engines.dsh` range containing the catalog's version (a plugin that says it
  * supports a range the Host does not run is a lie the pins can catch).
@@ -240,6 +256,13 @@ export function pinProblems(rootDir = root) {
   if (host !== pinned) {
     problems.push(
       `apps/host/supported-dsh.json 是 ${host}，workspaces.catalog 的 dsh 版本是 ${pinned}`,
+    );
+  }
+  const tags = harnessTags(rootDir);
+  if (tags !== null && !tags.includes(`dsh-v${pinned}`)) {
+    problems.push(
+      `references/deepseek-harness 检出的不是 dsh-v${pinned}（HEAD 上的 tag：${tags.join(", ") || "无"}）；` +
+        `运行 git -C references/deepseek-harness fetch --tags && git -C references/deepseek-harness checkout dsh-v${pinned}`,
     );
   }
   for (const { name, path } of manifests(rootDir)) {

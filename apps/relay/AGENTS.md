@@ -1,6 +1,6 @@
 # Relay 约束
 
-补充[根约束](../../AGENTS.md)。修改常驻 Relay、本机控制面或服务登记时适用。读 [ARCHITECTURE](../../docs/ARCHITECTURE.md) §7、[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md) 与 [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md)（Bridge / Relay 边界）。
+补充[根约束](../../AGENTS.md)。修改常驻 Relay、本机控制面或服务登记时适用。读 [ARCHITECTURE](../../docs/ARCHITECTURE.md)、[0006](../../docs/decisions/0006-host-is-the-only-background-service.md) 与 [0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)（Bridge / Relay 边界）。
 
 ## 职责
 

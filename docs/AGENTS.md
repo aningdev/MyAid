@@ -1,58 +1,49 @@
 # 文档规范
 
-写或改本仓文档前读本文。形状对齐 DeepSeek-harness 的分层原则；**不**引入 `*.i18n.yaml`、字数预算门禁或 doc-sync CI。
+写或改本仓文档前读本文。
 
-## 三件套
+## 四类文档
 
-| 文件           | 受众  | 语言           | 放什么                                                       |
-| -------------- | ----- | -------------- | ------------------------------------------------------------ |
-| `README.md`    | 人    | 英（对外默认） | 该单元契约：职责、边界指针、命令、必要时布局、限制、相关链接 |
-| `README.zh.md` | 人    | 中             | 与 `README.md` 结构对齐的中文对                              |
-| `AGENTS.md`    | Agent | 中（单语）     | 站立指令与指针；不写教程、不复述 README 命令表               |
+| 文档                                                           | 回答                   | 规则                                                                                                                                                        |
+| -------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [GLOSSARY](GLOSSARY.md)                                        | 这些东西**是什么**     | `**Term**: 定义` 加 `_Avoid_`，以及 Relationships；不写实现细节                                                                                             |
+| [ARCHITECTURE](ARCHITECTURE.md) 和 `architecture/<subject>.md` | 系统**怎么搭**         | 只写现状和约定，不写历史；专题文档每个主题一篇，并列在 Subjects 表里                                                                                        |
+| `decisions/NNNN-<decision>.md`                                 | **为什么**这样定       | 写难以撤销的选择：Context / Decision / Why / Rejected，不超过一屏；写好后不改，要改就写一条新的，并注明它取代哪一条                                         |
+| `specs/YYYY-MM-DD-<feature>.md`                                | 一个功能要**达成什么** | Why / Goal / Out of scope / Acceptance criteria（每条带例子，并标 automated 或 manual）/ Open questions；不写设计和任务；目标变了就在原文里补上带日期的修订 |
 
-根与各 README 对顶部互链：`English \| [中文](README.zh.md)` / `[English](README.md) \| 中文`。
+改了机制，就在同一次改动里更新描述它的那篇文档。计划、评审和报告都不是文档。
 
-## 分层（一事实一归宿）
+## 单元三件套
 
-| 归宿                                                  | 只放                               |
-| ----------------------------------------------------- | ---------------------------------- |
-| 根 `AGENTS.md`                                        | 全局站立指令 + 指针                |
-| 子树 `AGENTS.md`（`apps/*`、`packages/`、本文等）     | 该子树专属护栏                     |
-| 包 / app / crate `README(.zh)`                        | 该单元契约                         |
-| `docs/BLUEPRINT`、`ARCHITECTURE`、`DSH_PRINCIPLES` 等 | 产品与架构真源；包 README 只链过去 |
-| `GLOSSARY.md`、`docs/adr/`                            | 用词与决策                         |
-| `docs/agents/*`                                       | issue / triage / domain 等流程     |
+| 文件           | 读者  | 语言 | 内容                                                     |
+| -------------- | ----- | ---- | -------------------------------------------------------- |
+| `README.md`    | 人    | 英文 | 这个单元的契约：职责、边界指针、命令，必要时加布局和限制 |
+| `README.zh.md` | 人    | 中文 | 和 `README.md` 结构对齐                                  |
+| `AGENTS.md`    | Agent | 中文 | 约束和指针；不写教程，不重复 README 的命令表             |
 
-## 必有文件清单
+两种 README 的顶部互相链接：`English | [中文](README.zh.md)` / `[English](README.md) | 中文`。
 
-| 位置                           | README 对       | AGENTS                             |
-| ------------------------------ | --------------- | ---------------------------------- |
-| 仓库根                         | 必需            | 必需                               |
-| `docs/`                        | —               | 本文（文档规范）                   |
-| `packages/`                    | 短索引（en/zh） | 插件族护栏（`packages/AGENTS.md`） |
-| 每个 `apps/*`                  | 必需            | 必需（现状保留）                   |
-| 每个 `packages/*` workspace 包 | 必需            | 默认不建；有额外护栏再建           |
-| 每个 `crates/*` Cargo 成员     | 必需            | 仅有独立护栏时建                   |
+| 位置              | README 对 | AGENTS                             |
+| ----------------- | --------- | ---------------------------------- |
+| 仓库根            | 必需      | 必需                               |
+| 每个 `apps/*`     | 必需      | 必需                               |
+| `packages/`       | 简短索引  | 插件族约束（`packages/AGENTS.md`） |
+| 每个 `packages/*` | 必需      | 默认不建，确有额外约束才建         |
 
-`references/`、`scripts/` 不强制三件套。`docs/` 产品正文本轮不要求双语对。
+`docs/` 下的正文只写中文；`references/` 和 `scripts/` 不要求三件套。
 
 ## README 必含章节
 
 1. 一句话职责
-2. 边界指针（链到 ARCHITECTURE / DSH_PRINCIPLES / 子树 AGENTS，不复述）
-3. 常用命令（以 `package.json` / `Cargo.toml` / 根 scripts 为准）
-4. 布局要点（仅非显而易见时）
-5. Known limitations（无则省略）
-6. 相关链接
+2. 边界指针（链到 ARCHITECTURE、decision 或子树 AGENTS，不重复内容）
+3. 常用命令（以 `package.json` / `Cargo.toml` 为准）
+4. 布局要点（只在不明显时写）
+5. Known limitations（没有就省略）
 
-不强制 YAML frontmatter、TOC、Model Experience。
+## 写作禁令
 
-## 放置与写作禁令
-
-- 不双写：同一契约只在一个归宿；别处用相对链接。
-- 根 `README(.zh)` 写**产品说明**（定位、对用户可见部件、平台、文档入口）；仓库地图与包命令下沉到各单元 README。根文末可留极短 Developers 入口（链到 `AGENTS.md` 与各包 README + 最少命令），不写工具链钉版细节。
-- 不写历史叙事或「已实现 / 未来」状态注脚；现状以目录与清单为准。
-- 不复述可从 `package.json` scripts / `--help` 一眼查到的清单，除非约定或易踩坑。
-- AGENTS 不教人上手；上手进 README。
-- `packages/*` 的插件共用 `packages/AGENTS.md`，叶子默认不建 AGENTS。
-- 改行为先改真源文档或代码，再改指向它的 README / AGENTS。
+- 同一事实只写一处，其他地方用相对链接指过去；链接由 `bun run check` 校验。
+- 根 README 写产品说明（定位、Owner 能看到的部件、平台、文档入口），仓库地图和包命令放到各单元 README。
+- 不写历史叙事，也不加「已实现 / 未实现」之类的状态注脚。
+- 不重复 `package.json` scripts 或 `--help` 一眼就能查到的内容，除非容易踩坑。
+- 用 [GLOSSARY](GLOSSARY.md) 里的术语，不用它 `_Avoid_` 里列的词。
