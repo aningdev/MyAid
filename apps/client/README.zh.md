@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-NSH 桌面 / 移动客户端，纯 TSX：`App.tsx` 入口，没有 Rust crate（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。拥有 Workspace Shell（扁平 Bot 列表 + Pane 分屏）、Bot 注册表、官方 dsh 协议客户端与回环控制面客户端。产品形态见 [BLUEPRINT](../../docs/BLUEPRINT.md)，决定见 [ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)。架构与 DSH 边界：[ARCHITECTURE](../../docs/ARCHITECTURE.md)、[DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md)。编码护栏：[AGENTS.md](AGENTS.md)。
+NSH 桌面 / 移动客户端，纯 TSX：`App.tsx` 入口，没有 Rust crate（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。拥有 Workspace Shell（扁平 Bot 列表 + Pane 分屏）、Bot 注册表、官方 dsh 协议客户端与回环控制面客户端。产品形态见 [personal-agent spec](../../docs/specs/2026-11-20-personal-agent.md)，决定见 [GLOSSARY](../../docs/GLOSSARY.md)。架构与 DSH 边界：[ARCHITECTURE](../../docs/ARCHITECTURE.md)、[0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)。编码护栏：[AGENTS.md](AGENTS.md)。
 
 Bundle id：`com.aningdev.myaid`（见 `nsh.json`）。目录形状沿用 `nsh init`（[project structure](https://nsh.dev/docs/project-structure.md)）。
 
@@ -79,10 +79,10 @@ vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / 
 
 ## 数据
 
-- 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 6 存 templates 与 Bots；每个 Bot 用 `segments`（`sessionId` + `workspaceId` + 人对它的称呼）按时间从旧到新持有它的一条长对话。v3 / v4 / v5 文件在连上 Host 前只读：迁移把该 Bot 的旧 Dialogue 按认领顺序并成一条长对话，每段保留自己的 Workspace id，并在 dsh 里**取消归档旧 Session**，让历史完整；写新文件前先备份旧文件为 `bots.json.v<旧版本>.bak`。Identity、归档位与段的认领在注册表（[ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)）；Workspace 路径、名字、Session 顺序与归档归 dsh（[ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)）。
+- 注册表：桌面 `~/.myaid/registry/bots.json`；web / 移动走 `nsh` Storage（`myaid.registry.bots`）。版本 6 存 templates 与 Bots；每个 Bot 用 `segments`（`sessionId` + `workspaceId` + 人对它的称呼）按时间从旧到新持有它的一条长对话。v3 / v4 / v5 文件在连上 Host 前只读：迁移把该 Bot 的旧 Dialogue 按认领顺序并成一条长对话，每段保留自己的 Workspace id，并在 dsh 里**取消归档旧 Session**，让历史完整；写新文件前先备份旧文件为 `bots.json.v<旧版本>.bak`。Identity、归档位与段的认领在注册表（[0004](../../docs/decisions/0004-the-registry-lives-in-a-dsh-plugin.md)）；Workspace 路径、名字、Session 顺序与归档归 dsh（[GLOSSARY](../../docs/GLOSSARY.md)）。
 - Workspace 与 Session：官方 `ClientWorkspaceModel` / `ClientSessions` 装在 Connection 的 Cordis Context 上（`lib/dsh/connection.ts`），每个 Host generation 原子替换它们的 snapshot。`features/workspace` 与 `features/dialogue/session` 只把 snapshot 投影成 NSH signal；Remote 的返回不写这份状态。它们的浏览器 `__ModuleLoader__` 产物由 `prepare:sdk` 展开成静态 ESM（`lib/dsh/generated/`），因为 NSH 不运行字符串代码。
 - 客户端偏好：桌面 `~/.myaid/prefs/client.json`；其他目标走 Storage（`myaid.prefs.shell`）。版本 2 覆盖 Navigator 的宽度与开合、Pin 的 Bot 顺序、Pane（布局、每个 Pane 的 Bot、活动 Pane）与通用页的外观、语言和颜色（旧文件读默认值；本版本不带的主题 id 读作构建时主题）。版本 1 文件只读一次：Bot pin 保留，Dialogue / Session pin 变成它所属 Bot 的 Pane，Session pin 本身丢弃。聊天发送键是独立的 Storage 键（`myaid.prefs.sendKey`）。
-- `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md)。
+- `capabilities.fs` 只授 `${homeDir}/.myaid` 读写。附件走系统选择器；授权外的拖放与粘贴退回同一个选择器 —— 见 [0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)。
 
 ## 语言
 
@@ -96,11 +96,11 @@ vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / 
 - 界面没有段级归档 / 删除；归档的是 Bot，段与日志都保留。
 - dsh 的 Session 模型目录受凭据门控：没有可用 Key 时目录为空，默认模型卡片退回各供应商设置里公布的 `models` 与当前选择。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md)。
 - Host 未挂载 `dsh-bot-presets` 时 Bot 详情存不了 Skills / Plugins 变更：没有别的 Remote 能写 Agent preset 正文。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md) 的缺口表。
-- 客户端阻塞时 dsh mux 可能因错过两次心跳断开；Session controller 会重跟（3 次、退避）。细节见 [DSH_CLIENT_AUTH](../../docs/DSH_CLIENT_AUTH.md)。
+- 客户端阻塞时 dsh mux 可能因错过两次心跳断开；Session controller 会重跟（3 次、退避）。细节见 [dsh-connection](../../docs/architecture/dsh-connection.md)。
 
 ## 原生层：App 自己启动的 Host（仅本机桌面）
 
-本应用没有 Rust（[ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)）。Host 是 `127.0.0.1:4872`（`MYAID_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证；Relay 有自己的 `127.0.0.1:8787` 与 `relay/serve-token`。
+本应用没有 Rust（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。Host 是 `127.0.0.1:4872`（`MYAID_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证；Relay 有自己的 `127.0.0.1:8787` 与 `relay/serve-token`。
 
 - `lib/host/launcher.ts`：没有 Host 就起（`myaid-host serve-app`），有就复用，退出后 1 秒起、翻倍到 15 秒重启；要求 `myaid-host` 在 `PATH` 上（`cargo build -p myaid-host` 产出在 `target/debug`，`scripts/run-with-host-path.mjs` 为桌面端的 `dev*` 脚本（`dev`、`dev:macos`、`dev:windows`、`dev:linux`、`dev:gpui`）把它放前面）。日常用根目录 `bun run dev [target]`，它在 Host 源码变新时重建二进制，并且只给桌面目标接上这个 `PATH`。
 - `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`）。Host 的公开状态还带 `hostVersion` 与 guardian 实际找到的 `dshVersion`，供后台与关于页显示。
@@ -110,6 +110,6 @@ vp run @myaid/client#package:web      # 另有 package:windows / linux / gpui / 
 ## 相关
 
 - [ARCHITECTURE §5](../../docs/ARCHITECTURE.md) —— 客户端结构与 dsh 缺口表。
-- [DSH_CLIENT_AUTH](../../docs/DSH_CLIENT_AUTH.md) —— 回环 Cookie 引导与 mux 心跳限制。
-- [ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md) / [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md) —— identity 归注册表；`fs` 只授应用数据。
+- [dsh-connection](../../docs/architecture/dsh-connection.md) —— 回环 Cookie 引导与 mux 心跳限制。
+- [0004](../../docs/decisions/0004-the-registry-lives-in-a-dsh-plugin.md) / [0007](../../docs/decisions/0007-the-client-is-pure-tsx.md) —— identity 归注册表；`fs` 只授应用数据。
 - [screens/README.md](screens/README.md) —— 截图与 opt-in 真 Host 冒烟。

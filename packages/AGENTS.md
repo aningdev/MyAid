@@ -1,8 +1,8 @@
 # 插件规则
 
-`packages/*` 里的插件跑在上游 dsh 上，所以规则也来自 dsh：每条一句话 + 出处。本仓的产品边界与缺口判断见 [DSH_PRINCIPLES](../docs/DSH_PRINCIPLES.md) §4、[ARCHITECTURE](../docs/ARCHITECTURE.md) §4；包索引见 [README](README.md)。写文档前读 [docs/AGENTS.md](../docs/AGENTS.md)。
+`packages/*` 里的插件跑在上游 dsh 上，所以规则也来自 dsh：每条一句话 + 出处。本仓的产品边界与缺口判断见 [0001](../docs/decisions/0001-dsh-web-is-the-only-backend.md)、[ARCHITECTURE](../docs/ARCHITECTURE.md) [README](README.md)。写文档前读 [docs/AGENTS.md](../docs/AGENTS.md)。
 
-出处只读：[`references/deepseek-harness`](../references/deepseek-harness) 下文简称 dsh。机制背景见 [HARNESS_PRINCIPLES](../docs/research/HARNESS_PRINCIPLES.md)。
+出处只读：[`references/deepseek-harness`](../references/deepseek-harness) 下文简称 dsh。机制背景见 [0001](../docs/decisions/0001-dsh-web-is-the-only-backend.md)。
 
 ## 命名
 
@@ -46,4 +46,4 @@
 - 开发期与 Rust Host 用绝对路径 `--patch` overlay，`name` 指向构建产物的 `file://` URL；profile 装包走 `dsh plugin add`（[overlay](../references/deepseek-harness/docs/user/develop/basic/index.md#register-it-in-cordisyml)、[loading order](../references/deepseek-harness/docs/user/develop/basic/publish.md#the-loading-order)）。
 - 插件以 `dsh.bundle` 声明的那层补丁就是它的装配面，不在代码里再写一份默认组合（[bundle manifest](../references/deepseek-harness/docs/user/develop/basic/publish.md#the-bundle-manifest)）。
 - Client 只经插件导出的 `./remote`（Typert 面）调用，并在 [`apps/client/lib/dsh/sdk.ts`](../apps/client/lib/dsh/sdk.ts) 登记一次；插件**不**依赖 [`@myaid/dsh-web-protocol`](dsh-web-protocol/README.md)，DTO 在那里只是 Client 侧镜像。
-- 产品缺口的判据在 [DSH_PRINCIPLES](../docs/DSH_PRINCIPLES.md) §4：先复用官方 `dsh web` 与已装插件，缺口才建插件。
+- 产品缺口的判据在 [0001](../docs/decisions/0001-dsh-web-is-the-only-backend.md) `dsh web` 与已装插件，缺口才建插件。

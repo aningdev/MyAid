@@ -1,158 +1,103 @@
-# MyAid 架构
+# dsh-bot 架构
 
-本文是技术方案真源：进程边界、Host、插件与数据归属继承 [DSH 原则](DSH_PRINCIPLES.md)。产品规则见 [BLUEPRINT.md](BLUEPRINT.md)，概念见 [GLOSSARY.md](../GLOSSARY.md)。Host / Relay / 插件与成品打包仍多为骨架；**不以文档追认未完成代码**。
+dsh-bot 是一个覆盖全端的 Personal Agent：Runner 上的官方 `dsh web` 执行所有工作，本仓的 dsh 插件提供产品能力，NSH Client 在每台 Device 上提供界面。用词见 [GLOSSARY](GLOSSARY.md)，难以撤销的选择及原因见 [decisions/](decisions/)，各机制的细节见文末 Subjects。
 
-## 1. 系统概览
+## Stack
+
+| 部分         | 技术                                                    | 说明                                                                                                        |
+| ------------ | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 执行         | 官方 `dsh web`（`web` profile），版本见下文「跟随 dsh」 | 唯一后端（[0001](decisions/0001-dsh-web-is-the-only-backend.md)）                                           |
+| 产品能力     | dsh 插件：TypeScript、Cordis bundle、Remote             | `packages/*`                                                                                                |
+| Client       | NSH 0.6 纯 TSX 加 shadcn-nsh                            | 一份代码覆盖 macOS、Windows、Linux、iOS、Android 和 web（[0007](decisions/0007-the-client-is-pure-tsx.md)） |
+| Host / Relay | Rust（Cargo workspace）                                 | Host 跑在 Runner 上，Relay 是公网服务                                                                       |
+| 工具链       | bun（唯一 `bun.lock`）加 Vite+（`vp`）；Cargo           | `check` / `test` 见根 `package.json`                                                                        |
+
+## Layers
 
 ```mermaid
-flowchart LR
-    D[NSH 桌面客户端<br/>纯 TSX] -->|启动 / 探活| BH[Host 进程<br/>127.0.0.1:4872]
-    D -->|Bearer token<br/>HTTP / WebSocket| BH
-    D -->|登记 / 状态| BR[Relay 进程<br/>127.0.0.1:8787]
-    BH -->|启停 / 回收| W[唯一官方 dsh web]
-    W --> P[web profile / Session / 模型与工具]
-    D --> C[官方协议客户端]
-    C -->|认证后 HTTP / WebSocket| W
-    D --> B[(注册表 / 任务真源)]
-    C -->|公开插件接口| E[dsh 插件 / 本仓插件]
-    W --> E
-    BR -.->|加密帧（未实现）| R[Relay 转发]
+flowchart TB
+  subgraph Device[任意 Device]
+    UI[Client features] --> DSHC[lib/dsh Connection<br/>官方 client model]
+    DSHC --> CAR{Carrier}
+  end
+  subgraph Runner
+    HOSTC[lib/host<br/>仅 Runner] --> HOST[Host]
+    HOST -->|启停| WEB[dsh web<br/>web profile]
+    BR[Bridge] -->|回环 + Cookie| WEB
+    HOST --- BR
+    WEB --> PLG[本仓插件<br/>bots · tickets · source-*]
+  end
+  CAR -->|loopback| WEB
+  CAR -->|relay tunnel 密文帧| RELAY[Relay 公网] --> BR
+  SRC[外部 Source<br/>IM · GitHub] <--> PLG
 ```
 
-实线为单机目标形状；虚线为多端。系统边界：
+依赖只沿箭头方向：
 
-1. 官方 `dsh web` + `web` profile 承载全部执行；产品经声明式 bundle 使用官方插件或 `packages/*` 里的产品插件。
-2. Rust Host 独占 dsh 生命周期与连接发现（照 lorca 的 `lorca serve`，见 [ADR 0007](adr/0007-native-layer-after-lorca.md)）；Client 直连官方协议做业务。
-3. 桌面持有注册表与交互状态；dsh 持有 Session、执行状态、共享设置与凭据。
-4. **不设 `ProductService`**；本机控制面只做宿主管理与登记事实，不是业务网关。
-5. 关闭 UI 停止 App 自己启动的 Host 子进程；OS 登记的那份 Host / Relay 由 launchd、systemd 或 Windows 监督器常驻，显式停止才清理。
+- **Client**：`features/*` → `lib/*`，反过来不行。视图只读产品投影，不直接碰传输；投影也不重复计算官方 client model 已经维护的状态。
+- **lib/dsh** 只通过 Carrier 访问 dsh web，不知道自己走的是 loopback 还是 relay。`lib/host` 只在 Runner 上装载。
+- **Host** 只管进程和连接：dsh web 的生命周期、本机控制面、OS 登记和 Bridge。它不调用任何业务 Remote，Bridge 只负责鉴权之后的转发。
+- **Relay** 只负责配对会合和转发密文帧，不解密，也不含业务逻辑。
+- **插件**只依赖 dsh 的公开服务（`ctx.get`），插件之间只通过声明的服务互相调用。Source 插件依赖 `tickets` 提供的 `sources` 服务。
 
-## 2. 仓库与组件
-
-| 位置                   | 职责                                                                      | 现状                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/client`          | NSH **TSX**：产品 UI / 注册表 / 官方协议 / 回环控制面客户端               | AppShell：扁平 Bot 列表 + Pane 分屏 + Bot 详情弹窗；设置覆盖层（供应商 / 通用 / 后台 / 关于）                                                 |
-| `apps/host`            | dsh 生命周期、回环控制 API、OS 登记、后续 Bridge                          | Lifecycle + `local_api`（HTTP/WS）+ `service` 已落地；Bridge 空壳                                                                             |
-| `apps/relay`           | 常驻 Relay 进程、本机控制 API、OS 登记；多端密文转发（后）                | `config` / `routes` / `run` / `service` 已落地；转发面与身份仍骨架                                                                            |
-| `crates/myaid-service` | 两个单元逐字相同的 launchd / systemd / Windows 计划与登记动词（ADR 0007） | plist、systemd 单元、Run 键与监督器                                                                                                           |
-| `packages/*`           | Cordis 能力插件；规则见 [AGENTS](../packages/AGENTS.md)                   | `dsh-bot-presets` 提供 Bot 派生 preset 写入口                                                                                                 |
-| 根 `package.json`      | bun workspace；任务经 **Vite+ `vp run`** 调度                             | `bun run dev [target]` → `scripts/dev.mjs`（核对依赖、重建过期的 Host，再起 Client，Host 由 App 启动）；`check` / `test` 按发现跑有该脚本的包 |
-| `references`           | 只读上游：`nsh`（示例 UI）、`deepseek-harness`（dsh 能力面）              | `.gitmodules`；不参与构建                                                                                                                     |
-
-Bun 管理 JS workspace 与唯一 `bun.lock`；Cargo workspace：`apps/host`、`apps/relay`、`crates/myaid-service`。不在 Rust 中重实现 Harness，也不在 Client 里放 Rust：Client 用标准 `fetch` / `WebSocket` 调宿主与转发。
-
-## 3. 装配与启动
-
-```sh
-# App 启动器会做的事：显式起一份 Host（产品数据根、钉住的 dsh）
-myaid-host serve-app --port 4872 --ready-stdout
-# 隔离/开发入口
-myaid-host serve --data-root "$SCRATCH" --port 4873 --official-dsh --ready-stdout
-# Host 自己拉起的官方 dsh
-DSH_HOME=~/.myaid /absolute/path/to/dsh web --host 127.0.0.1 --port 0 --no-open
-```
-
-### Host 模块
+## Layout
 
 ```text
-apps/host/src/
-├── main.rs           # serve-app | serve | guardian | service …
-├── lib.rs
-├── config.rs / runtime.rs
-├── local_api/        # mod + routes + auth + status（回环 HTTP / WebSocket 控制面）
-├── service.rs        # 本单元的 OS 登记（launchd / systemd / Run 键）
-├── dsh_process/      # Lifecycle 公开入口；内部 ProcessState + ChildHandle seam
-└── bridge/           # 多端阶段
+apps/
+  client/            NSH Client（所有平台）
+    features/        产品功能，每个目录对应一个术语：bots · dialogue · tickets · devices · settings · workspace
+    components/      ui/（shadcn-nsh 复制件，只能用它的 CLI 添加）· app/（产品组合）· shell/（Navigator、Workbench、命令表）
+    lib/             dsh/（Connection）· carrier/（loopback · relay）· host/（仅 Runner：控制面、launcher）· i18n/
+    screens/         open(…) 入口、截图和真 Host 冒烟
+  host/              Rust：dsh_process/ · local_api/ · service/（OS 登记）· bridge/（Relay 链路、配对、转发）
+  relay/             Rust：配对会合、密文帧转发、web 版 Client 静态托管
+packages/
+  bots/              Registry 和 Main Bot（Remote `bots`）
+  tickets/           Ticket、Attention、Source 注册面（Remote `tickets`，服务 `sources`）
+  source-<kind>/     一个 Source 一个插件，例如 source-feishu、source-github
+  dsh-web-protocol/  只给 Client 用的官方 Remote 类型再导出，插件不能依赖它
+scripts/             根编排：dev.mjs（唯一的 dev 入口）、dsh 版本检查、文档检查
+docs/                GLOSSARY · ARCHITECTURE · architecture/ · decisions/ · specs/ · agents/
+references/          只读的上游源码，不参与构建
 ```
 
-| Module                     | 原则                                                                                                                   |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `DshProcess` / `Lifecycle` | 独占 CLI、环境、spawn、ready、版本、日志、回收与并发启动归并；内部 `ProcessState`，seam 上映射公开 status / connection |
-| `local_api`                | `127.0.0.1:<port>` 的 HTTP 路由与 `/watch` 订阅；`Origin`/`Host` 校验 + Bearer token；只调 `Lifecycle` 与 `service`    |
-| `service`                  | 本单元在 OS 上的登记（plist / 单元 / Run 键与监督器），计划是 `crates/myaid-service` 的纯函数，测试只快照不安装        |
-| `Bridge`                   | 配对、授权、官方协议转发                                                                                               |
+文件夹和文件用术语表里的词命名，不设 `utils/`、`common/` 之类的杂物目录。每个单元的职责和命令写在它自己的 README 里。
 
-相位（与 `local_api/status.rs` 一致）：`stopped → preparing → starting → ready`；另有 `recovering`；失败 `failed`；停止 `stopping → stopped`。新子进程新 `generation`。ready ≠ 端口可连；官方客户端认证后才允许业务。公开 status 不含认证 URL/token（`GET /connection` 单独给，且只在 ready）。ready-URL / 相位校验真源：`parse_ready_url` + `Status::validate`（fixture：`apps/host/testdata/host-contract-cases.json`）。
+## Seams
 
-初始化分工：NSH 管注册表 / 草稿 / Bot 的段指向哪个 Workspace；Host 管数据根、CLI、登录环境、profile 首启；dsh Workspace 拥有 path、title、Session 顺序、置顶与归档。缺 CLI、版本不符或目录不可写须返回明确原因，保留用户内容。
+| Seam            | 接口                                                                                 | Adapters                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Carrier         | 给官方 `installConnection` 注入的 `fetch` 和 `createWebSocket`，外加 `streamBaseUrl` | `loopback`（Runner 上的 Client，用 Cookie 直连）· `relay`（其他 Device，端到端加密隧道） |
+| Source          | `sources` 服务：注册一种 Source，交付 Trigger，经 Channel 写回                       | `source-feishu` · `source-github` · 测试用 fake                                          |
+| OS 登记         | Host 的 `service` 模块：生成并执行登记计划                                           | launchd · systemd · Windows Run 键加监督器 · 测试只生成快照                              |
+| dsh 子进程      | Host 的 `ChildHandle`                                                                | 真实进程 · 测试用 fake                                                                   |
+| Device 偏好存储 | Client 偏好的读写                                                                    | 桌面写数据根下的文件 · 移动端和 web 用 NSH Storage                                       |
 
-## 4. Cordis / 插件装配
+## 数据归属
 
-- 产品插件按职责命名（如 `dsh-bot-presets`），含 `cordis.patch.yml` 与 `package.json` 的 `dsh.bundle`；规则全部取自上游 dsh，见 [packages/AGENTS.md](../packages/AGENTS.md)。
-- 经官方 `dsh plugin add` 或 Host/开发期 `--patch` 指向绝对 `lib/index.js`。
-- NSH 调用公开 Remote；专属数据在 `$DSH_HOME` 下由插件管理。Bot 派生 preset 的写入口归 [`bot-presets`](../packages/bot-presets/README.md)；执行组合仍经官方 registry 注册。
-- 参考：`docs/research/HARNESS_PRINCIPLES.md`。
+| 数据                                         | 归谁                                               | 访问方式                                                                      |
+| -------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Session、Workspace、设置、凭据、Agent preset | dsh                                                | 官方 Remote 和 client model（`ctx.sessions` / `ctx.workspaces`）              |
+| Registry、Main Bot                           | `bots` 插件，存在 `$DSH_BOT_HOME`                  | `bots` Remote（[0004](decisions/0004-the-registry-lives-in-a-dsh-plugin.md)） |
+| Ticket、Attention、Source 配置和读取位置     | `tickets` 和 `source-*` 插件，存在 `$DSH_BOT_HOME` | `tickets` Remote                                                              |
+| 配对的公钥                                   | Host 的 Bridge，存在数据根下                       | Runner 上的本机控制面                                                         |
+| Pin、Pane 布局、主题、语言                   | 各 Device 自己                                     | Device 偏好存储                                                               |
 
-已知缺口与候选插件：
+Runner 的数据根是 `$DSH_BOT_HOME`（默认 `~/.dsh-bot`）。Host 启动 dsh web 时把它作为 dsh 的 `DSH_HOME` 传入，所以 dsh 和本仓插件的数据都在这里；`DSH_HOME` 只出现在这一个交接点，本仓其余文档和代码都用 `DSH_BOT_HOME`。隔离开发用 `~/.dsh-bot-dev/<name>`。
 
-| 缺口                                     | 候选                                                          | 影响                                                                                       |
-| ---------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Bot identity 只在本机                    | `dsh-bot-identity`（或 session metadata）                     | identity 不能跨设备同步                                                                    |
-| 审批没有 “Always allow”                  | approval-policy 插件                                          | 每次审批都要人点                                                                           |
-| prompt receipt 不带 queue item id        | 向 dsh 提需求                                                 | Withdraw 依赖 `inbox` 投影回报 item id                                                     |
-| 无凭据时 Session 模型目录为空            | 无（dsh 的凭据门控）                                          | 设置页的默认模型退回供应商设置里公布的 `models` 与当前值                                   |
-| 默认模型没有专用 Remote                  | 用 `settings.update` 写 `agent-default-model` 命名空间        | 命名空间 id 是 profile 条目 id，设置页按 schema 发现                                       |
-| 凭据文件在 `$DSH_HOME/.credentials.yaml` | dsh `credentials-local` 的设计                                | Key 只在该文件内（数据根即 dsh home）；MyAid 注册表 / prefs / 日志与 Client 内存都不含 Key |
-| 历史会话没有导入入口（rc.3 起）          | 官方 `dsh-deepseek-chat-import`（实验性，默认关闭，仅 owner） | 从 deepseek_data ZIP 导入的会话只能落在 Workspace 里；Client 既没有按钮也没有对应 UI       |
+## 跟随 dsh
 
-Known limitations：NSH 标准 websocket 在 8 条未读消息时暂停读取；dsh mux 连续 2 次未收到 pong（2 s 心跳）即断开。重连已全部归官方 client model（每代 generation 原子替换窗口），产品侧不再自建退避重跟。实测与细节在 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。
+dsh 的版本只写在三个地方：根 `package.json` 的 `workspaces.catalog`（所有 `@deepseek-ai/*`）、`apps/host/supported-dsh.json`（编译进 Host）、`references/deepseek-harness` 子模块的 `dsh-v<version>` tag。`scripts/check-dsh-pin.mjs` 是 `bun run check` 的第一步，负责检查三者一致、各包都写 `"catalog:"`，以及插件的 `engines.dsh` 包含这个版本。升级时只改这三处，然后 `bun install && bun run check`。
 
-## 5. 客户端（NSH TSX）
+## 平台
 
-```text
-apps/client/
-├── App.tsx / App.test.tsx      # mount AppShell
-├── components/
-│   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Appear、IconTile、ImageViewer、OptionSegmented、Shortcut）
-│   ├── shell/                  # Workspace Shell：Navigator（扁平 Bot 列表）+ Pane 分屏 + 设置覆盖层、命令表、偏好、注意
-│   └── ui/                     # shadcn-nsh 复制件（只经其 CLI add）：组件外观、状态与主题的唯一所有者
-├── features/
-│   ├── bots/                   # 注册表模型 / store / identity / Bot Pane 与 Bot 详情弹窗
-│   ├── dialogue/               # chat、段（Session）运行时与其控件
-│   ├── workspace/              # 官方 Workspace 模型的产品投影、v3/v4/v5→v6 迁移、开新段与 workspace.* 命令
-│   └── settings/               # 设置覆盖层：供应商 / 通用 / 后台 / 关于（供应商经 dsh Remote，ADR 0002）
-├── lib/
-│   ├── dsh/                    # Cookie + 标准 WebSocket、Connection、官方 client model 装配
-│   ├── host/                   # 控制面客户端（client.ts）、启动器（launcher.ts）、登记动词
-│   ├── relay/                  # Relay 登记动词
-│   ├── background/             # 两个 Background Service 的产品编排
-│   └── i18n/                   # 唯一消息目录（zh + en）、语言偏好、t()
-├── screens/                    # open(…) 入口、截图与真 Host 冒烟（opt-in）
-├── themes/                     # shadcn-nsh 的 `add theme-*` 复制件：`default/`（库自带配色，运行时可切）与 `shadcn/`（构建时主题的同一套，`init` 放进来的 AppTheme）；构建时主题仍是根上的 theme.json
-└── nsh.json                    # 纯 TSX：无 "rust" 键；network / process 能力收窄
-```
+| 角色   | 平台                                            | 连接方式                                      |
+| ------ | ----------------------------------------------- | --------------------------------------------- |
+| Runner | macOS · Windows · Linux 桌面                    | Client 走 loopback，并通过 launcher 管理 Host |
+| Device | iOS · Android · 其他桌面 · web（由 Relay 托管） | relay tunnel，第一次使用前要先配对            |
 
-### 原生层（ADR 0007）
+## Subjects
 
-- 应用不再带 Rust：控制面是 `lib/host/client.ts` 的 `fetch` + 标准 `WebSocket`，token 取自 `<数据根>/host/serve-token`（Relay 用 `relay/serve-token`）。
-- `lib/host/launcher.ts` 是 lorca 的 launcher：探 `/` → 复用或 spawn `myaid-host serve-app` → 退出后退避重启（1s 起、翻倍到 15s）→ 失败时由页脚给空状态与手动命令。启动器拿到的 `MYAID_HOST_PORT` / `MYAID_DATA_ROOT` 与客户端读 token 的根是同一套：`lib/data-root.ts` 的 `dataRootPath()` 是唯一来源，注册表、偏好、Host token 与 Host 都从它取；`MYAID_DATA_ROOT` 只能落在 `nsh.json` 授权的 `~/.myaid-dev/` 下（`bun run dev --isolated`）。
-- 页脚订阅启动器的相位：Host 退出时 Client 丢弃当前 Connection 并从新 Host 重建（dsh 自己会一直重试旧登录 URL，不能作为信号）。
-- `nsh.json` 的 `network` 只授予回环 `/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`、Relay 的 `/v1/health` 与 dsh 的 `/connect`、`/api/*`；`process.execute` 只授予 `myaid-host`。
-
-- **界面语言**：用户可见文案只有一个归宿——`lib/i18n/messages.ts` 的目录（简体中文 + English，键为类型，缺键即 `nsh check` 失败）；视图不持有字面 UI 文案，只经 `lib/i18n` 的 `t(key, values)` 读取，因此切换语言在原地重绘。语言偏好（跟随系统 / 简体中文 / English）与 `locale()` 的读取也在 `lib/i18n`；`跟随系统` 把 `zh*` 读作简体中文，其余读作 English，并跟随系统变化。不翻译：用户内容（Bot 名、消息、模型回复）、产品与专名（MyAid、Host、dsh、Relay、DeepSeek、模型 id、`/new`）、dsh 自己返回的文本（provider 名、dsh 错误正文，放在已翻译的框里原样显示）与文件路径。
-- **主题与颜色**：构建时主题是 shadcn-nsh 的 shadcn（`nsh-ui.json` 的 `theme: theme-shadcn`，落在 `theme.json` 与 `lib/finishes.json`，归组件库所有，本仓不另造调色板）；`themes/default/` 是 `add theme-default` 复制进的库自带配色，`themes/shadcn/` 是 `init` 装进来的构建时主题的同一套（同一份 `theme.json` / `finishes.json`，包成 `AppTheme`），`lib/themes.ts` 是应用自己列的主题清单（`null` = 构建时主题，加每条 `themes/<name>/`，`shadcn` 不在清单里——它就是构建时主题），`selectTheme` 运行时一次性切换所有面。颜色是客户端偏好，存在 `prefs/client.json` 的 `appearance.theme`（主题 id，`null` 即构建时主题），与外观（浅色 / 深色）正交；本版本不带的 id 读作构建时主题。
-- **壳**：`AppShell` 挂 `components/shell`。左 Navigator 是注册表投影的**扁平 Bot 列表**——搜索框、**Pin** 区、其余 Bot 按最近活动排序（工作中的点、未读数）、「＋ New Bot」——底部是 Host 状态与设置入口；右 Workbench 是 shadcn-nsh `DockArea` 的 **Pane** 分屏（横 / 纵再拆、拖动分隔线、关闭、⌘ 切换焦点、从列表拖入），一个 Pane 显示一个 Bot 的长对话，**一个 Bot 同时只在一个 Pane 里**。⚙ / ⌘, 打开整页设置覆盖层，Esc 或「返回」回到原布局。Pane 只持 `botId` 与布局，内容由 `features/*` 提供。长对话是一条连续 transcript（shadcn-nsh `message-scroller` 的视口 / 内容 / 每行 / 回到最新，行内是 `message` + `bubble`、`marker`、`attachment`、`collapsible`）：段之间是「日期 · 工作目录」分隔线，右侧历史轨逐段定位；向上滚动经官方 Session 模型加载更早的页与段，在末尾时跟随最新消息，滚开后由回到最新的按钮接手。
-- **数据归属**：注册表（Bot、它的段与归档位）与客户端偏好（Pin 顺序、Pane 布局）是桌面盘上的真源（`~/.myaid/registry/bots.json`、`~/.myaid/prefs/client.json`；web / 移动走 NSH Storage）。dsh 的真源经官方 client model 到达 Client：Workspace 的 path / title / Session 顺序 / 置顶 / 归档由 `ctx.workspaces`（`ClientWorkspaceModel`）拥有，Session 列表、事件窗口、follow、分页、prompt/queue/control 与投影由 `ctx.sessions`（`ClientSessions → SessionManager → Session`）拥有；产品只投影它们的 snapshot（[`features/workspace`](../apps/client/features/workspace/state.ts)、[`features/dialogue/session`](../apps/client/features/dialogue/session/controller.ts)）。Bot identity 与「哪条 Session 属于哪个 Bot、跑在哪个 Workspace」归注册表（[ADR 0003](adr/0003-bot-identity-is-local-registry-data.md)），段的路径 / 名字 / 顺序 / 归档归 dsh 的 Workspace（[ADR 0006](adr/0006-lorca-style-bot-app.md)）。
-- **三层分工**：官方 client model（本地真相镜像：对象 identity、流与一元竞态、重连）→ 产品投影（`TurnProjection` / `rows.ts` / `WorkspaceProjection` / `botList`：把官方窗口与 snapshot 变成对话消息、列表行、状态）→ NSH 视图（`features/*` 的 Pane，控件取自 `components/ui` 的 shadcn-nsh 复制件与 `components/app` 的产品组合）。视图不读 transport，投影不重算官方 model 已拥有的状态。
-- **命令与注意**：`components/shell/commands.ts` 是唯一命令表，同时喂应用菜单、`⌘K` 与快捷键；`components/shell/attention.ts` 比较 roster 两帧，决定系统通知与 Dock badge，点通知把那个 Bot 开进 Pane。
-- **dsh 客户端**：`lib/dsh/connection.ts` 建一条 Client generation：挂官方 Remote、在同一条 Cordis Context 上装官方 client model（`ctx.sessions` / `ctx.workspaces` / 文件上传服务），并保留官方未提供的命令（模型目录与选择、skills、`/command`、插件清单、bot preset、目录选择、上传）。Cookie 换票与 mux 见 [DSH_CLIENT_AUTH](DSH_CLIENT_AUTH.md)。`lib/dsh/sdk.ts` 是 Node 条件入口源，`prepare:sdk` 产出 `sdk.js` 与 `generated/*`（官方 ModuleLoader client 包的静态展开）。
-- **Background**：设置「后台」先读 Host 的公开状态——相位（也就是 dsh web 的）、`hostVersion`、guardian 实测的 `dshVersion` 与要求的 `version`、最近原因——并发出 dsh 的 start / stop / restart；版本不一致时两者并列并说明 Host 拒绝启动。其下是 Background Services：`lib/background` 只编排 Host 与 Relay 的登记意图，显示两单元事实并发出 query / enable / stop。事实来自两个进程各自的控制面（`lib/host/registration.ts`、`lib/relay/registration.ts`）；Relay 没在跑只显示为未登记 + 原因，不拖垮 Host 那半。
-- **数据与能力**：文件读写只授应用自己的数据（[ADR 0004](adr/0004-client-fs-limited-to-app-data.md)）；HTTP / WebSocket 按 `nsh.json` `capabilities.network` 收窄，进程只授 `myaid-host`。
-
-保持 NSH 生成时的目录形状（[project structure](https://nsh.dev/docs/project-structure.md)）；应用本身是纯 TSX（[ADR 0007](adr/0007-native-layer-after-lorca.md)）。**不要**另起独立 `frontend/` 树。单元契约见 [apps/client/README.md](../apps/client/README.md)，编码护栏见 [apps/client/AGENTS.md](../apps/client/AGENTS.md)。
-
-## 6. 本机控制面（原则）
-
-- 形状照 lorca：`127.0.0.1` 上的 HTTP + 一个 WebSocket；见 [ADR 0007](adr/0007-native-layer-after-lorca.md) 与 `apps/host/src/local_api/`。
-- 路由：`GET /`（探活文本 `myaid`）、`GET /status`、`GET /connection`、`GET /watch`（WS）、`POST /dsh/start|stop|restart`、`GET /registration`、`POST /registration/enable|stop`。Relay 同形（`/`、`/v1/health`、`/registration*`）。
-- 认证：数据根 `serve-token` 的 Bearer，常量时间比较；`Origin` 存在或 `Host` 不是本端口回环一律 403。`/watch` 另接受查询串 token（标准 WebSocket 不能设头），只推公开状态。
-- `POST /dsh/start` 的 `source` 区分 `attach` 与 `userStart`；自动附着不能解除用户停机意图。Host 只报告 Host 单元事实，Relay 相位在 Host 的快照里恒为未登记，由 Client 合并。
-- 多端另含配对与设备列表（未实现）。
-
-## 7. Relay
-
-`apps/relay` 是第二个常驻单元（与 Host 对等、存活独立），布局照 lorca 的 `crates/relay`：`config.rs`（`--bind` 语义由 `--port` / `MYAID_RELAY_PORT` 表达）、`routes.rs`（`/`、`/v1/health`、`/registration*`）、`run.rs`（绑定、token、优雅停止）、`service.rs`（本单元 OS 登记）。它用自己的 `serve-token`，不经过 Host。转发面仍只做端到端密文帧；身份密钥、配对与存储随后续移动端一并落地（ADR 0007），不持 owner 凭据，不替代执行侧输入队列。
-
-## 8. 打包与交付（目标）
-
-成品目标：组装 App + Host + Relay，App 从自身资源里带着 Host 二进制（启动器按名字 `myaid-host` 在 PATH 上找，打包时放进 PATH 或资源目录）。OS 登记由两个单元自己写 plist / 单元 / Run 键，测试只用快照计划，真机安装须成品验收——**尚未实现**。客户端侧 `vp run @myaid/client#package:macos` 只产出 NSH `.app`，不是根级成品。
+| 文档                                             | 主题                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------- |
+| [dsh-connection](architecture/dsh-connection.md) | Client 怎样认证并连到 dsh web：Cookie、mux、能力授权、Carrier |

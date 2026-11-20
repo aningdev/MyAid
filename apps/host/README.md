@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 Rust Host for MyAid, shaped after lorca's `lorca serve`: it owns the official `dsh` process lifecycle and serves a loopback control API on `127.0.0.1:4872` — the same one the Client starts, probes and watches. OS registration is this unit's own `service` module (launchd / systemd / Windows `Run` key), with the shared launch plan in [`myaid-service`](../../crates/myaid-service/README.md).
 
-Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE.md), [ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md), [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md).
+Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE.md), [0006](../../docs/decisions/0006-host-is-the-only-background-service.md), [0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md).
 
 ## Control API
 

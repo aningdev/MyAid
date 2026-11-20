@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-NSH desktop/mobile client in plain TSX: the entry is `App.tsx`, and there is no Rust crate here ([ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)). It owns the Workspace Shell (a flat Bot list and the Panes), the Bot registry, the official dsh protocol client and the loopback control clients. Product shape: [BLUEPRINT §产品定位](../../docs/BLUEPRINT.md), decision: [ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md). Architecture and DSH boundaries: [ARCHITECTURE](../../docs/ARCHITECTURE.md), [DSH_PRINCIPLES](../../docs/DSH_PRINCIPLES.md). Coding guardrails: [AGENTS.md](AGENTS.md).
+NSH desktop/mobile client in plain TSX: the entry is `App.tsx`, and there is no Rust crate here ([0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)). It owns the Workspace Shell (a flat Bot list and the Panes), the Bot registry, the official dsh protocol client and the loopback control clients. Product shape: [personal-agent spec](../../docs/specs/2026-11-20-personal-agent.md), decision: [GLOSSARY](../../docs/GLOSSARY.md). Architecture and DSH boundaries: [ARCHITECTURE](../../docs/ARCHITECTURE.md), [0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md). Coding guardrails: [AGENTS.md](AGENTS.md).
 
 Bundle id: `com.aningdev.myaid` (see `nsh.json`). The tree keeps its `nsh init` shape ([project structure](https://nsh.dev/docs/project-structure.md)).
 
@@ -80,10 +80,10 @@ vp run @myaid/client#package:web      # also package:windows / linux / gpui / io
 
 ## Data
 
-- Registry: `~/.myaid/registry/bots.json` on desktop; `nsh` Storage (`myaid.registry.bots`) on web / mobile. Version 6 holds templates and Bots; each Bot carries its one long conversation as `segments` (`sessionId` + `workspaceId` + the person's title), oldest first. A v3 / v4 / v5 file is read-only until a Host is connected: the migration merges that Bot's old Dialogues into one conversation in claim order, keeps each segment's Workspace id, and **unarchives old Sessions in dsh** so the history is complete. The old file is backed up as `bots.json.v<old version>.bak` first. Identity, the archive flag and the segment claims stay registry data ([ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md)); Workspace paths, titles, Session order and archive are dsh's ([ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md)).
+- Registry: `~/.myaid/registry/bots.json` on desktop; `nsh` Storage (`myaid.registry.bots`) on web / mobile. Version 6 holds templates and Bots; each Bot carries its one long conversation as `segments` (`sessionId` + `workspaceId` + the person's title), oldest first. A v3 / v4 / v5 file is read-only until a Host is connected: the migration merges that Bot's old Dialogues into one conversation in claim order, keeps each segment's Workspace id, and **unarchives old Sessions in dsh** so the history is complete. The old file is backed up as `bots.json.v<old version>.bak` first. Identity, the archive flag and the segment claims stay registry data ([0004](../../docs/decisions/0004-the-registry-lives-in-a-dsh-plugin.md)); Workspace paths, titles, Session order and archive are dsh's ([GLOSSARY](../../docs/GLOSSARY.md)).
 - Workspaces and Sessions: the official `ClientWorkspaceModel` / `ClientSessions` are installed on the Connection's Cordis context (`lib/dsh/connection.ts`), so each Host generation replaces their snapshots atomically. `features/workspace` and `features/dialogue/session` only project those snapshots into NSH signals; Remote responses never write that state. Their browser `__ModuleLoader__` bundles are unwrapped into static ESM by `prepare:sdk` (`lib/dsh/generated/`), because NSH refuses code from strings.
 - Client prefs: `~/.myaid/prefs/client.json` on desktop; Storage (`myaid.prefs.shell`) elsewhere. Version 2 covers the Navigator's width and open state, the pinned Bot ids, the Panes (layout, each Pane's Bot, the active one) and the General page's appearance, language and colour (an older file reads the defaults; a colour id this build does not carry is the build-time theme). A version 1 file is read once: Bot pins are kept, a Dialogue or Session pin becomes the Pane of the Bot it belonged to, and the Session pins themselves are dropped. The chat's send-key preference is a small Storage key of its own (`myaid.prefs.sendKey`).
-- `capabilities.fs` grants read/write only `${homeDir}/.myaid`. Attachments come from the system picker; a drop or paste outside the grant falls back to the same picker — see [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md).
+- `capabilities.fs` grants read/write only `${homeDir}/.myaid`. Attachments come from the system picker; a drop or paste outside the grant falls back to the same picker — see [0007](../../docs/decisions/0007-the-client-is-pure-tsx.md).
 
 ## Languages
 
@@ -97,11 +97,11 @@ Not translated, by design: what a person typed and what a Bot is called (Bot nam
 - There is no per-segment archive or delete in the UI; archiving is the Bot's, and its segments and logs stay.
 - dsh's Session model catalog is credential-gated: with no working key it lists no models, so the default-model card falls back to the `models` each provider's settings advertise and the current selection. See [ARCHITECTURE §4](../../docs/ARCHITECTURE.md).
 - Bot details cannot save Skills / Plugins changes when the Host does not mount `dsh-bot-presets`: no other Remote writes an Agent preset body. See the gaps table in [ARCHITECTURE §4](../../docs/ARCHITECTURE.md).
-- The dsh mux can drop a peer that misses two heartbeats while the client is blocked; the Session controller re-follows (3 tries, backoff). Details in [DSH_CLIENT_AUTH](../../docs/DSH_CLIENT_AUTH.md).
+- The dsh mux can drop a peer that misses two heartbeats while the client is blocked; the Session controller re-follows (3 tries, backoff). Details in [dsh-connection](../../docs/architecture/dsh-connection.md).
 
 ## Native layer: the Host this app starts (desktop only)
 
-There is no Rust in this app ([ADR 0007](../../docs/adr/0007-native-layer-after-lorca.md)). The Host is loopback HTTP + one WebSocket on `127.0.0.1:4872` (`MYAID_HOST_PORT`), authenticated by `<data root>/host/serve-token`; the Relay has its own at `127.0.0.1:8787` with `relay/serve-token`.
+There is no Rust in this app ([0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)). The Host is loopback HTTP + one WebSocket on `127.0.0.1:4872` (`MYAID_HOST_PORT`), authenticated by `<data root>/host/serve-token`; the Relay has its own at `127.0.0.1:8787` with `relay/serve-token`.
 
 - `lib/host/launcher.ts` starts the Host when none answers (`myaid-host serve-app`), reuses one that does, and starts it again after an exit (1 s doubling to 15 s). It needs `myaid-host` on `PATH`; `cargo build -p myaid-host` puts it in `target/debug`, and `scripts/run-with-host-path.mjs` puts that folder first for the desktop `dev*` scripts (`dev`, `dev:macos`, `dev:windows`, `dev:linux`, `dev:gpui`). Prefer repo-root `bun run dev [target]`, which rebuilds the Host when its sources moved on and only wires that `PATH` for desktop targets.
 - `lib/host/client.ts` is the transport (`fetch` + standard `WebSocket`); `lib/host/control.ts` is the product surface (`ensureBackendReady`, `resolveDshLoginUrl`, `watchHostStatus`). The Host's public status also carries `hostVersion` and the `dshVersion` its guardian found, which Background and About show.
@@ -112,6 +112,6 @@ There is no Rust in this app ([ADR 0007](../../docs/adr/0007-native-layer-after-
 
 - [ARCHITECTURE §5](../../docs/ARCHITECTURE.md) — client structure and the dsh gaps table.
 - [docs/specs/2026-11-13-bot-app.md](../../docs/specs/2026-11-13-bot-app.md) — what this round must deliver.
-- [DSH_CLIENT_AUTH](../../docs/DSH_CLIENT_AUTH.md) — loopback cookie bootstrap and mux heartbeat limits.
-- [ADR 0003](../../docs/adr/0003-bot-identity-is-local-registry-data.md) / [ADR 0004](../../docs/adr/0004-client-fs-limited-to-app-data.md) / [ADR 0006](../../docs/adr/0006-lorca-style-bot-app.md) — registry-owned identity; app-data-only `fs`; the Bot app's one long conversation and Panes.
+- [dsh-connection](../../docs/architecture/dsh-connection.md) — loopback cookie bootstrap and mux heartbeat limits.
+- [0004](../../docs/decisions/0004-the-registry-lives-in-a-dsh-plugin.md) / [0007](../../docs/decisions/0007-the-client-is-pure-tsx.md) / [GLOSSARY](../../docs/GLOSSARY.md) — registry-owned identity; app-data-only `fs`; the Bot app's one long conversation and Panes.
 - [screens/README.md](screens/README.md) — screenshots and opt-in real-Host smokes.
