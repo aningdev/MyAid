@@ -10,3 +10,6 @@
 [submodule "references/lorca"]
 	path = references/lorca
 	url = https://github.com/egoist/lorca.git
+[submodule "references/dsh-superagent-prototype"]
+	path = references/dsh-superagent-prototype
+	url = https://github.com/deepseek-ai/dsh-superagent-prototype
