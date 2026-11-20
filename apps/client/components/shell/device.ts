@@ -12,11 +12,7 @@ import {
   useHostControl,
 } from "../../features/dialogue/session/runtime";
 import { createRelayCarrier, type RelayCarrier } from "../../lib/carrier/relay/carrier";
-import {
-  fileDeviceStore,
-  storageDeviceStore,
-  type DeviceStore,
-} from "../../lib/carrier/relay/device-store";
+import { storageDeviceStore, type DeviceStore } from "../../lib/carrier/relay/device-store";
 import { RelayError, type RelayErrorCode } from "../../lib/carrier/relay/errors";
 import {
   clearPairing,
@@ -26,7 +22,6 @@ import {
   type Pairing,
 } from "../../lib/carrier/relay/pairing";
 import type { TunnelConnector } from "../../lib/carrier/relay/tunnel";
-import { dataRootPath, usesDataRootFiles } from "../../lib/data-root";
 import { useCarrier } from "../../lib/dsh/session";
 import { t } from "../../lib/i18n";
 
@@ -42,18 +37,11 @@ export interface DeviceOptions {
   store?: DeviceStore;
 }
 
-/**
- * Where this Device keeps its key and pairing: files under the data root
- * where the app has them (the same rule as the prefs), nsh Storage elsewhere.
- */
-export function defaultDeviceStore(): DeviceStore {
-  return usesDataRootFiles() ? fileDeviceStore(dataRootPath()) : storageDeviceStore(Storage);
-}
-
-let defaultStore: DeviceStore | undefined;
+/** This Device's key and pairing live in nsh Storage on every target. */
+const storage = storageDeviceStore(Storage);
 
 function storeOf(options: DeviceOptions): DeviceStore {
-  return options.store ?? (defaultStore ??= defaultDeviceStore());
+  return options.store ?? storage;
 }
 
 export const devicePhase = signal<DevicePhase>("starting");

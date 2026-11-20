@@ -42,9 +42,10 @@ export function usesTestStorage(): boolean {
 }
 
 /**
- * Whether this app keeps its Device data (preferences, the Device key and
- * pairing) as files in the data root: a desktop app that is not a test app.
- * Everything else (web, mobile, a test app) uses the app's own Storage.
+ * Whether this app keeps its preferences as a file in the data root: a desktop
+ * app that is not a test app. Everything else (web, mobile, a test app) uses
+ * the app's own Storage. The Device key and pairing do not follow this rule:
+ * they are always in Storage (0010).
  */
 export function usesDataRootFiles(): boolean {
   return (

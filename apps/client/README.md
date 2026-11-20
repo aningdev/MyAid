@@ -89,7 +89,7 @@ One Client, two roles, decided by one question: is this the Runner?
 - `hasHost` (`components/shell/host.ts`: desktop, not web) means the terminal runs the Host, so it is the Runner: the Connection takes the loopback Host and `/connect` (see [dsh-connection](../../docs/architecture/dsh-connection.md)).
 - Every other terminal is a Device. Before it has a pairing record the app is the pairing entry (`features/pairing/`): paste the link the Runner showed in Settings › Devices, name this Device (the platform's name until edited), and connect. Errors are chosen from `RelayError.code`, never from the raw message; the pasted link lives in that page's signal and is never stored or logged — only the record `pairDevice` writes survives. A successful pairing hands the Shell the Carrier and the normal UI replaces the entry.
 - On `device-revoked` (handshake) or `revoked` (in-tunnel) the Carrier clears the record, the entry returns, and the notice says the Runner removed this Device.
-- `components/shell/device.ts` owns this Device's phase, the name draft and the notice; the pairing record itself stays owned by `lib/carrier/relay/pairing.ts`, which keeps it (and the Device key) in a `DeviceStore`: files `device/identity.json` and `device/pairing.json` in the data root on desktop, Storage (`dsh-bot.device.identity`, `dsh-bot.device.pairing`) elsewhere and in test apps. `defaultDeviceStore()` in `device.ts` is the one place that chooses, with the same `usesDataRootFiles()` the prefs use. NSH's `fs` has no `chmod` or file mode, so the files get the process's default permissions, not 0600.
+- `components/shell/device.ts` owns this Device's phase, the name draft and the notice; the pairing record itself stays owned by `lib/carrier/relay/pairing.ts`, which keeps it (and the Device key) in a `DeviceStore` over NSH Storage on every target (`dsh-bot.device.identity`, `dsh-bot.device.pairing`; [0010](../../docs/decisions/0010-the-device-key-lives-in-nsh-storage.md)). Only the prefs follow `usesDataRootFiles()`.
 
 ## Carrier
 
@@ -97,7 +97,7 @@ One Client, two roles, decided by one question: is this the Runner?
 
 - `noise.ts` — Noise IK (daily) and IKpsk1 (pairing) handshake states, initiator and responder.
 - `pairing.ts` — pairing-link parsing, the Device's static key, the one pairing record, and the `pairDevice` handshake; it reads and writes them as text through a `DeviceStore`.
-- `device-store.ts` — the `DeviceStore` seam and its two implementations: `fileDeviceStore(root)` (temporary file, then rename over `<root>/device/<record>.json`) and `storageDeviceStore(storage)`.
+- `device-store.ts` — the `DeviceStore` seam and its one product implementation, `storageDeviceStore(storage)` (tests use a store over a Map).
 - `tunnel.ts` — one Relay WebSocket: mode byte, handshake, `[stream][type][body]` frames, keepalive and close codes.
 - `carrier.ts` — HTTP and WebSocket streams over that tunnel: `fetch` with a streamed response body, and an EventTarget socket. A request the caller cancels (the signal aborts, or the response body is cancelled) sends `RESET {"code":"cancelled"}` and ends its stream. A dropped tunnel fails every stream in flight; reconnecting belongs to the official connection.
 - `bytes.ts` / `errors.ts` — shared encodings and typed errors.
