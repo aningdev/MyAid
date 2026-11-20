@@ -18,4 +18,5 @@ export type * as Llm from "./llm.ts";
 export type * as Plugins from "./plugins.ts";
 export type * as Session from "./session.ts";
 export type * as Settings from "./settings.ts";
+export type * as Tickets from "./tickets.ts";
 export type * as Workspace from "./workspace.ts";

@@ -916,6 +916,7 @@ export const messages = {
   "tickets.error": { zh: "错误", en: "Error" },
   "tickets.request": { zh: "请求", en: "Request" },
   "tickets.updated": { zh: "更新于 {time}", en: "Updated {time}" },
+  "tickets.fromSource": { zh: "来自 {source}", en: "From {source}" },
   "tickets.created": { zh: "创建于 {time}", en: "Created {time}" },
   "tickets.loadFailed": {
     zh: "无法读取 Ticket，请重试。",

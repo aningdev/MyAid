@@ -38,7 +38,13 @@ import { registry } from "../bots/state";
 import { ChatPane } from "../dialogue/ChatPane";
 import { controllerFor } from "../dialogue/session/runtime";
 import { backToAttentionInbox, closeTicketBoard, openTicket, ticketBoard } from "./board";
-import { attentionKindLabel, ticketStatusLabel, ticketStatusTone, ticketTime } from "./model";
+import {
+  attentionKindLabel,
+  ticketSourceLabel,
+  ticketStatusLabel,
+  ticketStatusTone,
+  ticketTime,
+} from "./model";
 import {
   answerAttention,
   cancelTicket,
@@ -48,6 +54,7 @@ import {
   ticketsActionError,
   ticketsLoadError,
   ticketsSaving,
+  ticketsSnapshot,
 } from "./state";
 
 export function TicketBoard() {
@@ -279,6 +286,11 @@ function TicketBody(props: { ticket: () => Ticket | undefined }) {
             {ticketStatusLabel(ticket()!.status)}
           </Badge>
           <Text style={{ fontSize: 12, color: token("muted-foreground") }}>{botName()}</Text>
+          <If when={ticketSourceLabel(ticket()!, ticketsSnapshot().sources)} else={null}>
+            <Text style={{ fontSize: 12, color: token("muted-foreground") }}>
+              {ticketSourceLabel(ticket()!, ticketsSnapshot().sources)}
+            </Text>
+          </If>
           <Text style={{ fontSize: 12, color: token("muted-foreground") }}>
             {t("tickets.updated", { time: ticketTime(ticket()!.updatedAt, Date.now()) })}
           </Text>

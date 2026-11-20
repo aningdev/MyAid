@@ -19,6 +19,7 @@ import type { BotPresetRecord } from "@dsh-bot/dsh-web-protocol/bots";
 import type { ISessions } from "@dsh-bot/dsh-web-protocol/client";
 import type { ApprovalOutcome } from "@dsh-bot/dsh-web-protocol/interaction";
 import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
+import type { TicketsSnapshot } from "@dsh-bot/dsh-web-protocol/tickets";
 ```
 
 Prefer **domain subpaths**. The root entry re-exports the same modules as **namespace** aliases (`Client`, `Session`, `Llm`, …) to avoid cross-domain name collisions; subpaths stay the stable import style.
@@ -39,6 +40,7 @@ Only the surfaces the product imports today:
 | `/interaction` | user-questions, user-approval                                                                                                    |
 | `/plugins`     | plugin-manager, plugin-market, plugin-inventory, plugin-manager Remote types                                                     |
 | `/bots`        | `dsh-bots`' Registry and derived-preset DTOs; no dsh import                                                                      |
+| `/tickets`     | `dsh-tickets`' Ticket, Attention, Source and Trigger wire DTOs; no dsh import                                                    |
 
 **Not here:** Remotes the product does not call yet — account, analytics, commands, gateway / connection, feedback, goals, jobs, terminal, schedule, subagent, uploads, docs, preset registry, access. Add one together with its first caller: read the upstream surface in `references/deepseek-harness`, add a subpath, add the packages it re-exports to this `package.json` as `"catalog:"`, and mount the Remote in the Client.
 
@@ -68,7 +70,7 @@ Only the surfaces the product imports today:
 
 ## Client mount status (`lib/dsh/connection.ts`)
 
-Always mounted in `Connection.connect`: `session` (+ `skills` / `fileReferences`), `agentPresets`, `bots` (`dsh-bots/remote`), `directoryPicker` (via workspace-controller), `settings` (+ `credentials`), `fileUploads`, `pluginManager`, `pluginInventory`, `commands`.
+Always mounted in `Connection.connect`: `session` (+ `skills` / `fileReferences`), `agentPresets`, `bots` (`dsh-bots/remote`), `tickets` (`dsh-tickets/remote`), `directoryPicker` (via workspace-controller), `settings` (+ `credentials`), `fileUploads`, `pluginManager`, `pluginInventory`, `commands`.
 
 Dialogue prompt path accepts `PromptContentPart` (text / image / file receipt). Image send uses inline image parts; `fileUploads.upload` stages non-image files; `session.attachment` reads durable images back.
 

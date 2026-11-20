@@ -1,5 +1,10 @@
-import type { AttentionKind, TicketStatus } from "../../lib/dsh/tickets-gateway";
-import { t, type MessageKey } from "../../lib/i18n";
+import type {
+  AttentionKind,
+  SourceSummary,
+  Ticket,
+  TicketStatus,
+} from "../../lib/dsh/tickets-gateway";
+import { t, uiLanguage, type MessageKey } from "../../lib/i18n";
 import type { Tone } from "../../lib/theme";
 /**
  * The words and tones a Ticket surface uses for plugin-owned values. Pure, so
@@ -44,4 +49,20 @@ export function attentionKindLabel(kind: AttentionKind): string {
 /** The date and time a Ticket last changed, in the system's date and clock order. */
 export function ticketTime(at: number, now: number): string {
   return `${dayLabel(at, now)} ${clockLabel(at)}`;
+}
+
+/**
+ * Where a Ticket came from when a Source opened it. The Source's own name is
+ * content the plugin configured; an unknown id still tells the person enough
+ * to find it. `null` for a Ticket the Main Bot opened itself.
+ */
+export function ticketSourceLabel(
+  ticket: Ticket,
+  sources: readonly SourceSummary[],
+): string | null {
+  const origin = ticket.origin;
+  if (origin.kind !== "source") return null;
+  const source = sources.find((item) => item.id === origin.source);
+  const name = source ? source.title[uiLanguage()] : origin.source;
+  return t("tickets.fromSource", { source: name });
 }

@@ -10,8 +10,8 @@ import { Pressable } from "../../components/ui/pressable";
 import { t } from "../../lib/i18n";
 import { listRow } from "../../lib/surface";
 import { openTicket } from "./board";
-import { ticketStatusLabel, ticketStatusTone, ticketTime } from "./model";
-import { ticketsForBot } from "./state";
+import { ticketSourceLabel, ticketStatusLabel, ticketStatusTone, ticketTime } from "./model";
+import { ticketsForBot, ticketsSnapshot } from "./state";
 
 export function BotTickets(props: { botId: string }) {
   const rows = () => ticketsForBot(props.botId);
@@ -69,7 +69,12 @@ export function BotTickets(props: { botId: string }) {
                       numberOfLines: 1,
                     }}
                   >
-                    {ticketTime(ticket().updatedAt, Date.now())}
+                    {[
+                      ticketTime(ticket().updatedAt, Date.now()),
+                      ticketSourceLabel(ticket(), ticketsSnapshot().sources),
+                    ]
+                      .filter((part) => part !== null)
+                      .join(" · ")}
                   </Text>
                 </View>
                 <Badge tone={ticketStatusTone(ticket().status)} variant="outline">

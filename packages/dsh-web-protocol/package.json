@@ -41,6 +41,10 @@
       "types": "./src/bots.ts",
       "default": "./src/bots.ts"
     },
+    "./tickets": {
+      "types": "./src/tickets.ts",
+      "default": "./src/tickets.ts"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

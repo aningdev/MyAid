@@ -1,6 +1,7 @@
 /**
- * Test-only seed for the Ticket screenshots: a Bot, three Tickets at
- * different states, and the two Attentions that wait on the Owner.
+ * Test-only seed for the Ticket screenshots: a Bot, four Tickets at
+ * different states (one opened by a Source), and the two Attentions that wait
+ * on the Owner.
  */
 import { MAIN_BOT_ID } from "../features/bots/model";
 import { ready, registry } from "../features/bots/state";
@@ -40,6 +41,21 @@ export function seedTickets(): void {
       result: "The notes describe one release train and no rollback step.",
       updatedAt: AT + 40 * 60_000,
     }),
+    ticket({
+      id: "telegram",
+      botId: MAIN_BOT_ID,
+      title: "Reply to the Telegram owner",
+      request: "Answer the release question the owner sent on Telegram.",
+      origin: {
+        kind: "source",
+        source: "telegram",
+        sourceKind: "telegram",
+        triggerId: "g1",
+        thread: "owners",
+        address: "42",
+      },
+      updatedAt: AT + 60 * 60_000,
+    }),
   ];
   const attentions = [
     attention({
@@ -64,7 +80,21 @@ export function seedTickets(): void {
     }),
   ];
 
-  followTickets(createMemoryTickets({ tickets, attentions }));
+  followTickets(
+    createMemoryTickets({
+      tickets,
+      attentions,
+      sources: [
+        {
+          id: "telegram",
+          kind: "telegram",
+          title: { zh: "电报", en: "Telegram" },
+          owner: "owner",
+          enabled: true,
+        },
+      ],
+    }),
+  );
   registry.set(mainBot());
   ready.set(true);
 }

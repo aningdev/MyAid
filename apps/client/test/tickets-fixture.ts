@@ -3,7 +3,7 @@
  * `tickets` plugin owns the write rules; these builders only fill the shape
  * the Client reads.
  */
-import { TICKETS_FIXTURE_KEY } from "../features/tickets/memory";
+import { TICKETS_FIXTURE_KEY, type TicketsSeed } from "../features/tickets/memory";
 import type {
   Attention,
   AttentionAnswer,
@@ -18,10 +18,7 @@ export { TICKETS_FIXTURE_KEY };
 
 const AT = Date.parse("2026-11-20T09:00:00.000Z");
 
-export function ticketsStorage(input: {
-  tickets: Ticket[];
-  attentions: Attention[];
-}): Record<string, string> {
+export function ticketsStorage(input: TicketsSeed): Record<string, string> {
   return { [TICKETS_FIXTURE_KEY]: JSON.stringify(input) };
 }
 
@@ -30,6 +27,7 @@ export function ticket(input: {
   botId: string;
   title: string;
   request?: string;
+  origin?: Ticket["origin"];
   status?: TicketStatus;
   sessionId?: string | null;
   result?: string | null;
@@ -42,7 +40,7 @@ export function ticket(input: {
     botId: input.botId,
     title: input.title,
     request: input.request ?? input.title,
-    origin: { kind: "main-bot", sessionId: "s-main" },
+    origin: input.origin ?? { kind: "main-bot", sessionId: "s-main" },
     status: input.status ?? "open",
     sessionId: input.sessionId ?? null,
     workspacePath: input.sessionId ? "/work/dsh-bot" : null,

@@ -13,24 +13,32 @@ import { usesTestStorage } from "../../lib/data-root";
 import type {
   Attention,
   AttentionAnswer,
+  SourceSummary,
+  SourceThread,
   Ticket,
   TicketsGateway,
   TicketsSnapshot,
+  Trigger,
 } from "../../lib/dsh/tickets-gateway";
 
 /** Storage key a Host-less test uses to seed this double. Not a product file. */
 export const TICKETS_FIXTURE_KEY = "dsh-bot.test.tickets";
 
+/** A seeded store: Tickets and Attentions are required, the Source history is not. */
+export type TicketsSeed = Pick<TicketsSnapshot, "tickets" | "attentions"> &
+  Partial<Pick<TicketsSnapshot, "sources" | "triggers" | "sourceThreads">>;
+
 export type MemoryTickets = TicketsGateway & {
   /** A snapshot from outside this Client, as another Device's write would arrive. */
-  publish(state: Pick<TicketsSnapshot, "tickets" | "attentions">): void;
+  publish(state: TicketsSeed): void;
 };
 
-export function createMemoryTickets(
-  initial: Pick<TicketsSnapshot, "tickets" | "attentions">,
-): MemoryTickets {
+export function createMemoryTickets(initial: TicketsSeed): MemoryTickets {
   let tickets = clone(initial.tickets);
   let attentions = clone(initial.attentions);
+  let sources = cloneSources(initial.sources ?? []);
+  let triggers = cloneTriggers(initial.triggers ?? []);
+  let sourceThreads = cloneThreads(initial.sourceThreads ?? []);
   let revision = 0;
   const waiters: Array<() => void> = [];
 
@@ -38,19 +46,20 @@ export function createMemoryTickets(
     revision,
     tickets: clone(tickets),
     attentions: clone(attentions),
+    sources: cloneSources(sources),
+    triggers: cloneTriggers(triggers),
+    sourceThreads: cloneThreads(sourceThreads),
   });
 
-  const emit = (next: { tickets: Ticket[]; attentions: Attention[] }): TicketsSnapshot => {
+  const emit = (next: TicketsSeed): TicketsSnapshot => {
     tickets = clone(next.tickets);
     attentions = clone(next.attentions);
+    if (next.sources) sources = cloneSources(next.sources);
+    if (next.triggers) triggers = cloneTriggers(next.triggers);
+    if (next.sourceThreads) sourceThreads = cloneThreads(next.sourceThreads);
     revision += 1;
     const published = picture();
-    if (usesTestStorage()) {
-      void Storage.setItem(
-        TICKETS_FIXTURE_KEY,
-        JSON.stringify({ tickets: published.tickets, attentions: published.attentions }),
-      );
-    }
+    if (usesTestStorage()) void Storage.setItem(TICKETS_FIXTURE_KEY, JSON.stringify(published));
     const pending = waiters.splice(0);
     for (const wake of pending) wake();
     return published;
@@ -148,6 +157,18 @@ function clone<T extends Ticket | Attention>(items: T[]): T[] {
         } as T)
       : ({ ...item, origin: { ...item.origin } } as T),
   );
+}
+
+function cloneSources(items: SourceSummary[]): SourceSummary[] {
+  return items.map((item) => ({ ...item, title: { ...item.title } }));
+}
+
+function cloneTriggers(items: Trigger[]): Trigger[] {
+  return items.map((item) => ({ ...item, human: item.human ? { ...item.human } : null }));
+}
+
+function cloneThreads(items: SourceThread[]): SourceThread[] {
+  return items.map((item) => ({ ...item }));
 }
 
 function cloneAnswer(answer: AttentionAnswer): AttentionAnswer {

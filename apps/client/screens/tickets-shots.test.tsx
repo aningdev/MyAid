@@ -28,6 +28,30 @@ test("the Ticket surfaces on a desktop", async () => {
           request: "Rebase the release branch on main and run the suite.",
           status: "waiting",
         }),
+        ticket({
+          id: "telegram",
+          botId: MAIN_BOT_ID,
+          title: "Reply to the Telegram owner",
+          request: "Answer the release question the owner sent on Telegram.",
+          origin: {
+            kind: "source",
+            source: "telegram",
+            sourceKind: "telegram",
+            triggerId: "g1",
+            thread: "owners",
+            address: "42",
+          },
+          updatedAt: AT + 20 * 60_000,
+        }),
+      ],
+      sources: [
+        {
+          id: "telegram",
+          kind: "telegram",
+          title: { zh: "电报", en: "Telegram" },
+          owner: "owner",
+          enabled: true,
+        },
       ],
       attentions: [
         attention({

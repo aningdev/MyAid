@@ -17,9 +17,21 @@ import type {
   TicketsSnapshot,
 } from "../../lib/dsh/tickets-gateway";
 import { t } from "../../lib/i18n";
-import { createMemoryTickets, TICKETS_FIXTURE_KEY, type MemoryTickets } from "./memory";
+import {
+  createMemoryTickets,
+  TICKETS_FIXTURE_KEY,
+  type MemoryTickets,
+  type TicketsSeed,
+} from "./memory";
 
-const EMPTY: TicketsSnapshot = { revision: 0, tickets: [], attentions: [] };
+const EMPTY: TicketsSnapshot = {
+  revision: 0,
+  tickets: [],
+  attentions: [],
+  sources: [],
+  triggers: [],
+  sourceThreads: [],
+};
 
 export const ticketsSnapshot = signal<TicketsSnapshot>(EMPTY);
 export const ticketsReady = signal(false);
@@ -44,7 +56,7 @@ export async function openTestTickets(): Promise<void> {
     return;
   }
   try {
-    const seeded = JSON.parse(text) as { tickets: Ticket[]; attentions: Attention[] };
+    const seeded = JSON.parse(text) as TicketsSeed;
     await followTickets(createMemoryTickets(seeded));
   } catch (error) {
     ticketsLoadError.set(messageOf(error));

@@ -31,8 +31,30 @@ function storage(attentions: ReturnType<typeof attention>[] = []): Record<string
           request: "Tidy the release branch and run its tests.",
           sessionId: "s-ticket",
         }),
+        ticket({
+          id: "t2",
+          botId: MAIN_BOT_ID,
+          title: "Reply on Telegram",
+          origin: {
+            kind: "source",
+            source: "telegram",
+            sourceKind: "telegram",
+            triggerId: "g1",
+            thread: "owners",
+            address: "42",
+          },
+        }),
       ],
       attentions,
+      sources: [
+        {
+          id: "telegram",
+          kind: "telegram",
+          title: { zh: "电报", en: "Telegram" },
+          owner: "owner",
+          enabled: true,
+        },
+      ],
     }),
   };
 }
@@ -44,7 +66,20 @@ test("a Bot's Pane lists the Tickets it executed", async () => {
 
   await app.waitFor("id:bot-tickets");
   await app.waitFor("id:bot-ticket-t1");
+  await app.waitFor("id:bot-ticket-t2");
   expect(app.texts()).toContain("Tidy the release branch");
+  expect(app.texts().some((text) => text.includes("From Telegram"))).toBe(true);
+});
+
+test("a Ticket a Source opened names its Source", async () => {
+  const app = await open("../../App.tsx", { ...desktop, storage: storage() });
+  await app.waitFor("label:Main Bot");
+  await app.press("label:Main Bot");
+  await app.press("id:bot-ticket-t2");
+
+  await app.waitFor("id:ticket-board");
+  expect(app.texts()).toContain("From Telegram");
+  expect(app.texts()).toContain("Reply on Telegram");
 });
 
 test("opening a Ticket shows its own Session and request", async () => {
