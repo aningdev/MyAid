@@ -51,7 +51,12 @@ function pairingLink(options: { version?: string; expiresAt?: number; runnerId?:
     `p=${b64urlEncode(psk)}`,
     `e=${options.expiresAt ?? now + 60}`,
   ];
-  return { link: `https://relay.example.com/pair#${params.join("&")}`, runner, runnerKey: runner.publicKey, psk };
+  return {
+    link: `https://relay.example.com/pair#${params.join("&")}`,
+    runner,
+    runnerKey: runner.publicKey,
+    psk,
+  };
 }
 
 function codeOf(run: () => unknown): string {
@@ -169,7 +174,13 @@ test("pairing with a Runner stores the record once the handshake completes", asy
     psk,
   });
 
-  const result = await pairDevice(link, { name: "Ada's phone", platform: "ios", storage, connect: relay.connector, nowSeconds: now });
+  const result = await pairDevice(link, {
+    name: "Ada's phone",
+    platform: "ios",
+    storage,
+    connect: relay.connector,
+    nowSeconds: now,
+  });
   expect(result.pairing.deviceId).toBe(identity.id);
   expect(await loadPairing(storage)).toMatchObject({
     runnerId: publicId(runner.publicKey),
@@ -192,7 +203,15 @@ test("a rejected pairing leaves no record", async () => {
     rejectCloseCode: 4010,
   });
 
-  const error = await failure(pairDevice(link, { name: "phone", platform: "ios", storage, connect: relay.connector, nowSeconds: now }));
+  const error = await failure(
+    pairDevice(link, {
+      name: "phone",
+      platform: "ios",
+      storage,
+      connect: relay.connector,
+      nowSeconds: now,
+    }),
+  );
   expect(error.code).toBe("pairing-rejected");
   expect(await loadPairing(storage)).toBeNull();
 });

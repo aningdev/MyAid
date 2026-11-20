@@ -142,7 +142,11 @@ export class FakeRelay {
     const handshake = new HandshakeState({
       protocol,
       role: "responder",
-      prologue: concatBytes(utf8Encode(PROLOGUE), Uint8Array.of(bytes[0]), utf8Encode(this.options.runnerId)),
+      prologue: concatBytes(
+        utf8Encode(PROLOGUE),
+        Uint8Array.of(bytes[0]),
+        utf8Encode(this.options.runnerId),
+      ),
       staticKey: this.options.runner,
       psk: this.options.mode === "pair" ? this.options.psk : undefined,
     });
@@ -185,7 +189,8 @@ export class FakeRelay {
       const body = plaintext.slice(5);
       if (stream === 0 && type === 11) {
         const control = JSON.parse(utf8Decode(body)) as { type?: string };
-        if (control.type === "ping" && this.options.answerPings !== false) this.sendFrame(0, 11, utf8Encode('{"type":"pong"}'));
+        if (control.type === "ping" && this.options.answerPings !== false)
+          this.sendFrame(0, 11, utf8Encode('{"type":"pong"}'));
         continue;
       }
       const frame = { stream, type, body };

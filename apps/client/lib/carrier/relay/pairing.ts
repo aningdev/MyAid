@@ -51,7 +51,10 @@ export interface Pairing {
  * Parses a pairing link, rejecting anything malformed and links whose `e` has
  * passed. The psk is returned for the IKpsk1 handshake and never stored.
  */
-export function parsePairingLink(link: string, nowSeconds = Math.floor(Date.now() / 1000)): PairingInvite {
+export function parsePairingLink(
+  link: string,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): PairingInvite {
   let url: URL;
   try {
     url = new URL(link);
@@ -98,7 +101,10 @@ export async function loadDeviceIdentity(storage: StorageLike = Storage): Promis
   if (stored === null) {
     const keyPair = generateKeyPair();
     const identity = identityOf(keyPair);
-    await storage.setItem(DEVICE_IDENTITY_KEY, JSON.stringify({ privateKey: b64urlEncode(keyPair.privateKey) }));
+    await storage.setItem(
+      DEVICE_IDENTITY_KEY,
+      JSON.stringify({ privateKey: b64urlEncode(keyPair.privateKey) }),
+    );
     return identity;
   }
   return identityOf(parseIdentity(stored));
@@ -111,7 +117,11 @@ function parseIdentity(stored: string): KeyPair {
   } catch {
     throw relayError("invalid-identity");
   }
-  if (typeof record !== "object" || record === null || typeof (record as { privateKey?: unknown }).privateKey !== "string") {
+  if (
+    typeof record !== "object" ||
+    record === null ||
+    typeof (record as { privateKey?: unknown }).privateKey !== "string"
+  ) {
     throw relayError("invalid-identity");
   }
   let privateKey: Uint8Array;
@@ -154,7 +164,11 @@ export async function loadPairing(storage: StorageLike = Storage): Promise<Pairi
   }
   if (typeof record !== "object" || record === null) throw relayError("invalid-pairing");
   const { relayUrl, runnerId, runnerKey, deviceId } = record as Record<string, unknown>;
-  if (typeof relayUrl !== "string" || typeof runnerId !== "string" || typeof runnerKey !== "string") {
+  if (
+    typeof relayUrl !== "string" ||
+    typeof runnerId !== "string" ||
+    typeof runnerKey !== "string"
+  ) {
     throw relayError("invalid-pairing");
   }
   if (typeof deviceId !== "string" || !ID_PATTERN.test(runnerId) || !ID_PATTERN.test(deviceId)) {
@@ -169,7 +183,8 @@ export async function loadPairing(storage: StorageLike = Storage): Promise<Pairi
   } catch {
     throw relayError("invalid-pairing");
   }
-  if (origin !== relayUrl || key.length !== 32 || publicId(key) !== runnerId) throw relayError("invalid-pairing");
+  if (origin !== relayUrl || key.length !== 32 || publicId(key) !== runnerId)
+    throw relayError("invalid-pairing");
 
   return { relayUrl, runnerId, runnerKey: key, deviceId };
 }

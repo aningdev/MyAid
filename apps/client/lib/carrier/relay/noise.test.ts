@@ -1,7 +1,13 @@
 import { expect, test } from "nsh/test";
 
-import { NOISE_IKPSK1, NOISE_IK, HandshakeState, generateKeyPair, keyPairFromPrivate } from "./noise";
 import { utf8Decode, utf8Encode } from "./bytes";
+import {
+  NOISE_IKPSK1,
+  NOISE_IK,
+  HandshakeState,
+  generateKeyPair,
+  keyPairFromPrivate,
+} from "./noise";
 import { fromHex, toHex } from "./test-support/hex";
 import { NOISE_VECTORS } from "./test-support/noise-vectors";
 
@@ -54,11 +60,15 @@ for (const vector of NOISE_VECTORS) {
       if (index % 2 === 0) {
         const ciphertext = initiatorTransport.send.encryptWithAd(EMPTY, payload);
         expect(toHex(ciphertext)).toBe(expected);
-        expect(toHex(responderTransport.receive.decryptWithAd(EMPTY, ciphertext))).toBe(vector.messages[index].payload);
+        expect(toHex(responderTransport.receive.decryptWithAd(EMPTY, ciphertext))).toBe(
+          vector.messages[index].payload,
+        );
       } else {
         const ciphertext = responderTransport.send.encryptWithAd(EMPTY, payload);
         expect(toHex(ciphertext)).toBe(expected);
-        expect(toHex(initiatorTransport.receive.decryptWithAd(EMPTY, ciphertext))).toBe(vector.messages[index].payload);
+        expect(toHex(initiatorTransport.receive.decryptWithAd(EMPTY, ciphertext))).toBe(
+          vector.messages[index].payload,
+        );
       }
     }
   });
@@ -111,7 +121,12 @@ test("a tampered handshake message is rejected", () => {
     staticKey: device,
     remoteStatic: runner.publicKey,
   });
-  const runnerSide = new HandshakeState({ protocol: NOISE_IK, role: "responder", prologue, staticKey: runner });
+  const runnerSide = new HandshakeState({
+    protocol: NOISE_IK,
+    role: "responder",
+    prologue,
+    staticKey: runner,
+  });
   const message = deviceSide.writeMessage(EMPTY);
   message[message.length - 1] ^= 1;
   expect(() => runnerSide.readMessage(message)).toThrow();

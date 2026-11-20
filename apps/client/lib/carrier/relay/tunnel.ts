@@ -99,7 +99,11 @@ function modeByte(mode: TunnelOptions["mode"]): number {
 }
 
 function prologueFor(mode: TunnelOptions["mode"], runnerId: string): Uint8Array {
-  return concatBytes(utf8Encode(TUNNEL_PROLOGUE), Uint8Array.of(modeByte(mode)), utf8Encode(runnerId));
+  return concatBytes(
+    utf8Encode(TUNNEL_PROLOGUE),
+    Uint8Array.of(modeByte(mode)),
+    utf8Encode(runnerId),
+  );
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -151,7 +155,12 @@ class TunnelConnectionImpl implements Tunnel {
   private ended = false;
   private settle!: (error: RelayError) => void;
 
-  constructor(socket: TunnelConnection, handshake: HandshakeState, handlers: TunnelHandlers, pingIntervalMs: number) {
+  constructor(
+    socket: TunnelConnection,
+    handshake: HandshakeState,
+    handlers: TunnelHandlers,
+    pingIntervalMs: number,
+  ) {
     this.socket = socket;
     this.handshake = handshake;
     this.handlers = handlers;
@@ -185,13 +194,24 @@ class TunnelConnectionImpl implements Tunnel {
         options.mode === "daily"
           ? utf8Encode("{}")
           : utf8Encode(JSON.stringify({ name: options.name, platform: options.platform }));
-      const first = concatBytes(Uint8Array.of(modeByte(options.mode)), handshake.writeMessage(payload));
+      const first = concatBytes(
+        Uint8Array.of(modeByte(options.mode)),
+        handshake.writeMessage(payload),
+      );
       await socket.write(first);
 
-      const reply = await withTimeout(socket.read(), options.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS);
+      const reply = await withTimeout(
+        socket.read(),
+        options.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
+      );
       if (reply === null) throw errorForCloseCode(socket.closeCode);
       const answer = handshake.readMessage(asBytes(reply));
-      const tunnel = new TunnelConnectionImpl(socket, handshake, handlers, options.pingIntervalMs ?? DEFAULT_PING_INTERVAL_MS);
+      const tunnel = new TunnelConnectionImpl(
+        socket,
+        handshake,
+        handlers,
+        options.pingIntervalMs ?? DEFAULT_PING_INTERVAL_MS,
+      );
       tunnel.finishHandshake(options, parseJson(answer));
       tunnel.start();
       return tunnel;
@@ -224,7 +244,8 @@ class TunnelConnectionImpl implements Tunnel {
   send(stream: number, type: number, body: Uint8Array = EMPTY): void {
     if (this.ended) throw relayError("closed");
     if (stream < 0 || stream > 0xffffffff) throw new RangeError(`stream out of range: ${stream}`);
-    if (body.length > MAX_FRAME_BODY) throw new RangeError(`frame body is ${body.length} bytes, at most ${MAX_FRAME_BODY}`);
+    if (body.length > MAX_FRAME_BODY)
+      throw new RangeError(`frame body is ${body.length} bytes, at most ${MAX_FRAME_BODY}`);
     const frame = concatBytes(u32be(stream), Uint8Array.of(type), body);
     this.enqueue(frame);
   }
@@ -239,7 +260,9 @@ class TunnelConnectionImpl implements Tunnel {
     }
     this.writing = this.writing
       .then(() => this.socket.write(message))
-      .catch((error: Error) => this.fail(new RelayError("closed", `The Relay connection failed: ${error.message}`)));
+      .catch((error: Error) =>
+        this.fail(new RelayError("closed", `The Relay connection failed: ${error.message}`)),
+      );
   }
 
   close(): void {
@@ -275,7 +298,9 @@ class TunnelConnectionImpl implements Tunnel {
         if (this.ended) return;
       }
     } catch (error) {
-      this.fail(new RelayError("closed", `The Relay connection failed: ${(error as Error).message}`));
+      this.fail(
+        new RelayError("closed", `The Relay connection failed: ${(error as Error).message}`),
+      );
     }
   }
 
@@ -284,7 +309,9 @@ class TunnelConnectionImpl implements Tunnel {
     try {
       plaintext = this.receiveCipher!.decryptWithAd(EMPTY, message);
     } catch {
-      this.fail(new RelayError("protocol", "The Runner sent a message this Device cannot decrypt."));
+      this.fail(
+        new RelayError("protocol", "The Runner sent a message this Device cannot decrypt."),
+      );
       return;
     }
     if (plaintext.length < 5) {
@@ -337,7 +364,10 @@ class TunnelConnectionImpl implements Tunnel {
     if (this.ended) return;
     this.ended = true;
     this.stopPing();
-    void this.writing.then(() => this.socket.close(1000)).catch(() => undefined).then(() => this.socket.dispose());
+    void this.writing
+      .then(() => this.socket.close(1000))
+      .catch(() => undefined)
+      .then(() => this.socket.dispose());
     this.settle(error);
     this.handlers.onClose(error);
   }

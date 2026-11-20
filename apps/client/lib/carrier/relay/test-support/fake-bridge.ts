@@ -105,7 +105,11 @@ export class FakeBridge {
     const size = Math.max(1, Math.ceil(data.length / fragments));
     for (let at = 0; at < data.length; at += size) {
       const fin = at + size >= data.length ? 1 : 0;
-      this.relay.sendFrame(stream, TYPE_WS_BINARY, concatBytes(Uint8Array.of(fin), data.slice(at, at + size)));
+      this.relay.sendFrame(
+        stream,
+        TYPE_WS_BINARY,
+        concatBytes(Uint8Array.of(fin), data.slice(at, at + size)),
+      );
     }
   }
 
@@ -140,7 +144,8 @@ export class FakeBridge {
         break;
       case TYPE_WS_CLOSE: {
         const socket = this.sockets.get(frame.stream);
-        if (socket) socket.close = JSON.parse(utf8Decode(frame.body)) as { code: number; reason: string };
+        if (socket)
+          socket.close = JSON.parse(utf8Decode(frame.body)) as { code: number; reason: string };
         break;
       }
       case TYPE_RESET:
@@ -150,7 +155,11 @@ export class FakeBridge {
   }
 
   private startRequest(frame: FakeFrame): void {
-    const head = JSON.parse(utf8Decode(frame.body)) as { method: string; path: string; headers: [string, string][] };
+    const head = JSON.parse(utf8Decode(frame.body)) as {
+      method: string;
+      path: string;
+      headers: [string, string][];
+    };
     this.building.set(frame.stream, {
       stream: frame.stream,
       method: head.method,
@@ -168,7 +177,13 @@ export class FakeBridge {
     this.requests.push(request);
     if (this.options.answerHttp === false) return;
 
-    const response = utf8Encode(JSON.stringify({ method: request.method, path: request.path, body: utf8Decode(request.body) }));
+    const response = utf8Encode(
+      JSON.stringify({
+        method: request.method,
+        path: request.path,
+        body: utf8Decode(request.body),
+      }),
+    );
     this.relay.sendFrame(
       stream,
       TYPE_HTTP_RESPONSE,
@@ -195,7 +210,11 @@ export class FakeBridge {
       close: null,
     };
     this.sockets.set(frame.stream, socket);
-    this.relay.sendFrame(frame.stream, TYPE_WS_ACCEPT, utf8Encode(JSON.stringify({ protocol: socket.accepted })));
+    this.relay.sendFrame(
+      frame.stream,
+      TYPE_WS_ACCEPT,
+      utf8Encode(JSON.stringify({ protocol: socket.accepted })),
+    );
   }
 
   private textFrame(frame: FakeFrame): void {

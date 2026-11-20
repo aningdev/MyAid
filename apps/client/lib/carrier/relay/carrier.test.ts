@@ -34,7 +34,9 @@ interface Setup {
   storage: FakeStorage;
 }
 
-function setup(options: { storage?: FakeStorage; answerHttp?: boolean; wsFragments?: number } = {}): Setup {
+function setup(
+  options: { storage?: FakeStorage; answerHttp?: boolean; wsFragments?: number } = {},
+): Setup {
   const runner = generateKeyPair();
   const identity = generateKeyPair();
   const pairing: Pairing = {
@@ -63,7 +65,11 @@ function setup(options: { storage?: FakeStorage; answerHttp?: boolean; wsFragmen
 
 function once(target: EventTarget, event: string): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
-    target.addEventListener(event, (value) => resolve(value as unknown as Record<string, unknown>), { once: true });
+    target.addEventListener(
+      event,
+      (value) => resolve(value as unknown as Record<string, unknown>),
+      { once: true },
+    );
   });
 }
 
@@ -114,7 +120,10 @@ test("a websocket carries text and binary, reassembling fragments", async () => 
 
 test("an in-flight request fails when the tunnel drops", async () => {
   const { bridge, carrier } = setup({ answerHttp: false });
-  const request = carrier.fetch("https://relay.invalid/api/slow", { method: "POST", body: "waiting" });
+  const request = carrier.fetch("https://relay.invalid/api/slow", {
+    method: "POST",
+    body: "waiting",
+  });
   while (bridge.requests.length === 0) await new Promise((resolve) => setTimeout(resolve, 1));
 
   await bridge.relay.close(4001);
@@ -143,7 +152,11 @@ test("the relay records no plaintext path or body", async () => {
   const { bridge, carrier } = setup();
   const path = "/api/secret-path-token";
   const body = "secret-body-token";
-  await carrier.fetch(`https://relay.invalid${path}`, { method: "POST", body, headers: { "content-type": "text/plain" } });
+  await carrier.fetch(`https://relay.invalid${path}`, {
+    method: "POST",
+    body,
+    headers: { "content-type": "text/plain" },
+  });
   const socket = carrier.createWebSocket("https://relay.invalid/api/remote.mux");
   await once(socket, "open");
   socket.send("secret-ws-token");

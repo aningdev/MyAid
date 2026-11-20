@@ -2,10 +2,16 @@
 // `createWebSocket` that official dsh `installConnection` injects. Streams are
 // numbered here; the tunnel below only moves opaque frames.
 
+import { concatBytes, utf8Decode, utf8Encode } from "./bytes";
 import { RelayError, relayError } from "./errors";
 import { clearPairing, type Pairing, type StorageLike } from "./pairing";
-import { openTunnel, MAX_FRAME_BODY, type Tunnel, type TunnelConnector, type TunnelHandlers } from "./tunnel";
-import { concatBytes, utf8Decode, utf8Encode } from "./bytes";
+import {
+  openTunnel,
+  MAX_FRAME_BODY,
+  type Tunnel,
+  type TunnelConnector,
+  type TunnelHandlers,
+} from "./tunnel";
 
 /** A virtual origin: the carrier only keeps the path and query of a request. */
 export const RELAY_STREAM_ORIGIN = "https://relay.dsh-bot.invalid/";
@@ -46,7 +52,11 @@ export interface RelayCarrier {
   close(): void;
 }
 
-function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reject: (error: Error) => void } {
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: Error) => void;
+} {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
   const promise = new Promise<T>((ok, fail) => {
@@ -110,7 +120,8 @@ interface StreamHandler {
 
 function decodeJson(body: Uint8Array): Record<string, unknown> {
   const value: unknown = JSON.parse(utf8Decode(body));
-  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("expected a JSON object");
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new Error("expected a JSON object");
   return value as Record<string, unknown>;
 }
 
@@ -118,7 +129,10 @@ function headerPairs(value: unknown): [string, string][] {
   if (!Array.isArray(value)) return [];
   return value.filter(
     (pair): pair is [string, string] =>
-      Array.isArray(pair) && pair.length === 2 && typeof pair[0] === "string" && typeof pair[1] === "string",
+      Array.isArray(pair) &&
+      pair.length === 2 &&
+      typeof pair[0] === "string" &&
+      typeof pair[1] === "string",
   );
 }
 
@@ -139,7 +153,9 @@ function splitText(bytes: Uint8Array, limit: number): Uint8Array[] {
 
 function abortError(signal: AbortSignal): Error {
   const reason: unknown = signal.reason;
-  return reason instanceof Error ? reason : new DOMException("The request was aborted.", "AbortError");
+  return reason instanceof Error
+    ? reason
+    : new DOMException("The request was aborted.", "AbortError");
 }
 
 /** An EventTarget-shaped socket over one tunnel stream. */
@@ -174,7 +190,8 @@ export class RelaySocket extends EventTarget {
   close(code = CLOSE_NORMAL, reason = ""): void {
     if (this.readyState >= 2) return;
     this.readyState = 2;
-    if (this.readyStateOfStream()) this.carrier.send(this.stream, TYPE_WS_CLOSE, utf8Encode(JSON.stringify({ code, reason })));
+    if (this.readyStateOfStream())
+      this.carrier.send(this.stream, TYPE_WS_CLOSE, utf8Encode(JSON.stringify({ code, reason })));
     this.end(code, reason, true);
   }
 
@@ -195,7 +212,11 @@ export class RelaySocket extends EventTarget {
 
   remoteClose(code: number, reason: string): void {
     if (this.readyState === 3) return;
-    this.carrier.send(this.stream, TYPE_WS_CLOSE, utf8Encode(JSON.stringify({ code: CLOSE_NORMAL, reason: "" })));
+    this.carrier.send(
+      this.stream,
+      TYPE_WS_CLOSE,
+      utf8Encode(JSON.stringify({ code: CLOSE_NORMAL, reason: "" })),
+    );
     this.end(code, reason, true);
   }
 
@@ -205,7 +226,9 @@ export class RelaySocket extends EventTarget {
     this.ended = true;
     this.carrier.finish(this.stream);
     this.dispatchEvent(new Event("error"));
-    this.dispatchEvent(Object.assign(new Event("close"), { code: 1006, reason: error.message, wasClean: false }));
+    this.dispatchEvent(
+      Object.assign(new Event("close"), { code: 1006, reason: error.message, wasClean: false }),
+    );
   }
 
   end(code: number, reason: string, clean: boolean): void {
@@ -247,7 +270,11 @@ export class RelaySocket extends EventTarget {
     this.fragmentKind = kind;
     this.fragmentBytes += data.length;
     if (this.fragmentBytes > MAX_WS_MESSAGE) {
-      this.carrier.send(this.stream, TYPE_RESET, utf8Encode(JSON.stringify({ code: "overloaded" })));
+      this.carrier.send(
+        this.stream,
+        TYPE_RESET,
+        utf8Encode(JSON.stringify({ code: "overloaded" })),
+      );
       this.fail(relayError("overloaded"));
       return;
     }
@@ -323,17 +350,22 @@ class RelayCarrierImpl implements RelayCarrier {
 
     const headers: [string, string][] = [];
     new Headers(init.headers).forEach((value, name) => headers.push([name, value]));
-    if (contentType && !headers.some(([name]) => name === "content-type")) headers.push(["content-type", contentType]);
+    if (contentType && !headers.some(([name]) => name === "content-type"))
+      headers.push(["content-type", contentType]);
     const request = utf8Encode(JSON.stringify({ method: init.method ?? "GET", path, headers }));
     this.send(stream, TYPE_HTTP_REQUEST, request);
-    for (let at = 0; at < bytes.length; at += CHUNK) this.send(stream, TYPE_BODY, bytes.slice(at, at + CHUNK));
+    for (let at = 0; at < bytes.length; at += CHUNK)
+      this.send(stream, TYPE_BODY, bytes.slice(at, at + CHUNK));
     this.send(stream, TYPE_END);
 
     const response = await head.promise;
     signal?.removeEventListener("abort", onAbort);
     if (response.status === 204 || response.status === 205) body.finish();
     const empty = response.status === 204 || response.status === 205;
-    return new Response(empty ? null : body.stream, { status: response.status, headers: response.headers });
+    return new Response(empty ? null : body.stream, {
+      status: response.status,
+      headers: response.headers,
+    });
   }
 
   createWebSocket(url: string): RelaySocket {
@@ -395,15 +427,25 @@ class RelayCarrierImpl implements RelayCarrier {
     return stream;
   }
 
-  private async bodyOf(init: RequestInit): Promise<{ bytes: Uint8Array; contentType: string | null }> {
-    if (init.body === undefined || init.body === null) return { bytes: new Uint8Array(0), contentType: null };
+  private async bodyOf(
+    init: RequestInit,
+  ): Promise<{ bytes: Uint8Array; contentType: string | null }> {
+    if (init.body === undefined || init.body === null)
+      return { bytes: new Uint8Array(0), contentType: null };
     const body = init.body as BodyInit;
     if (typeof body === "string") return { bytes: utf8Encode(body), contentType: null };
     if (body instanceof Uint8Array) return { bytes: body, contentType: null };
     if (body instanceof ArrayBuffer) return { bytes: new Uint8Array(body), contentType: null };
-    if (ArrayBuffer.isView(body)) return { bytes: new Uint8Array(body.buffer, body.byteOffset, body.byteLength), contentType: null };
+    if (ArrayBuffer.isView(body))
+      return {
+        bytes: new Uint8Array(body.buffer, body.byteOffset, body.byteLength),
+        contentType: null,
+      };
     const response = new Response(body);
-    return { bytes: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") };
+    return {
+      bytes: new Uint8Array(await response.arrayBuffer()),
+      contentType: response.headers.get("content-type"),
+    };
   }
 
   private async ensureTunnel(): Promise<Tunnel> {
@@ -467,7 +509,12 @@ class RelayCarrierImpl implements RelayCarrier {
     try {
       const message = decodeJson(body);
       const code = message.code;
-      if (code === "forbidden" || code === "protocol" || code === "overloaded" || code === "unavailable") {
+      if (
+        code === "forbidden" ||
+        code === "protocol" ||
+        code === "overloaded" ||
+        code === "unavailable"
+      ) {
         return relayError(code);
       }
     } catch {
@@ -475,7 +522,6 @@ class RelayCarrierImpl implements RelayCarrier {
     }
     return relayError("protocol");
   }
-
 }
 
 /** Builds the Carrier over an existing pairing and Device identity. */

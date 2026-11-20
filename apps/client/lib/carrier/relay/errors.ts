@@ -80,6 +80,10 @@ export function relayError(code: RelayErrorCode, closeCode: number | null = null
 }
 
 /** Whether a frame body's `{"code":…}` is one of the four RESET codes. */
-export function isResetCode(code: unknown): code is "forbidden" | "protocol" | "overloaded" | "unavailable" {
-  return code === "forbidden" || code === "protocol" || code === "overloaded" || code === "unavailable";
+export function isResetCode(
+  code: unknown,
+): code is "forbidden" | "protocol" | "overloaded" | "unavailable" {
+  return (
+    code === "forbidden" || code === "protocol" || code === "overloaded" || code === "unavailable"
+  );
 }

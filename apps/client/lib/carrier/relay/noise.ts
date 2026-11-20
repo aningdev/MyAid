@@ -85,7 +85,9 @@ export class CipherState {
   encryptWithAd(associatedData: Uint8Array, plaintext: Uint8Array): Uint8Array {
     if (!this.key) return plaintext;
     if (this.nonce >= MAX_NONCE) throw new Error("Noise nonce exhausted");
-    const ciphertext = chacha20poly1305(this.key, this.nonceBytes(), associatedData).encrypt(plaintext);
+    const ciphertext = chacha20poly1305(this.key, this.nonceBytes(), associatedData).encrypt(
+      plaintext,
+    );
     this.nonce += 1n;
     return ciphertext;
   }
@@ -93,7 +95,9 @@ export class CipherState {
   decryptWithAd(associatedData: Uint8Array, ciphertext: Uint8Array): Uint8Array {
     if (!this.key) return ciphertext;
     if (this.nonce >= MAX_NONCE) throw new Error("Noise nonce exhausted");
-    const plaintext = chacha20poly1305(this.key, this.nonceBytes(), associatedData).decrypt(ciphertext);
+    const plaintext = chacha20poly1305(this.key, this.nonceBytes(), associatedData).decrypt(
+      ciphertext,
+    );
     this.nonce += 1n;
     return plaintext;
   }
@@ -164,8 +168,14 @@ export class SymmetricState {
 type Token = "e" | "es" | "s" | "ss" | "ee" | "se" | "psk";
 
 const PATTERNS: Record<string, Token[][]> = {
-  [NOISE_IK]: [["e", "es", "s", "ss"], ["e", "ee", "se"]],
-  [NOISE_IKPSK1]: [["e", "es", "s", "ss", "psk"], ["e", "ee", "se"]],
+  [NOISE_IK]: [
+    ["e", "es", "s", "ss"],
+    ["e", "ee", "se"],
+  ],
+  [NOISE_IKPSK1]: [
+    ["e", "es", "s", "ss", "psk"],
+    ["e", "ee", "se"],
+  ],
 };
 
 export type NoiseRole = "initiator" | "responder";
@@ -216,7 +226,8 @@ export class HandshakeState {
     this.symmetric = new SymmetricState(options.protocol);
     this.symmetric.mixHash(options.prologue);
     if (this.role === "initiator") {
-      if (!options.remoteStatic) throw new Error("the IK initiator needs the responder's static key");
+      if (!options.remoteStatic)
+        throw new Error("the IK initiator needs the responder's static key");
       this.remoteStatic = options.remoteStatic;
       this.symmetric.mixHash(this.remoteStatic);
     } else {
@@ -285,7 +296,8 @@ export class HandshakeState {
       switch (token) {
         case "e": {
           const publicKey = message.slice(offset, offset + 32);
-          if (publicKey.length !== 32) throw new Error("Noise message ended before its ephemeral key");
+          if (publicKey.length !== 32)
+            throw new Error("Noise message ended before its ephemeral key");
           offset += 32;
           this.remoteEphemeral = publicKey;
           this.symmetric.mixHash(publicKey);
@@ -294,7 +306,8 @@ export class HandshakeState {
         }
         case "s": {
           const ciphertext = message.slice(offset, offset + 48);
-          if (ciphertext.length !== 48) throw new Error("Noise message ended before its static key");
+          if (ciphertext.length !== 48)
+            throw new Error("Noise message ended before its static key");
           offset += 48;
           this.remoteStatic = this.symmetric.decryptAndHash(ciphertext);
           break;
@@ -319,12 +332,16 @@ export class HandshakeState {
   split(): { send: CipherState; receive: CipherState } {
     if (!this.complete) throw new Error("the Noise handshake is not complete");
     const [first, second] = this.symmetric.split();
-    return this.role === "initiator" ? { send: first, receive: second } : { send: second, receive: first };
+    return this.role === "initiator"
+      ? { send: first, receive: second }
+      : { send: second, receive: first };
   }
 
   private expectMessage(operation: "write" | "read"): Token[] {
-    const expected = this.messageIndex % 2 === (this.role === "initiator" ? 0 : 1) ? "write" : "read";
-    if (operation !== expected) throw new Error(`this side must ${expected} message ${this.messageIndex + 1}`);
+    const expected =
+      this.messageIndex % 2 === (this.role === "initiator" ? 0 : 1) ? "write" : "read";
+    if (operation !== expected)
+      throw new Error(`this side must ${expected} message ${this.messageIndex + 1}`);
     return this.pattern[this.messageIndex];
   }
 

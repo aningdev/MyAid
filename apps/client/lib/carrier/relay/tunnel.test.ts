@@ -6,8 +6,14 @@ import { expect, test } from "nsh/test";
 import { publicId, utf8Encode, randomBytes } from "./bytes";
 import { RelayError } from "./errors";
 import { generateKeyPair } from "./noise";
-import { MAX_FRAME_BODY, deviceEndpoint, openTunnel, type Tunnel, type TunnelHandlers } from "./tunnel";
 import { FakeRelay } from "./test-support/fake-relay";
+import {
+  MAX_FRAME_BODY,
+  deviceEndpoint,
+  openTunnel,
+  type Tunnel,
+  type TunnelHandlers,
+} from "./tunnel";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -20,7 +26,10 @@ async function failure(promise: Promise<unknown>): Promise<RelayError> {
   throw new Error("expected the promise to reject");
 }
 
-function setup(mode: "daily" | "pair", options: { revoked?: boolean; rejectCloseCode?: number; answerPings?: boolean } = {}) {
+function setup(
+  mode: "daily" | "pair",
+  options: { revoked?: boolean; rejectCloseCode?: number; answerPings?: boolean } = {},
+) {
   const runner = generateKeyPair();
   const identity = generateKeyPair();
   const runnerId = publicId(runner.publicKey);
@@ -30,7 +39,10 @@ function setup(mode: "daily" | "pair", options: { revoked?: boolean; rejectClose
   return { relay, runnerId, runnerKey: runner.publicKey, identity, deviceId, psk };
 }
 
-function handlers(): TunnelHandlers & { frames: { stream: number; type: number; body: Uint8Array }[]; closed: RelayError[] } {
+function handlers(): TunnelHandlers & {
+  frames: { stream: number; type: number; body: Uint8Array }[];
+  closed: RelayError[];
+} {
   const frames: { stream: number; type: number; body: Uint8Array }[] = [];
   const closed: RelayError[] = [];
   return {
@@ -42,15 +54,27 @@ function handlers(): TunnelHandlers & { frames: { stream: number; type: number; 
 }
 
 test("the relay endpoint follows the relay's scheme", () => {
-  expect(deviceEndpoint("https://relay.example.com/base?x=1", "abc")).toBe("wss://relay.example.com/v1/device?runner=abc");
-  expect(deviceEndpoint("http://127.0.0.1:4873", "abc")).toBe("ws://127.0.0.1:4873/v1/device?runner=abc");
+  expect(deviceEndpoint("https://relay.example.com/base?x=1", "abc")).toBe(
+    "wss://relay.example.com/v1/device?runner=abc",
+  );
+  expect(deviceEndpoint("http://127.0.0.1:4873", "abc")).toBe(
+    "ws://127.0.0.1:4873/v1/device?runner=abc",
+  );
 });
 
 test("a daily tunnel handshakes, routes frames and answers pings", async () => {
   const { relay, runnerId, runnerKey, identity } = setup("daily", { answerPings: true });
   const seen = handlers();
   const tunnel = await openTunnel(
-    { mode: "daily", relayUrl: "http://relay.test", runnerId, runnerKey, identity, pingIntervalMs: 10, connect: relay.connector },
+    {
+      mode: "daily",
+      relayUrl: "http://relay.test",
+      runnerId,
+      runnerKey,
+      identity,
+      pingIntervalMs: 10,
+      connect: relay.connector,
+    },
     seen,
   );
 
@@ -76,7 +100,17 @@ test("a daily tunnel handshakes, routes frames and answers pings", async () => {
 test("a revoked device is told so during the handshake", async () => {
   const { relay, runnerId, runnerKey, identity } = setup("daily", { revoked: true });
   const error = await failure(
-    openTunnel({ mode: "daily", relayUrl: "http://relay.test", runnerId, runnerKey, identity, connect: relay.connector }, handlers()),
+    openTunnel(
+      {
+        mode: "daily",
+        relayUrl: "http://relay.test",
+        runnerId,
+        runnerKey,
+        identity,
+        connect: relay.connector,
+      },
+      handlers(),
+    ),
   );
   expect(error.code).toBe("device-revoked");
 });
@@ -107,7 +141,17 @@ test("a rejected pairing keeps the relay's close code", async () => {
   const { relay, runnerId, runnerKey, identity, psk } = setup("pair", { rejectCloseCode: 4010 });
   const error = await failure(
     openTunnel(
-      { mode: "pair", relayUrl: "http://relay.test", runnerId, runnerKey, identity, psk, name: "phone", platform: "ios", connect: relay.connector },
+      {
+        mode: "pair",
+        relayUrl: "http://relay.test",
+        runnerId,
+        runnerKey,
+        identity,
+        psk,
+        name: "phone",
+        platform: "ios",
+        connect: relay.connector,
+      },
       handlers(),
     ),
   );
@@ -118,7 +162,17 @@ test("a rejected pairing keeps the relay's close code", async () => {
 test("a failed handshake keeps the relay's close code", async () => {
   const { relay, runnerId, runnerKey, identity } = setup("daily", { rejectCloseCode: 4011 });
   const error = await failure(
-    openTunnel({ mode: "daily", relayUrl: "http://relay.test", runnerId, runnerKey, identity, connect: relay.connector }, handlers()),
+    openTunnel(
+      {
+        mode: "daily",
+        relayUrl: "http://relay.test",
+        runnerId,
+        runnerKey,
+        identity,
+        connect: relay.connector,
+      },
+      handlers(),
+    ),
   );
   expect(error.code).toBe("handshake-failed");
 });
@@ -127,7 +181,14 @@ test("the relay going away fails the open tunnel", async () => {
   const { relay, runnerId, runnerKey, identity } = setup("daily");
   const seen = handlers();
   const tunnel = await openTunnel(
-    { mode: "daily", relayUrl: "http://relay.test", runnerId, runnerKey, identity, connect: relay.connector },
+    {
+      mode: "daily",
+      relayUrl: "http://relay.test",
+      runnerId,
+      runnerKey,
+      identity,
+      connect: relay.connector,
+    },
     seen,
   );
   await relay.close(4001);
@@ -139,7 +200,15 @@ test("the relay going away fails the open tunnel", async () => {
 test("two unanswered pings end the tunnel", async () => {
   const { relay, runnerId, runnerKey, identity } = setup("daily", { answerPings: false });
   const tunnel = await openTunnel(
-    { mode: "daily", relayUrl: "http://relay.test", runnerId, runnerKey, identity, pingIntervalMs: 10, connect: relay.connector },
+    {
+      mode: "daily",
+      relayUrl: "http://relay.test",
+      runnerId,
+      runnerKey,
+      identity,
+      pingIntervalMs: 10,
+      connect: relay.connector,
+    },
     handlers(),
   );
   const error = await tunnel.closed;
@@ -149,7 +218,14 @@ test("two unanswered pings end the tunnel", async () => {
 test("a body larger than one Noise message is refused", async () => {
   const { relay, runnerId, runnerKey, identity } = setup("daily");
   const tunnel: Tunnel = await openTunnel(
-    { mode: "daily", relayUrl: "http://relay.test", runnerId, runnerKey, identity, connect: relay.connector },
+    {
+      mode: "daily",
+      relayUrl: "http://relay.test",
+      runnerId,
+      runnerKey,
+      identity,
+      connect: relay.connector,
+    },
     handlers(),
   );
   expect(() => tunnel.send(1, 3, new Uint8Array(MAX_FRAME_BODY + 1))).toThrow(RangeError);
@@ -160,7 +236,14 @@ test("a body larger than one Noise message is refused", async () => {
 test("the relay only ever sees ciphertext", async () => {
   const { relay, runnerId, runnerKey, identity } = setup("daily");
   const tunnel = await openTunnel(
-    { mode: "daily", relayUrl: "http://relay.test", runnerId, runnerKey, identity, connect: relay.connector },
+    {
+      mode: "daily",
+      relayUrl: "http://relay.test",
+      runnerId,
+      runnerKey,
+      identity,
+      connect: relay.connector,
+    },
     handlers(),
   );
   const secret = "GET /api/remote.mux?token=never-on-the-wire";

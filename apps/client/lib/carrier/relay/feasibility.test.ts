@@ -2,15 +2,14 @@
 // nonces, `crypto.getRandomValues`, X25519, ChaCha20-Poly1305 and SHA-256/HMAC.
 // It also measures a complete IK handshake, the budget set in the task.
 
-import { expect, test } from "nsh/test";
-
 import { chacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { x25519 } from "@noble/curves/ed25519.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
+import { expect, test } from "nsh/test";
 
-import { HandshakeState, NOISE_IK, generateKeyPair } from "./noise";
 import { utf8Encode } from "./bytes";
+import { HandshakeState, NOISE_IK, generateKeyPair } from "./noise";
 import { toHex } from "./test-support/hex";
 
 test("noble primitives run in the nsh runtime", () => {
@@ -25,7 +24,9 @@ test("noble primitives run in the nsh runtime", () => {
   const aad = utf8Encode("aad");
   const cipher = chacha20poly1305(key, nonce, aad);
   const sealed = cipher.encrypt(utf8Encode("payload"));
-  expect(new TextDecoder().decode(chacha20poly1305(key, nonce, aad).decrypt(sealed))).toBe("payload");
+  expect(new TextDecoder().decode(chacha20poly1305(key, nonce, aad).decrypt(sealed))).toBe(
+    "payload",
+  );
 
   expect(toHex(sha256(utf8Encode("abc")))).toBe(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
@@ -48,7 +49,12 @@ test("a complete IK handshake stays under the 500 ms budget", () => {
     staticKey: device,
     remoteStatic: runner.publicKey,
   });
-  const responder = new HandshakeState({ protocol: NOISE_IK, role: "responder", prologue, staticKey: runner });
+  const responder = new HandshakeState({
+    protocol: NOISE_IK,
+    role: "responder",
+    prologue,
+    staticKey: runner,
+  });
   const first = initiator.writeMessage(utf8Encode("{}"));
   responder.readMessage(first);
   const second = responder.writeMessage(utf8Encode('{"ok":true}'));
