@@ -8,12 +8,13 @@ Decision: [0004](../../docs/decisions/0004-the-registry-lives-in-a-dsh-plugin.md
 
 ## Data
 
-| What                   | Where                                                                                                     |
-| ---------------------- | --------------------------------------------------------------------------------------------------------- |
-| Registry               | `<dataDir>/registry.json`; `dataDir` defaults to `$DSH_HOME/bots` (row `config`)                          |
-| Derived preset records | storage domain `bots`, table `presets` (beside dsh's own storages)                                        |
-| Copied skill bundles   | `<dataDir>/skills/<presetId>/`                                                                            |
-| Imported Client file   | `$DSH_HOME/registry/bots.json` is read once, then renamed to `bots.json.imported`; no older format import |
+| What                   | Where                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| Registry               | `<dataDir>/registry.json`; `dataDir` defaults to `$DSH_HOME/bots` (row `config`) |
+| Derived preset records | storage domain `bots`, table `presets` (beside dsh's own storages)               |
+| Copied skill bundles   | `<dataDir>/skills/<presetId>/`                                                   |
+
+A fresh data root gets a new Registry containing only the Main Bot. Nothing is imported.
 
 The Registry file is a v6 document plus a monotonic `revision`. Every write goes through a temp file and a rename, so a reader never sees half a Registry. `snapshot` and every write return `{ registry, revision }`; the revision only grows.
 
@@ -53,14 +54,6 @@ On every start the plugin ensures one Main Bot exists, is ready, is first in the
 - archiving or deleting it is rejected with `bots/main-bot`, so no Device can leave the Owner without a Bot.
 
 A hand-edited file cannot hide it: the check runs on load, and it also repairs an archived Main Bot. The default preset is read when the Main Bot is created; changing the Host default later does not rewrite an existing Main Bot's binding.
-
-## Import of the old Registry
-
-On the first start that finds this plugin's own file absent:
-
-- `$DSH_HOME/registry/bots.json` with `version: 6` is imported, the Main Bot is ensured first, and the old file is renamed to `bots.json.imported`;
-- any other version is logged clearly and left untouched — there is no migration of older formats;
-- after the first start the old path is never read again.
 
 ## Commands
 

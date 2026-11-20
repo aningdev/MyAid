@@ -41,8 +41,6 @@ export type BotsServiceOptions = {
   dataDir: string;
   /** This plugin's Registry file. */
   registryFile: string;
-  /** The Client's old Registry, imported once. */
-  legacyFile: string;
 };
 
 export class BotsService extends TypertRemoteService {
@@ -56,14 +54,9 @@ export class BotsService extends TypertRemoteService {
     super(ctx, "bots");
     this.store = new BotsRegistryStore({
       file: options.registryFile,
-      legacyFile: options.legacyFile,
       defaultPreset: async () => {
         const preset = await ctx.agentPresets.resolve();
         return { id: preset.id, name: preset.name };
-      },
-      logger: {
-        info: (message) => ctx.logger.info(message),
-        warn: (message) => ctx.logger.warn(message),
       },
     });
     this.presets = new DerivedPresets(ctx, { dataDir: options.dataDir });

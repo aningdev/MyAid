@@ -2,9 +2,8 @@
  * The Registry file: one JSON document under the plugin's data root, written
  * atomically, with a monotonic revision and change notification for watchers.
  *
- * Import of the Client's old `registry/bots.json` happens exactly once, on the
- * first start that finds this plugin's own file absent. A file that is not v6
- * is left untouched; no older format is ever migrated.
+ * A fresh data root gets a new Registry with only the Main Bot. Nothing is
+ * imported: the project has never shipped, so there is no older data to carry.
  */
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -12,9 +11,7 @@ import { dirname } from "node:path";
 import {
   ensureMainBot,
   emptyRegistry,
-  REGISTRY_VERSION,
   registryFileSchema,
-  registrySchema,
   type BotRegistry,
   type DefaultPreset,
   type RegistryFile,
@@ -26,19 +23,11 @@ export type BotsSnapshot = { registry: BotRegistry; revision: number };
 /** A watcher is told after every successful write; it reads the snapshot itself. */
 export type BotsWatcher = () => void;
 
-export type StoreLogger = {
-  info(message: string): void;
-  warn(message: string): void;
-};
-
 export type BotsStoreOptions = {
   /** This plugin's own Registry file. */
   file: string;
-  /** The Client's old Registry, imported once then renamed. */
-  legacyFile: string;
   /** Default Agent preset for the Main Bot. */
   defaultPreset: () => Promise<DefaultPreset>;
-  logger: StoreLogger;
 };
 
 export class BotsRegistryStore {
@@ -52,7 +41,7 @@ export class BotsRegistryStore {
     this.options = options;
   }
 
-  /** Read the file, import a v6 legacy Registry, and ensure the Main Bot. */
+  /** Read the file, or start a new Registry with the Main Bot. */
   load(): Promise<void> {
     this.loading ??= this.read();
     return this.loading;
@@ -118,46 +107,10 @@ export class BotsRegistryStore {
       return;
     }
 
-    const { registry: imported, present } = await this.importLegacy();
-    const registry = ensureMainBot(imported, preset);
-    this.state = { ...registry, revision: present ? 1 : 0 };
+    const registry = ensureMainBot(emptyRegistry(), preset);
+    this.state = { ...registry, revision: 0 };
     await this.persist(this.state);
     this.notify();
-    if (present) await this.renameLegacy();
-  }
-
-  /** The old file's Bots, or an empty Registry; never mutates the old file. */
-  private async importLegacy(): Promise<{ registry: BotRegistry; present: boolean }> {
-    const text = await readOptional(this.options.legacyFile);
-    if (text === null) return { registry: emptyRegistry(), present: false };
-    const value = parseJson(text);
-    const version =
-      typeof value === "object" && value !== null && "version" in value
-        ? (value as { version?: unknown }).version
-        : undefined;
-    if (version !== REGISTRY_VERSION) {
-      this.options.logger.warn(
-        `bots: 旧 Registry ${this.options.legacyFile} 的版本是 ${String(version)}，不是 v${REGISTRY_VERSION}；保持原样，未导入。`,
-      );
-      return { registry: emptyRegistry(), present: false };
-    }
-    const parsed = registrySchema.safeParse(value);
-    if (!parsed.success) {
-      this.options.logger.warn(
-        `bots: 旧 Registry ${this.options.legacyFile} 是 v${REGISTRY_VERSION} 但内容无法解析（${parsed.error.issues[0]?.message ?? "未知格式"}）；保持原样，未导入。`,
-      );
-      return { registry: emptyRegistry(), present: false };
-    }
-    this.options.logger.info(
-      `bots: 已从 ${this.options.legacyFile} 导入 ${parsed.data.bots.length} 个 Bot。`,
-    );
-    return { registry: parsed.data, present: true };
-  }
-
-  private async renameLegacy(): Promise<void> {
-    const imported = `${this.options.legacyFile}.imported`;
-    await rename(this.options.legacyFile, imported);
-    this.options.logger.info(`bots: 旧 Registry 已改名为 ${imported}。`);
   }
 
   private async persist(state: RegistryFile): Promise<void> {

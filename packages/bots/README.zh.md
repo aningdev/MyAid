@@ -8,12 +8,13 @@
 
 ## 数据
 
-| 内容                | 位置                                                                                     |
-| ------------------- | ---------------------------------------------------------------------------------------- |
-| Registry            | `<dataDir>/registry.json`；`dataDir` 默认 `$DSH_HOME/bots`（行 `config`）                |
-| 派生 preset 记录    | storage domain `bots` 的 `presets` 表（与 dsh 自己的 storages 并列）                     |
-| 复制后的技能 bundle | `<dataDir>/skills/<presetId>/`                                                           |
-| 导入的 Client 文件  | `$DSH_HOME/registry/bots.json` 只读一次，随后改名为 `bots.json.imported`；不导入更旧格式 |
+| 内容                | 位置                                                                      |
+| ------------------- | ------------------------------------------------------------------------- |
+| Registry            | `<dataDir>/registry.json`；`dataDir` 默认 `$DSH_HOME/bots`（行 `config`） |
+| 派生 preset 记录    | storage domain `bots` 的 `presets` 表（与 dsh 自己的 storages 并列）      |
+| 复制后的技能 bundle | `<dataDir>/skills/<presetId>/`                                            |
+
+全新的数据根会得到一份只含 Main Bot 的新 Registry，不导入任何旧数据。
 
 Registry 文件是 v6 文档加一个单调递增的 `revision`。每次写入先写临时文件再改名，读的人不会看到写了一半的 Registry。`snapshot` 与每次写入都返回 `{ registry, revision }`；revision 只增不减。
 
@@ -53,14 +54,6 @@ Typert 消费面从 `./remote` 导出，由 Client 在 `apps/client/lib/dsh/sdk.
 - 归档或删除它会被 `bots/main-bot` 拒绝，任何 Device 都不能让 Owner 没有 Bot。
 
 手改文件藏不住它：检查在加载时运行，并会修复一个被归档的 Main Bot。默认 preset 只在创建 Main Bot 时读取；之后改 Host 默认不会改写已存在 Main Bot 的绑定。
-
-## 旧 Registry 的导入
-
-第一次启动时如果本插件自己的文件不存在：
-
-- `$DSH_HOME/registry/bots.json` 是 `version: 6` 时导入，确保 Main Bot 排第一，然后把旧文件改名为 `bots.json.imported`；
-- 其他版本会明确写日志并保持原样——不迁移更旧格式；
-- 第一次启动之后不再读旧路径。
 
 ## 命令
 

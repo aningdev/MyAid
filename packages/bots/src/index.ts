@@ -45,8 +45,6 @@ export function apply(ctx: Context, config: Config): void {
   new BotsService(ctx, {
     dataDir,
     registryFile: join(dataDir, "registry.json"),
-    // The Client's old file; read once, then renamed, and never again.
-    legacyFile: join(resolveDshHome(), "registry", "bots.json"),
   });
 }
 
