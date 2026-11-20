@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "lib": ["ESNext", "DOM"],
+    "types": ["node"],
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "nsh": ["./support/nsh.ts"],
+      "websocket": ["./support/websocket.ts"]
+    }
+  },
+  "include": ["support/**/*.ts", "cases/**/*.ts", "vite.config.ts"]
+}

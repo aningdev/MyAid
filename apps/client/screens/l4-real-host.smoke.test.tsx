@@ -5,7 +5,7 @@
  *
  * Opt in on a scratch home; the app starts the Host itself:
  *
- *   HOME=<scratch>/home DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4883 \
+ *   HOME=<scratch>/home DSH_BOT_SMOKE_HOST=1 DSH_BOT_RELAY_URL=http://127.0.0.1:9 DSH_BOT_HOST_PORT=4883 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/l4-real-host.smoke.test.tsx --target macos
  */

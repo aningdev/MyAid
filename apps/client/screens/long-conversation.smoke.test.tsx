@@ -9,7 +9,7 @@
  *
  *   SC=$PWD/.dsh-bot-smoke
  *   mkdir -p "$SC/home/.dsh-bot" "$SC/home/proj-a" "$SC/home/proj-b"
- *   HOME="$SC/home" DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4881 \
+ *   HOME="$SC/home" DSH_BOT_SMOKE_HOST=1 DSH_BOT_RELAY_URL=http://127.0.0.1:9 DSH_BOT_HOST_PORT=4881 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/long-conversation.smoke.test.tsx --target macos
  */

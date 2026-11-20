@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./relay": "./lib/carrier/relay/index.ts"
+  },
   "scripts": {
     "prepare:sdk": "bun ./scripts/prepare-sdk.mjs",
     "dev": "bun run prepare:sdk && bun ./scripts/run-with-host-path.mjs nsh run App.tsx",

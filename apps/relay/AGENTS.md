@@ -14,7 +14,7 @@
 每个状态只有一份所有者，别的地方只读或发消息。
 
 - `main.rs`：只装配 `serve`、信号处理和日志。
-- `config.rs`：只解析 `--bind`、`--port`、`--ready-stdout`、`--frame-tap`、`--trusted-proxy`。
+- `config.rs`：只解析 `--bind`、`--port`、`--ready-stdout`、`--frame-tap`、`--trusted-proxy`、`--idle-ms`。
 - `routes.rs`：只装配路由（`GET /`、`GET /v1/health`、两条 WebSocket 入口）和 `Api`。Device 入口在这里把可信代理的 `X-Forwarded-For` 解析成客户端 IP。
 - `run.rs`：绑定监听套接字，建 `Registry`／`RateLimiter`／`Tap`，等退出信号。
 - `runner.rs`：`Registry` 是「哪个 runner id 现在归哪条连接」的唯一所有者，`generation` 保证旧连接收尾时删不掉新登记。Runner 链路自己拥有它的通道表和通道号分配。
@@ -34,6 +34,8 @@
 ## 验证
 
 - `cargo check -p dsh-bot-relay` / `cargo test -p dsh-bot-relay`（`tests/local_api.rs` 走真实 HTTP，`tests/tunnel.rs` 起真实进程走真实 WebSocket）。
+- 测试不许干等真实时长：要等的限制做成 `serve` 的参数（如 `--idle-ms`），测试里把它调短。
+- 整条链路（真 Host、真 Device）的验收 8、9 在 [`tests/e2e`](../../tests/e2e/README.zh.md)，根目录 `bun run test:e2e`；动了帧格式或 `frame-tap` 的输出，要一并跑它。
 - `the_frame_tap_records_every_relayed_frame` 只在打开 `frame-tap` feature 时编译，它证明 Relay 只见过密文；根 `bun run test` 和 `bun run check` 用 `--all-features`，CI 会跑到它。单独跑用 `cargo test -p dsh-bot-relay --features frame-tap`。
 - 不安装、不启动系统后台服务。
 - `deploy/` 的脚本会改动远端服务器：只在 Owner 明确给出目标机器和域名时运行，不拿它做验证。改 `install.sh` 后先 `bash -n`，再在 Owner 指定的机器上重跑一次部署确认。

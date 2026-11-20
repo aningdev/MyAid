@@ -52,10 +52,11 @@ Every number above lives in [`src/limits.rs`](src/limits.rs) and the codes in [`
 ## Commands
 
 ```sh
-cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout] [--trusted-proxy IP]
+cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout] [--trusted-proxy IP] [--idle-ms MS]
 cargo check -p dsh-bot-relay
 cargo test -p dsh-bot-relay
 cargo test -p dsh-bot-relay --features frame-tap
+bun run test:e2e   # from the repo root: this Relay with a real Host and Device, see tests/e2e
 ```
 
 `--bind` is an IP address, default `127.0.0.1`. `--port` defaults to `8787`. Log level is `RUST_LOG`.
@@ -64,7 +65,9 @@ cargo test -p dsh-bot-relay --features frame-tap
 
 `--trusted-proxy IP` can be repeated and defaults to none. Device rate limiting and logs use the TCP peer. Only when that peer is one of these addresses does the Relay read the client from `X-Forwarded-For`: the rightmost entry of the last header value, which is the address the proxy itself saw; entries left of it come from the client and are never used. No header, or a rightmost entry that is not a bare IP, keeps the peer. A peer that is not listed is never allowed to set the client, so a forged header cannot split the limit.
 
-`--frame-tap PATH` appends every relayed binary frame as one JSON line — `{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}` — which is how the end-to-end test proves the Relay only ever sees ciphertext. The flag exists only in builds with the `frame-tap` feature, so a release build cannot record frames at all; the second `cargo test` line above turns it on for the test that reads the file back.
+`--idle-ms MS` replaces the 10 second idle time (close code `4006`); tests use it so they need not wait. Deployments leave it out.
+
+`--frame-tap PATH` appends every relayed binary frame as one JSON line — `{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}` — which is how the [end-to-end test](../../tests/e2e/README.md) proves the Relay only ever sees ciphertext. The flag exists only in builds with the `frame-tap` feature, so a release build cannot record frames at all; the second `cargo test` line above turns it on for the test that reads the file back.
 
 ## Deploy
 

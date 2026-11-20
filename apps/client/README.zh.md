@@ -98,6 +98,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 - `noise.ts`：Noise IK（日常）与 IKpsk1（配对）握手状态，发起方与响应方。
 - `pairing.ts`：配对链接解析、Device 静态密钥、唯一一份配对记录，以及 `pairDevice` 的配对握手。
 - `tunnel.ts`：一条 Relay WebSocket——模式字节、握手、`[流号][类型][正文]` 帧、保活与关闭码。
+- `index.ts`：公开 Interface，在 `package.json` 里导出为 `@dsh-bot/client/relay`；端到端测试（[`tests/e2e`](../../tests/e2e/README.zh.md)）经它使用 Carrier。这个目录里的其他文件不被 Client 之外的代码导入。
 - `carrier.ts`：跑在这条隧道上的 HTTP 与 WebSocket 流：`fetch`（响应体流式）与 EventTarget 形状的 socket。调用方取消的请求（signal 中止，或响应体被取消）会发 `RESET {"code":"cancelled"}` 并结束该流。隧道断开时进行中的流全部失败；重连归官方 connection。
 - `bytes.ts` / `errors.ts`：共享编码与带 code 的错误。
 

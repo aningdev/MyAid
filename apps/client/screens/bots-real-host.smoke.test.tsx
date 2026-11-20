@@ -10,7 +10,7 @@
  * inserts both `lib/index.js` files, the same shape `scripts/dev.mjs` writes.
  *
  *   vp run dsh-bots#build && vp run dsh-tickets#build
- *   DSH_BOT_HOME=<scratch> DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
+ *   DSH_BOT_HOME=<scratch> DSH_BOT_SMOKE_HOST=1 DSH_BOT_RELAY_URL=http://127.0.0.1:9 DSH_BOT_HOST_PORT=4879 \
  *     DSH_BOT_PATCH=<patch.yml> PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/bots-real-host.smoke.test.tsx --target macos
  *

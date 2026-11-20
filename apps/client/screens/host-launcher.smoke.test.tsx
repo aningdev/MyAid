@@ -6,7 +6,7 @@
  * starts are both under it) and with `dsh-bot-host` on PATH:
  *
  *   SC=<scratch>/home
- *   HOME="$SC" DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
+ *   HOME="$SC" DSH_BOT_SMOKE_HOST=1 DSH_BOT_RELAY_URL=http://127.0.0.1:9 DSH_BOT_HOST_PORT=4879 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/host-launcher.smoke.test.tsx --target macos
  *

@@ -25,6 +25,12 @@
  * the Host it starts all use that root (`DSH_BOT_HOME`), on port 4873 unless
  * `DSH_BOT_HOST_PORT` names another, so it never reaches the person's own Host.
  * Agents and scripted checks always use it.
+ *
+ * An isolated run whose environment does not set `DSH_BOT_RELAY_URL` starts its
+ * own Relay on 127.0.0.1 (a free port, announced on stdout) and hands that
+ * address to the Host, so development never reaches the project Relay. A
+ * `DSH_BOT_RELAY_URL` the caller set is used as given. Without `--isolated`
+ * nothing changes: the Host uses the project's default Relay.
  */
 import { execFileSync, spawn } from "node:child_process";
 import {
@@ -66,6 +72,14 @@ const HOST_BIN = join(
   process.platform === "win32" ? "dsh-bot-host.exe" : "dsh-bot-host",
 );
 
+/** The Relay the app's Host dials in an isolated run, as cargo builds it. */
+const RELAY_BIN = join(
+  root,
+  "target",
+  "debug",
+  process.platform === "win32" ? "dsh-bot-relay.exe" : "dsh-bot-relay",
+);
+
 /** Port an isolated run's Host uses when `DSH_BOT_HOST_PORT` names none. */
 const ISOLATED_PORT = 4873;
 
@@ -89,9 +103,13 @@ function applyIsolation(argv) {
   mkdirSync(dataRoot, { recursive: true });
   process.env.DSH_BOT_HOME = dataRoot;
   process.env.DSH_BOT_HOST_PORT ||= String(ISOLATED_PORT);
+  isolated = true;
   console.log(`隔离运行：数据根 ${dataRoot}，Host 端口 ${process.env.DSH_BOT_HOST_PORT}`);
   return argv.filter((argument) => argument !== flag);
 }
+
+/** Whether this run is isolated. */
+let isolated = false;
 
 const args = applyIsolation(process.argv.slice(2));
 
@@ -113,6 +131,8 @@ const INSTALL_STAMP = join(root, "node_modules", ".dsh-bot-install-stamp.json");
 const delimiter = process.platform === "win32" ? ";" : ":";
 /** @type {import('node:child_process').ChildProcess | undefined} */
 let child;
+/** @type {import('node:child_process').ChildProcess | undefined} */
+let relay;
 let stopping = false;
 
 /**
@@ -399,6 +419,42 @@ async function sweepStaleHost() {
   }
 }
 
+/** Whether this run starts its own Relay: isolated, and the caller named none. */
+function wantsLocalRelay() {
+  return isolated && !process.env.DSH_BOT_RELAY_URL;
+}
+
+/**
+ * Start a Relay on 127.0.0.1 and point the Host at it through `DSH_BOT_RELAY_URL`.
+ * The port is whatever is free, so it cannot collide with the Host's 4872 or 4873.
+ */
+async function startLocalRelay() {
+  await completed(run("cargo", ["build", "-p", "dsh-bot-relay"]), "构建 dsh-bot-relay 失败");
+  const spawned = spawn(
+    RELAY_BIN,
+    ["serve", "--bind", "127.0.0.1", "--port", "0", "--ready-stdout"],
+    { cwd: root, stdio: ["ignore", "pipe", "inherit"] },
+  );
+  relay = spawned;
+  const port = await new Promise((resolvePort, reject) => {
+    let text = "";
+    spawned.stdout.on("data", (chunk) => {
+      text += chunk;
+      const end = text.indexOf("\n");
+      if (end < 0) return;
+      try {
+        resolvePort(JSON.parse(text.slice(0, end)).port);
+      } catch {
+        reject(new Error("dsh-bot-relay 的就绪行不是 JSON"));
+      }
+      text = "";
+    });
+    spawned.once("exit", () => reject(new Error("dsh-bot-relay 启动后立即退出")));
+  });
+  process.env.DSH_BOT_RELAY_URL = `http://127.0.0.1:${port}`;
+  console.log(`本机 Relay：${process.env.DSH_BOT_RELAY_URL}（只绑 127.0.0.1，随本次运行退出）`);
+}
+
 /**
  * Build the workspace plugins and point the app at them through an overlay patch.
  * @returns the patch file inside the worktree.
@@ -436,6 +492,11 @@ function report(target) {
     return;
   }
   console.log(`Host：${hostStaleness() ?? "已是最新"}`);
+  console.log(
+    wantsLocalRelay()
+      ? "Relay：启动本机 Relay（127.0.0.1，空闲端口）"
+      : `Relay：${process.env.DSH_BOT_RELAY_URL ?? "项目默认 Relay"}`,
+  );
 }
 
 /**
@@ -492,6 +553,7 @@ async function main(argv) {
   let patch;
   if (target.host) {
     await ensureHost();
+    if (wantsLocalRelay()) await startLocalRelay();
     patch = await prepareOverlay();
   }
   if (stopping) return;
@@ -513,5 +575,6 @@ try {
 } finally {
   stopping = true;
   stopClient("SIGTERM");
+  relay?.kill("SIGTERM");
   rmSync(DEV_DIR, { recursive: true, force: true });
 }

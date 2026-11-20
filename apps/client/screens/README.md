@@ -38,7 +38,13 @@ nsh test screens/l2-shots.test.tsx --target macos
 
 `*.smoke.test.tsx` returns unless `DSH_BOT_SMOKE_HOST` is set, so no default
 `nsh test` run needs a live Host — and that variable is also the only way a
-test app reaches the local control plane at all (`test/host-control.test.tsx`). The app starts the Host itself (`lib/host/launcher`), so nothing has to
+test app reaches the local control plane at all (`test/host-control.test.tsx`).
+The Host the app starts dials the Relay `DSH_BOT_RELAY_URL` names, and without
+it the project's public one, so a smoke also needs that variable set to an
+address on this machine: an unused port such as `http://127.0.0.1:9` (nothing
+listens, the Host's Bridge just keeps retrying) or the Relay `bun run dev
+--isolated` starts. Left unset or pointing anywhere else, `hostControlAllowed`
+refuses and the app stays at the neutral "Host disconnected". The app starts the Host itself (`lib/host/launcher`), so nothing has to
 be running beforehand: give the app a scratch home and `dsh-bot-host` on PATH.
 
 ```sh
@@ -55,7 +61,7 @@ cargo build -p dsh-bot-host
 
 real_home="$HOME"
 HOME="$SC/home" RUSTUP_HOME="$real_home/.rustup" CARGO_HOME="$real_home/.cargo" \
-  DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
+  DSH_BOT_SMOKE_HOST=1 DSH_BOT_RELAY_URL=http://127.0.0.1:9 DSH_BOT_HOST_PORT=4879 \
   PATH="$PWD/target/debug:$PATH" \
   nsh test screens/host-launcher.smoke.test.tsx --target macos
 ```

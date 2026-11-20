@@ -100,6 +100,7 @@ One Client, two roles, decided by one question: is this the Runner?
 - `tunnel.ts` — one Relay WebSocket: mode byte, handshake, `[stream][type][body]` frames, keepalive and close codes.
 - `carrier.ts` — HTTP and WebSocket streams over that tunnel: `fetch` with a streamed response body, and an EventTarget socket. A request the caller cancels (the signal aborts, or the response body is cancelled) sends `RESET {"code":"cancelled"}` and ends its stream. A dropped tunnel fails every stream in flight; reconnecting belongs to the official connection.
 - `bytes.ts` / `errors.ts` — shared encodings and typed errors.
+- `index.ts` — the public Interface, exported as `@dsh-bot/client/relay` in `package.json`; the end-to-end tests ([`tests/e2e`](../../tests/e2e/README.md)) import the Carrier through it. Nothing else in this directory is imported from outside the Client.
 
 ## Data
 

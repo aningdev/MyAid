@@ -1,0 +1,17 @@
+{
+  "name": "@dsh-bot/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test:e2e": "cargo build -p dsh-bot-relay -p dsh-bot-host --features dsh-bot-relay/frame-tap && vp test run"
+  },
+  "devDependencies": {
+    "@dsh-bot/client": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/ws": "^8.18.1",
+    "typescript": "catalog:",
+    "ws": "^8.22.1"
+  }
+}

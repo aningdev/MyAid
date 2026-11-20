@@ -158,7 +158,7 @@ Relay 可以自建，Device 要到配对时才知道它的主机名，所以 Cli
 
 ## Client 的 relay Carrier
 
-`lib/carrier/relay/` 实现上面的 Device 一侧：
+`lib/carrier/relay/` 实现上面的 Device 一侧，公开入口是 `index.ts`（经包的 `exports` 以 `@dsh-bot/client/relay` 导出，端到端测试直接用它）：
 
 - Noise 握手和加解密，用 noble 实现。
 - 一条 Relay WS 加上流复用。
@@ -169,5 +169,6 @@ Relay 可以自建，Device 要到配对时才知道它的主机名，所以 Cli
 ## 验证
 
 - **Noise 一致性**：JS 实现要通过公开测试向量里 IK 和 IKpsk1 这两种模式（25519、ChaChaPoly、SHA256）的全部用例。
-- **Relay 零知识**（spec 验收 8）：端到端测试在 Relay 一侧录下一次完整对话经过的所有帧，断言其中找不到对话里的任何明文片段。
-- **撤销**（spec 验收 9）：撤销后，这台 Device 的在线流收到 `revoked`，下一次握手收到 `device-revoked`。
+- **Relay 零知识**（spec 验收 8）：`tests/e2e/cases/relay-sees-no-content.test.ts`。真 Relay（`frame-tap` 构建）、真 Host 和 Device 的 relay Carrier 走完一次对话：一次 `POST /api/…`、一条 `/api/remote.mux`（双向各一帧）、一次 `RESET cancelled`，请求体和响应体里各带唯一的明文标记。测试再读 Relay 录下的所有帧，断言：（a）标记、Device 公钥和 device id 都不在任何帧里，原文、base64、base64url 三种写法（含三种对齐）都查；（b）帧数大于 0，且 Device 和 Runner 两条链路的两个方向都有帧；（c）每一帧都只是[帧](#帧)一节定义的样子：Runner 链路上是通道头加 `OPEN`（无载荷）、`DATA`（至少一个 Noise 认证标签的密文）或 `CLOSE`（只有关闭码），Device 链路上是不超过上限的密文。
+- **撤销**（spec 验收 9）：`tests/e2e/cases/revocation-is-immediate.test.ts`。Device 有一条在线 mux 时，Runner 调 `DELETE /bridge/devices/{id}`：这条流立即失败，`onRevoked` 触发，本机配对记录被清掉，`GET /bridge/devices` 里没有它；旧身份再握手一次，收到 `device-revoked`。
+- **怎么跑**：`bun run test:e2e`（先 `cargo build` 出带 `frame-tap` 的 Relay 和 Host，再跑 [`tests/e2e`](../../tests/e2e/README.zh.md)；整层不超过 60 秒，不含编译）。Relay 自己的转发协议由 `cargo test -p dsh-bot-relay` 覆盖。

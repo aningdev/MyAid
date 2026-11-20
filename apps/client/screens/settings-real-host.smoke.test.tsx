@@ -5,8 +5,8 @@
  * the colour scheme persists across a relaunch, and that About shows the
  * versions the Host reports.
  *
- * Opt in with `DSH_BOT_SMOKE_HOST=1`, a scratch home/data root and `dsh-bot-host`
- * on PATH (see screens/README.md):
+ * Opt in with `DSH_BOT_SMOKE_HOST=1`, `DSH_BOT_RELAY_URL=http://127.0.0.1:9`, a scratch
+ * home/data root and `dsh-bot-host` on PATH (see screens/README.md):
  *
  *   nsh test screens/settings-real-host.smoke.test.tsx --target macos
  *
