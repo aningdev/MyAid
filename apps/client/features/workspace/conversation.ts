@@ -37,7 +37,7 @@ export function setSegmentStarter(next: SegmentStarter | undefined): void {
 }
 
 /** The official Workspace model, from the shared Connection. */
-async function workspaceModel(): Promise<import("@myaid/dsh-web-protocol/client").IWorkspaces> {
+async function workspaceModel(): Promise<import("@dsh-bot/dsh-web-protocol/client").IWorkspaces> {
   const api = await import("../../lib/dsh/session");
   const connection = await api.ensureConnected();
   return connection.workspaces;

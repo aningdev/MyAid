@@ -3,10 +3,10 @@
  * one prompt answered with a 22-item numbered list (markers past one digit),
  * and the turn settling — Send back, no working dot — when dsh is done.
  *
- * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host itself
+ * Opt in with DSH_BOT_SMOKE_HOST on a scratch home; the app starts the Host itself
  * (see screens/README.md):
  *
- *   HOME=<scratch>/home MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *   HOME=<scratch>/home DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/real-turn.smoke.test.tsx --target macos
  */

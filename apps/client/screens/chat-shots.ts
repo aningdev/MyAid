@@ -15,7 +15,7 @@ import { open } from "../test/open";
 import { graphical, shoot } from "./shots";
 
 /** The pictures of the conversation's components. */
-export const CHAT_SHOTS = join(homedir(), ".myaid-dev", "shots", "chat");
+export const CHAT_SHOTS = join(homedir(), ".dsh-bot-dev", "shots", "chat");
 
 export async function shootConversation(prefix: string): Promise<void> {
   const app = await open("../screens/chat-shots-harness.tsx", {

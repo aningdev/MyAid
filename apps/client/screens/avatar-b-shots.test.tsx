@@ -6,7 +6,7 @@
  * a turn under way in the list, the Pane's title and a message row, in both
  * appearances and with reduced motion.
  *
- *   mkdir -p ~/.myaid-dev/shots/avatar-b
+ *   mkdir -p ~/.dsh-bot-dev/shots/avatar-b
  *   nsh test screens/avatar-b-shots.test.tsx --target macos
  *
  * The moment is a mark's own `time` where a sheet needs several at once, or the
@@ -17,7 +17,7 @@
  * the wall clock, and those two may shift by a pixel between runs. The wall
  * clock itself is fixed (`FIXED_TIME`), so the timestamps in a picture do not
  * move. The apps are opened in the app's isolated storage, never the real
- * `~/.myaid`; a headless run stops at the picture probe.
+ * `~/.dsh-bot`; a headless run stops at the picture probe.
  */
 import { expect, test } from "nsh/test";
 import type { App } from "nsh/test";

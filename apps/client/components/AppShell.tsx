@@ -18,7 +18,7 @@ function useHiddenTitleBar() {
   if (!hasWindow) return;
   effect(() => {
     Window.get("main")?.set({
-      title: "MyAid",
+      title: "dsh-bot",
       titleBar: { style: "hidden", height: TITLE_CHROME },
     });
   });
@@ -57,7 +57,9 @@ function MobileShell() {
             justifyContent: "center",
           }}
         >
-          <Text style={{ fontSize: 13, fontWeight: "600", color: token("foreground") }}>MyAid</Text>
+          <Text style={{ fontSize: 13, fontWeight: "600", color: token("foreground") }}>
+            dsh-bot
+          </Text>
         </View>
       </If>
       <View class="flex-1 items-center justify-center gap-2 p-8">

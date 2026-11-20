@@ -5,7 +5,7 @@
  *   nsh test screens/l4-shots.test.tsx --target macos
  *
  * The apps are opened in the app's isolated storage, never the real
- * `~/.myaid`; a headless run stops at the picture probe.
+ * `~/.dsh-bot`; a headless run stops at the picture probe.
  */
 import { test } from "nsh/test";
 

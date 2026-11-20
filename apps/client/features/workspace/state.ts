@@ -5,8 +5,8 @@
  * becomes visible when dsh echoes it — never from a unary response. Commands
  * only call the official Workspace service.
  */
-import type { IWorkspaces, WorkspaceSource, WorkspaceView } from "@myaid/dsh-web-protocol/client";
-import type { WorkspaceBaseline } from "@myaid/dsh-web-protocol/workspace";
+import type { IWorkspaces, WorkspaceSource, WorkspaceView } from "@dsh-bot/dsh-web-protocol/client";
+import type { WorkspaceBaseline } from "@dsh-bot/dsh-web-protocol/workspace";
 import { signal, Storage } from "nsh";
 
 import { usesTestStorage } from "../../lib/data-root";
@@ -36,7 +36,7 @@ export {
  * (the same isolated Storage that holds its registry). The product never sets
  * it: a real run reads the official Workspace model.
  */
-export const WORKSPACES_STORAGE_KEY = "myaid.workspaces";
+export const WORKSPACES_STORAGE_KEY = "dsh-bot.workspaces";
 
 /** What the official model has told this Client so far. */
 export const workspaces = signal<WorkspaceProjection>(EMPTY_WORKSPACES);

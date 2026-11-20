@@ -2,7 +2,7 @@
  * The Host's control API over loopback HTTP, with a websocket for status.
  *
  * The Host listens on `127.0.0.1:<port>` and takes `Authorization: Bearer <token>` on every
- * route but `/`, which answers `myaid` so a probe can tell "a Host answers" from "nothing does".
+ * route but `/`, which answers `dsh-bot` so a probe can tell "a Host answers" from "nothing does".
  * The token is `serve-token` in this app's data root: the Host makes it once it holds the port,
  * and the Client reads it on each connection, so a Host it started and one it found running both
  * take it. The websocket carries the token in its query, since the standard WebSocket API sets
@@ -15,7 +15,7 @@ import { dataRootPath, hostControlAllowed } from "../data-root";
 import { t } from "../i18n";
 import { decodeBackendInfo, decodeHostStatus, type HostStatus } from "./protocol";
 
-/** The control port when nothing names one (`MYAID_HOST_PORT`, which the Host honours too). */
+/** The control port when nothing names one (`DSH_BOT_HOST_PORT`, which the Host honours too). */
 export const DEFAULT_HOST_PORT = 4872;
 
 /** What a test app's transport says instead of reaching the person's machine. */
@@ -64,14 +64,14 @@ export type HostSeams = {
   allow(): boolean;
 };
 
-/** The control port in force: `MYAID_HOST_PORT`, else this build's default. */
+/** The control port in force: `DSH_BOT_HOST_PORT`, else this build's default. */
 export function hostPort(): number {
-  const raw = typeof process !== "undefined" && process.env ? process.env.MYAID_HOST_PORT : "";
+  const raw = typeof process !== "undefined" && process.env ? process.env.DSH_BOT_HOST_PORT : "";
   const port = raw ? Number.parseInt(raw, 10) : Number.NaN;
   return Number.isInteger(port) && port > 0 ? port : DEFAULT_HOST_PORT;
 }
 
-/** `~/.myaid/host/serve-token`, or null before a Host has ever held the port. */
+/** `~/.dsh-bot/host/serve-token`, or null before a Host has ever held the port. */
 export async function hostToken(root: string = dataRootPath()): Promise<string | null> {
   try {
     const token = (await readFile(join(root, "host", "serve-token"), "utf8")).trim();
@@ -103,7 +103,7 @@ function withTimeout<T>(work: Promise<T>, ms: number, reason: string): Promise<T
 
 /**
  * Whether a Host answers on the port: the liveness text, with no token. A refused connection,
- * a timeout, or anything that is not `myaid` means no Host of ours is there.
+ * a timeout, or anything that is not `dsh-bot` means no Host of ours is there.
  */
 export async function probeHost(
   port: number,
@@ -117,7 +117,7 @@ export async function probeHost(
       t("host.error.probeTimeout"),
     );
     if (!response.ok) return false;
-    return (await response.text()).trim() === "myaid";
+    return (await response.text()).trim() === "dsh-bot";
   } catch {
     return false;
   }

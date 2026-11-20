@@ -128,8 +128,8 @@ const segments: SegmentInput[] = [
   {
     sessionId: "s1",
     label: "Today",
-    path: "~/work/myaid",
-    fullPath: "/Users/someone/work/myaid",
+    path: "~/work/dsh-bot",
+    fullPath: "/Users/someone/work/dsh-bot",
     current: true,
     messages: current,
   },

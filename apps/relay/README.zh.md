@@ -1,24 +1,24 @@
-# myaid-relay
+# dsh-bot-relay
 
 [English](README.md) | 中文
 
-常驻 Relay 进程，布局照 lorca 的 `crates/relay`：`config.rs`（路径、端口、日志）、`routes.rs`（本机控制 API）、`run.rs`（绑定、token、优雅停止）、`service.rs`（本单元 OS 登记）。`GET /` 回 `myaid-relay`、`GET /v1/health` 回版本与协议，两者免 token；`/registration*` 要数据根的 `relay/serve-token`。
+常驻 Relay 进程，布局照 lorca 的 `crates/relay`：`config.rs`（路径、端口、日志）、`routes.rs`（本机控制 API）、`run.rs`（绑定、token、优雅停止）、`service.rs`（本单元 OS 登记）。`GET /` 回 `dsh-bot-relay`、`GET /v1/health` 回版本与协议，两者免 token；`/registration*` 要数据根的 `relay/serve-token`。
 
 密文帧转发、身份密钥与配对**尚未实现**：移动端不在本轮，开始时照 lorca 的形状补（[0006](../../docs/decisions/0006-host-is-the-only-background-service.md)）。它从不解密载荷、不持 owner 凭据、不替代 Host Bridge 授权。
 
-约束：[AGENTS.md](AGENTS.md)。架构 §7 / Bridge–Relay：[ARCHITECTURE](../../docs/ARCHITECTURE.md)、[0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)。共用启动计划：[`myaid-service`](../../crates/myaid-service/README.zh.md)。
+约束：[AGENTS.md](AGENTS.md)。架构 §7 / Bridge–Relay：[ARCHITECTURE](../../docs/ARCHITECTURE.md)、[0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)。共用启动计划：[`dsh-bot-service`](../../crates/dsh-bot-service/README.zh.md)。
 
 ## 命令
 
 ```sh
-cargo run -p myaid-relay -- serve-app --port 8787
-cargo run -p myaid-relay -- serve --data-root PATH [--port N]
-cargo run -p myaid-relay -- service install|uninstall|status
-cargo check -p myaid-relay
-cargo test -p myaid-relay
+cargo run -p dsh-bot-relay -- serve-app --port 8787
+cargo run -p dsh-bot-relay -- serve --data-root PATH [--port N]
+cargo run -p dsh-bot-relay -- service install|uninstall|status
+cargo check -p dsh-bot-relay
+cargo test -p dsh-bot-relay
 ```
 
-默认端口 `8787`（`MYAID_RELAY_PORT`），数据根 `~/.myaid`（`MYAID_DATA_ROOT`），日志级别 `RUST_LOG`。
+默认端口 `8787`（`DSH_BOT_RELAY_PORT`），数据根 `~/.dsh-bot`（`DSH_BOT_HOME`），日志级别 `RUST_LOG`。
 
 ## Known limitations
 

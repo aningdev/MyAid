@@ -13,7 +13,7 @@ import { lifecycleLabel, type HostFacts } from "./hostFacts";
 export const APP_VERSION = "0.1.0";
 
 export type VersionRows = {
-  myaid: string;
+  dshBot: string;
   host: string;
   dsh: string;
   supportedDsh: string;
@@ -22,7 +22,7 @@ export type VersionRows = {
 
 export function versionRows(facts: HostFacts): VersionRows {
   return {
-    myaid: APP_VERSION,
+    dshBot: APP_VERSION,
     host: facts.hostVersion ?? "—",
     dsh: facts.actualDsh ?? facts.supportedDsh ?? "—",
     supportedDsh: facts.supportedDsh ?? "—",
@@ -39,7 +39,7 @@ export function diagnosticsText(facts: HostFacts): string {
   const phase = lifecycleLabel(rows.hostPhase);
   const lines = [
     t("diagnostics.title"),
-    `MyAid: ${rows.myaid}`,
+    `dsh-bot: ${rows.dshBot}`,
     t("diagnostics.host", { version: rows.host, phase }),
     t("diagnostics.dsh", { version: rows.dsh }),
     t("diagnostics.supported", { version: rows.supportedDsh }),

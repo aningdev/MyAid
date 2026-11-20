@@ -5,7 +5,7 @@
  * screen alone knows — the expansion of tool rows, the follow state, the
  * working row's clock — and the send / stop / retry actions.
  */
-import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
+import type { PromptContentPart } from "@dsh-bot/dsh-web-protocol/session";
 import { Sparkles, TriangleAlert } from "lucide";
 import {
   batch,

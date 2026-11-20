@@ -1,14 +1,14 @@
-# myaid-host
+# dsh-bot-host
 
 [English](README.md) | 中文
 
-MyAid 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh` 进程生命周期，并在 `127.0.0.1:4872` 提供回环控制 API——Client 自己启动它、探活它、订阅它。OS 登记归本单元的 `service` 模块（launchd / systemd / Windows `Run` 键），共用的启动计划在 [`myaid-service`](../../crates/myaid-service/README.zh.md)。
+dsh-bot 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh` 进程生命周期，并在 `127.0.0.1:4872` 提供回环控制 API——Client 自己启动它、探活它、订阅它。OS 登记归本单元的 `service` 模块（launchd / systemd / Windows `Run` 键），共用的启动计划在 [`dsh-bot-service`](../../crates/dsh-bot-service/README.zh.md)。
 
 约束：[AGENTS.md](AGENTS.md)。请读 [ARCHITECTURE](../../docs/ARCHITECTURE.md)、[0006](../../docs/decisions/0006-host-is-the-only-background-service.md)、[0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md)。
 
 ## 控制 API
 
-`GET /` 无需 token，回 `myaid`，让启动器区分「有 Host」与「什么都没有」。其余路由都要 `Authorization: Bearer <token>`（数据根 `<data root>/host/serve-token`，进程拿到端口后写一次、0600），带 `Origin` 或 `Host` 不是本端口回环的请求一律 403。
+`GET /` 无需 token，回 `dsh-bot`，让启动器区分「有 Host」与「什么都没有」。其余路由都要 `Authorization: Bearer <token>`（数据根 `<data root>/host/serve-token`，进程拿到端口后写一次、0600），带 `Origin` 或 `Host` 不是本端口回环的请求一律 403。
 
 | 路由                                                   | 回答                                      |
 | ------------------------------------------------------ | ----------------------------------------- |
@@ -26,16 +26,16 @@ MyAid 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh` 
 
 ```sh
 cargo run --manifest-path apps/host/Cargo.toml -- serve-app   # serve-app（默认数据根）
-cargo run -p myaid-host -- serve-app --port 4872 --ready-stdout
-cargo run -p myaid-host -- serve --data-root PATH [--port N] [--official-dsh|--dsh PATH] [--patch FILE]…
-cargo run -p myaid-host -- service install|uninstall|status
-cargo check -p myaid-host
-cargo test -p myaid-host
+cargo run -p dsh-bot-host -- serve-app --port 4872 --ready-stdout
+cargo run -p dsh-bot-host -- serve --data-root PATH [--port N] [--official-dsh|--dsh PATH] [--patch FILE]…
+cargo run -p dsh-bot-host -- service install|uninstall|status
+cargo check -p dsh-bot-host
+cargo test -p dsh-bot-host
 ```
 
 控制 API 冒烟：`apps/host/scripts/smoke-control.mjs`（或 `.sh`）。日常 Client + Host 联调：根目录 `bun run dev`（构建 Host，App 自己启动它）。
 
-默认端口 `4872`（`MYAID_HOST_PORT`、`--port`）；默认数据根 `~/.myaid`（`MYAID_DATA_ROOT`）。App 的启动器 spawn `myaid-host serve-app`，二进制必须在 `PATH` 上（`cargo build -p myaid-host` 产出在 `target/debug`）。
+默认端口 `4872`（`DSH_BOT_HOST_PORT`、`--port`）；默认数据根 `~/.dsh-bot`（`DSH_BOT_HOME`）。App 的启动器 spawn `dsh-bot-host serve-app`，二进制必须在 `PATH` 上（`cargo build -p dsh-bot-host` 产出在 `target/debug`）。
 
 ## Known limitations
 

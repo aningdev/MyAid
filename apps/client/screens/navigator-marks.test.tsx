@@ -1,7 +1,7 @@
 /**
  * Screenshots over a seeded registry: the Bot marks in the sidebar, the
  * New Bot dialog, the ⌘K palette and a row's context menu. The fixture lives in
- * the app's isolated test storage, never the real `~/.myaid`:
+ * the app's isolated test storage, never the real `~/.dsh-bot`:
  *
  *   nsh test screens/navigator-marks.test.tsx --target macos
  */
@@ -61,7 +61,12 @@ test("marks, New Bot, palette and context menu", async () => {
       [SHELL_PREFS_STORAGE]: fixturePrefs(),
       ...workspaceStorage({
         rows: [
-          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+          workspaceRow({
+            id: "ws-work",
+            path: "/work/dsh-bot",
+            title: "dsh-bot",
+            sessionIds: ["s1"],
+          }),
         ],
       }),
     },

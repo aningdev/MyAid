@@ -1,4 +1,4 @@
-# `@myaid/dsh-web-protocol`
+# `@dsh-bot/dsh-web-protocol`
 
 English | [中文](README.zh.md)
 
@@ -15,10 +15,10 @@ This package has **no runtime**. Entries are `export type` over official `./type
 ## Usage
 
 ```ts
-import type { BotPresetRecord } from "@myaid/dsh-web-protocol/bot-presets";
-import type { ISessions } from "@myaid/dsh-web-protocol/client";
-import type { ApprovalOutcome } from "@myaid/dsh-web-protocol/interaction";
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+import type { BotPresetRecord } from "@dsh-bot/dsh-web-protocol/bot-presets";
+import type { ISessions } from "@dsh-bot/dsh-web-protocol/client";
+import type { ApprovalOutcome } from "@dsh-bot/dsh-web-protocol/interaction";
+import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
 ```
 
 Prefer **domain subpaths**. The root entry re-exports the same modules as **namespace** aliases (`Client`, `Session`, `Llm`, …) to avoid cross-domain name collisions; subpaths stay the stable import style.
@@ -59,7 +59,7 @@ Only the surfaces the product imports today:
 | Terminal / Jobs / Goals / …     | matching remotes, no type subpath yet                                                                                                                                        | on demand           | Not required for dialogue loop           |
 | Task / Knowledge / Note / Today | —                                                                                                                                                                            | not Session Remotes | Today = HostControl; Task is life-domain |
 
-## Never call from MyAid Client
+## Never call from dsh-bot Client
 
 - **`workspace.*` session container** (`create` / `archiveSession` / `pinSession` / workspace follow…) — product uses Bot claim registry instead.
 - **`account.*`** — DeepSeek account/brand surface; credentials go through `settings` / `credentials`.
@@ -80,12 +80,12 @@ Dialogue prompt path accepts `PromptContentPart` (text / image / file receipt). 
 2. Full `SessionFollowFrame` → projector mapping coverage.
 3. `userQuestions` when product UI needs it (types are here; the Remote is not mounted).
 4. Keep `lib/dsh/connection.ts` a thin facade (auth, epoch, unwrap, product DTO maps).
-5. Plugin Host contracts: use `@deepseek-ai/dsh-agent`, `dsh-tools`, `dsh-session` per upstream docs — **no** MyAid host-protocol wrapper.
+5. Plugin Host contracts: use `@deepseek-ai/dsh-agent`, `dsh-tools`, `dsh-session` per upstream docs — **no** dsh-bot host-protocol wrapper.
 
 Upstream read-only: `references/deepseek-harness/docs/api-gateway.md`, `docs/subsystems/web-client.md`.
 
 ## Check
 
 ```sh
-vp run @myaid/dsh-web-protocol#check
+vp run @dsh-bot/dsh-web-protocol#check
 ```

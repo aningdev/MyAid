@@ -1,7 +1,7 @@
 //! The Relay binary's local control API over real HTTP: liveness and health need no token, the
 //! registration routes need this data root's, and a page's request gets nothing.
 //!
-//! Each test starts a real `myaid-relay` on a random port; nothing is registered with the OS and
+//! Each test starts a real `dsh-bot-relay` on a random port; nothing is registered with the OS and
 //! nothing is left running.
 
 use std::{
@@ -39,14 +39,14 @@ impl Drop for Relay {
 
 fn start() -> Relay {
     let dir = tempfile::tempdir().expect("tempdir");
-    let mut child = Command::new(env!("CARGO_BIN_EXE_myaid-relay"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_dsh-bot-relay"))
         .args(["serve", "--data-root"])
         .arg(dir.path())
         .args(["--port", "0", "--ready-stdout"])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn myaid-relay");
+        .expect("spawn dsh-bot-relay");
     let stdout = child.stdout.take().expect("stdout");
     let mut reader = BufReader::new(stdout);
     let mut line = String::new();
@@ -104,12 +104,12 @@ fn liveness_and_health_answer_without_a_token() {
     let relay = start();
     let (status, body) = request(relay.port, "/", &[]);
     assert_eq!(status, 200);
-    assert_eq!(body, "myaid-relay");
+    assert_eq!(body, "dsh-bot-relay");
 
     let (status, body) = request(relay.port, "/v1/health", &[]);
     assert_eq!(status, 200);
     let health: serde_json::Value = serde_json::from_str(&body).expect("health json");
-    assert_eq!(health["service"], "myaid-relay");
+    assert_eq!(health["service"], "dsh-bot-relay");
     assert_eq!(health["protocol"], 1);
     assert!(health["version"].as_str().is_some_and(|version| !version.is_empty()));
 }

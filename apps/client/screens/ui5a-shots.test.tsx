@@ -4,7 +4,7 @@
  * palette's hints and in the welcome's sentence, and the `Empty` block of an
  * empty Pane. Both appearances.
  *
- *   mkdir -p ~/.myaid-dev/shots/pi-shots-ui5a
+ *   mkdir -p ~/.dsh-bot-dev/shots/pi-shots-ui5a
  *   nsh test screens/ui5a-shots.test.tsx --target macos
  *
  * A headless run stops at the picture probe.
@@ -133,7 +133,12 @@ test("Bot details: the line over the current segment", async () => {
       [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
       ...workspaceStorage({
         rows: [
-          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+          workspaceRow({
+            id: "ws-work",
+            path: "/work/dsh-bot",
+            title: "dsh-bot",
+            sessionIds: ["s1"],
+          }),
         ],
       }),
     },

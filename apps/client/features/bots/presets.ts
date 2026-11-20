@@ -14,7 +14,7 @@ import type {
   BotPresetRecord,
   BotPresetRemoveResult,
   BotPresetUpdateRequest,
-} from "@myaid/dsh-web-protocol/bot-presets";
+} from "@dsh-bot/dsh-web-protocol/bot-presets";
 
 import { t } from "../../lib/i18n";
 import { sessionTransport } from "../dialogue/session/runtime";
@@ -65,7 +65,7 @@ function hostWriter(): BotPresetWriter {
       const remote = transport();
       if (!remote) return false;
       try {
-        await remote.read("__myaid_probe__");
+        await remote.read("__dsh_bot_probe__");
         return true;
       } catch (error) {
         // The namespace is mounted on the Client even when the Host plugin is

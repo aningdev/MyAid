@@ -6,7 +6,7 @@
  * state belong to the official Client model (`ctx.sessions`); a
  * SessionController reads that model and keeps only product state.
  */
-import type { ISessions, IWorkspaces } from "@myaid/dsh-web-protocol/client";
+import type { ISessions, IWorkspaces } from "@dsh-bot/dsh-web-protocol/client";
 
 import type {
   ApprovalDecision,

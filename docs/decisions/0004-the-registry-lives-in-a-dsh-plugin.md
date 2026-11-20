@@ -2,7 +2,7 @@
 
 ## Context
 
-原来 Registry（Bot、Identity mark、段归属）是桌面 Client 写在 `~/.myaid/registry/bots.json` 的文件。全端以后，每个 Device 都要读写同一份数据；而且 Main Bot 要派 Ticket，也需要在 dsh 里知道有哪些 Bot。
+原来 Registry（Bot、Identity mark、段归属）是桌面 Client 写在 `~/.dsh-bot/registry/bots.json` 的文件。全端以后，每个 Device 都要读写同一份数据；而且 Main Bot 要派 Ticket，也需要在 dsh 里知道有哪些 Bot。
 
 ## Decision
 

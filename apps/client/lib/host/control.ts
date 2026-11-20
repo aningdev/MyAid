@@ -102,7 +102,7 @@ export async function ensureBackendReady(timeoutMs = 60_000): Promise<HostStatus
   });
 }
 
-/** Prefer Host `connectionInfo`; fall back to `MYAID_DSH_LOGIN_URL` for manual smoke. */
+/** Prefer Host `connectionInfo`; fall back to `DSH_BOT_LOGIN_URL` for manual smoke. */
 export async function resolveDshLoginUrl(): Promise<string> {
   let reachable = false;
   try {
@@ -135,8 +135,8 @@ export async function resolveDshLoginUrl(): Promise<string> {
   const fromEnv =
     typeof process !== "undefined" &&
     process.env &&
-    typeof process.env.MYAID_DSH_LOGIN_URL === "string"
-      ? process.env.MYAID_DSH_LOGIN_URL.trim()
+    typeof process.env.DSH_BOT_LOGIN_URL === "string"
+      ? process.env.DSH_BOT_LOGIN_URL.trim()
       : "";
   if (fromEnv) return fromEnv;
   throw new Error(hostNotRunning());

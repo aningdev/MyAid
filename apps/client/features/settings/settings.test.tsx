@@ -133,7 +133,7 @@ test("the language is saved and the scheme applies and persists", async () => {
   await app.press("text:English");
 
   await app.waitUntil(() => {
-    const prefs = app.storage()["myaid.prefs.shell"] ?? "";
+    const prefs = app.storage()["dsh-bot.prefs.shell"] ?? "";
     return prefs.includes('"language": "en"') && prefs.includes('"scheme": "dark"');
   });
   // The palette followed the scheme: the page's text is the dark one now.
@@ -156,7 +156,7 @@ test("the colour switches the whole app at once, and a relaunch keeps it", async
 
   await app.press(`text:${t("settings.general.themeCitrus")}`);
   await app.waitUntil(() =>
-    (app.storage()["myaid.prefs.shell"] ?? "").includes('"theme": "default"'),
+    (app.storage()["dsh-bot.prefs.shell"] ?? "").includes('"theme": "default"'),
   );
   // The palette followed the pick: the page's ink is the citrus theme's now.
   const citrus = app.spanStyle(`text:${t("settings.general.note")}`).color;
@@ -182,14 +182,14 @@ test("a stored colour this build does not carry is the build-time theme", async 
   };
   const app = await open("./settings-harness.tsx", {
     ...desktop,
-    storage: { "myaid.prefs.shell": serializeShellPrefs(stored) },
+    storage: { "dsh-bot.prefs.shell": serializeShellPrefs(stored) },
   });
   await app.press(`label:${t("host.settings")}`);
   await app.press("id:settings-nav-general");
   await app.waitFor("id:settings-general");
   // The build-time palette, and the file reads as no choice at all.
   expect(app.spanStyle(`text:${t("settings.general.note")}`).color).toBe(builtIn);
-  await app.waitUntil(() => (app.storage()["myaid.prefs.shell"] ?? "").includes('"theme": null'));
+  await app.waitUntil(() => (app.storage()["dsh-bot.prefs.shell"] ?? "").includes('"theme": null'));
 });
 
 test("About shows the versions and copies diagnostics without secrets", async () => {
@@ -200,7 +200,7 @@ test("About shows the versions and copies diagnostics without secrets", async ()
   expect(app.texts()).toContain(SUPPORTED_DSH);
   await app.press(`label:${t("settings.about.copy")}`);
   const copied = app.clipboard() ?? "";
-  expect(copied).toContain("MyAid: 0.1.0");
+  expect(copied).toContain("dsh-bot: 0.1.0");
   expect(copied).toContain("Host: 0.1.0");
   expect(copied).toContain(`dsh: ${SUPPORTED_DSH}`);
   expect(copied).toContain(t("diagnostics.hostState", { state: t("background.connected") }));

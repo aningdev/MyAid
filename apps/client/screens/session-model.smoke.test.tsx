@@ -11,15 +11,15 @@
  * The Host-restart path lives in `session-restart.smoke.test.tsx`, which needs
  * an outside watcher and is started on its own.
  *
- * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host itself
+ * Opt in with DSH_BOT_SMOKE_HOST on a scratch home; the app starts the Host itself
  * (see screens/README.md). Keep the scratch root **outside `/tmp`**:
  * `workspace-write` grants `/tmp` and the platform temp dir outright, so the
  * approval step's marker would never ask. Everything this run creates stays
  * under that scratch root, and the approved command removes the marker itself:
  *
- *   SC=$PWD/.myaid-smoke                        # gitignored, outside /tmp
+ *   SC=$PWD/.dsh-bot-smoke                        # gitignored, outside /tmp
  *   mkdir -p "$SC/home"
- *   HOME="$SC/home" MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *   HOME="$SC/home" DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/session-model.smoke.test.tsx --target macos
  *

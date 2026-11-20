@@ -23,7 +23,7 @@ import { emptyShellPrefs, serializeShellPrefs, SHELL_PREFS_STORAGE } from "./pre
 const desktop = { platform: "web" as const, width: 1100, height: 800 };
 
 /**
- * Ada (ready) → one segment at /work/myaid; Bob (ready) → one segment at
+ * Ada (ready) → one segment at /work/dsh-bot; Bob (ready) → one segment at
  * /work/bob. Bob worked last.
  */
 function sample(): BotRegistry {

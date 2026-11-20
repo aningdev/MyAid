@@ -4,13 +4,13 @@
  * (Profile shows the id and 单独配置). Starting a new segment under it lands
  * with the long conversation; this smoke answers one prompt on the Bot.
  *
- * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host itself
+ * Opt in with DSH_BOT_SMOKE_HOST on a scratch home; the app starts the Host itself
  * (see screens/README.md). The overlay must name the plugin built from this
  * checkout, so build it first:
  *
  *   vp run dsh-bot-presets#build
- *   HOME=<scratch>/home MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
- *     MYAID_DSH_PATCH="$PWD/.dev/bot-presets.patch.yml" \
+ *   HOME=<scratch>/home DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
+ *     DSH_BOT_PATCH="$PWD/.dev/bot-presets.patch.yml" \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/bot-presets-real-host.smoke.test.tsx --target macos
  */

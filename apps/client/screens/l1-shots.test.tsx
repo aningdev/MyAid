@@ -1,7 +1,7 @@
 /**
  * The L1 shell's pictures: the Bot list with its Pin group, three Panes, the
  * Bot details modal and the Settings overlay. The registry and the pins are
- * seeded in the app's isolated test storage, never the real `~/.myaid`:
+ * seeded in the app's isolated test storage, never the real `~/.dsh-bot`:
  *
  *   nsh test screens/l1-shots.test.tsx --target macos
  *

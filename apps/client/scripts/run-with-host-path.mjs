@@ -1,8 +1,8 @@
 /**
  * Run `nsh` with this repo's Host binary on PATH.
  *
- * The app starts the Host itself (`lib/host/launcher`), which resolves `myaid-host` on PATH —
- * the one name `nsh.json` grants to `capabilities.process.execute`. `cargo build -p myaid-host`
+ * The app starts the Host itself (`lib/host/launcher`), which resolves `dsh-bot-host` on PATH —
+ * the one name `nsh.json` grants to `capabilities.process.execute`. `cargo build -p dsh-bot-host`
  * puts it in `target/debug`; this script makes sure that folder leads PATH for the app and the
  * Host it starts.
  */

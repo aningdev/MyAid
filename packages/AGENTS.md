@@ -45,5 +45,5 @@
 
 - 开发期与 Rust Host 用绝对路径 `--patch` overlay，`name` 指向构建产物的 `file://` URL；profile 装包走 `dsh plugin add`（[overlay](../references/deepseek-harness/docs/user/develop/basic/index.md#register-it-in-cordisyml)、[loading order](../references/deepseek-harness/docs/user/develop/basic/publish.md#the-loading-order)）。
 - 插件以 `dsh.bundle` 声明的那层补丁就是它的装配面，不在代码里再写一份默认组合（[bundle manifest](../references/deepseek-harness/docs/user/develop/basic/publish.md#the-bundle-manifest)）。
-- Client 只经插件导出的 `./remote`（Typert 面）调用，并在 [`apps/client/lib/dsh/sdk.ts`](../apps/client/lib/dsh/sdk.ts) 登记一次；插件**不**依赖 [`@myaid/dsh-web-protocol`](dsh-web-protocol/README.md)，DTO 在那里只是 Client 侧镜像。
+- Client 只经插件导出的 `./remote`（Typert 面）调用，并在 [`apps/client/lib/dsh/sdk.ts`](../apps/client/lib/dsh/sdk.ts) 登记一次；插件**不**依赖 [`@dsh-bot/dsh-web-protocol`](dsh-web-protocol/README.md)，DTO 在那里只是 Client 侧镜像。
 - 产品缺口的判据在 [0001](../docs/decisions/0001-dsh-web-is-the-only-backend.md) `dsh web` 与已装插件，缺口才建插件。

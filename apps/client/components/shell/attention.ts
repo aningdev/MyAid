@@ -21,7 +21,7 @@ import { t } from "../../lib/i18n";
 import { activeBotId, openBot } from "./state";
 
 /** The notification id prefix; the rest is the Session id that fired it. */
-export const NOTIFICATION_PREFIX = "myaid.session.";
+export const NOTIFICATION_PREFIX = "dsh-bot.session.";
 
 export type AttentionKind = "reply" | "approval";
 
@@ -79,7 +79,7 @@ export function notificationText(
   kind: AttentionKind,
 ): { title: string; body: string } {
   return {
-    title: row.botName || "MyAid",
+    title: row.botName || "dsh-bot",
     body: kind === "approval" ? t("notification.approval") : t("notification.replied"),
   };
 }

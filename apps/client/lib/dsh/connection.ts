@@ -4,7 +4,7 @@
  * workbench UI.
  *
  * What lives here is the *transport edge*: one Cordis Context per Client
- * generation, the Remote namespaces MyAid calls, and the official
+ * generation, the Remote namespaces dsh-bot calls, and the official
  * `ctx.sessions` / `ctx.workspaces` models that own session list, history
  * window, follow, paging and reconnect. The product projects their snapshots;
  * it never re-implements them.
@@ -15,11 +15,11 @@ import type {
   BotPresetRecord,
   BotPresetRemoveResult,
   BotPresetUpdateRequest,
-} from "@myaid/dsh-web-protocol/bot-presets";
-import type { ISessions, IWorkspaces } from "@myaid/dsh-web-protocol/client";
-import type { ApprovalOutcome, ApprovalRequestEvent } from "@myaid/dsh-web-protocol/interaction";
-import type { LlmConfigurableProvider, LlmProviderInfo } from "@myaid/dsh-web-protocol/llm";
-import type { PluginInfo } from "@myaid/dsh-web-protocol/plugins";
+} from "@dsh-bot/dsh-web-protocol/bot-presets";
+import type { ISessions, IWorkspaces } from "@dsh-bot/dsh-web-protocol/client";
+import type { ApprovalOutcome, ApprovalRequestEvent } from "@dsh-bot/dsh-web-protocol/interaction";
+import type { LlmConfigurableProvider, LlmProviderInfo } from "@dsh-bot/dsh-web-protocol/llm";
+import type { PluginInfo } from "@dsh-bot/dsh-web-protocol/plugins";
 import type {
   ImageAttachmentRef,
   ModelCatalog as OfficialModelCatalog,
@@ -28,12 +28,12 @@ import type {
   SessionProjectionsValue,
   SessionProjectionsRequest,
   SessionRenameRequest,
-} from "@myaid/dsh-web-protocol/session";
+} from "@dsh-bot/dsh-web-protocol/session";
 import type {
   CredentialInfo,
   SettingsDescribeValue,
   SettingsNamespaceView,
-} from "@myaid/dsh-web-protocol/settings";
+} from "@dsh-bot/dsh-web-protocol/settings";
 
 import { joinProviderDirectory, type ModelProviderEntry } from "./providers";
 export type {
@@ -43,7 +43,7 @@ export type {
   BotPresetRemoveResult,
   BotPresetSkill,
   BotPresetUpdateRequest,
-} from "@myaid/dsh-web-protocol/bot-presets";
+} from "@dsh-bot/dsh-web-protocol/bot-presets";
 import { t } from "../i18n";
 import { dshRequestInit, fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).

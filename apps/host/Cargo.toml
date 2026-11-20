@@ -1,5 +1,5 @@
 [package]
-name = "myaid-host"
+name = "dsh-bot-host"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -9,7 +9,7 @@ axum = { version = "0.8", features = ["ws"] }
 fs2 = "0.4"
 getrandom = "0.3"
 libc = "0.2"
-myaid-service = { path = "../../crates/myaid-service" }
+dsh-bot-service = { path = "../../crates/dsh-bot-service" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 subtle = "2"
@@ -28,5 +28,5 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
-myaid-relay = { path = "../relay" }
+dsh-bot-relay = { path = "../relay" }
 tempfile = "3"

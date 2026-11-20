@@ -38,7 +38,7 @@ async fn serve_async(config: Config, exit: &'static AtomicBool) -> Result<()> {
         .port();
     // Read or made once the port is ours, so a second Relay that fails to bind never replaces it.
     let token = token(&config)?;
-    tracing::info!(port, version = %config.version, "myaid-relay listening");
+    tracing::info!(port, version = %config.version, "dsh-bot-relay listening");
     if config.ready_stdout {
         let mut stdout = std::io::stdout().lock();
         let _ = writeln!(

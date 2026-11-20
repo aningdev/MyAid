@@ -1,4 +1,4 @@
-//! Background Service registration for MyAid's two units (Host ∥ Relay).
+//! Background Service registration for dsh-bot's two units (Host ∥ Relay).
 //!
 //! Two halves:
 //! - [`registration`] is the wire vocabulary the Client orchestrates with: one OS registration
@@ -385,9 +385,9 @@ fn supervisor_log(unit: &Unit) -> PathBuf {
 
 #[cfg(windows)]
 fn data_root() -> PathBuf {
-    std::env::var_os("MYAID_DATA_ROOT")
+    std::env::var_os("DSH_BOT_HOME")
         .map(PathBuf::from)
-        .or_else(|| home_dir().map(|home| home.join(".myaid")))
+        .or_else(|| home_dir().map(|home| home.join(".dsh-bot")))
         .unwrap_or_default()
 }
 
@@ -447,7 +447,7 @@ pub fn supervise(unit: &Unit, vars: &[(&str, String)]) -> Result<(), String> {
         let mut command = Command::new(&exe);
         command
             .args(unit.arguments)
-            .env("MYAID_SERVICE", "1")
+            .env("DSH_BOT_SERVICE", "1")
             .stdin(std::process::Stdio::null())
             .stdout(output.try_clone().map_err(|error| error.to_string())?)
             .stderr(output)

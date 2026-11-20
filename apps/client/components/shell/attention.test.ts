@@ -15,9 +15,9 @@ function row(overrides: Partial<SessionRow> = {}): SessionRow {
     id: "s1",
     botId: "bot",
     botName: "Ada",
-    workspacePath: "/work/myaid",
+    workspacePath: "/work/dsh-bot",
     label: "First run",
-    detail: "Ada · /work/myaid",
+    detail: "Ada · /work/dsh-bot",
     updatedAt: null,
     missing: false,
     running: false,
@@ -80,7 +80,7 @@ test("a notification names the Bot and the reason", () => {
     body: "is waiting for approval",
   });
   // A Session without a Bot name still says something a person can read.
-  expect(notificationText(row({ botName: "" }), "reply").title).toBe("MyAid");
+  expect(notificationText(row({ botName: "" }), "reply").title).toBe("dsh-bot");
 });
 
 test("only a notification of ours names a Session", () => {

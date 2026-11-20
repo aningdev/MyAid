@@ -8,7 +8,7 @@ Host 侧插件，给一个 Bot 自己的 dsh Agent preset：复制该 Bot 的基
 
 ## 为什么存在
 
-dsh 有 `agentPresets.list/read/select`，但没有写 preset 正文的 Remote：正文住在 profile 的 YAML 里。没有本插件，Bot 详情的「技能 / 插件」是只读的。插件补上这个写入口，而执行不搬进 MyAid：
+dsh 有 `agentPresets.list/read/select`，但没有写 preset 正文的 Remote：正文住在 profile 的 YAML 里。没有本插件，Bot 详情的「技能 / 插件」是只读的。插件补上这个写入口，而执行不搬进 dsh-bot：
 
 - `derive({ botId, label, basePresetId })`：经 `agentPresets.read` 抄下基础组合。
 - `read(presetId)`：返回已存的插件覆盖与已加技能。
@@ -44,7 +44,7 @@ dsh plugin --profile web add /absolute/path/to/packages/bot-presets
       name: /absolute/path/to/packages/bot-presets/lib/index.js
 ```
 
-`bun run dev` 会先构建本包，再经 `MYAID_DSH_PATCH` 把该 overlay 交给 Host；Host 把每个 `--patch` 转给 `dsh web`。没带 overlay 启动的 Host 仍保持 Bot 详情只读。
+`bun run dev` 会先构建本包，再经 `DSH_BOT_PATCH` 把该 overlay 交给 Host；Host 把每个 `--patch` 转给 `dsh web`。没带 overlay 启动的 Host 仍保持 Bot 详情只读。
 
 ## 命令
 
@@ -77,6 +77,6 @@ Bot 的**新** Session 选用派生 preset（注册表里 `Bot.derivedPresetId` 
 
 ## 相关
 
-- [@myaid/dsh-web-protocol](../dsh-web-protocol/README.zh.md) —— Remote 的 Client 侧 DTO。
+- [@dsh-bot/dsh-web-protocol](../dsh-web-protocol/README.zh.md) —— Remote 的 Client 侧 DTO。
 - [@deepseek-ai/dsh-agent-preset-registry](https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/preset/agent-preset-registry) —— 官方 registry 与 `agentPresets` Remote。
 - [Bot 详情](../../apps/client/features/bots/BotDetails.tsx) —— 调用该 Remote 的 Client 界面。

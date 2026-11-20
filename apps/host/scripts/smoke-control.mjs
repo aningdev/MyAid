@@ -9,7 +9,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const data = await mkdtemp(join(tmpdir(), "myaid-smoke-"));
+const data = await mkdtemp(join(tmpdir(), "dsh-bot-smoke-"));
 const port = 4876;
 const base = `http://127.0.0.1:${port}`;
 
@@ -21,7 +21,7 @@ const host = spawn(
     "--manifest-path",
     "apps/host/Cargo.toml",
     "--bin",
-    "myaid-host",
+    "dsh-bot-host",
     "--",
     "serve",
     "--data-root",

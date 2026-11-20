@@ -52,9 +52,9 @@ export function memoryStore(initial: string | null = null): RegistryStore & {
 }
 
 /** Where a platform without a desktop profile (the web build, phones) keeps the registry. */
-export const REGISTRY_STORAGE_KEY = "myaid.registry.bots";
+export const REGISTRY_STORAGE_KEY = "dsh-bot.registry.bots";
 
-/** The app's key-value storage, for platforms with no `~/.myaid`. */
+/** The app's key-value storage, for platforms with no `~/.dsh-bot`. */
 export function storageStore(key: string = REGISTRY_STORAGE_KEY): RegistryStore {
   return {
     read: () => Storage.getItem(key),
@@ -63,7 +63,7 @@ export function storageStore(key: string = REGISTRY_STORAGE_KEY): RegistryStore 
   };
 }
 
-/** `~/.myaid/registry/bots.json` (templates + bots + their segments). Beside the dsh profile, not inside a preset patch. */
+/** `~/.dsh-bot/registry/bots.json` (templates + bots + their segments). Beside the dsh profile, not inside a preset patch. */
 export function defaultRegistryPath(): string {
   return registryPath();
 }

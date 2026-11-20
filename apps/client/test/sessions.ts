@@ -12,7 +12,7 @@ import type {
   SessionListState,
   SessionReference,
   SessionSnapshot,
-} from "@myaid/dsh-web-protocol/client";
+} from "@dsh-bot/dsh-web-protocol/client";
 
 import type { SessionHost } from "../features/dialogue/session/claimed";
 import { officialSessionClient } from "../lib/dsh/sdk.js";

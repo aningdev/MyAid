@@ -11,21 +11,21 @@ use std::path::{Path, PathBuf};
 /// A log larger than this starts over when the unit's command starts under the service.
 pub const LOG_LIMIT: u64 = 20 << 20;
 
-/// Whether the service started this process (`MYAID_SERVICE=1`).
+/// Whether the service started this process (`DSH_BOT_SERVICE=1`).
 pub fn supervised() -> bool {
-    std::env::var("MYAID_SERVICE").is_ok_and(|value| value == "1")
+    std::env::var("DSH_BOT_SERVICE").is_ok_and(|value| value == "1")
 }
 
 /// One Background Service unit: what the OS registration names and runs.
 #[derive(Debug, Clone, Copy)]
 pub struct Unit {
-    /// launchd label and Windows `Run` value, e.g. `com.myaid.host`.
+    /// launchd label and Windows `Run` value, e.g. `com.aningdev.dshbot.host`.
     pub label: &'static str,
-    /// systemd user unit file name, e.g. `myaid-host.service`.
+    /// systemd user unit file name, e.g. `dsh-bot-host.service`.
     pub systemd_unit: &'static str,
     /// Arguments the service runs, e.g. `["serve-app"]`.
     pub arguments: &'static [&'static str],
-    /// Log file inside `~/Library/Logs/MyAid` (macOS) or the data root (Windows).
+    /// Log file inside `~/Library/Logs/dsh-bot` (macOS) or the data root (Windows).
     pub log: &'static str,
 }
 
@@ -56,7 +56,7 @@ impl Unit {
                 .replace('<', "&lt;")
                 .replace('>', "&gt;")
         };
-        let mut environment = String::from("\t\t<key>MYAID_SERVICE</key>\n\t\t<string>1</string>\n");
+        let mut environment = String::from("\t\t<key>DSH_BOT_SERVICE</key>\n\t\t<string>1</string>\n");
         for (name, value) in vars {
             environment.push_str(&format!(
                 "\t\t<key>{name}</key>\n\t\t<string>{}</string>\n",
@@ -101,7 +101,7 @@ impl Unit {
     /// The systemd user unit; systemd splits `ExecStart` on spaces and reads quotes.
     pub fn systemd_unit(&self, exe: &Path, vars: &[(&str, String)]) -> String {
         let quote = |text: &str| format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""));
-        let mut environment = String::from("Environment=MYAID_SERVICE=1\n");
+        let mut environment = String::from("Environment=DSH_BOT_SERVICE=1\n");
         for (name, value) in vars {
             environment.push_str(&format!(
                 "Environment={}\n",
@@ -114,7 +114,7 @@ impl Unit {
             .collect::<Vec<_>>()
             .join(" ");
         format!(
-            "[Unit]\nDescription=MyAid: this computer's {label} background service\n\n[Service]\nExecStart={executable}\n{environment}Restart=always\nRestartSec=2\n\n[Install]\nWantedBy=default.target\n",
+            "[Unit]\nDescription=dsh-bot: this computer's {label} background service\n\n[Service]\nExecStart={executable}\n{environment}Restart=always\nRestartSec=2\n\n[Install]\nWantedBy=default.target\n",
             label = self.label,
         )
     }
@@ -147,7 +147,7 @@ impl Unit {
     pub(crate) fn launchd_log(&self) -> PathBuf {
         crate::home_dir()
             .unwrap_or_default()
-            .join("Library/Logs/MyAid")
+            .join("Library/Logs/dsh-bot")
             .join(self.log)
     }
 

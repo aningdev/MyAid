@@ -1,5 +1,5 @@
 /**
- * A Bot's identity mark: MyAid's own little character — a body in the Bot's
+ * A Bot's identity mark: dsh-bot's own little character — a body in the Bot's
  * accent with two eyes cut out of it (see `avatar.ts`) — in the Navigator, the
  * Pane titles, the chat and the Bot's own screens.
  *

@@ -3,35 +3,35 @@
 
 use std::path::Path;
 
-use myaid_service::{RegistrationPhase, RegistrationSnapshot, ServiceUnit, Unit};
+use dsh_bot_service::{RegistrationPhase, RegistrationSnapshot, ServiceUnit, Unit};
 
 const HOST: Unit = Unit {
-    label: "com.myaid.host",
-    systemd_unit: "myaid-host.service",
+    label: "com.aningdev.dshbot.host",
+    systemd_unit: "dsh-bot-host.service",
     arguments: &["serve-app"],
     log: "host.log",
 };
 
 const RELAY: Unit = Unit {
-    label: "com.myaid.relay",
-    systemd_unit: "myaid-relay.service",
+    label: "com.aningdev.dshbot.relay",
+    systemd_unit: "dsh-bot-relay.service",
     arguments: &["serve-app"],
     log: "relay.log",
 };
 
 fn vars() -> Vec<(&'static str, String)> {
     vec![
-        ("MYAID_DATA_ROOT", "/Users/ana/.myaid".to_string()),
-        ("MYAID_HOST_PORT", "4872".to_string()),
+        ("DSH_BOT_HOME", "/Users/ana/.dsh-bot".to_string()),
+        ("DSH_BOT_HOST_PORT", "4872".to_string()),
     ]
 }
 
 #[test]
 fn launchd_plist_names_the_unit_and_keeps_it_running() {
     let plist = HOST.launchd_plist(
-        Path::new("/Applications/MyAid.app/Contents/MacOS/myaid-host"),
+        Path::new("/Applications/dsh-bot.app/Contents/MacOS/dsh-bot-host"),
         &vars(),
-        Path::new("/Users/ana/Library/Logs/MyAid/host.log"),
+        Path::new("/Users/ana/Library/Logs/dsh-bot/host.log"),
     );
     assert_eq!(
         plist,
@@ -40,19 +40,19 @@ fn launchd_plist_names_the_unit_and_keeps_it_running() {
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.myaid.host</string>
+	<string>com.aningdev.dshbot.host</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Applications/MyAid.app/Contents/MacOS/myaid-host</string>
+		<string>/Applications/dsh-bot.app/Contents/MacOS/dsh-bot-host</string>
 		<string>serve-app</string>
 	</array>
 	<key>EnvironmentVariables</key>
 	<dict>
-		<key>MYAID_SERVICE</key>
+		<key>DSH_BOT_SERVICE</key>
 		<string>1</string>
-		<key>MYAID_DATA_ROOT</key>
-		<string>/Users/ana/.myaid</string>
-		<key>MYAID_HOST_PORT</key>
+		<key>DSH_BOT_HOME</key>
+		<string>/Users/ana/.dsh-bot</string>
+		<key>DSH_BOT_HOST_PORT</key>
 		<string>4872</string>
 	</dict>
 	<key>RunAtLoad</key>
@@ -60,9 +60,9 @@ fn launchd_plist_names_the_unit_and_keeps_it_running() {
 	<key>KeepAlive</key>
 	<true/>
 	<key>StandardOutPath</key>
-	<string>/Users/ana/Library/Logs/MyAid/host.log</string>
+	<string>/Users/ana/Library/Logs/dsh-bot/host.log</string>
 	<key>StandardErrorPath</key>
-	<string>/Users/ana/Library/Logs/MyAid/host.log</string>
+	<string>/Users/ana/Library/Logs/dsh-bot/host.log</string>
 </dict>
 </plist>
 "#
@@ -71,26 +71,26 @@ fn launchd_plist_names_the_unit_and_keeps_it_running() {
 
 #[test]
 fn systemd_user_unit_runs_the_unit_with_its_variables() {
-    let unit = RELAY.systemd_unit(Path::new("/usr/local/bin/myaid-relay"), &vars());
+    let unit = RELAY.systemd_unit(Path::new("/usr/local/bin/dsh-bot-relay"), &vars());
     assert_eq!(
         unit,
-        "[Unit]\nDescription=MyAid: this computer's com.myaid.relay background service\n\n[Service]\nExecStart=\"/usr/local/bin/myaid-relay\" \"serve-app\"\nEnvironment=MYAID_SERVICE=1\nEnvironment=\"MYAID_DATA_ROOT=/Users/ana/.myaid\"\nEnvironment=\"MYAID_HOST_PORT=4872\"\nRestart=always\nRestartSec=2\n\n[Install]\nWantedBy=default.target\n"
+        "[Unit]\nDescription=dsh-bot: this computer's com.aningdev.dshbot.relay background service\n\n[Service]\nExecStart=\"/usr/local/bin/dsh-bot-relay\" \"serve-app\"\nEnvironment=DSH_BOT_SERVICE=1\nEnvironment=\"DSH_BOT_HOME=/Users/ana/.dsh-bot\"\nEnvironment=\"DSH_BOT_HOST_PORT=4872\"\nRestart=always\nRestartSec=2\n\n[Install]\nWantedBy=default.target\n"
     );
 }
 
 #[test]
 fn windows_run_value_starts_the_supervisor_with_the_installing_variables() {
     let command = HOST.windows_run_command(
-        Path::new(r"C:\Users\ana\AppData\Local\MyAid\myaid-host.exe"),
+        Path::new(r"C:\Users\ana\AppData\Local\dsh-bot\dsh-bot-host.exe"),
         &vars(),
     );
     assert_eq!(
         command,
-        r#""C:\Users\ana\AppData\Local\MyAid\myaid-host.exe" service run --env "MYAID_DATA_ROOT=/Users/ana/.myaid" --env "MYAID_HOST_PORT=4872""#
+        r#""C:\Users\ana\AppData\Local\dsh-bot\dsh-bot-host.exe" service run --env "DSH_BOT_HOME=/Users/ana/.dsh-bot" --env "DSH_BOT_HOST_PORT=4872""#
     );
     assert_eq!(
-        HOST.windows_supervisor_command(Path::new(r"C:\MyAid\myaid-host.exe")),
-        r"C:\MyAid\myaid-host.exe serve-app"
+        HOST.windows_supervisor_command(Path::new(r"C:\dsh-bot\dsh-bot-host.exe")),
+        r"C:\dsh-bot\dsh-bot-host.exe serve-app"
     );
 }
 
@@ -98,7 +98,7 @@ fn windows_run_value_starts_the_supervisor_with_the_installing_variables() {
 fn a_plist_escapes_the_values_it_carries() {
     let plist = HOST.launchd_plist(
         Path::new("/tmp/a&b"),
-        &[("MYAID_DATA_ROOT", "/tmp/<root>".to_string())],
+        &[("DSH_BOT_HOME", "/tmp/<root>".to_string())],
         Path::new("/tmp/log"),
     );
     assert!(plist.contains("<string>/tmp/a&amp;b</string>"));

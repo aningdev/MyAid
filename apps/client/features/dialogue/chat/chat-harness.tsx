@@ -77,7 +77,7 @@ const RICH = [
 ].join("\n");
 
 /** A reply with one image: a press on it opens the viewer (`ImageViewer`). */
-const PICTURE = "![MyAid](asset:/assets/icon.png)";
+const PICTURE = "![dsh-bot](asset:/assets/icon.png)";
 
 const SLOW_WORDS = [
   "This",
@@ -181,7 +181,7 @@ function scriptedChat(): { sessions: ScriptedSessions; host: SessionHost } {
         event(sessionId, "tool/call", {
           callId: `t${index}`,
           name,
-          arguments: JSON.stringify({ path: `/work/myaid/file-${index}.ts` }),
+          arguments: JSON.stringify({ path: `/work/dsh-bot/file-${index}.ts` }),
         });
         event(sessionId, "tool/result", {
           message: {
@@ -392,7 +392,7 @@ function Harness() {
   ready.set(true);
   workspaces.set(
     workspaceProjection({
-      rows: [workspaceRow({ id: WORKSPACE, path: "/work/myaid", sessionIds: [SECOND, FIRST] })],
+      rows: [workspaceRow({ id: WORKSPACE, path: "/work/dsh-bot", sessionIds: [SECOND, FIRST] })],
     }),
   );
 

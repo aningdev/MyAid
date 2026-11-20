@@ -3,7 +3,7 @@
  * and the chip list's pure operations. Bytes stay in the app (a `Blob`), a
  * preview is a blob URL, and only what is sent leaves for dsh.
  */
-import type { ImageMediaType } from "@myaid/dsh-web-protocol/session";
+import type { ImageMediaType } from "@dsh-bot/dsh-web-protocol/session";
 
 import { t } from "../../../lib/i18n";
 

@@ -250,6 +250,8 @@ test("a dropped file the app cannot read, with the dialog closed, says how to at
   app.onPick(() => null);
 
   await app.dropFiles("id:chat", ["file:///tmp/dropped-notes.md"]);
-  await app.waitFor("text:Nothing was attached: MyAid reads local files through the open dialog.");
+  await app.waitFor(
+    "text:Nothing was attached: dsh-bot reads local files through the open dialog.",
+  );
   expect(app.count("label:Remove dropped-notes.md")).toBe(0);
 });

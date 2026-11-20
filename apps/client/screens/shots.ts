@@ -9,8 +9,8 @@ import { join } from "path";
 
 import type { App } from "nsh/test";
 
-/** Pictures land beside the isolated dev roots, never in the real `~/.myaid`. */
-const SCRATCHPAD = join(homedir(), ".myaid-dev", "shots");
+/** Pictures land beside the isolated dev roots, never in the real `~/.dsh-bot`. */
+const SCRATCHPAD = join(homedir(), ".dsh-bot-dev", "shots");
 
 /** The shell's pictures: welcome, marks, New Bot, palette, context menu. */
 export const SHOTS_SHELL = `${SCRATCHPAD}/pi-shots-shell`;
@@ -67,16 +67,16 @@ export { graphical } from "../test/graphical";
 
 /**
  * Real-Host smokes are opt-in: no default suite may need a live Host, and an app a test opens
- * never touches the local control plane unless this is set (`lib/data-root.ts`). `MYAID_SMOKE_HOST`
+ * never touches the local control plane unless this is set (`lib/data-root.ts`). `DSH_BOT_SMOKE_HOST`
  * runs them against the Host the app launches itself.
  */
 export function hostSmokeRequested(): boolean {
-  return !!process.env.MYAID_SMOKE_HOST;
+  return !!process.env.DSH_BOT_SMOKE_HOST;
 }
 
 /** The launcher smoke's mode: `1` for the running Host, `empty` for a Host that cannot run. */
 export function hostSmokeMode(): string {
-  return process.env.MYAID_SMOKE_HOST ?? "";
+  return process.env.DSH_BOT_SMOKE_HOST ?? "";
 }
 
 export async function shoot(app: App, name: string, dir: string = SHOTS_SHELL): Promise<void> {

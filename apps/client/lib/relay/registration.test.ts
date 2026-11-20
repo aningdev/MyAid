@@ -64,7 +64,7 @@ test("a Relay that is not running is a fact with a reason", async () => {
 
 test("a running Relay answers its own unit's snapshot with the token", async () => {
   const { calls, fetch } = recorder((call) =>
-    call.url.endsWith("/v1/health") ? { body: { service: "myaid-relay" } } : { body: snapshot },
+    call.url.endsWith("/v1/health") ? { body: { service: "dsh-bot-relay" } } : { body: snapshot },
   );
   setRelayRegistrationTransport(
     createRelayRegistrationTransport({ port: () => 8787, token: async () => "tok", fetch }),

@@ -1,6 +1,6 @@
 //! Executable modes, configuration and signal handling.
 
-use myaid_relay::{Config, SERVICE_UNIT, run, service};
+use dsh_bot_relay::{Config, SERVICE_UNIT, run, service};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static EXIT: AtomicBool = AtomicBool::new(false);
@@ -47,10 +47,10 @@ fn init_logging() {
         .try_init();
 }
 
-const USAGE: &str = "Usage: myaid-relay serve-app [--port PORT] [--ready-stdout]
-       myaid-relay serve --data-root PATH [--port PORT] [--version VERSION] [--ready-stdout]
-       myaid-relay service install|uninstall|status
-       myaid-relay service run [--env NAME=VALUE]…";
+const USAGE: &str = "Usage: dsh-bot-relay serve-app [--port PORT] [--ready-stdout]
+       dsh-bot-relay serve --data-root PATH [--port PORT] [--version VERSION] [--ready-stdout]
+       dsh-bot-relay service install|uninstall|status
+       dsh-bot-relay service run [--env NAME=VALUE]…";
 
 fn service_command(args: &[String]) -> Result<(), String> {
     let verb = args.first().map(String::as_str).unwrap_or_default();
@@ -69,15 +69,15 @@ fn service_command(args: &[String]) -> Result<(), String> {
         return service::supervise(&vars);
     }
     let mut vars = Vec::new();
-    if let Ok(root) = std::env::var("MYAID_DATA_ROOT")
+    if let Ok(root) = std::env::var("DSH_BOT_HOME")
         && !root.is_empty()
     {
-        vars.push(("MYAID_DATA_ROOT", root));
+        vars.push(("DSH_BOT_HOME", root));
     }
-    if let Ok(port) = std::env::var("MYAID_RELAY_PORT")
+    if let Ok(port) = std::env::var("DSH_BOT_RELAY_PORT")
         && !port.is_empty()
     {
-        vars.push(("MYAID_RELAY_PORT", port));
+        vars.push(("DSH_BOT_RELAY_PORT", port));
     }
     match verb {
         "install" => {

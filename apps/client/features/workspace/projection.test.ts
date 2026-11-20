@@ -1,4 +1,4 @@
-import type { WorkspaceBaseline, WorkspaceView } from "@myaid/dsh-web-protocol/workspace";
+import type { WorkspaceBaseline, WorkspaceView } from "@dsh-bot/dsh-web-protocol/workspace";
 import { expect, test } from "nsh/test";
 
 import {
@@ -16,8 +16,8 @@ function view(overrides: Partial<WorkspaceView> = {}): WorkspaceView {
   const id = overrides.workspaceId ?? ("ws" as unknown as WorkspaceView["workspaceId"]);
   return {
     workspaceId: id,
-    path: "/work/myaid",
-    title: "myaid",
+    path: "/work/dsh-bot",
+    title: "dsh-bot",
     sessionIds: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -39,8 +39,8 @@ test("a Workspace view keeps its id, path, title and manual Session order", () =
   );
   expect(row).toEqual({
     id: "ws",
-    path: "/work/myaid",
-    title: "myaid",
+    path: "/work/dsh-bot",
+    title: "dsh-bot",
     sessionIds: ["b", "a"],
     updatedAt: "2026-01-01T00:00:00.000Z",
   });
@@ -49,9 +49,9 @@ test("a Workspace view keeps its id, path, title and manual Session order", () =
 
 test("a Dialogue reads its Workspace's path and title, empty while unknown", () => {
   const state = projection({ rows: [workspaceRowOf(view())] });
-  expect(workspaceOf(state, { workspaceId: "ws" })?.title).toBe("myaid");
-  expect(workspacePath(state, { workspaceId: "ws" })).toBe("/work/myaid");
-  expect(workspaceTitle(state, { workspaceId: "ws" })).toBe("myaid");
+  expect(workspaceOf(state, { workspaceId: "ws" })?.title).toBe("dsh-bot");
+  expect(workspacePath(state, { workspaceId: "ws" })).toBe("/work/dsh-bot");
+  expect(workspaceTitle(state, { workspaceId: "ws" })).toBe("dsh-bot");
   // dsh has not sent the row yet (or deleted it): nothing is invented.
   expect(workspaceOf(state, { workspaceId: "gone" })).toBe(null);
   expect(workspacePath(state, { workspaceId: "gone" })).toBe("");

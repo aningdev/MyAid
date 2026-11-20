@@ -2,18 +2,18 @@
  * Real-Host smoke for the native layer: the app starts the Host itself, one turn works, a Host
  * killed from outside is started again by the launcher, and the conversation is still there.
  *
- * Opt in with `MYAID_SMOKE_HOST=1`, on a scratch home (the app's data root and the Host it
- * starts are both under it) and with `myaid-host` on PATH:
+ * Opt in with `DSH_BOT_SMOKE_HOST=1`, on a scratch home (the app's data root and the Host it
+ * starts are both under it) and with `dsh-bot-host` on PATH:
  *
  *   SC=<scratch>/home
- *   HOME="$SC" MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *   HOME="$SC" DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/host-launcher.smoke.test.tsx --target macos
  *
- * `MYAID_SMOKE_HOST=empty` takes the other picture: no Host answers and none can be started, so
+ * `DSH_BOT_SMOKE_HOST=empty` takes the other picture: no Host answers and none can be started, so
  * the footer is the Host empty state with the manual command.
  *
- * The kill comes from outside: `screens/host-restart-watch.mjs --root <home>/.myaid --port 4879`
+ * The kill comes from outside: `screens/host-restart-watch.mjs --root <home>/.dsh-bot --port 4879`
  * stops the Host once its second turn is under way. The restarting is the launcher's.
  */
 import { expect, test } from "nsh/test";
@@ -38,7 +38,7 @@ test("the app starts the Host, survives its restart, and keeps the conversation"
   if (mode === "empty") {
     // Nothing answers on the port and the binary is not on PATH: the footer says how to start
     // one by hand instead of pretending a Host is there.
-    await app.waitFor(`text:${t("host.manual", { command: "myaid-host serve-app" })}`, {
+    await app.waitFor(`text:${t("host.manual", { command: "dsh-bot-host serve-app" })}`, {
       timeout: 60000,
     });
     await shoot(app, "03-host-empty-state.png", SHOTS_N1);

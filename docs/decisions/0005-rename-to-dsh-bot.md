@@ -2,7 +2,7 @@
 
 ## Context
 
-项目从 MyAid 改名为 dsh-bot。旧名分散在 bundle id、npm 作用域、二进制、crate、环境变量和数据根里。
+项目改名为 dsh-bot。旧名分散在 bundle id、npm 作用域、二进制、crate、环境变量和数据根里。
 
 ## Decision
 
@@ -16,7 +16,7 @@
 | 数据根变量    | `DSH_BOT_HOME`（不用 dsh 自己的 `DSH_HOME`）     |
 | 数据根        | `~/.dsh-bot`，隔离开发用 `~/.dsh-bot-dev/<name>` |
 
-代码里不读旧名，也不写自动迁移。Owner 自己执行一次 `mv ~/.myaid ~/.dsh-bot`。
+代码里不读旧名，也不写自动迁移。Owner 自己把旧数据根改名一次：`mv <旧数据根> ~/.dsh-bot`。
 
 ## Why
 

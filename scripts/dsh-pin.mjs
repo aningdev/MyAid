@@ -51,7 +51,7 @@ export function catalog(rootDir = root) {
  * @returns one entry per manifest, in the order bun resolves them.
  */
 export function manifests(rootDir = root) {
-  const found = [{ name: "@myaid/workspace", path: join(rootDir, "package.json") }];
+  const found = [{ name: "@dsh-bot/workspace", path: join(rootDir, "package.json") }];
   for (const group of ["apps", "packages"]) {
     const dir = join(rootDir, group);
     if (!existsSync(dir)) continue;

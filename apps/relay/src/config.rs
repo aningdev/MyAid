@@ -26,11 +26,11 @@ impl Config {
         self.runtime().join("serve-token")
     }
 
-    /// `~/.myaid` (`MYAID_DATA_ROOT` names another), with the version this build carries.
+    /// `~/.dsh-bot` (`DSH_BOT_HOME` names another), with the version this build carries.
     pub fn product() -> Result<Self> {
-        let root = match std::env::var_os("MYAID_DATA_ROOT") {
+        let root = match std::env::var_os("DSH_BOT_HOME") {
             Some(root) if !root.is_empty() => PathBuf::from(root),
-            _ => crate::home_dir()?.join(".myaid"),
+            _ => crate::home_dir()?.join(".dsh-bot"),
         };
         let config = Self {
             root,
@@ -92,14 +92,14 @@ impl Config {
     /// What `service install` passes on, so the service serves this data root and port.
     pub fn variables(&self) -> Vec<(&'static str, String)> {
         let mut vars = Vec::new();
-        if Some(&self.root) != crate::home_dir().ok().map(|home| home.join(".myaid")).as_ref() {
+        if Some(&self.root) != crate::home_dir().ok().map(|home| home.join(".dsh-bot")).as_ref() {
             vars.push((
-                "MYAID_DATA_ROOT",
+                "DSH_BOT_HOME",
                 self.root.to_string_lossy().to_string(),
             ));
         }
         if self.port != DEFAULT_PORT {
-            vars.push(("MYAID_RELAY_PORT", self.port.to_string()));
+            vars.push(("DSH_BOT_RELAY_PORT", self.port.to_string()));
         }
         vars
     }
@@ -113,9 +113,9 @@ impl Config {
     }
 }
 
-/// `MYAID_RELAY_PORT`, else [`DEFAULT_PORT`].
+/// `DSH_BOT_RELAY_PORT`, else [`DEFAULT_PORT`].
 fn port_from_env() -> Result<u16> {
-    match std::env::var("MYAID_RELAY_PORT") {
+    match std::env::var("DSH_BOT_RELAY_PORT") {
         Ok(text) if !text.trim().is_empty() => text
             .trim()
             .parse::<u16>()

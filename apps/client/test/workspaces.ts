@@ -2,7 +2,7 @@
  * Workspace fixtures for harnesses and unit tests: a follow baseline as dsh
  * would send it, and the official Workspace model over a stand-in Remote.
  */
-import type { WorkspaceBaseline } from "@myaid/dsh-web-protocol/workspace";
+import type { WorkspaceBaseline } from "@dsh-bot/dsh-web-protocol/workspace";
 
 import {
   EMPTY_WORKSPACES,
@@ -70,7 +70,7 @@ export function workspaceStorage(input: {
  * its own baseline/increments, and the product projection reads its snapshot.
  */
 export function workspaceModel(): {
-  model: import("@myaid/dsh-web-protocol/client").ClientWorkspaceModel;
+  model: import("@dsh-bot/dsh-web-protocol/client").ClientWorkspaceModel;
 } {
   const ClientWorkspaceModel = (
     officialWorkspaceClient as unknown as {
@@ -98,7 +98,7 @@ export function remoteWorkspace(
       calls.push([name, ...args]);
       return ok(value);
     };
-  const workspace = { workspaceId: "ws", path: "/work/myaid", title: "myaid", sessionIds: [] };
+  const workspace = { workspaceId: "ws", path: "/work/dsh-bot", title: "dsh-bot", sessionIds: [] };
   return {
     calls,
     create: method("create", { workspace, created: true }),
@@ -120,7 +120,7 @@ export function remoteWorkspace(
  */
 export function fakeWorkspaces(
   answer?: RemoteAnswer,
-): import("@myaid/dsh-web-protocol/client").IWorkspaces & {
+): import("@dsh-bot/dsh-web-protocol/client").IWorkspaces & {
   calls: unknown[][];
 } {
   const remote = remoteWorkspace(answer);
@@ -131,7 +131,7 @@ export function fakeWorkspaces(
   const run = async (name: string, ...args: unknown[]) => {
     (remote[name] as (...rest: unknown[]) => Promise<RemoteAnswer>)(...args);
     if (answer && answer.ok === false) refuse();
-    return { workspaceId: "ws", path: "/work/myaid", title: "myaid", sessionIds: [] };
+    return { workspaceId: "ws", path: "/work/dsh-bot", title: "dsh-bot", sessionIds: [] };
   };
   return {
     calls: remote.calls,

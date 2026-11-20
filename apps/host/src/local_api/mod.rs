@@ -1,7 +1,7 @@
 //! The Host's local control API: `127.0.0.1:<port>` over HTTP, with a websocket for status.
 //!
 //! Only this computer talks to it. Every route but `/` takes the data root's token
-//! ([`auth`]); `/` answers `myaid` so a launcher can tell "a Host answers" from "nothing does".
+//! ([`auth`]); `/` answers `dsh-bot` so a launcher can tell "a Host answers" from "nothing does".
 
 mod auth;
 mod routes;
@@ -65,7 +65,7 @@ async fn serve_async(
         .port();
     // Read or made once the port is ours, so a second Host that fails to bind never replaces it.
     let token = token(&config)?;
-    tracing::info!(port, "myaid-host serve");
+    tracing::info!(port, "dsh-bot-host serve");
     if let Some(ready) = ready {
         let _ = ready.send(port);
     }

@@ -1,8 +1,8 @@
 //! The Host binary's local control API over real HTTP: an unauthenticated caller is refused, a
 //! page's request is refused, and this data root's token gets the Host's own facts.
 //!
-//! Each test starts a real `myaid-host` on a random port (`--port 0 --ready-stdout`) with a fake
-//! dsh, so nothing here touches the real `~/.myaid` and nothing is left running.
+//! Each test starts a real `dsh-bot-host` on a random port (`--port 0 --ready-stdout`) with a fake
+//! dsh, so nothing here touches the real `~/.dsh-bot` and nothing is left running.
 
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -72,17 +72,17 @@ fn fake_dsh(root: &Path) -> std::path::PathBuf {
 fn start() -> Host {
     let dir = tempfile::tempdir().expect("tempdir");
     let dsh = fake_dsh(dir.path());
-    let mut child = Command::new(env!("CARGO_BIN_EXE_myaid-host"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_dsh-bot-host"))
         .args(["serve", "--data-root"])
         .arg(dir.path())
         .arg("--dsh")
         .arg(&dsh)
         .args(["--port", "0", "--ready-stdout"])
-        .env("MYAID_DSH_PATCH", "")
+        .env("DSH_BOT_PATCH", "")
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn myaid-host");
+        .expect("spawn dsh-bot-host");
     let stdout = child.stdout.take().expect("stdout");
     let mut reader = BufReader::new(stdout);
     let mut line = String::new();
@@ -167,7 +167,7 @@ fn the_index_answers_without_a_token_so_a_launcher_can_probe() {
     let host = start();
     let (status, body) = request(host.port, "GET", "/", &[], None);
     assert_eq!(status, 200);
-    assert_eq!(body, "myaid");
+    assert_eq!(body, "dsh-bot");
 }
 
 #[test]

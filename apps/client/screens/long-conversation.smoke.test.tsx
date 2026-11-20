@@ -4,12 +4,12 @@
  * history rail's keyboard jump back to the first segment, and a second launch
  * that restores the conversation.
  *
- * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host
+ * Opt in with DSH_BOT_SMOKE_HOST on a scratch home; the app starts the Host
  * itself (see screens/README.md):
  *
- *   SC=$PWD/.myaid-smoke
- *   mkdir -p "$SC/home/.myaid" "$SC/home/proj-a" "$SC/home/proj-b"
- *   HOME="$SC/home" MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4881 \
+ *   SC=$PWD/.dsh-bot-smoke
+ *   mkdir -p "$SC/home/.dsh-bot" "$SC/home/proj-a" "$SC/home/proj-b"
+ *   HOME="$SC/home" DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4881 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/long-conversation.smoke.test.tsx --target macos
  */

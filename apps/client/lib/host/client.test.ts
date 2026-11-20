@@ -115,7 +115,7 @@ test("a caller without a token still asks, and the Host refuses it", async () =>
 });
 
 test("the probe needs the liveness text, not just an answer", async () => {
-  const yes = recorder(() => "myaid");
+  const yes = recorder(() => "dsh-bot");
   expect(await probeHost(4873, yes.fetch, 100)).toBe(true);
   const no = recorder(() => "<html>something else</html>");
   expect(await probeHost(4873, no.fetch, 100)).toBe(false);

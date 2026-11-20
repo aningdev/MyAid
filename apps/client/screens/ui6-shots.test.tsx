@@ -4,11 +4,11 @@
  * shape (the mark beside the note, the action inside it), and Settings ›
  * General's new Colour choice — the Navigator and a Pane under each theme.
  *
- *   mkdir -p ~/.myaid-dev/shots/pi-shots-ui6
+ *   mkdir -p ~/.dsh-bot-dev/shots/pi-shots-ui6
  *   nsh test screens/ui6-shots.test.tsx --target macos
  *
  * The apps are opened in the app's isolated storage, never the real
- * `~/.myaid`; a headless run stops at the picture probe.
+ * `~/.dsh-bot`; a headless run stops at the picture probe.
  */
 import { expect, test } from "nsh/test";
 import type { App } from "nsh/test";
@@ -72,7 +72,7 @@ const V4 = `${JSON.stringify({
       templateId: "tmpl",
       defaultModel: null,
       defaultThinking: null,
-      defaultWorkspacePath: "/work/myaid",
+      defaultWorkspacePath: "/work/dsh-bot",
       hadDialogue: true,
       status: "ready",
       boundPresetId: "standard",
@@ -84,7 +84,7 @@ const V4 = `${JSON.stringify({
     {
       id: "dlg",
       botId: "bot",
-      workspacePath: "/work/myaid",
+      workspacePath: "/work/dsh-bot",
       name: "Release notes",
       archived: false,
       claims: [{ sessionId: "s1", title: "First run", archived: false }],

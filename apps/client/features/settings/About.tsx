@@ -45,7 +45,7 @@ export function AboutSection() {
       </View>
 
       <Card title={t("settings.about.versions")}>
-        <VersionRow label="MyAid" value={rows().myaid} testID="settings-about-myaid" />
+        <VersionRow label="dsh-bot" value={rows().dshBot} testID="settings-about-dsh-bot" />
         <VersionRow label="Host" value={rows().host} testID="settings-about-host" />
         <VersionRow
           label="dsh"

@@ -1,6 +1,6 @@
 {
-  "name": "MyAid",
-  "id": "com.aningdev.myaid",
+  "name": "dsh-bot",
+  "id": "com.aningdev.dshbot",
   "version": "0.1.0",
   "build": 1,
   "icon": "assets/icon.png",
@@ -72,18 +72,18 @@
       ]
     },
     "fs": {
-      "read": ["${homeDir}/.myaid", "${homeDir}/.myaid-dev"],
-      "write": ["${homeDir}/.myaid", "${homeDir}/.myaid-dev"]
+      "read": ["${homeDir}/.dsh-bot", "${homeDir}/.dsh-bot-dev"],
+      "write": ["${homeDir}/.dsh-bot", "${homeDir}/.dsh-bot-dev"]
     },
     "process": {
       "env": [
-        "MYAID_DATA_ROOT",
-        "MYAID_HOST_PORT",
-        "MYAID_RELAY_PORT",
-        "MYAID_DSH_LOGIN_URL",
-        "MYAID_SMOKE_HOST"
+        "DSH_BOT_HOME",
+        "DSH_BOT_HOST_PORT",
+        "DSH_BOT_RELAY_PORT",
+        "DSH_BOT_LOGIN_URL",
+        "DSH_BOT_SMOKE_HOST"
       ],
-      "execute": ["myaid-host"]
+      "execute": ["dsh-bot-host"]
     }
   }
 }

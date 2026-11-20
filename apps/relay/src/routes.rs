@@ -13,7 +13,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use myaid_service::RegistrationSnapshot;
+use dsh_bot_service::RegistrationSnapshot;
 use std::{sync::Arc, time::Instant};
 use subtle::ConstantTimeEq;
 
@@ -44,13 +44,13 @@ pub fn router(api: Api) -> Router {
 }
 
 async fn index() -> &'static str {
-    "myaid-relay"
+    "dsh-bot-relay"
 }
 
 /// What a release, a deploy probe, and the Client's panel read without a token.
 async fn health(State(api): State<Api>) -> Json<serde_json::Value> {
     Json(serde_json::json!({
-        "service": "myaid-relay",
+        "service": "dsh-bot-relay",
         "version": api.config.version,
         "protocol": PROTOCOL,
         "uptimeMs": api.started.elapsed().as_millis() as u64,

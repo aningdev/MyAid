@@ -52,4 +52,4 @@ bun run check
 bun run test
 ```
 
-不带参数的 `bun run dev` 会用你真实的 `~/.dsh-bot`。从 MyAid 升级过来的话，执行一次 `mv ~/.myaid ~/.dsh-bot` 迁移数据。
+不带参数的 `bun run dev` 会用你真实的 `~/.dsh-bot`。如果数据根还是旧名那个，执行一次 `mv <旧数据根> ~/.dsh-bot` 迁移。

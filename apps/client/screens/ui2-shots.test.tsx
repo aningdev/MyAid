@@ -4,7 +4,7 @@
  * three Panes, the composer's menu and a Markdown reply; then the Navigator's
  * search, a hovered row, a row's hint, the composer with a draft and the Pane
  * header's field. The registry and the client prefs live in the app's isolated
- * test storage, never the real `~/.myaid`:
+ * test storage, never the real `~/.dsh-bot`:
  *
  *   nsh test screens/ui2-shots.test.tsx --target macos
  *
@@ -244,7 +244,7 @@ test("the composer's menu and a Markdown reply", async () => {
   // An image, and the viewer a press on it opens.
   await app.type("id:composer", "picture");
   await app.keyboard.press("Return");
-  await app.press("label:MyAid");
+  await app.press("label:dsh-bot");
   await app.waitFor("id:image-viewer", { timeout: 30000 });
   await both(app, "10-image-viewer.png");
   await app.press("label:Close the image");

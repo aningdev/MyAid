@@ -1,4 +1,4 @@
-/** Shared Background Service registration contract (mirrors myaid-background-service). */
+/** Shared Background Service registration contract (mirrors dsh-bot-background-service). */
 
 import { t } from "../i18n";
 

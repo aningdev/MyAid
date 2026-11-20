@@ -72,7 +72,7 @@ function roster(): SessionRow[] {
     id: `${botId}-session`,
     botId,
     botName,
-    workspacePath: "/work/myaid",
+    workspacePath: "/work/dsh-bot",
     label: `${botName}'s session`,
     detail: botName,
     updatedAt: null,
@@ -123,7 +123,7 @@ function Harness() {
   ready.set(true);
   workspaces.set(
     workspaceProjection({
-      rows: [workspaceRow({ id: WORKSPACE, path: "/work/myaid", sessionIds: [SESSION] })],
+      rows: [workspaceRow({ id: WORKSPACE, path: "/work/dsh-bot", sessionIds: [SESSION] })],
     }),
   );
 

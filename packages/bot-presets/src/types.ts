@@ -2,7 +2,7 @@
  * Wire records of the `botPresets` Remote.
  *
  * This file is the plugin-owned source of truth; the Client mirrors these DTOs
- * in `@myaid/dsh-web-protocol/bot-presets` because plugins must not import that
+ * in `@dsh-bot/dsh-web-protocol/bot-presets` because plugins must not import that
  * Client-only package. Keep the two shapes in sync.
  */
 import type {} from "@deepseek-ai/dsh-typert-protocol";
