@@ -110,6 +110,17 @@ Device 的第一条消息是 `[u8 模式][Noise 握手消息 1]`：
 
 - **保活**：Device 每 15 秒发一次 `ping`；连续 2 次没收到 `pong` 就关闭隧道并重连。
 - **背压**：不做按流的窗口。Bridge 发往一条流的积压超过 1 MiB 时，就对这条流发 `RESET {"code":"overloaded"}`，由官方 connection 重连。
+- **消息上限**：一条 WS 消息重组后最多 8 MiB（与 NSH 的单条上限相同），超过就 `RESET {"code":"overloaded"}`。
+- `WS_ACCEPT` 的 `protocol` 在 dsh 没有选定子协议时为 `null`。
+
+`RESET` 的 `code` 只有这四个，Device 一律让这条流失败：
+
+| code          | 何时                                                            |
+| ------------- | --------------------------------------------------------------- |
+| `forbidden`   | 路径或方法不在放行范围内                                        |
+| `protocol`    | 流号不是递增的奇数，或帧不符合本节格式                          |
+| `overloaded`  | 积压超过 1 MiB，或 WS 消息超过 8 MiB                            |
+| `unavailable` | dsh web 没有就绪，或 Bridge 重新换过 Cookie 后 dsh web 仍回 401 |
 
 ## Bridge 的转发
 
