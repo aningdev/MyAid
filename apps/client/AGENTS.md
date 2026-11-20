@@ -56,6 +56,13 @@
 - 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理与登记事实，不当业务网关。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。
 - Settings ⇢ Background 是 [0006](../../docs/decisions/0006-host-is-the-only-background-service.md) 的客户端侧：只编排 Host 的 query / enable / stop，不代 Host 做登记决定；事实经 Host 的回环 HTTP 控制面取（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。
 
+## Ticket 与 Attention
+
+- **Ticket 与 Attention 的快照只有一个所有者**：`features/tickets/state.ts`（Remote `tickets`：`snapshot` + `watch`，写经 `answer` / `cancel`），epoch 与 revision 防旧快照覆盖新快照；视图只读它的选择器，不另存一份。Ticket 的 Session 是那件工作自己的过程，**不是** Bot 的段：不写 Registry、不当作 Segment 挂进 Pane 的对话。
+- **Attention 不在 Dialogue 里**：Navigator 的 **Needs you** 行与 `TicketBoard` 的信息流层是它的入口，按 Ticket 归属排列；问题与审批的作答都经 `tickets/answer`，回答后由 `watch` 从所有 Device 消失。第一版不推送，只在 Client 打开时提醒；不要与 `components/shell/attention.ts` 的系统通知混成一套。
+- **取消是可撤销不了的写**：`tickets/cancel` 只对进行中的 Ticket 显示，先经 `AlertDialog` 确认（对象与后果写清楚），再写入；不用乐观更新。
+- Pane 里的 Ticket 列表是 `features/tickets/BotTickets.tsx`（Pane 顶部），整页信息流是 `features/tickets/TicketBoard.tsx`（Workbench 覆盖层，`features/tickets/board.ts` 持有开合）。
+
 ## Bot 详情与设置
 
 - **Bot 详情**是一个弹窗（`features/bots/BotDetails.tsx`），由 Pane 标题的 `Bot details:` 按钮、行的右键菜单与命令面板打开；打开状态只在 `features/bots/details.ts`。里面对段的事实（路径、模型、用量、Compact）来自 `features/bots/sessionFacts.ts`，不在注册表另存。

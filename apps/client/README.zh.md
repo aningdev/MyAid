@@ -13,7 +13,7 @@ apps/client/
 │   ├── shell/                  # Navigator（扁平 Bot 列表）、Pane 分屏、设置覆盖层、命令表、偏好、注意
 │   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Appear、IconTile、ImageViewer、OptionSegmented、Shortcut）
 │   └── ui/                     # shadcn-nsh 复制件（只经其 CLI add）；theme.json 即主题
-├── features/                   # bots（注册表、Pane、详情弹窗）、dialogue（chat、段）、workspace、settings
+├── features/                   # bots（注册表、Pane、详情弹窗）、tickets、dialogue（chat、段）、workspace、settings
 ├── lib/                        # dsh、host、background
 ├── screens/                    # open(…) 入口、截图、真 Host 冒烟（opt-in）
 ├── themes/                     # shadcn-nsh `add theme-*` 的复制件（`default/`：其自带配色；`shadcn/`：构建时主题的同一套，包成 `AppTheme`）
@@ -53,6 +53,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 - **Navigator**：左侧可收缩的 shadcn-nsh `ResizablePanel`（默认 232，最小 160，最大 480），顶行承接隐藏标题栏的拖拽；下面是搜索框（`⌘F`）、**Pin** 组、其余 Bot 按最近活动排序（工作中的点、未读数、待审批点）、**新建 Bot**（`⌘N`）；底部是 Host 状态与 **⚙ 设置**（`⌘,`）。没有域分区、没有树、不在 Bot 下展开会话。右键给该 Bot 的动词：Pin / Bot 详情 / 重命名 / 归档；归档的 Bot 退出列表，搜索仍能找到并 **Unarchive**。
 - **Pane**：shadcn-nsh 的 `DockArea`（center）。一个 Pane 显示一个 Bot 的对话；点行把内容开到活动 Pane，向右拖入在工作 Pane 右侧开新 Pane，已有 Pane 的 Bot 只切焦点。拆分（向右 / 向下）、拖动分隔线、放大、关闭与焦点快捷键来自 DockArea 与命令表。布局、每个 Pane 的 Bot 与活动 Pane 从客户端偏好恢复；Bot 不在则该 Pane 为空。没有标签页。
 - **Pane 标题**：Bot 标记（工作中呼吸）、名字、工作目录（点一下可改，换成别的目录会开新段），然后是 **Bot 详情** 与拆分 / 放大 / 关闭并排。Pane 主体是对话，段的事实收在弹窗里。
+- **Ticket 与 Attention**：Bot 的 Pane 顶部是它执行过的 Ticket（标题、状态、最后更新）；打开 Ticket 看它自己的 Session（可读、可回复）与它等待的 Attention，这个 Session 不会成为该 Bot 的段。Navigator 的 **Needs you** 行数出本 Device 上所有 pending Attention 并打开收件箱；问题可选一个或多个选项，也可补充自定义回答，审批可选 Allow 或 Reject，都经 `tickets` Remote（`answer`、`cancel`），所以回答后所有 Device 的列表里都会消失。不做推送：Client 打开时 Attention 才会提醒。
 - **Bot 详情**（`features/bots/BotDetails.tsx`）：盖在 Pane 上的一个弹窗——Profile / Runs with / Skills / Plugins、当前段的工作目录、模型、用量 / 上下文与 dsh 的 **Compact**，以及删除 / 归档。Profile 与 Runs with 写注册表偏好；Skills 与 Plugins 读该 Bot 的 preset 组成，preset writer 可用时派生它自己的 preset，否则如实说明写不了。
 - **设置**：整页覆盖在 Pane 之上（Pane 的布局、滚动与草稿都还在）。左栏是 **模型供应商 / 通用 / 后台 / 关于**；Back 或 Esc 返回。
   - **模型供应商**（`features/settings/ModelProviders.tsx`）：列出 dsh 报告的每个供应商（`llm.listProviders` 合并 `llm.listConfigurableProviders`）与它的 Key 状态。Key 只经 `credentials.describe/set/unset` 写入供应商设置命名空间指定的引用（没有时用 dsh 的 `<ROUTE>_API_KEY` 推导）；页面不保存 Key。供应商字段（base URL 起）与默认模型经 `settings.describe/update` 写入——默认模型在 dsh 描述的 `agent-default-model` 命名空间里，不是写死的清单。没有 Host 时说明原因、不提供输入。
@@ -79,6 +80,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 
 ## 数据
 
+- Ticket 与 Attention：`tickets` 插件拥有它们；Client 经 `tickets` Remote 读一份快照（先 `snapshot`，再订阅 `watch`），也经它写回答与取消（[`features/tickets/state.ts`](features/tickets/state.ts)）。快照是 Device 上唯一的副本；Ticket 的 Session 不写进 Bot 注册表。
 - 注册表：`bots` 插件拥有它，放在 `$DSH_BOT_HOME/bots/registry.json`。Client 经 `bots` Remote 读（先 `snapshot`，再订阅 `watch`）和写，不在 Device 上留副本。版本 6 存 templates 与 Bots；每个 Bot 用 `segments`（`sessionId` + `workspaceId` + 人对它的称呼）按时间从旧到新持有它的一条长对话。插件保证 Main Bot（`bots-main`）排在第一，并拒绝归档或删除它。Identity、归档位与段的认领在注册表（[0004](../../docs/decisions/0004-the-registry-lives-in-a-dsh-plugin.md)）；Workspace 路径、名字、Session 顺序与归档归 dsh（[GLOSSARY](../../docs/GLOSSARY.md)）。Pin、Pane、主题和语言留在 Device 上。
 - Workspace 与 Session：官方 `ClientWorkspaceModel` / `ClientSessions` 装在 Connection 的 Cordis Context 上（`lib/dsh/connection.ts`），每个 Host generation 原子替换它们的 snapshot。`features/workspace` 与 `features/dialogue/session` 只把 snapshot 投影成 NSH signal；Remote 的返回不写这份状态。它们的浏览器 `__ModuleLoader__` 产物由 `prepare:sdk` 展开成静态 ESM（`lib/dsh/generated/`），因为 NSH 不运行字符串代码。
 - 客户端偏好：桌面 `~/.dsh-bot/prefs/client.json`；其他目标走 Storage（`dsh-bot.prefs.shell`）。版本 2 覆盖 Navigator 的宽度与开合、Pin 的 Bot 顺序、Pane（布局、每个 Pane 的 Bot、活动 Pane）与通用页的外观、语言和颜色（旧文件读默认值；本版本不带的主题 id 读作构建时主题）。版本 1 文件只读一次：Bot pin 保留，Dialogue / Session pin 变成它所属 Bot 的 Pane，Session pin 本身丢弃。聊天发送键是独立的 Storage 键（`dsh-bot.prefs.sendKey`）。
