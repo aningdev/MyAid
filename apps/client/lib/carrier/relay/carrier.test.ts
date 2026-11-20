@@ -35,7 +35,12 @@ interface Setup {
 }
 
 function setup(
-  options: { storage?: FakeStorage; answerHttp?: boolean; wsFragments?: number } = {},
+  options: {
+    storage?: FakeStorage;
+    answerHttp?: boolean;
+    wsFragments?: number;
+    revoked?: boolean;
+  } = {},
 ): Setup {
   const runner = generateKeyPair();
   const identity = generateKeyPair();
@@ -52,6 +57,7 @@ function setup(
     identity,
     answerHttp: options.answerHttp,
     wsFragments: options.wsFragments,
+    revoked: options.revoked,
   });
   const carrier = createRelayCarrier({
     pairing,
@@ -144,6 +150,17 @@ test("a revoked device loses its stored pairing", async () => {
   const error = await failure(request);
   expect(error.code).toBe("device-revoked");
   await new Promise((resolve) => setTimeout(resolve, 1));
+  expect(await storage.getItem(PAIRING_KEY)).toBeNull();
+  carrier.close();
+});
+
+test("a revoked device loses its pairing when the handshake says so", async () => {
+  const storage = new FakeStorage();
+  await storage.setItem(PAIRING_KEY, "pairing");
+  const { carrier } = setup({ storage, revoked: true });
+
+  const error = await failure(carrier.fetch("https://relay.invalid/api/echo"));
+  expect(error.code).toBe("device-revoked");
   expect(await storage.getItem(PAIRING_KEY)).toBeNull();
   carrier.close();
 });

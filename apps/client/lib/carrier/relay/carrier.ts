@@ -473,6 +473,7 @@ class RelayCarrierImpl implements RelayCarrier {
         },
         (error: Error) => {
           this.connecting = null;
+          if (error instanceof RelayError && error.code === "device-revoked") this.revoked();
           throw error;
         },
       );
@@ -500,7 +501,11 @@ class RelayCarrierImpl implements RelayCarrier {
 
   private tunnelEnded(tunnel: Tunnel, error: RelayError): void {
     if (this.tunnel === tunnel) this.tunnel = null;
-    if (error.code !== "device-revoked") return;
+    if (error.code === "device-revoked") this.revoked();
+  }
+
+  /** The Runner removed this Device: forget the pairing once, whoever noticed. */
+  private revoked(): void {
     void clearPairing(this.options.storage);
     this.options.onRevoked?.();
   }
