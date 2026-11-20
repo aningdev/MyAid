@@ -7,7 +7,8 @@
  *   within 24 KiB and listed in ARCHITECTURE's Subjects table.
  *
  * Covers tracked and untracked-but-not-ignored Markdown, minus references/ and
- * the vendored skills in .agents/ (both are upstream text).
+ * the vendored skills in .agents/ (both are upstream text). A link into a
+ * submodule that is not checked out (CI clones without them) is not checked.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -36,6 +37,24 @@ function markdownFiles() {
       existsSync(join(root, path)),
   );
 }
+
+/** Submodule directories with nothing checked out, as absolute paths. */
+const absentSubmodules = (() => {
+  let listed = "";
+  try {
+    listed = execFileSync("git", ["config", "-f", ".gitmodules", "--get-regexp", "path"], {
+      cwd: root,
+      encoding: "utf8",
+    });
+  } catch {
+    return [];
+  }
+  return listed
+    .split("\n")
+    .map((line) => line.split(" ")[1])
+    .filter((path) => path !== undefined && !existsSync(join(root, path, ".git")))
+    .map((path) => join(root, path));
+})();
 
 /**
  * Markdown text with fenced blocks and inline code blanked out, so links in
@@ -82,6 +101,7 @@ function linkProblems(path) {
     const [file, fragment] = rawTarget.split("#", 2);
     const target =
       file === "" ? join(root, path) : resolve(join(root, dirname(path)), decodeURI(file));
+    if (absentSubmodules.some((dir) => target === dir || target.startsWith(`${dir}/`))) continue;
     if (!existsSync(target)) {
       problems.push(`${path}: ${rawTarget} 不存在`);
       continue;

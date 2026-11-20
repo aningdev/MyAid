@@ -4,7 +4,7 @@
 
 ## Why
 
-Owner 想要一个属于自己的 Agent：能力始终和 DeepSeek Harness 同步，不管拿着哪台设备都能找到它，它还能把工作交给专门的 Bot 去做。现在的 dsh-bot 只是一个桌面 Bot 应用：Registry 只存在桌面上，手机连不上，Bot 之间也不能互相派活。`references/dsh-superagent-prototype` 证明了在 dsh 上「接请求 → 开 Ticket → 在独立 Session 里执行 → 回复到请求来源」这条路是走得通的。dsh-bot 要把这条路做成个人版。
+Owner 想要一个属于自己的 Agent：能力始终和 DeepSeek Harness 同步，不管拿着哪台设备都能找到它，它还能把工作交给专门的 Bot 去做。现在的 MyAid 只是一个桌面 Bot 应用：Registry 只存在桌面上，手机连不上，Bot 之间也不能互相派活。`references/dsh-superagent-prototype` 证明了在 dsh 上「接请求 → 开 Ticket → 在独立 Session 里执行 → 回复到请求来源」这条路是走得通的。dsh-bot 要把这条路做成个人版。
 
 原则沿用原型的：**占用 Owner 尽量少的注意力，带来尽量多的价值**。只有被请求时才动手；只在需要 Owner 决定或有结果可用时才开口。
 
@@ -24,7 +24,7 @@ Owner 在任何一台 Device 或已接入的 Source 上提出请求，Main Bot �
 ## Acceptance criteria
 
 1. **改名完成**：仓库、包、二进制、环境变量和数据根都改成 dsh-bot 的名字，代码里找不到旧名。
-   例：不区分大小写搜索旧名（`rg -i`），除 `references/` 外没有任何结果；`bun run dev --isolated=a` 用的数据根是 `~/.dsh-bot-dev/a`。_automated_
+   例：`rg -i myaid --glob '!references/**' --glob '!docs/decisions/**' --glob '!docs/specs/**'` 没有结果（decision 和 spec 是带日期的记录，保留旧名）；`bun run dev --isolated=a` 用的数据根是 `~/.dsh-bot-dev/a`。_automated_
 2. **跟随 dsh**：catalog、`supported-dsh.json` 和子模块 tag 中任何一处与其他两处不一致，`bun run check` 就失败。
    例：把子模块切到 `dsh-v0.2.2-rc.4`，check 报出三处的版本差异。_automated_
 3. **Main Bot 一直在**：全新数据根第一次启动后，Navigator 第一个就是 Main Bot，它不能被归档或删除。

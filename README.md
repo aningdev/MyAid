@@ -52,4 +52,4 @@ bun run check
 bun run test
 ```
 
-A plain `bun run dev` uses your real `~/.dsh-bot`. If your data root still carries the earlier name, move it once: `mv <old data root> ~/.dsh-bot`.
+A plain `bun run dev` uses your real `~/.dsh-bot`.
