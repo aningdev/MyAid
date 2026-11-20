@@ -152,6 +152,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "dsh-bot-host"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "dsh-bot-relay",
+ "dsh-bot-service",
+ "fs2",
+ "getrandom 0.3.4",
+ "libc",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "windows-sys",
+]
+
+[[package]]
+name = "dsh-bot-relay"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "dsh-bot-service",
+ "getrandom 0.3.4",
+ "libc",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "windows-sys",
+]
+
+[[package]]
+name = "dsh-bot-service"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "windows-sys",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -504,55 +553,6 @@ checksum = "1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee"
 dependencies = [
  "libc",
  "wasi",
- "windows-sys",
-]
-
-[[package]]
-name = "myaid-host"
-version = "0.1.0"
-dependencies = [
- "axum",
- "fs2",
- "getrandom 0.3.4",
- "libc",
- "myaid-relay",
- "myaid-service",
- "serde",
- "serde_json",
- "subtle",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
- "windows-sys",
-]
-
-[[package]]
-name = "myaid-relay"
-version = "0.1.0"
-dependencies = [
- "axum",
- "getrandom 0.3.4",
- "libc",
- "myaid-service",
- "serde",
- "serde_json",
- "subtle",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "windows-sys",
-]
-
-[[package]]
-name = "myaid-service"
-version = "0.1.0"
-dependencies = [
- "libc",
- "serde",
- "serde_json",
  "windows-sys",
 ]
 
