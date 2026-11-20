@@ -355,7 +355,7 @@ async fn an_oversized_device_message_closes_4003() {
     let (mut bridge, id) = register(&relay, &key, None).await;
     let (mut device, _) = open_device(&relay, &id, &mut bridge).await;
     device
-        .send(Message::Binary(vec![0u8; 65_601].into()))
+        .send(Message::Binary(vec![0u8; 65_596].into()))
         .await
         .expect("send an oversized message");
     assert_eq!(next_close(&mut device).await, 4003);

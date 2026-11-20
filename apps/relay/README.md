@@ -10,12 +10,12 @@ Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE
 
 ## Endpoints
 
-| Endpoint                                   | Purpose                                                     |
-| ------------------------------------------ | ----------------------------------------------------------- |
-| `GET /`                                    | `dsh-bot-relay`, for a reachability probe                   |
-| `GET /v1/health`                           | service, version, `protocol` (tunnel protocol, currently 1) |
-| `GET /v1/runner` (WebSocket)               | the one long-lived Bridge link                              |
-| `GET /v1/device?runner=<id>` (WebSocket)   | one Device connection, one channel on that Bridge link      |
+| Endpoint                                 | Purpose                                                     |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| `GET /`                                  | `dsh-bot-relay`, for a reachability probe                   |
+| `GET /v1/health`                         | service, version, `protocol` (tunnel protocol, currently 1) |
+| `GET /v1/runner` (WebSocket)             | the one long-lived Bridge link                              |
+| `GET /v1/device?runner=<id>` (WebSocket) | one Device connection, one channel on that Bridge link      |
 
 ### Runner registration
 
@@ -25,25 +25,25 @@ One runner id has one link. A newer registration closes the older link with `400
 
 ### Frames
 
-| Link           | One WebSocket binary message              | Notes                                                                             |
-| -------------- | ----------------------------------------- | --------------------------------------------------------------------------------- |
-| Bridge ↔ Relay | `[u32 channel][u8 type][payload]`, BE     | `1 OPEN` (Relay → Bridge, empty) · `2 DATA` · `3 CLOSE` (payload is the `u16` code) |
-| Device ↔ Relay | the payload alone                         | the Relay adds or strips the channel header and forwards it unchanged              |
+| Link           | One WebSocket binary message          | Notes                                                                               |
+| -------------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
+| Bridge ↔ Relay | `[u32 channel][u8 type][payload]`, BE | `1 OPEN` (Relay → Bridge, empty) · `2 DATA` · `3 CLOSE` (payload is the `u16` code) |
+| Device ↔ Relay | the payload alone                     | the Relay adds or strips the channel header and forwards it unchanged               |
 
 The Relay allocates the channel number; it is unique within one Runner link only.
 
 ### Close codes and limits
 
-| Code | Name             | When                                                                    |
-| ---- | ---------------- | ----------------------------------------------------------------------- |
-| 4001 | runner-offline   | the Device's runner id has no link, or the link ended                    |
-| 4002 | replaced         | the same runner registered a newer link                                 |
-| 4003 | overloaded       | one direction queued more than 1 MiB, or one message exceeded 65 600 bytes |
-| 4004 | bad-auth         | registration failed: bad `hello`, protocol or signature                  |
-| 4005 | too-many         | the runner already has 64 channels, or the source IP exceeded its rate   |
-| 4006 | idle             | the Device sent no first message within 10 seconds                      |
-| 4010 | pairing-rejected | sent by the Bridge: the pairing handshake was refused                   |
-| 4011 | handshake-failed | sent by the Bridge: unknown mode byte, or its first message failed       |
+| Code | Name             | When                                                                                                                                              |
+| ---- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4001 | runner-offline   | the Device's runner id has no link, or the link ended                                                                                             |
+| 4002 | replaced         | the same runner registered a newer link                                                                                                           |
+| 4003 | overloaded       | one direction queued more than 1 MiB, or one message exceeded 65 600 bytes (channel header included, so a Device message is at most 65 595 bytes) |
+| 4004 | bad-auth         | registration failed: bad `hello`, protocol or signature                                                                                           |
+| 4005 | too-many         | the runner already has 64 channels, or the source IP exceeded its rate                                                                            |
+| 4006 | idle             | the Device sent no first message within 10 seconds                                                                                                |
+| 4010 | pairing-rejected | sent by the Bridge: the pairing handshake was refused                                                                                             |
+| 4011 | handshake-failed | sent by the Bridge: unknown mode byte, or its first message failed                                                                                |
 
 A `CLOSE` frame from the Bridge closes the Device socket with the same code, including `1000`. A code the WebSocket protocol cannot carry (anything but `1000` and `3000`–`4999`) becomes `1011` and is logged. The Relay pings both links every 20 seconds. When a Runner link ends, all of its channels close with `4001`.
 

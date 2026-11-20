@@ -5,8 +5,8 @@
 
 use std::time::Duration;
 
-/// Largest payload a Device may send in one message, and the largest payload
-/// the Relay forwards towards a Device.
+/// Largest WebSocket message on either link, channel header included: a Device
+/// message, which has no header, may be `MAX_MESSAGE - HEADER` bytes.
 pub const MAX_MESSAGE: usize = 65_600;
 /// Bytes one channel may have queued in one direction before `4003`.
 pub const MAX_BACKLOG: usize = 1024 * 1024;

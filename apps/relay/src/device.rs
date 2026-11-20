@@ -105,7 +105,7 @@ async fn forward(
                     waiting = false;
                     tap.record("device", "in", &bytes);
                     let length = bytes.len();
-                    if length > limits.max_message
+                    if length + frame::HEADER > limits.max_message
                         || backlog.load(Ordering::Acquire) + length > limits.max_backlog
                     {
                         tracing::warn!(channel, length, "relay device overloaded");

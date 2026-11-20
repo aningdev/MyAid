@@ -34,5 +34,5 @@
 ## 验证
 
 - `cargo check -p dsh-bot-relay` / `cargo test -p dsh-bot-relay`（`tests/local_api.rs` 走真实 HTTP，`tests/tunnel.rs` 起真实进程走真实 WebSocket）。
-- 动过转发路径或帧录制就再跑 `cargo test -p dsh-bot-relay --features frame-tap`：`the_frame_tap_records_every_relayed_frame` 只在打开该 feature 时编译，它证明 Relay 只见过密文。
+- `the_frame_tap_records_every_relayed_frame` 只在打开 `frame-tap` feature 时编译，它证明 Relay 只见过密文；根 `bun run test` 和 `bun run check` 用 `--all-features`，CI 会跑到它。单独跑用 `cargo test -p dsh-bot-relay --features frame-tap`。
 - 不安装、不启动系统后台服务。
