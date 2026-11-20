@@ -102,3 +102,4 @@ dsh 的版本只写在三个地方：根 `package.json` 的 `workspaces.catalog`
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | [dsh-connection](architecture/dsh-connection.md) | Client 怎样认证并连到 dsh web：Cookie、mux、能力授权、Carrier                          |
 | [relay-tunnel](architecture/relay-tunnel.md)     | 其他 Device 怎样经 Relay 到达 Bridge：密钥、Relay 协议、Noise 握手、流复用、配对与撤销 |
+| [testing](architecture/testing.md)               | 测试分层与预算、怎样写不慢不脆的测试、Client 并行跑、验收时跑什么                      |
