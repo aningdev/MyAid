@@ -49,7 +49,8 @@ bun install
 bun run dev --isolated[=name]   # 桌面，数据根 ~/.dsh-bot-dev/<name>，端口 4873
 bun run dev web                 # 其他目标：web / mobile / ios / android / macos / windows / linux / gpui
 bun run check
-bun run test
+bun run test                     # cargo 与各包测试，很快
+bun run test:e2e                # loopback 上的真 Relay + Host + Device，见 tests/e2e
 ```
 
-不带参数的 `bun run dev` 会用你真实的 `~/.dsh-bot`。
+不带参数的 `bun run dev` 会用你真实的 `~/.dsh-bot` 和项目 Relay。隔离运行会自己在 127.0.0.1 上起一个 Relay（空闲端口）并让 Host 指向它，所以不会连到项目 Relay；要用别的，自己设 `DSH_BOT_RELAY_URL`。

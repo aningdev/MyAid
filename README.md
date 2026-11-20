@@ -49,7 +49,8 @@ bun install
 bun run dev --isolated[=name]   # desktop against ~/.dsh-bot-dev/<name>, port 4873
 bun run dev web                 # other targets: web / mobile / ios / android / macos / windows / linux / gpui
 bun run check
-bun run test
+bun run test                     # cargo and package tests, fast
+bun run test:e2e                # real Relay + Host + Device on loopback, see tests/e2e
 ```
 
-A plain `bun run dev` uses your real `~/.dsh-bot`.
+A plain `bun run dev` uses your real `~/.dsh-bot` and the project Relay. An isolated run starts its own Relay on 127.0.0.1 (a free port) and points the Host at it, so it never reaches the project Relay; set `DSH_BOT_RELAY_URL` yourself to use another.

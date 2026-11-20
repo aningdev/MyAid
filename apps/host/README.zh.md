@@ -42,7 +42,7 @@ cargo test -p dsh-bot-host
 
 ## Bridge
 
-`DSH_BOT_RELAY_URL` 必须是 `https`（或 `wss`）地址；只有 host 是回环（`localhost`、`127.0.0.1`、`::1`，供本地测试的 Relay）时才接受 `http` / `ws`。其他地址视为不可用：Host 不拨号，`POST /bridge/pairing` 回 409 并说明原因。
+`DSH_BOT_RELAY_URL` 必须是 `https`（或 `wss`）地址；只有 host 是回环（`localhost`、`127.0.0.1`、`::1`，供本地测试的 Relay；`bun run dev --isolated` 在你没设时会自己起一个并替你设好）时才接受 `http` / `ws`。其他地址视为不可用：Host 不拨号，`POST /bridge/pairing` 回 409 并说明原因。
 
 `src/bridge/` 是 Runner 侧的中继隧道：注册身份、Relay 连接、Noise、已配对 Device，以及 Bridge 转发。帧契约在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，这里不复述。`DSH_BOT_RELAY_URL` 不设或为空时，用项目运营的 Relay，即 `src/bridge/mod.rs` 里的 `DEFAULT_RELAY_URL`（`https://relay.aning.dev`）；设成别的地址就用自建 Relay（[部署方法](../relay/README.zh.md#部署)）。配对和设备列表走上面的 `/bridge/*`。`/watch` 在列表变化时另发 `{"event":"bridge.devices","devices":[...]}`。
 
@@ -50,5 +50,5 @@ Bridge 转发把 Device 的一条 stream 变成对本 Host 启动的 dsh web 的
 
 ## Known limitations
 
-- Bridge 转发由假 dsh web 上的测试覆盖。端到端仍需要 Relay 和已配对 Device，所以对真 dsh web 只手工走过回环这一段：Cookie 交换、一次 `POST /api/…` 和一条 `/api/remote.mux` 连接，后者在 dsh 每两秒一次的 ping 下保持打开。
+- Bridge 转发由假 dsh web 上的测试覆盖，整条链路——真 Relay、本 Host 和 Client 的 Carrier——由 [`tests/e2e`](../../tests/e2e/README.zh.md)（`bun run test:e2e`）覆盖。对真 dsh web 只手工走过回环这一段：Cookie 交换、一次 `POST /api/…` 和一条 `/api/remote.mux` 连接，后者在 dsh 每两秒一次的 ping 下保持打开。
 - `cargo test` 不证明签名成品上的 OS 登记：测试只快照 launchd plist、systemd 单元与 Windows `Run` 命令行，不安装任何东西。

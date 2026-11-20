@@ -34,6 +34,8 @@
 ## 验证
 
 - `cargo check -p dsh-bot-relay` / `cargo test -p dsh-bot-relay`（`tests/local_api.rs` 走真实 HTTP，`tests/tunnel.rs` 起真实进程走真实 WebSocket）。
+- 测试不许干等真实时长：要等的限制做成 `serve` 的参数（如 `--idle-ms`），测试里把它调短。
+- 整条链路（真 Host、真 Device）的验收 8、9 在 [`tests/e2e`](../../tests/e2e/README.zh.md)，根目录 `bun run test:e2e`；动了帧格式或 `frame-tap` 的输出，要一并跑它。
 - `the_frame_tap_records_every_relayed_frame` 只在打开 `frame-tap` feature 时编译，它证明 Relay 只见过密文；根 `bun run test` 和 `bun run check` 用 `--all-features`，CI 会跑到它。单独跑用 `cargo test -p dsh-bot-relay --features frame-tap`。
 - 不安装、不启动系统后台服务。
 - `deploy/` 的脚本会改动远端服务器：只在 Owner 明确给出目标机器和域名时运行，不拿它做验证。改 `install.sh` 后先 `bash -n`，再在 Owner 指定的机器上重跑一次部署确认。

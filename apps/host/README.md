@@ -42,7 +42,7 @@ Default port `4872` (`DSH_BOT_HOST_PORT`, `--port`); default data root `~/.dsh-b
 
 ## Bridge
 
-`DSH_BOT_RELAY_URL` must be an `https` (or `wss`) address; `http` and `ws` are accepted only when the host is loopback (`localhost`, `127.0.0.1`, `::1`), for a local Relay under test. Any other address is unusable: the Host does not dial it, and `POST /bridge/pairing` answers 409 with the reason.
+`DSH_BOT_RELAY_URL` must be an `https` (or `wss`) address; `http` and `ws` are accepted only when the host is loopback (`localhost`, `127.0.0.1`, `::1`), for a local Relay under test (`bun run dev --isolated` starts one and sets this variable for you unless you did). Any other address is unusable: the Host does not dial it, and `POST /bridge/pairing` answers 409 with the reason.
 
 `src/bridge/` is the Runner side of the relay tunnel: registration identity, the Relay link, Noise, paired Devices, and bridge forwarding. The frame contract is [relay-tunnel](../../docs/architecture/relay-tunnel.md); this section does not repeat it. Unset or empty, `DSH_BOT_RELAY_URL` means the project-run Relay, `DEFAULT_RELAY_URL` in `src/bridge/mod.rs` (`https://relay.aning.dev`); set it to use your own Relay ([deploy one](../relay/README.md#deploy)). Pairing and the device list are the `/bridge/*` routes above. `/watch` also sends `{"event":"bridge.devices","devices":[...]}` when that list changes.
 
@@ -50,5 +50,5 @@ Bridge forwarding turns a Device stream into a loopback request against the dsh 
 
 ## Known limitations
 
-- Bridge forwarding is covered by tests against a fake dsh web. An end-to-end run still needs a Relay and a paired Device, so against a real dsh web only the loopback side was walked by hand: the Cookie exchange, a `POST /api/…` and a `/api/remote.mux` socket, which stayed open across dsh's two-second pings.
+- Bridge forwarding is covered by tests against a fake dsh web, and the whole path — a real Relay, this Host and the Client's Carrier — by [`tests/e2e`](../../tests/e2e/README.md) (`bun run test:e2e`). Against a real dsh web only the loopback side was walked by hand: the Cookie exchange, a `POST /api/…` and a `/api/remote.mux` socket, which stayed open across dsh's two-second pings.
 - Signed-product OS registration is not proven by `cargo test`: the tests snapshot the launchd plist, the systemd unit and the Windows `Run` command without installing anything.

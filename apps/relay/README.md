@@ -56,6 +56,7 @@ cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout]
 cargo check -p dsh-bot-relay
 cargo test -p dsh-bot-relay
 cargo test -p dsh-bot-relay --features frame-tap
+bun run test:e2e   # from the repo root: this Relay with a real Host and Device, see tests/e2e
 ```
 
 `--bind` is an IP address, default `127.0.0.1`. `--port` defaults to `8787`. Log level is `RUST_LOG`.
@@ -66,7 +67,7 @@ cargo test -p dsh-bot-relay --features frame-tap
 
 `--idle-ms MS` replaces the 10 second idle time (close code `4006`); tests use it so they need not wait. Deployments leave it out.
 
-`--frame-tap PATH` appends every relayed binary frame as one JSON line — `{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}` — which is how the end-to-end test proves the Relay only ever sees ciphertext. The flag exists only in builds with the `frame-tap` feature, so a release build cannot record frames at all; the second `cargo test` line above turns it on for the test that reads the file back.
+`--frame-tap PATH` appends every relayed binary frame as one JSON line — `{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}` — which is how the [end-to-end test](../../tests/e2e/README.md) proves the Relay only ever sees ciphertext. The flag exists only in builds with the `frame-tap` feature, so a release build cannot record frames at all; the second `cargo test` line above turns it on for the test that reads the file back.
 
 ## Deploy
 

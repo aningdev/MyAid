@@ -56,6 +56,7 @@ cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout]
 cargo check -p dsh-bot-relay
 cargo test -p dsh-bot-relay
 cargo test -p dsh-bot-relay --features frame-tap
+bun run test:e2e   # 在仓库根目录：本 Relay 加真 Host 和 Device，见 tests/e2e
 ```
 
 `--bind` 是 IP 地址，默认 `127.0.0.1`。`--port` 默认 `8787`。日志级别是 `RUST_LOG`。
@@ -66,7 +67,7 @@ cargo test -p dsh-bot-relay --features frame-tap
 
 `--idle-ms MS` 替换 10 秒的空闲时限（关闭码 `4006`），测试用它免去干等；部署不要加。
 
-`--frame-tap PATH` 把每一帧转发的二进制帧追加成一行 JSON——`{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}`——端到端测试靠它证明 Relay 只见过密文。这个 flag 只存在于启用 `frame-tap` feature 的构建里，release 构建根本无法录制；上面第二条 `cargo test` 会打开它跑那个读文件的用例。
+`--frame-tap PATH` 把每一帧转发的二进制帧追加成一行 JSON——`{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}`——[端到端测试](../../tests/e2e/README.zh.md)靠它证明 Relay 只见过密文。这个 flag 只存在于启用 `frame-tap` feature 的构建里，release 构建根本无法录制；上面第二条 `cargo test` 会打开它跑那个读文件的用例。
 
 ## 部署
 
