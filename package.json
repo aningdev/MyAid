@@ -52,8 +52,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun scripts/dev.mjs",
-    "fix": "vp check --fix",
-    "check": "node scripts/check-dsh-pin.mjs && node scripts/check-docs.mjs && vp check && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' check && cargo check --workspace",
+    "fix": "vp check --fix && cargo fmt --all",
+    "check": "node scripts/check-dsh-pin.mjs && node scripts/check-docs.mjs && vp check && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings",
     "build": "vp run --filter @dsh-bot/client... build",
     "test": "cargo test --workspace && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' test"
   },
