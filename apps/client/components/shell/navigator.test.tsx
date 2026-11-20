@@ -19,7 +19,7 @@ import { open } from "../../test/open";
 import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import { emptyShellPrefs, serializeShellPrefs, SHELL_PREFS_STORAGE } from "./prefs";
 
-const desktop = { platform: "macos" as const, width: 1100, height: 800 };
+const desktop = { platform: "macos" as const, width: 1100, height: 800, clock: {} };
 
 /**
  * Ada (ready) → one segment at /work/dsh-bot; Bob (ready) → one segment at

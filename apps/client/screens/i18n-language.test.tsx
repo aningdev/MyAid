@@ -9,7 +9,7 @@ import { emptyShellPrefs, SHELL_PREFS_STORAGE } from "../components/shell/prefs"
 import { messages } from "../lib/i18n";
 import { open } from "../test/open";
 
-const desktop = { platform: "macos" as const, width: 1100, height: 900 };
+const desktop = { platform: "macos" as const, width: 1100, height: 900, clock: {} };
 
 const zh = {
   newBot: messages["nav.newBot"].zh,
