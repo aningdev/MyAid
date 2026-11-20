@@ -24,11 +24,82 @@ export const TICKET_STATUSES = ["open", "waiting", "completed", "failed", "cance
 export const ticketStatusSchema = z.enum(TICKET_STATUSES);
 export type TicketStatus = z.infer<typeof ticketStatusSchema>;
 
-/** Where a Ticket came from. `Source` will add its own variant later. */
-export const ticketOriginSchema = z.object({
-  kind: z.literal("main-bot"),
-  sessionId: z.string(),
+/** A person's identity on one Source; never mapped across Sources. */
+export const ownerIdentitySchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
 });
+export type OwnerIdentity = z.infer<typeof ownerIdentitySchema>;
+
+/** One conversation a Source can write into. */
+export const channelRefSchema = z.object({
+  /** The configured Source instance. */
+  source: z.string(),
+  /** The Source's own thread id. */
+  thread: z.string(),
+  /** Where inside that thread a reply goes. */
+  address: z.string(),
+});
+export type ChannelRef = z.infer<typeof channelRefSchema>;
+
+/** One accepted or ignored event a Source delivered. Immutable once written. */
+export const triggerSchema = z.object({
+  id: z.string(),
+  source: channelRefSchema.shape.source,
+  thread: channelRefSchema.shape.thread,
+  address: channelRefSchema.shape.address,
+  at: z.number(),
+  /** The person who wrote it, when the Source can tell. */
+  human: ownerIdentitySchema.nullable(),
+  text: z.string(),
+  /**
+   * Decided once, at intake: only the Owner's identity starts work. An
+   * ignored Trigger is kept as history and never reaches a Session or Channel.
+   */
+  disposition: z.enum(["accepted", "ignored"]),
+});
+export type Trigger = z.infer<typeof triggerSchema>;
+
+/** A Source instance a plugin registered, as the Remote reports it. */
+export const sourceSummarySchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  title: z.object({ zh: z.string(), en: z.string() }),
+  /** The Owner's identity on this Source. */
+  owner: z.string(),
+  enabled: z.boolean(),
+});
+export type SourceSummary = z.infer<typeof sourceSummarySchema>;
+
+/** One Source thread kept in the Main Bot's Dialogue. */
+export const conversationSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  thread: z.string(),
+  sessionId: z.string(),
+  createdAt: z.number(),
+});
+export type Conversation = z.infer<typeof conversationSchema>;
+
+/** A Trigger that already got its one Channel reply. */
+export const triggerAnswerSchema = z.object({
+  triggerId: z.string(),
+  at: z.number(),
+});
+export type TriggerAnswer = z.infer<typeof triggerAnswerSchema>;
+
+/** Where a Ticket came from: the Main Bot's Session, or a Source Trigger. */
+export const ticketOriginSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("main-bot"), sessionId: z.string() }),
+  z.object({
+    kind: z.literal("source"),
+    source: z.string(),
+    sourceKind: z.string(),
+    triggerId: z.string(),
+    thread: z.string(),
+    address: z.string(),
+  }),
+]);
 export type TicketOrigin = z.infer<typeof ticketOriginSchema>;
 
 export const ticketSchema = z.object({

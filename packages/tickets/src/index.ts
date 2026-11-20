@@ -14,6 +14,7 @@ import { resolveDshHome } from "@deepseek-ai/dsh-home-paths";
 import Schema from "@deepseek-ai/schemastery";
 
 import { TicketsService } from "./service.ts";
+import { Sources } from "./sources.ts";
 
 export const PLUGIN_ID = "tickets";
 export const name = PLUGIN_ID;
@@ -37,10 +38,26 @@ function dataRoot(config: Config): string {
 }
 
 export function apply(ctx: Context, config: Config): void {
-  new TicketsService(ctx, { file: join(dataRoot(config), "tickets.json") });
+  const sources = new Sources(ctx);
+  new TicketsService(ctx, { file: join(dataRoot(config), "tickets.json"), sources });
 }
 
 export { TicketsService, type TicketsServiceOptions } from "./service.ts";
+export {
+  SourceRegistry,
+  Sources,
+  type SourceChannel,
+  type SourceDelivery,
+  type SourceInstance,
+  type SourceKind,
+  type SourceOutbound,
+  type SourceRegistration,
+  type SourceSendResult,
+  type TriggerDelivery,
+  type TriggerIntake,
+} from "./sources.ts";
+export { REPORT_TICKET_TOOL, reportTicketToolInput } from "./tool.ts";
+export { newConversationId, sourceSessionIdFor } from "./ids.ts";
 export { TICKETS_VERSION } from "./store.ts";
 export type { TicketsSnapshot, AnswerAttentionRequest } from "./wire.ts";
 export type { OpenTicketRequest, TicketBots } from "./core.ts";

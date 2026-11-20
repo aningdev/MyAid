@@ -63,3 +63,33 @@ export function openTicketTool(
     },
   };
 }
+
+export const REPORT_TICKET_TOOL = "ticket_report";
+
+/** What a Ticket's Bot reports when its work has an outcome. */
+export const reportTicketToolInput = z.object({
+  status: z
+    .enum(["completed", "failed"])
+    .describe("completed：工作已经完成；failed：做不到或者出了无法继续的错误。"),
+  result: z.string().min(1).describe("给 Owner 看的结果，或者失败的原因。"),
+});
+export type ReportTicketToolInput = z.infer<typeof reportTicketToolInput>;
+
+export function reportTicketTool(core: TicketsCore, agent: Agent): ToolDefinition {
+  return {
+    name: REPORT_TICKET_TOOL,
+    description:
+      "报告这个 Ticket 的结果。工作真正完成或无法继续时调用一次；这一轮结束时没有报告，Ticket 只算空闲，" +
+      "不会自动完成。报告之后 Ticket 结束，结果会回到提出请求的对话。",
+    parameters: z.toJSONSchema(reportTicketToolInput),
+    output: {
+      schema: { type: "object", additionalProperties: true },
+      render: (_args, value) => [{ type: "text", text: JSON.stringify(value) }],
+    },
+    async execute(args) {
+      const input = reportTicketToolInput.parse(args);
+      const ticket = await core.reportWork(String(agent.id), input);
+      return { ticketId: ticket.id, status: ticket.status };
+    },
+  };
+}

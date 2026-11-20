@@ -13,22 +13,30 @@ import { z } from "zod";
 
 import {
   attentionSchema,
+  conversationSchema,
   resumeTicketWork,
   ticketSchema,
+  triggerAnswerSchema,
+  triggerSchema,
   withdrawAttention,
   type Attention,
+  type Conversation,
   type Ticket,
+  type Trigger,
+  type TriggerAnswer,
 } from "./domain.ts";
-import type { TicketsSnapshot } from "./wire.ts";
 
 /** The document version this plugin writes. */
-export const TICKETS_VERSION = 1;
+export const TICKETS_VERSION = 2;
 
 export const ticketsFileSchema = z.object({
   version: z.literal(TICKETS_VERSION),
   revision: z.number().int().nonnegative(),
   tickets: z.array(ticketSchema),
   attentions: z.array(attentionSchema),
+  triggers: z.array(triggerSchema),
+  conversations: z.array(conversationSchema),
+  answers: z.array(triggerAnswerSchema),
 });
 export type TicketsFile = z.infer<typeof ticketsFileSchema>;
 
@@ -36,6 +44,19 @@ export type TicketsFile = z.infer<typeof ticketsFileSchema>;
 export type TicketsDocument = {
   tickets: Ticket[];
   attentions: Attention[];
+  triggers: Trigger[];
+  conversations: Conversation[];
+  answers: TriggerAnswer[];
+};
+
+/** What a read returns: the stored state without the Source registrations. */
+export type TicketState = {
+  revision: number;
+  tickets: Ticket[];
+  attentions: Attention[];
+  triggers: Trigger[];
+  conversations: Conversation[];
+  answers: TriggerAnswer[];
 };
 
 /** A watcher is told after every successful write; it reads the snapshot itself. */
@@ -63,7 +84,7 @@ export class TicketsStore {
     return this.loading;
   }
 
-  async snapshot(): Promise<TicketsSnapshot> {
+  async snapshot(): Promise<TicketState> {
     await this.load();
     return this.current();
   }
@@ -72,19 +93,25 @@ export class TicketsStore {
    * Apply one pure document write. Writes serialize on one tail so revision,
    * file content and watcher order cannot interleave.
    */
-  write(change: (document: TicketsDocument) => TicketsDocument): Promise<TicketsSnapshot> {
+  write(change: (document: TicketsDocument) => TicketsDocument): Promise<TicketState> {
     const next = this.tail.then(async () => {
       await this.load();
       const state = this.currentState();
       const document = change({
         tickets: structuredClone(state.tickets),
         attentions: structuredClone(state.attentions),
+        triggers: structuredClone(state.triggers),
+        conversations: structuredClone(state.conversations),
+        answers: structuredClone(state.answers),
       });
       const written: TicketsFile = {
         version: TICKETS_VERSION,
         revision: state.revision + 1,
         tickets: document.tickets,
         attentions: document.attentions,
+        triggers: document.triggers,
+        conversations: document.conversations,
+        answers: document.answers,
       };
       await this.persist(written);
       this.state = written;
@@ -108,19 +135,30 @@ export class TicketsStore {
     return this.state;
   }
 
-  private current(): TicketsSnapshot {
-    const { revision, tickets, attentions } = this.currentState();
+  private current(): TicketState {
+    const { revision, tickets, attentions, triggers, conversations, answers } = this.currentState();
     return {
       revision,
       tickets,
       attentions: attentions.filter((attention) => attention.status === "pending"),
+      triggers,
+      conversations,
+      answers,
     };
   }
 
   private async read(): Promise<void> {
     const own = await readOptional(this.options.file);
     if (own === null) {
-      this.state = { version: TICKETS_VERSION, revision: 0, tickets: [], attentions: [] };
+      this.state = {
+        version: TICKETS_VERSION,
+        revision: 0,
+        tickets: [],
+        attentions: [],
+        triggers: [],
+        conversations: [],
+        answers: [],
+      };
       await this.persist(this.state);
       this.notify();
       return;

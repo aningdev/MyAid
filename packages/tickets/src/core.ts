@@ -27,17 +27,28 @@ import {
   restoreTicket,
   resumeTicketWork,
   TicketError,
+  triggerSchema,
   withdrawAttention,
   type Attention,
   type AttentionAnswer,
   type AttentionQuestion,
+  type Conversation,
   type Ticket,
   type TicketEnd,
+  type TicketOrigin,
+  type Trigger,
 } from "./domain.ts";
-import { newAttentionId, newTicketId, sessionIdFor } from "./ids.ts";
+import {
+  newAttentionId,
+  newConversationId,
+  newTicketId,
+  sessionIdFor,
+  sourceSessionIdFor,
+} from "./ids.ts";
 import type { TicketSessions } from "./sessions.ts";
+import { type SourceDelivery, type SourceRegistry, type TriggerDelivery } from "./sources.ts";
 import type { TicketsStore } from "./store.ts";
-import { openTicketTool, OPEN_TICKET_TOOL } from "./tool.ts";
+import { openTicketTool, OPEN_TICKET_TOOL, reportTicketTool } from "./tool.ts";
 import type { AnswerAttentionRequest, TicketsSnapshot } from "./wire.ts";
 
 /** Where a Ticket came from: the Main Bot's Session that opened it. */
@@ -65,6 +76,8 @@ export type TicketsCoreOptions = {
   store: TicketsStore;
   bots: TicketBots;
   sessions: TicketSessions;
+  /** The Sources this deployment registered; Tickets read and write through them. */
+  sources: SourceRegistry;
   logger: TicketLogger;
   now?: () => number;
 };
@@ -81,10 +94,10 @@ export class TicketsCore {
   private readonly store: TicketsStore;
   private readonly bots: TicketBots;
   private readonly sessions: TicketSessions;
+  private readonly sources: SourceRegistry;
   private readonly logger: TicketLogger;
   private readonly now: () => number;
   private readonly pending = new Map<string, PendingAttention>();
-  private readonly running = new Set<string>();
   private readonly toolSessions = new Set<string>();
   private readonly ready: Promise<void>;
 
@@ -92,6 +105,7 @@ export class TicketsCore {
     this.store = options.store;
     this.bots = options.bots;
     this.sessions = options.sessions;
+    this.sources = options.sources;
     this.logger = options.logger;
     this.now = options.now ?? Date.now;
     this.ready = this.store.load();
@@ -101,7 +115,8 @@ export class TicketsCore {
   /** The current snapshot, pending Attentions only. */
   async snapshot(): Promise<TicketsSnapshot> {
     await this.ready;
-    return this.store.snapshot();
+    const state = await this.store.snapshot();
+    return { ...state, sources: this.sources.list() };
   }
 
   /**
@@ -124,7 +139,7 @@ export class TicketsCore {
         if (signal.aborted) break;
         dirty = false;
         wake = Promise.withResolvers<void>();
-        yield await this.store.snapshot();
+        yield await this.snapshot();
       }
     } finally {
       unsubscribe();
@@ -151,13 +166,28 @@ export class TicketsCore {
         `没有名为“${input.bot}”的可用 Bot。可用的 Bot：${botNames(routing)}。`,
       );
     }
+    const trigger = await this.pendingTrigger(input.origin.sessionId);
+    const source = trigger === null ? null : this.sources.get(trigger.source);
+    // A request that came in through a Source keeps that Source as its origin,
+    // so its result goes back to the same conversation.
+    const origin: TicketOrigin =
+      trigger === null || source === null
+        ? input.origin
+        : {
+            kind: "source",
+            source: trigger.source,
+            sourceKind: source.kind,
+            triggerId: trigger.id,
+            thread: trigger.thread,
+            address: trigger.address,
+          };
     const ticket = createTicket(
       {
         id: newTicketId(),
         botId: target.id,
         title,
         request,
-        origin: input.origin,
+        origin,
         sessionId: null,
         workspacePath: blankToNull(input.workspacePath) ?? target.workspacePath,
       },
@@ -169,6 +199,9 @@ export class TicketsCore {
       ...document,
       tickets: [...document.tickets, started],
     }));
+    if (trigger !== null && source !== null) {
+      await this.reply(trigger, `已收到，正在为你处理：「${title}」。`);
+    }
     try {
       await this.sessions.start({
         sessionId,
@@ -186,6 +219,62 @@ export class TicketsCore {
       throw error;
     }
     return started;
+  }
+
+  /**
+   * Take one Trigger from a Source: dedupe it, decide whether it comes from
+   * the Owner's identity, keep it, and — only when it does — hand it to the
+   * Main Bot Session that follows that Source thread.
+   */
+  async deliver(sourceId: string, incoming: SourceDelivery): Promise<TriggerDelivery> {
+    await this.ready;
+    const source = this.sources.get(sourceId);
+    if (source === null) {
+      throw new TicketError("tickets/not-found", `Source“${sourceId}”没有注册。`);
+    }
+    if (!source.enabled) {
+      throw new TicketError("tickets/invalid", `Source“${sourceId}”已停用。`);
+    }
+    const human =
+      incoming.human == null ? null : { id: incoming.human.id, name: incoming.human.name ?? null };
+    const trigger = triggerSchema.parse({
+      id: incoming.id,
+      source: sourceId,
+      thread: incoming.thread,
+      address: incoming.address,
+      at: normalizeAt(incoming.at, this.now()),
+      human,
+      text: incoming.text,
+      disposition: human !== null && human.id === source.owner ? "accepted" : "ignored",
+    });
+    const state = await this.store.snapshot();
+    if (state.triggers.some((item) => item.source === sourceId && item.id === trigger.id)) {
+      return { status: "duplicate" };
+    }
+    await this.store.write((document) =>
+      document.triggers.some((item) => item.source === sourceId && item.id === trigger.id)
+        ? document
+        : { ...document, triggers: [...document.triggers, trigger] },
+    );
+    if (trigger.disposition === "ignored") return { status: "ignored", trigger };
+    const routing = await this.bots.routing();
+    const conversation = await this.conversationFor(
+      trigger,
+      `${source.title.zh} · ${trigger.thread}`,
+      routing.mainBot.presetId,
+    );
+    if (conversation === null) {
+      throw new TicketError(
+        "tickets/invalid",
+        `无法为 ${trigger.source}/${trigger.thread} 打开 Main Bot Session。`,
+      );
+    }
+    await this.sessions.trigger(
+      conversation.sessionId,
+      { triggerId: trigger.id, source: trigger.source },
+      triggerPrompt(source.title.zh, trigger),
+    );
+    return { status: "accepted", trigger };
   }
 
   /**
@@ -207,7 +296,7 @@ export class TicketsCore {
       throw new TicketError("tickets/invalid", `Attention ${attention.id} 已不在等待。`);
     }
     const answer = normalizeAnswer(attention, input.answer);
-    const written = await this.store.write((document) => {
+    await this.store.write((document) => {
       const target = mustTicket(document, attention.ticketId);
       return {
         ...document,
@@ -221,7 +310,7 @@ export class TicketsCore {
     });
     this.pending.delete(attention.id);
     waiter.answer(answer);
-    return written;
+    return this.snapshot();
   }
 
   /**
@@ -254,32 +343,62 @@ export class TicketsCore {
       }
     }
     await this.report(written);
-    return this.store.snapshot();
+    return this.snapshot();
   }
 
-  /** A Session started running: remember it so its idle ends its Ticket. */
+  /**
+   * A Session's turn ended. A Ticket Session ends no Ticket by itself (its
+   * Bot reports explicitly); a Main Bot Session that answered a Source
+   * Trigger without opening a Ticket writes that answer back once.
+   */
   async agentStatus(agent: Agent, status: "running" | "idle"): Promise<void> {
+    if (status !== "idle") return;
     await this.ready;
     const sessionId = String(agent.id);
-    const ticket = await this.ticketForSession(sessionId);
-    if (ticket === null) return;
-    if (status === "running") {
-      this.running.add(sessionId);
-      return;
+    if ((await this.directTicket(sessionId)) !== null) return;
+    const trigger = await this.pendingTrigger(sessionId);
+    if (trigger === null) return;
+    await this.reply(
+      trigger,
+      lastAssistantText(agent) ?? "Main Bot 结束了这一轮，但没有写出回答。",
+    );
+  }
+
+  /** A Ticket Session's Bot reported its outcome through `ticket_report`. */
+  async reportWork(
+    sessionId: string,
+    input: { status: "completed" | "failed"; result: string },
+  ): Promise<Ticket> {
+    await this.ready;
+    const ticket = await this.directTicket(sessionId);
+    if (ticket === null) {
+      throw new TicketError("tickets/not-found", "只有 Ticket Session 能报告结果。");
     }
-    if (!this.running.delete(sessionId)) return;
-    if (ticket.status !== "open") return;
-    const finished = await this.finish(ticket.id, {
-      kind: "completed",
-      result: lastAssistantText(agent) ?? "Bot 结束了这一轮，但没有写出结果。",
-    });
-    if (finished !== null) await this.report(finished);
+    if (!isLiveTicket(ticket)) {
+      throw new TicketError("tickets/invalid", `Ticket ${ticket.id} 已经结束，不能再报告。`);
+    }
+    if (ticket.status === "waiting") {
+      throw new TicketError(
+        "tickets/invalid",
+        `Ticket ${ticket.id} 正在等 Owner 回答，回答之后这一轮继续。`,
+      );
+    }
+    const end: TicketEnd =
+      input.status === "completed"
+        ? { kind: "completed", result: input.result }
+        : { kind: "failed", error: input.result };
+    const finished = await this.finish(ticket.id, end);
+    if (finished === null) {
+      throw new TicketError("tickets/invalid", `Ticket ${ticket.id} 刚刚被改过，无法报告。`);
+    }
+    await this.report(finished);
+    return finished;
   }
 
   /** The Ticket Session failed: end the Ticket as failed. */
   async agentError(agent: Agent, error: unknown): Promise<void> {
     await this.ready;
-    const ticket = await this.ticketForSession(String(agent.id));
+    const ticket = await this.directTicket(String(agent.id));
     if (ticket === null || !isLiveTicket(ticket)) return;
     const finished = await this.finish(ticket.id, {
       kind: "failed",
@@ -292,9 +411,8 @@ export class TicketsCore {
   async agentDisposed(agent: Agent): Promise<void> {
     await this.ready;
     const sessionId = String(agent.id);
-    this.running.delete(sessionId);
     this.toolSessions.delete(sessionId);
-    const ticket = await this.ticketForSession(sessionId);
+    const ticket = await this.directTicket(sessionId);
     if (ticket === null) return;
     await this.withdrawForTicket(ticket.id, "Ticket Session 已结束。");
   }
@@ -305,7 +423,7 @@ export class TicketsCore {
    */
   async ownerMessage(sessionId: string): Promise<void> {
     await this.ready;
-    const ticket = await this.ticketForSession(sessionId);
+    const ticket = await this.directTicket(sessionId);
     if (ticket === null) return;
     if (ticket.status !== "completed" && ticket.status !== "failed") return;
     await this.store.write((document) => ({
@@ -404,6 +522,18 @@ export class TicketsCore {
     if (!isMainBot) return false;
     agent.ctx.tools.register(toolFor(this, agent, routing));
     this.toolSessions.add(key);
+    return true;
+  }
+
+  /**
+   * Register the reporting tool on a Ticket's own Session. Called on every
+   * Agent creation; only a Ticket Session sees it.
+   */
+  async attachTicketTool(agent: Agent): Promise<boolean> {
+    await this.ready;
+    const ticket = await this.directTicket(String(agent.id));
+    if (ticket === null) return false;
+    agent.ctx.tools.register(reportTicketTool(this, agent));
     return true;
   }
 
@@ -535,21 +665,153 @@ export class TicketsCore {
     return this.settleTicket(ticketId, end, pending);
   }
 
-  /** The Ticket a Session runs, or null. Used by the question and approval waterfalls. */
+  /**
+   * The Ticket a Session belongs to, or null. A sub-agent Session belongs to
+   * the Ticket of the Session that started it, so its questions and approvals
+   * still wait on the Owner.
+   */
   async ticketFor(sessionId: string): Promise<Ticket | null> {
     await this.ready;
-    return this.ticketForSession(sessionId);
+    let current: string | null = sessionId;
+    const seen = new Set<string>();
+    while (current !== null && !seen.has(current)) {
+      seen.add(current);
+      const ticket = await this.directTicket(current);
+      if (ticket !== null) return ticket;
+      current = await this.sessions.parentSession(current);
+    }
+    return null;
   }
 
-  private async ticketForSession(sessionId: string): Promise<Ticket | null> {
+  /** The Ticket whose own Session this is, or null. */
+  private async directTicket(sessionId: string): Promise<Ticket | null> {
     const snapshot = await this.store.snapshot();
     return snapshot.tickets.find((ticket) => ticket.sessionId === sessionId) ?? null;
   }
 
-  /** Tell the Main Bot what became of the Ticket it opened. */
+  /**
+   * The newest accepted Trigger of one Main Bot Session that has neither been
+   * replied to nor become a Ticket, or null.
+   */
+  private async pendingTrigger(sessionId: string): Promise<Trigger | null> {
+    const state = await this.store.snapshot();
+    const conversation = state.conversations.find((item) => item.sessionId === sessionId);
+    if (conversation === undefined) return null;
+    const answered = new Set(state.answers.map((answer) => answer.triggerId));
+    const linked = new Set(
+      state.tickets.flatMap((ticket) =>
+        ticket.origin.kind === "source" ? [ticket.origin.triggerId] : [],
+      ),
+    );
+    return (
+      state.triggers
+        .filter(
+          (trigger) =>
+            trigger.source === conversation.source &&
+            trigger.thread === conversation.thread &&
+            trigger.disposition === "accepted" &&
+            !answered.has(trigger.id) &&
+            !linked.has(trigger.id),
+        )
+        .at(0) ?? null
+    );
+  }
+
+  /** Find or create, and start, the Main Bot Session that follows one thread. */
+  private async conversationFor(
+    trigger: Trigger,
+    title: string,
+    agentPreset: string,
+  ): Promise<Conversation | null> {
+    const state = await this.store.snapshot();
+    const existing = state.conversations.find(
+      (item) => item.source === trigger.source && item.thread === trigger.thread,
+    );
+    if (existing !== undefined) return existing;
+    const conversation: Conversation = {
+      id: newConversationId(),
+      source: trigger.source,
+      thread: trigger.thread,
+      sessionId: "",
+      createdAt: this.now(),
+    };
+    conversation.sessionId = sourceSessionIdFor(conversation.id);
+    let created = false;
+    await this.store.write((document) => {
+      if (
+        document.conversations.some(
+          (item) => item.source === trigger.source && item.thread === trigger.thread,
+        )
+      ) {
+        return document;
+      }
+      created = true;
+      return { ...document, conversations: [...document.conversations, conversation] };
+    });
+    const written =
+      (await this.store.snapshot()).conversations.find((item) => item.id === conversation.id) ??
+      conversation;
+    if (!created) return written;
+    try {
+      await this.sessions.start({
+        sessionId: written.sessionId,
+        cwd: null,
+        agentPreset,
+        title,
+      });
+    } catch (error) {
+      // Do not keep a conversation no Session follows; the next Trigger retries.
+      this.logger.warn(`tickets: could not start Session ${written.sessionId}: ${String(error)}`);
+      await this.store.write((document) => ({
+        ...document,
+        conversations: document.conversations.filter((item) => item.id !== written.id),
+      }));
+      return null;
+    }
+    return written;
+  }
+
+  /**
+   * Write one reply into the Trigger's own conversation and remember that this
+   * Trigger has had its reply, so a later turn does not send it twice.
+   */
+  private async reply(trigger: Trigger, text: string): Promise<void> {
+    await this.sendReply(trigger.source, trigger.id, trigger.thread, trigger.address, text);
+  }
+
+  private async sendReply(
+    source: string,
+    triggerId: string,
+    thread: string,
+    address: string,
+    text: string,
+  ): Promise<void> {
+    try {
+      await this.sources.send(source, { thread, address, text });
+    } catch (error) {
+      this.logger.warn(`tickets: could not reply on ${source}/${thread}: ${String(error)}`);
+      return;
+    }
+    await this.store.write((document) =>
+      document.answers.some((answer) => answer.triggerId === triggerId)
+        ? document
+        : { ...document, answers: [...document.answers, { triggerId, at: this.now() }] },
+    );
+  }
+
+  /** Tell whoever asked what became of the Ticket. */
   private async report(ticket: Ticket): Promise<void> {
-    if (ticket.origin.kind !== "main-bot") return;
     const text = reportText(ticket);
+    if (ticket.origin.kind === "source") {
+      await this.sendReply(
+        ticket.origin.source,
+        ticket.origin.triggerId,
+        ticket.origin.thread,
+        ticket.origin.address,
+        text,
+      );
+      return;
+    }
     try {
       await this.sessions.notify(ticket.origin.sessionId, ticket.id, text);
     } catch (error) {
@@ -642,6 +904,23 @@ function normalizeAnswer(attention: Attention, answer: AttentionAnswer): Attenti
         : { custom: item.custom.trim() }),
     })),
   };
+}
+
+function normalizeAt(value: string | number | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TicketError("tickets/invalid", "Trigger 的时间不合法。");
+    return value;
+  }
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed))
+    throw new TicketError("tickets/invalid", `Trigger 的时间“${value}”无法解析。`);
+  return parsed;
+}
+
+function triggerPrompt(sourceTitle: string, trigger: Trigger): string {
+  const who = trigger.human === null ? "某人" : (trigger.human.name ?? trigger.human.id);
+  return `来自 ${sourceTitle} 的 ${who}：\n\n${trigger.text}`;
 }
 
 function lastAssistantText(agent: Agent): string | null {
