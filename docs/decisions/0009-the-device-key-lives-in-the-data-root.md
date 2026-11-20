@@ -11,6 +11,8 @@
 - 没有文件系统的端（web 版）仍然用 NSH Storage。规则和 Device 偏好一样：有数据根就用文件。
 - 不迁移 NSH Storage 里已有的密钥。找不到密钥的 Device 生成新身份，并重新配对。
 
+2026-11-21 补记：0600 做不到。NSH 的 `fs` 没有 `chmod`，`writeFile` 和 `mkdir` 也不收 mode，所以这两个文件的权限随进程 umask，通常是 0644。在 macOS 上，home 目录对 `staff` 组可读，本机的其他用户能读到这把私钥。原子替换已经做到；权限要等 NSH 提供设置权限的手段。iOS 和 Android 也没有数据根，和 web 一样用 NSH Storage。
+
 ## Why
 
 - 一台 Device 的数据都在一个目录里，Owner 删掉或备份这个目录就够了，和 lorca 的做法一致。

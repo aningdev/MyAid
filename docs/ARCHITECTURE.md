@@ -67,13 +67,14 @@ references/          只读的上游源码，不参与构建
 
 ## Seams
 
-| Seam            | 接口                                                                                 | Adapters                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| Carrier         | 给官方 `installConnection` 注入的 `fetch` 和 `createWebSocket`，外加 `streamBaseUrl` | `loopback`（Runner 上的 Client，用 Cookie 直连）· `relay`（其他 Device，端到端加密隧道） |
-| Source          | `sources` 服务：注册 Source kind 与实例，交付 Trigger，经 Channel 写回               | `source-feishu` · `source-github` · 测试用 fake（`packages/tickets/src/testing`）        |
-| OS 登记         | Host 的 `service` 模块：生成并执行登记计划                                           | launchd · systemd · Windows Run 键加监督器 · 测试只生成快照                              |
-| dsh 子进程      | Host 的 `ChildHandle`                                                                | 真实进程 · 测试用 fake                                                                   |
-| Device 偏好存储 | Client 偏好的读写                                                                    | 桌面写数据根下的文件 · 移动端和 web 用 NSH Storage                                       |
+| Seam            | 接口                                                                                 | Adapters                                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| Carrier         | 给官方 `installConnection` 注入的 `fetch` 和 `createWebSocket`，外加 `streamBaseUrl` | `loopback`（Runner 上的 Client，用 Cookie 直连）· `relay`（其他 Device，端到端加密隧道）                                   |
+| Source          | `sources` 服务：注册 Source kind 与实例，交付 Trigger，经 Channel 写回               | `source-feishu` · `source-github` · 测试用 fake（`packages/tickets/src/testing`）                                          |
+| OS 登记         | Host 的 `service` 模块：生成并执行登记计划                                           | launchd · systemd · Windows Run 键加监督器 · 测试只生成快照                                                                |
+| dsh 子进程      | Host 的 `ChildHandle`                                                                | 真实进程 · 测试用 fake                                                                                                     |
+| Device 偏好存储 | Client 偏好的读写                                                                    | 桌面写数据根下的文件 · 移动端和 web 用 NSH Storage                                                                         |
+| Device 记录存储 | `DeviceStore`：Device 静态密钥和配对记录的读写                                       | 桌面写数据根下的 `device/*.json` · 移动端和 web 用 NSH Storage · 测试用内存实现；和偏好用同一个判断（`usesDataRootFiles`） |
 
 ## 数据归属
 
