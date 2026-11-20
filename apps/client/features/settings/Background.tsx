@@ -1,9 +1,8 @@
 /**
  * Settings › Background: the Host and dsh web's live status (from the Host's
- * public control API) beside the two Background Services' OS registration
- * (ADR 0002, ADR 0007). The page only orchestrates the verbs; the Host's
- * lifecycle owns start / stop / restart and each unit's registration owns
- * enable / stop.
+ * public control API) beside the Host's OS registration (0006, 0007). The page
+ * only orchestrates the verbs; the Host's lifecycle owns start / stop / restart,
+ * and Host registration owns enable / stop.
  */
 import { effect, Scroll, Text, untracked, View, type JSX, token } from "nsh";
 
@@ -58,19 +57,6 @@ function phaseTone(phase: RegistrationPhase | undefined): Tone {
       return "danger";
     default:
       return "neutral";
-  }
-}
-
-function availabilityLabel(value: string | undefined): string {
-  switch (value) {
-    case "full":
-      return t("background.phase.full");
-    case "degraded":
-      return t("background.phase.degraded");
-    case "off":
-      return t("background.phase.off");
-    default:
-      return "—";
   }
 }
 
@@ -219,12 +205,9 @@ export function BackgroundSection() {
       </Card>
 
       <Card title={t("settings.background.services")}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ flex: 1, fontSize: 13, color: token("muted-foreground") }}>
-            {t("background.note")}
-          </Text>
-          <Badge>{availabilityLabel(state().view?.availability)}</Badge>
-        </View>
+        <Text style={{ fontSize: 13, lineHeight: 19, color: token("muted-foreground") }}>
+          {t("background.note")}
+        </Text>
         <If
           when={state().runnable}
           else={
@@ -234,22 +217,13 @@ export function BackgroundSection() {
           }
         >
           <View style={{ gap: 12 }}>
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <UnitPhase
-                testID="settings-host-phase"
-                unit={t("background.host")}
-                phase={state().view?.host.phase}
-                reason={state().view?.host.reason}
-                error={state().view?.enableErrors?.host}
-              />
-              <UnitPhase
-                testID="settings-relay-phase"
-                unit={t("background.relay")}
-                phase={state().view?.relay.phase}
-                reason={state().view?.relay.reason}
-                error={state().view?.enableErrors?.relay}
-              />
-            </View>
+            <UnitPhase
+              testID="settings-host-phase"
+              unit={t("background.host")}
+              phase={state().view?.phase}
+              reason={state().view?.reason}
+              error={state().view?.enableError}
+            />
             <If when={state().error}>
               <Alert variant="destructive">
                 <AlertDescription>{state().error}</AlertDescription>

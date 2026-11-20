@@ -156,8 +156,6 @@ name = "dsh-bot-host"
 version = "0.1.0"
 dependencies = [
  "axum",
- "dsh-bot-relay",
- "dsh-bot-service",
  "fs2",
  "getrandom 0.3.4",
  "libc",
@@ -177,26 +175,12 @@ name = "dsh-bot-relay"
 version = "0.1.0"
 dependencies = [
  "axum",
- "dsh-bot-service",
- "getrandom 0.3.4",
  "libc",
  "serde",
  "serde_json",
- "subtle",
- "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
- "windows-sys",
-]
-
-[[package]]
-name = "dsh-bot-service"
-version = "0.1.0"
-dependencies = [
- "libc",
- "serde",
- "serde_json",
  "windows-sys",
 ]
 

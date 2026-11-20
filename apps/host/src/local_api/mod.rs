@@ -72,7 +72,11 @@ async fn serve_async(
     if config.ready_stdout {
         // The launcher connects only after this record.
         let mut stdout = std::io::stdout().lock();
-        let _ = writeln!(stdout, "{}", serde_json::json!({ "event": "ready", "port": port }));
+        let _ = writeln!(
+            stdout,
+            "{}",
+            serde_json::json!({ "event": "ready", "port": port })
+        );
         let _ = stdout.flush();
     }
 

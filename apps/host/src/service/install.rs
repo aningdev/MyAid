@@ -1,75 +1,43 @@
-//! Background Service registration for dsh-bot's two units (Host ∥ Relay).
-//!
-//! Two halves:
-//! - [`registration`] is the wire vocabulary the Client orchestrates with: one OS registration
-//!   phase per unit and a snapshot that carries both.
-//! - [`service`] is the OS launch plan itself, after lorca's `crates/cli/src/service.rs`: a
-//!   launchd agent, a systemd user unit, or a Windows `Run` value and its supervisor.
-//!
-//! Both units share this module because the launchd plist, the systemd unit, the `Run` value and
-//! the OS verbs that install them are the same text for each; only the [`Unit`] differs.
+//! OS registration verbs for the Host: write its plan, then ask launchd, systemd, or the
+//! Windows `Run` key to keep it running. Tests snapshot the plan and never call these.
 
-mod registration;
-mod service;
+use super::plan::{LABEL, LOG_LIMIT, Plan, Status, launch_plan, supervised};
 
-pub use registration::{
-    BackgroundAvailability, CONTRACT_VERSION, RegistrationPhase, RegistrationSnapshot,
-    ServiceUnit, UnitRegistration, background_availability,
-};
-pub use service::{LOG_LIMIT, Plan, Status, Unit, supervised};
-
+#[cfg(windows)]
+use super::plan::ARGUMENTS;
+#[cfg(any(windows, not(any(target_os = "macos", target_os = "linux"))))]
+use super::plan::LOG;
+#[cfg(target_os = "linux")]
+use super::plan::SYSTEMD_UNIT;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// The user's home folder (`HOME`, else `USERPROFILE`).
-pub fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("USERPROFILE")
-        .or_else(|| std::env::var_os("HOME"))
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute())
-}
-
-/// `~/.config`, systemd's home for user units.
-#[cfg(target_os = "linux")]
-fn config_dir() -> Option<PathBuf> {
-    std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute())
-        .or_else(|| home_dir().map(|home| home.join(".config")))
-}
-
 /// The binary the service runs: this one, through any symlink to it.
-pub fn exe() -> Result<PathBuf, String> {
+fn exe() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|error| error.to_string())?;
     Ok(std::fs::canonicalize(&exe).unwrap_or(exe))
 }
 
-/// What installing would write, without writing it: the snapshot tests read this, and nothing in
-/// a test ever registers with the OS.
-pub fn plan(unit: &Unit, vars: &[(&str, String)]) -> Result<Plan, String> {
-    Ok(unit.plan(&exe()?, vars))
-}
-
-/// Registers the unit with the OS so it runs from login on and again whenever it stops.
-pub fn install(unit: &Unit, vars: &[(&str, String)]) -> Result<Status, String> {
+/// Registers the Host with the OS so it runs from login on and again whenever it stops.
+pub fn install(vars: &[(&str, String)]) -> Result<Status, String> {
     let exe = exe()?;
-    let plan = unit.plan(&exe, vars);
-    write_plan(unit, &plan)?;
-    after_install(unit, &plan)?;
-    Ok(status(unit))
+    let plan = launch_plan(&exe, vars);
+    write_plan(&plan)?;
+    after_install(&plan)?;
+    Ok(status())
 }
 
-/// Removes the unit from the OS; returns whether it was registered.
-pub fn uninstall(unit: &Unit) -> Result<bool, String> {
+/// Removes the Host from the OS; returns whether it was registered.
+pub fn uninstall() -> Result<bool, String> {
     let exe = exe()?;
-    let plan = unit.plan(&exe, &[]);
-    before_uninstall(unit, &plan)?;
-    Ok(remove_plan(unit, &plan))
+    let plan = launch_plan(&exe, &[]);
+    before_uninstall(&plan)?;
+    Ok(remove_plan(&plan))
 }
 
-/// Whether the unit is registered and whether it runs now.
-pub fn status(unit: &Unit) -> Status {
-    read_status(unit)
+/// Whether the Host is registered and whether it runs now.
+pub fn status() -> Status {
+    read_status()
 }
 
 /// A `service run` started under the service keeps its log in bounds: launchd appends to the
@@ -106,13 +74,6 @@ fn run(command: &mut Command) -> Result<(), String> {
     ))
 }
 
-/// Stops the unit and starts it again, so a changed plan is the one that runs.
-pub fn restart(unit: &Unit) -> Result<Status, String> {
-    stop_now(unit);
-    start_now(unit)?;
-    Ok(status(unit))
-}
-
 #[cfg(target_os = "macos")]
 fn launchd_domain() -> String {
     unsafe extern "C" {
@@ -122,28 +83,26 @@ fn launchd_domain() -> String {
 }
 
 #[cfg(target_os = "macos")]
-impl Unit {
-    fn launchd_target(&self) -> String {
-        format!("{}/{}", launchd_domain(), self.label)
-    }
+fn launchd_target() -> String {
+    format!("{}/{}", launchd_domain(), LABEL)
 }
 
 #[cfg(target_os = "macos")]
-fn write_plan(unit: &Unit, plan: &Plan) -> Result<(), String> {
+fn write_plan(plan: &Plan) -> Result<(), String> {
     if let Some(parent) = plan.path.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    if let Some(parent) = unit.launchd_log().parent() {
+    if let Some(parent) = super::plan::launchd_log().parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
     std::fs::write(&plan.path, &plan.contents).map_err(|error| error.to_string())
 }
 
 #[cfg(target_os = "macos")]
-fn after_install(unit: &Unit, plan: &Plan) -> Result<(), String> {
+fn after_install(plan: &Plan) -> Result<(), String> {
     // A service from before goes first, so the new definition is the one that runs.
     let _ = Command::new("launchctl")
-        .args(["bootout", &unit.launchd_target()])
+        .args(["bootout", &launchd_target()])
         .output();
     run(Command::new("launchctl")
         .args(["bootstrap", &launchd_domain()])
@@ -151,15 +110,15 @@ fn after_install(unit: &Unit, plan: &Plan) -> Result<(), String> {
 }
 
 #[cfg(target_os = "macos")]
-fn before_uninstall(unit: &Unit, _plan: &Plan) -> Result<(), String> {
+fn before_uninstall(_plan: &Plan) -> Result<(), String> {
     let _ = Command::new("launchctl")
-        .args(["bootout", &unit.launchd_target()])
+        .args(["bootout", &launchd_target()])
         .output();
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
-fn remove_plan(_unit: &Unit, plan: &Plan) -> bool {
+fn remove_plan(plan: &Plan) -> bool {
     let installed = plan.path.exists();
     if installed {
         let _ = std::fs::remove_file(&plan.path);
@@ -168,36 +127,29 @@ fn remove_plan(_unit: &Unit, plan: &Plan) -> bool {
 }
 
 #[cfg(target_os = "macos")]
-fn read_status(unit: &Unit) -> Status {
+fn read_status() -> Status {
     let exe = exe().unwrap_or_default();
-    let installed = unit.plan(&exe, &[]).path.exists();
+    let installed = launch_plan(&exe, &[]).path.exists();
     let output = Command::new("launchctl")
-        .args(["print", &unit.launchd_target()])
+        .args(["print", &launchd_target()])
         .output();
-    let running = output.ok().filter(|out| out.status.success()).and_then(|out| {
-        String::from_utf8_lossy(&out.stdout).lines().find_map(|line| {
-            line.trim()
-                .strip_prefix("pid = ")
-                .and_then(|pid| pid.trim().parse().ok())
-        })
-    });
+    let running = output
+        .ok()
+        .filter(|out| out.status.success())
+        .and_then(|out| {
+            String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .find_map(|line| {
+                    line.trim()
+                        .strip_prefix("pid = ")
+                        .and_then(|pid| pid.trim().parse().ok())
+                })
+        });
     Status {
         installed,
         running,
-        log: unit.launchd_log().display().to_string(),
+        log: super::plan::launchd_log().display().to_string(),
     }
-}
-
-#[cfg(target_os = "macos")]
-fn start_now(unit: &Unit) -> Result<(), String> {
-    run(Command::new("launchctl").args(["kickstart", "-k", &unit.launchd_target()]))
-}
-
-#[cfg(target_os = "macos")]
-fn stop_now(unit: &Unit) {
-    let _ = Command::new("launchctl")
-        .args(["kill", "SIGTERM", &unit.launchd_target()])
-        .output();
 }
 
 #[cfg(target_os = "linux")]
@@ -208,12 +160,12 @@ fn systemctl(args: &[&str]) -> Command {
 }
 
 #[cfg(target_os = "linux")]
-fn write_plan(_unit: &Unit, plan: &Plan) -> Result<(), String> {
+fn write_plan(plan: &Plan) -> Result<(), String> {
     if !systemctl(&["show-environment"])
         .output()
         .is_ok_and(|out| out.status.success())
     {
-        return Err("This computer has no systemd user session (a container, or WSL without systemd), so the service cannot keep the unit running. Start it from your own init system, or in tmux.".into());
+        return Err("This computer has no systemd user session (a container, or WSL without systemd), so the service cannot keep the Host running. Start it from your own init system, or in tmux.".into());
     }
     if let Some(parent) = plan.path.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
@@ -222,10 +174,10 @@ fn write_plan(_unit: &Unit, plan: &Plan) -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
-fn after_install(unit: &Unit, _plan: &Plan) -> Result<(), String> {
+fn after_install(_plan: &Plan) -> Result<(), String> {
     run(systemctl(&["daemon-reload"]))?;
-    run(systemctl(&["enable", unit.systemd_unit]))?;
-    run(systemctl(&["restart", unit.systemd_unit]))?;
+    run(systemctl(&["enable", SYSTEMD_UNIT]))?;
+    run(systemctl(&["restart", SYSTEMD_UNIT]))?;
     // Without lingering, the user's services stop at logout and start only at the next login.
     let user = std::env::var("USER").unwrap_or_default();
     let lingers = || {
@@ -241,19 +193,21 @@ fn after_install(unit: &Unit, _plan: &Plan) -> Result<(), String> {
             .output()
             .map_or(true, |out| !out.status.success())
     {
-        eprintln!("The service runs while you are logged in. To keep it running after you log out, and to start it at boot, run: sudo loginctl enable-linger {user}");
+        eprintln!(
+            "The service runs while you are logged in. To keep it running after you log out, and to start it at boot, run: sudo loginctl enable-linger {user}"
+        );
     }
     Ok(())
 }
 
 #[cfg(target_os = "linux")]
-fn before_uninstall(unit: &Unit, _plan: &Plan) -> Result<(), String> {
-    let _ = systemctl(&["disable", "--now", unit.systemd_unit]).output();
+fn before_uninstall(_plan: &Plan) -> Result<(), String> {
+    let _ = systemctl(&["disable", "--now", SYSTEMD_UNIT]).output();
     Ok(())
 }
 
 #[cfg(target_os = "linux")]
-fn remove_plan(_unit: &Unit, plan: &Plan) -> bool {
+fn remove_plan(plan: &Plan) -> bool {
     let installed = plan.path.exists();
     if installed {
         let _ = std::fs::remove_file(&plan.path);
@@ -263,10 +217,10 @@ fn remove_plan(_unit: &Unit, plan: &Plan) -> bool {
 }
 
 #[cfg(target_os = "linux")]
-fn read_status(unit: &Unit) -> Status {
+fn read_status() -> Status {
     let exe = exe().unwrap_or_default();
-    let installed = unit.plan(&exe, &[]).path.exists();
-    let output = systemctl(&["show", "-p", "MainPID", "--value", unit.systemd_unit]).output();
+    let installed = launch_plan(&exe, &[]).path.exists();
+    let output = systemctl(&["show", "-p", "MainPID", "--value", SYSTEMD_UNIT]).output();
     let running = output
         .ok()
         .and_then(|out| {
@@ -279,18 +233,8 @@ fn read_status(unit: &Unit) -> Status {
     Status {
         installed,
         running,
-        log: format!("journalctl --user -u {}", unit.systemd_unit),
+        log: format!("journalctl --user -u {SYSTEMD_UNIT}"),
     }
-}
-
-#[cfg(target_os = "linux")]
-fn start_now(unit: &Unit) -> Result<(), String> {
-    run(systemctl(&["restart", unit.systemd_unit]))
-}
-
-#[cfg(target_os = "linux")]
-fn stop_now(unit: &Unit) {
-    let _ = systemctl(&["stop", unit.systemd_unit]).output();
 }
 
 #[cfg(windows)]
@@ -301,12 +245,12 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const DETACHED_PROCESS: u32 = 0x0000_0008;
 
 #[cfg(windows)]
-fn write_plan(unit: &Unit, plan: &Plan) -> Result<(), String> {
+fn write_plan(plan: &Plan) -> Result<(), String> {
     run(Command::new("reg").args([
         "add",
         RUN_KEY,
         "/v",
-        unit.label,
+        LABEL,
         "/t",
         "REG_SZ",
         "/d",
@@ -316,10 +260,10 @@ fn write_plan(unit: &Unit, plan: &Plan) -> Result<(), String> {
 }
 
 #[cfg(windows)]
-fn after_install(unit: &Unit, _plan: &Plan) -> Result<(), String> {
+fn after_install(_plan: &Plan) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     let exe = exe()?;
-    stop_now(unit);
+    stop_now();
     let mut command = Command::new(&exe);
     command
         .args(["service", "run"])
@@ -329,71 +273,66 @@ fn after_install(unit: &Unit, _plan: &Plan) -> Result<(), String> {
 }
 
 #[cfg(windows)]
-fn before_uninstall(unit: &Unit, _plan: &Plan) -> Result<(), String> {
+fn before_uninstall(_plan: &Plan) -> Result<(), String> {
     let _ = Command::new("reg")
-        .args(["delete", RUN_KEY, "/v", unit.label, "/f"])
+        .args(["delete", RUN_KEY, "/v", LABEL, "/f"])
         .output();
-    stop_now(unit);
+    stop_now();
     Ok(())
 }
 
 #[cfg(windows)]
-fn remove_plan(unit: &Unit, _plan: &Plan) -> bool {
+fn remove_plan(_plan: &Plan) -> bool {
     Command::new("reg")
-        .args(["query", RUN_KEY, "/v", unit.label])
+        .args(["query", RUN_KEY, "/v", LABEL])
         .output()
         .is_ok_and(|out| out.status.success())
 }
 
 #[cfg(windows)]
-fn read_status(unit: &Unit) -> Status {
+fn read_status() -> Status {
     let installed = Command::new("reg")
-        .args(["query", RUN_KEY, "/v", unit.label])
+        .args(["query", RUN_KEY, "/v", LABEL])
         .output()
         .is_ok_and(|out| out.status.success());
     Status {
         installed,
-        running: supervisor_pid(unit),
-        log: supervisor_log(unit).display().to_string(),
+        running: supervisor_pid(),
+        log: supervisor_log().display().to_string(),
     }
 }
 
 #[cfg(windows)]
-fn start_now(_unit: &Unit) -> Result<(), String> {
-    Ok(())
-}
-
-#[cfg(windows)]
-fn stop_now(unit: &Unit) {
-    if let Some(pid) = supervisor_pid(unit) {
+fn stop_now() {
+    if let Some(pid) = supervisor_pid() {
         let _ = Command::new("taskkill")
             .args(["/PID", &pid.to_string(), "/T", "/F"])
             .output();
     }
-    let _ = std::fs::remove_file(supervisor_pid_path(unit));
+    let _ = std::fs::remove_file(supervisor_pid_path());
 }
 
 #[cfg(windows)]
-fn supervisor_pid_path(unit: &Unit) -> PathBuf {
-    data_root().join(format!("{}.pid", unit.label))
+fn supervisor_pid_path() -> PathBuf {
+    data_root().join(format!("{LABEL}.pid"))
 }
 
 #[cfg(windows)]
-fn supervisor_log(unit: &Unit) -> PathBuf {
-    data_root().join(unit.log)
+fn supervisor_log() -> PathBuf {
+    data_root().join(LOG)
 }
 
 #[cfg(windows)]
 fn data_root() -> PathBuf {
     std::env::var_os("DSH_BOT_HOME")
         .map(PathBuf::from)
-        .or_else(|| home_dir().map(|home| home.join(".dsh-bot")))
+        .or_else(|| super::plan::home_dir().map(|home| home.join(".dsh-bot")))
         .unwrap_or_default()
 }
 
 #[cfg(windows)]
-fn supervisor_pid(unit: &Unit) -> Option<u32> {
-    let pid: u32 = std::fs::read_to_string(supervisor_pid_path(unit))
+fn supervisor_pid() -> Option<u32> {
+    let pid: u32 = std::fs::read_to_string(supervisor_pid_path())
         .ok()?
         .trim()
         .parse()
@@ -419,22 +358,22 @@ fn process_alive(pid: u32) -> bool {
 }
 
 /// `service run`, the supervisor on Windows: leaves the console a sign-in opened for it, then
-/// runs the unit's command from the installed binary until it is stopped, and again after a
-/// pause that grows while it keeps stopping right after it starts.
+/// runs `serve-app` from the installed binary until it is stopped, and again after a pause that
+/// grows while it keeps stopping right after it starts.
 #[cfg(windows)]
-pub fn supervise(unit: &Unit, vars: &[(&str, String)]) -> Result<(), String> {
+pub fn supervise(vars: &[(&str, String)]) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     unsafe { windows_sys::Win32::System::Console::FreeConsole() };
-    if supervisor_pid(unit).is_some_and(|pid| pid != std::process::id()) {
+    if supervisor_pid().is_some_and(|pid| pid != std::process::id()) {
         return Ok(());
     }
     let exe = exe()?;
     let _ = std::fs::create_dir_all(data_root());
-    std::fs::write(supervisor_pid_path(unit), std::process::id().to_string())
+    std::fs::write(supervisor_pid_path(), std::process::id().to_string())
         .map_err(|error| error.to_string())?;
     let mut pause = std::time::Duration::from_secs(2);
     loop {
-        let log = supervisor_log(unit);
+        let log = supervisor_log();
         if std::fs::metadata(&log).is_ok_and(|metadata| metadata.len() > LOG_LIMIT) {
             let _ = std::fs::rename(&log, log.with_extension("log.1"));
         }
@@ -446,7 +385,7 @@ pub fn supervise(unit: &Unit, vars: &[(&str, String)]) -> Result<(), String> {
         let started = std::time::Instant::now();
         let mut command = Command::new(&exe);
         command
-            .args(unit.arguments)
+            .args(ARGUMENTS)
             .env("DSH_BOT_SERVICE", "1")
             .stdin(std::process::Stdio::null())
             .stdout(output.try_clone().map_err(|error| error.to_string())?)
@@ -467,46 +406,37 @@ pub fn supervise(unit: &Unit, vars: &[(&str, String)]) -> Result<(), String> {
 
 /// `service run` on the platforms whose OS runs the service itself.
 #[cfg(not(windows))]
-pub fn supervise(unit: &Unit, _vars: &[(&str, String)]) -> Result<(), String> {
+pub fn supervise(_vars: &[(&str, String)]) -> Result<(), String> {
     Err(format!(
-        "{} is supervised by launchd or systemd here; `service run` is for Windows",
-        unit.label
+        "{LABEL} is supervised by launchd or systemd here; `service run` is for Windows"
     ))
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn write_plan(_unit: &Unit, _plan: &Plan) -> Result<(), String> {
+fn write_plan(_plan: &Plan) -> Result<(), String> {
     Err("Background Service registration runs on macOS, Linux, and Windows".into())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn after_install(_unit: &Unit, _plan: &Plan) -> Result<(), String> {
+fn after_install(_plan: &Plan) -> Result<(), String> {
     Ok(())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn before_uninstall(_unit: &Unit, _plan: &Plan) -> Result<(), String> {
+fn before_uninstall(_plan: &Plan) -> Result<(), String> {
     Ok(())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn remove_plan(_unit: &Unit, _plan: &Plan) -> bool {
+fn remove_plan(_plan: &Plan) -> bool {
     false
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn read_status(unit: &Unit) -> Status {
+fn read_status() -> Status {
     Status {
         installed: false,
         running: None,
-        log: unit.log.to_string(),
+        log: LOG.to_string(),
     }
 }
-
-#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn start_now(_unit: &Unit) -> Result<(), String> {
-    Ok(())
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn stop_now(_unit: &Unit) {}

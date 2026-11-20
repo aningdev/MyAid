@@ -2,12 +2,12 @@
 
 use crate::{Config, Result, Status, private_file};
 use serde::{Deserialize, Serialize};
+#[cfg(unix)]
+use std::fs::File;
 use std::{
     fs,
     io::{self, Write},
 };
-#[cfg(unix)]
-use std::fs::File;
 
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

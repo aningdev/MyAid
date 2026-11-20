@@ -12,7 +12,7 @@
 
 ## 布局（NSH TSX）
 
-- 本目录是纯 TSX 应用：`App.tsx` 入口，`nsh.json` 无 `"rust"` 键，没有 `Cargo.toml` / `src/`（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。原生层是 `lib/host` / `lib/relay` 里的回环 HTTP / WebSocket 客户端与启动器。
+- 本目录是纯 TSX 应用：`App.tsx` 入口，`nsh.json` 无 `"rust"` 键，没有 `Cargo.toml` / `src/`（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。原生层是 `lib/host` 里的回环 HTTP / WebSocket 客户端与启动器。
 - `components/` 是壳与样式：壳在 `components/shell/`（UI 与状态同目录），组件层 `components/ui/`（只放 shadcn-nsh 复制件）与 `components/app/`（产品组合）；`features/` 放产品域，由 Pane 按 Bot id 挂；`lib/` 放协议、宿主与产品后台适配。
 - 不另起平行 `frontend/{ui,application,infrastructure}` 树。新增文件先落现有目录；线框不混入产品路径。
 
@@ -54,7 +54,7 @@
 - **附件只走系统选择器**：回形针直接拿字节；拖放 / 粘贴只给 `file:` URL，授权外或读不了时由 [`chat/attach.ts`](features/dialogue/chat/attach.ts) 开同一文件的 `Picker`。策略只此一处。
 - 本机控制端点（Unix socket / named pipe）、`SMAppService` 仅在标准 API 缺口核实后添加；升级后复核可否迁回。
 - 改控制面后跑 `nsh check`；`lib/host/control.ts` 只给宿主管理与登记事实，不当业务网关。启动 Host 的唯一入口是 `lib/host/launcher.ts`，别处不 spawn。
-- Settings ⇢ Background Services 是 [0006](../../docs/decisions/0006-host-is-the-only-background-service.md) 的客户端侧：只编排 query / enable / stop，不代 Host / Relay 做决定；事实经两个单元自己的回环 HTTP 控制面取（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。
+- Settings ⇢ Background 是 [0006](../../docs/decisions/0006-host-is-the-only-background-service.md) 的客户端侧：只编排 Host 的 query / enable / stop，不代 Host 做登记决定；事实经 Host 的回环 HTTP 控制面取（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。
 
 ## Bot 详情与设置
 

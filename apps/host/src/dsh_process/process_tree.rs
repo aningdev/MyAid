@@ -18,9 +18,9 @@ mod windows_job {
         Foundation::{CloseHandle, HANDLE},
         System::{
             JobObjects::{
-                AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
-                SetInformationJobObject, TerminateJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-                JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+                SetInformationJobObject, TerminateJobObject,
             },
             Threading::{
                 OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_QUOTA,
@@ -40,7 +40,9 @@ mod windows_job {
                     io::Error::last_os_error()
                 ));
             }
-            let job = Self(Some(unsafe { OwnedHandle::from_raw_handle(handle as RawHandle) }));
+            let job = Self(Some(unsafe {
+                OwnedHandle::from_raw_handle(handle as RawHandle)
+            }));
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { zeroed() };
             info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
             let ok = unsafe {
@@ -72,10 +74,7 @@ mod windows_job {
                 )
             };
             if process.is_null() {
-                return Err(format!(
-                    "无法打开子进程：{}",
-                    io::Error::last_os_error()
-                ));
+                return Err(format!("无法打开子进程：{}", io::Error::last_os_error()));
             }
             let ok = unsafe { AssignProcessToJobObject(handle.as_raw_handle() as HANDLE, process) };
             unsafe {
@@ -212,10 +211,10 @@ mod unix_group {
     }
 }
 
-#[cfg(windows)]
-use windows_job as imp;
 #[cfg(unix)]
 use unix_group as imp;
+#[cfg(windows)]
+use windows_job as imp;
 
 pub use imp::Job;
 

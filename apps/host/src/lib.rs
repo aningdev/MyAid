@@ -1,6 +1,6 @@
 //! Host lifecycle and its local control API. No Harness business calls or session state.
 //! Modules: `dsh_process` (the dsh lifecycle), `local_api` (the loopback HTTP/websocket API),
-//! `service` (this unit's OS registration), `bridge` (multi-device, later).
+//! `service` (the Host's OS registration), `bridge` (multi-device, later).
 
 pub mod bridge;
 mod config;
@@ -15,7 +15,7 @@ pub use local_api::{
     PHASES, Status, assert_connection_info, assert_public_status, parse_ready_url,
 };
 pub use runtime::{generation, now, private_dir, private_file};
-pub use service::{Registration, UNIT as SERVICE_UNIT};
+pub use service::{LABEL as SERVICE_LABEL, Registration};
 
 /// The control API generation, so a launcher and a Host can agree on the shape they speak.
 pub const PROTOCOL: u32 = 2;

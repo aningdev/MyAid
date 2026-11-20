@@ -14,7 +14,6 @@ import { hostControlAllowed } from "../lib/data-root";
 import { createHostTransport } from "../lib/host/client";
 import { createHostRegistrationTransport } from "../lib/host/registration";
 import { t } from "../lib/i18n";
-import { createRelayRegistrationTransport } from "../lib/relay/registration";
 import { open } from "./open";
 
 test("only a smoke may reach the local control plane", () => {
@@ -63,19 +62,12 @@ test("a guarded transport never fetches, and answers the facts it can", async ()
   });
   expect(await registration.reachable()).toBe(false);
   const snapshot = JSON.parse(await registration.call("registrationQuery")) as {
-    host: { phase: string; reason: string };
+    phase: string;
+    reason: string;
   };
-  expect(snapshot.host.phase).toBe("notRegistered");
-  expect(snapshot.host.reason).toContain(t("test.noControl"));
+  expect(snapshot.phase).toBe("notRegistered");
+  expect(snapshot.reason).toContain(t("test.noControl"));
   await expect(registration.call("registrationEnable")).rejects.toThrow(t("test.noControl"));
-
-  const relay = createRelayRegistrationTransport({
-    port: () => 8787,
-    token: async () => "tok",
-    fetch: counted.request,
-    allow: () => false,
-  });
-  expect(await relay.reachable()).toBe(false);
 
   // Nothing above asked for a URL: no probe of the real port, no token read over the wire.
   expect(counted.calls).toEqual([]);

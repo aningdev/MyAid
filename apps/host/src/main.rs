@@ -1,6 +1,6 @@
 //! Executable modes, configuration and signal handling.
 
-use dsh_bot_host::{Config, SERVICE_UNIT, dsh_process, local_api, service};
+use dsh_bot_host::{Config, SERVICE_LABEL, dsh_process, local_api, service};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static EXIT: AtomicBool = AtomicBool::new(false);
@@ -12,9 +12,7 @@ extern "C" fn exit_signal(_: libc::c_int) {
 
 #[cfg(windows)]
 unsafe extern "system" fn console_handler(ctrl: u32) -> i32 {
-    use windows_sys::Win32::System::Console::{
-        CTRL_BREAK_EVENT, CTRL_C_EVENT, CTRL_CLOSE_EVENT,
-    };
+    use windows_sys::Win32::System::Console::{CTRL_BREAK_EVENT, CTRL_C_EVENT, CTRL_CLOSE_EVENT};
     match ctrl {
         CTRL_C_EVENT | CTRL_BREAK_EVENT | CTRL_CLOSE_EVENT => {
             EXIT.store(true, Ordering::Release);
@@ -73,7 +71,10 @@ fn service_command(args: &[String]) -> Result<(), String> {
             }
             let pair = rest.next().ok_or("--env needs NAME=VALUE")?;
             let (name, value) = pair.split_once('=').ok_or("--env needs NAME=VALUE")?;
-            vars.push((Box::leak(name.to_string().into_boxed_str()), value.to_string()));
+            vars.push((
+                Box::leak(name.to_string().into_boxed_str()),
+                value.to_string(),
+            ));
         }
         service::trim_log();
         return service::supervise(&vars);
@@ -82,27 +83,25 @@ fn service_command(args: &[String]) -> Result<(), String> {
     match verb {
         "install" => {
             let status = service::install(&vars)?;
-            println!(
-                "installed {}: {}",
-                SERVICE_UNIT.label,
-                status.log
-            );
+            println!("installed {SERVICE_LABEL}: {}", status.log);
             Ok(())
         }
         "uninstall" => {
             let removed = service::uninstall()?;
             println!(
-                "{} {}",
-                SERVICE_UNIT.label,
-                if removed { "unregistered" } else { "was not registered" }
+                "{SERVICE_LABEL} {}",
+                if removed {
+                    "unregistered"
+                } else {
+                    "was not registered"
+                }
             );
             Ok(())
         }
         "status" => {
             let status = service::status();
             println!(
-                "{}: installed={} running={} log={}",
-                SERVICE_UNIT.label,
+                "{SERVICE_LABEL}: installed={} running={} log={}",
                 status.installed,
                 status
                     .running
@@ -137,8 +136,9 @@ fn main() {
     install_exit_handlers();
     init_logging();
     let result = match args.split_first() {
-        Some((mode, rest)) if mode == "serve-app" => Config::app(rest)
-            .and_then(|config| local_api::serve(config, &EXIT)),
+        Some((mode, rest)) if mode == "serve-app" => {
+            Config::app(rest).and_then(|config| local_api::serve(config, &EXIT))
+        }
         Some((mode, rest)) if mode == "serve" => {
             Config::from_args(rest).and_then(|config| local_api::serve(config, &EXIT))
         }

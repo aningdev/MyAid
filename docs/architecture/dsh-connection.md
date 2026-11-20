@@ -43,7 +43,7 @@ dsh 只绑回环（Host 以 `dsh web --host 127.0.0.1 --port 0` 启动，端口�
 | `127.0.0.1` | `GET`   | `http`, `ws` | `paths: ["/api/remote.mux"]` | 事件流（ws 握手按 GET 校验） |
 | `127.0.0.1` | `POST`  | `http`       | `pathPrefixes: ["/api"]`     | Remote 一元调用              |
 
-Host 的控制面（`/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`）和 Relay 的地址各自另有规则。未授权的 URL 会被 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
+Host 的控制面（`/`、`/status`、`/connection`、`/watch`、`/dsh/*`、`/registration*`）另有规则。公网 Relay 不在本机控制面里。未授权的 URL 会被 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
 
 ## 已知限制：mux 心跳和读取阻塞
 

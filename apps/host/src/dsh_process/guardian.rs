@@ -61,7 +61,10 @@ pub fn run(config: &Config) -> Result<()> {
     let _ = writeln!(io::stdout(), "dsh-version: {actual}");
     let _ = io::stdout().flush();
     if actual != config.version {
-        let message = format!("官方 dsh 版本不兼容：实际 {actual}，需要 {}", config.version);
+        let message = format!(
+            "官方 dsh 版本不兼容：实际 {actual}，需要 {}",
+            config.version
+        );
         let _ = writeln!(io::stdout(), "dsh-error: {message}");
         let _ = io::stdout().flush();
         return Err(message);

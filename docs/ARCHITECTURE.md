@@ -37,7 +37,7 @@ flowchart TB
 - **Client**：`features/*` → `lib/*`，反过来不行。视图只读产品投影，不直接碰传输；投影也不重复计算官方 client model 已经维护的状态。
 - **lib/dsh** 只通过 Carrier 访问 dsh web，不知道自己走的是 loopback 还是 relay。`lib/host` 只在 Runner 上装载。
 - **Host** 只管进程和连接：dsh web 的生命周期、本机控制面、OS 登记和 Bridge。它不调用任何业务 Remote，Bridge 只负责鉴权之后的转发。
-- **Relay** 只负责配对会合和转发密文帧，不解密，也不含业务逻辑。
+- **Relay** 只负责配对会合和转发密文帧，不解密，也不含业务逻辑。配对和转发尚未实现，目前只有 `serve`、`GET /` 和 `GET /v1/health`。
 - **插件**只依赖 dsh 的公开服务（`ctx.get`），插件之间只通过声明的服务互相调用。Source 插件依赖 `tickets` 提供的 `sources` 服务。
 
 ## Layout
@@ -50,7 +50,7 @@ apps/
     lib/             dsh/（Connection）· carrier/（loopback · relay）· host/（仅 Runner：控制面、launcher）· i18n/
     screens/         open(…) 入口、截图和真 Host 冒烟
   host/              Rust：dsh_process/ · local_api/ · service/（OS 登记）· bridge/（Relay 链路、配对、转发）
-  relay/             Rust：配对会合、密文帧转发、web 版 Client 静态托管
+  relay/             Rust：配对会合、密文帧转发
 packages/
   bots/              Registry 和 Main Bot（Remote `bots`）
   tickets/           Ticket、Attention、Source 注册面（Remote `tickets`，服务 `sources`）
@@ -91,10 +91,10 @@ dsh 的版本只写在三个地方：根 `package.json` 的 `workspaces.catalog`
 
 ## 平台
 
-| 角色   | 平台                                            | 连接方式                                      |
-| ------ | ----------------------------------------------- | --------------------------------------------- |
-| Runner | macOS · Windows · Linux 桌面                    | Client 走 loopback，并通过 launcher 管理 Host |
-| Device | iOS · Android · 其他桌面 · web（由 Relay 托管） | relay tunnel，第一次使用前要先配对            |
+| 角色   | 平台                           | 连接方式                                      |
+| ------ | ------------------------------ | --------------------------------------------- |
+| Runner | macOS · Windows · Linux 桌面   | Client 走 loopback，并通过 launcher 管理 Host |
+| Device | iOS · Android · 其他桌面 · web | relay tunnel，第一次使用前要先配对            |
 
 ## Subjects
 

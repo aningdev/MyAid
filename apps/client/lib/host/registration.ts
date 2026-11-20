@@ -1,15 +1,8 @@
-import {
-  decodeRegistrationSnapshot,
-  decodeUnitRegistration,
-  type RegistrationSnapshot,
-  type UnitRegistration,
-} from "../background/protocol";
 /**
- * Host unit Background Service registration over the Host's loopback HTTP API.
- *
- * The Host reports only its own unit's fact; the Relay's phase in that snapshot stays
- * `notRegistered`, and `lib/background` merges the two.
+ * Host Background Service registration over the Host's loopback HTTP API.
+ * Query, enable and stop all return the same snapshot.
  */
+import { decodeRegistrationSnapshot, type RegistrationSnapshot } from "../background/protocol";
 import { hostControlAllowed } from "../data-root";
 import { t } from "../i18n";
 import { hostBaseUrl, hostPort, hostToken, noControlInTest } from "./client";
@@ -31,9 +24,8 @@ const ROUTES: Record<HostRegistrationOp, { path: string; method: string }> = {
 function testSnapshot(): string {
   return JSON.stringify({
     version: 1,
-    host: { unit: "host", phase: "notRegistered", reason: noControlInTest() },
-    relay: { unit: "relay", phase: "notRegistered" },
-    availability: "off",
+    phase: "notRegistered",
+    reason: noControlInTest(),
   });
 }
 
@@ -105,9 +97,9 @@ export const hostRegistrationAccess = {
   registrationQuery: async (): Promise<RegistrationSnapshot> =>
     decodeRegistrationSnapshot(await transport.call("registrationQuery")),
 
-  registrationEnable: async (): Promise<UnitRegistration> =>
-    decodeUnitRegistration(await transport.call("registrationEnable")),
+  registrationEnable: async (): Promise<RegistrationSnapshot> =>
+    decodeRegistrationSnapshot(await transport.call("registrationEnable")),
 
-  registrationStop: async (): Promise<UnitRegistration> =>
-    decodeUnitRegistration(await transport.call("registrationStop")),
+  registrationStop: async (): Promise<RegistrationSnapshot> =>
+    decodeRegistrationSnapshot(await transport.call("registrationStop")),
 };

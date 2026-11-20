@@ -1,14 +1,15 @@
 /**
  * Host registration over its HTTP API: the route each verb takes, the token it carries, and a
- * refusal surfacing as an error. Every request here is a fake.
+ * refusal surfacing as an error. Every request here is a fake. Query, enable and stop decode
+ * the same snapshot.
  */
 import { expect, test } from "nsh/test";
 
 import { t } from "../i18n";
 import {
   createHostRegistrationTransport,
-  setHostRegistrationTransport,
   hostRegistrationAccess,
+  setHostRegistrationTransport,
 } from "./registration";
 
 type Call = { url: string; method: string; headers: Record<string, string> };
@@ -36,19 +37,10 @@ function recorder(respond: (call: Call) => { body: unknown; status?: number }) {
   return { calls, fetch };
 }
 
-const snapshot = {
-  version: 1,
-  host: { unit: "host", phase: "registered" },
-  relay: { unit: "relay", phase: "notRegistered" },
-  availability: "degraded",
-};
-
-const unit = { unit: "host", phase: "registered" };
+const snapshot = { version: 1, phase: "registered" };
 
 test("the verbs take their routes and carry the token", async () => {
-  const { calls, fetch } = recorder((call) =>
-    call.url.endsWith("/registration") ? { body: snapshot } : { body: unit },
-  );
+  const { calls, fetch } = recorder(() => ({ body: snapshot }));
   const transport = createHostRegistrationTransport({
     port: () => 4873,
     token: async () => "tok",
@@ -75,18 +67,15 @@ test("a refusal is an error the panel can word", async () => {
   );
 });
 
-test("the product access decodes a snapshot and a unit", async () => {
-  const { fetch } = recorder((call) =>
-    call.url.endsWith("/registration") ? { body: snapshot } : { body: unit },
-  );
+test("query, enable and stop all decode the Host snapshot", async () => {
+  const { fetch } = recorder(() => ({ body: snapshot }));
   setHostRegistrationTransport(
     createHostRegistrationTransport({ port: () => 4873, token: async () => "tok", fetch }),
   );
   try {
-    const read = await hostRegistrationAccess.registrationQuery();
-    expect(read.host.phase).toBe("registered");
-    expect(read.relay.phase).toBe("notRegistered");
-    expect((await hostRegistrationAccess.registrationEnable()).unit).toBe("host");
+    expect((await hostRegistrationAccess.registrationQuery()).phase).toBe("registered");
+    expect((await hostRegistrationAccess.registrationEnable()).phase).toBe("registered");
+    expect((await hostRegistrationAccess.registrationStop()).phase).toBe("registered");
   } finally {
     setHostRegistrationTransport(null);
   }

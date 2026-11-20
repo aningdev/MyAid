@@ -185,7 +185,12 @@ fn an_unauthenticated_caller_is_refused() {
         );
         assert_eq!(status, 401, "{path} with another token");
     }
-    for path in ["/dsh/start", "/dsh/stop", "/dsh/restart", "/registration/enable"] {
+    for path in [
+        "/dsh/start",
+        "/dsh/stop",
+        "/dsh/restart",
+        "/registration/enable",
+    ] {
         let (status, _) = request(host.port, "POST", path, &[], None);
         assert_eq!(status, 401, "{path} without a token");
     }
@@ -230,11 +235,18 @@ fn this_data_roots_token_gets_the_hosts_status_and_its_own_registration_fact() {
         "public status carries no login URL"
     );
 
-    let (status, body) = request(host.port, "GET", "/registration", &bearer(&host.token), None);
+    let (status, body) = request(
+        host.port,
+        "GET",
+        "/registration",
+        &bearer(&host.token),
+        None,
+    );
     assert_eq!(status, 200);
     let snapshot: serde_json::Value = serde_json::from_str(&body).expect("registration json");
-    assert_eq!(snapshot["host"]["unit"], "host");
-    assert_eq!(snapshot["relay"]["phase"], "notRegistered");
+    assert_eq!(snapshot["phase"], "notRegistered");
+    assert!(snapshot.get("relay").is_none());
+    assert!(snapshot.get("availability").is_none());
     assert_eq!(snapshot["version"], 1);
 }
 
@@ -321,9 +333,7 @@ fn the_watch_upgrade_needs_the_token_and_pushes_a_changed_snapshot() {
 /// Open `/watch`, then read frames for `for_until`: the Host's status subscription.
 fn watch(host: &Host, token: Option<&str>, for_until: Duration) -> (u16, Vec<serde_json::Value>) {
     let mut stream = TcpStream::connect(("127.0.0.1", host.port)).expect("connect");
-    stream
-        .set_read_timeout(Some(for_until))
-        .expect("timeout");
+    stream.set_read_timeout(Some(for_until)).expect("timeout");
     let mut head = format!(
         "GET /watch HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n",
         host.port

@@ -7,7 +7,6 @@ import { mount } from "nsh";
 
 import { AppShell } from "../../components/AppShell";
 import { setHostRegistrationTransport } from "../../lib/host/registration";
-import { setRelayRegistrationTransport } from "../../lib/relay/registration";
 import type { HostFactsSource } from "./hostFacts";
 import { setHostFactsSource } from "./hostFacts";
 import { setProvidersSource } from "./providers";
@@ -37,12 +36,6 @@ setHostRegistrationTransport({
   reachable: async () => false,
   call: async () => {
     throw new Error("宿主未运行");
-  },
-});
-setRelayRegistrationTransport({
-  reachable: async () => false,
-  call: async () => {
-    throw new Error("Relay 未运行");
   },
 });
 

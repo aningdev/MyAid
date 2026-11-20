@@ -14,7 +14,7 @@ apps/client/
 │   ├── app/                    # 用 shadcn-nsh 组件拼的产品组合（Appear、IconTile、ImageViewer、OptionSegmented、Shortcut）
 │   └── ui/                     # shadcn-nsh 复制件（只经其 CLI add）；theme.json 即主题
 ├── features/                   # bots（注册表、Pane、详情弹窗）、dialogue（chat、段）、workspace、settings
-├── lib/                        # dsh、host、relay、background
+├── lib/                        # dsh、host、background
 ├── screens/                    # open(…) 入口、截图、真 Host 冒烟（opt-in）
 ├── themes/                     # shadcn-nsh `add theme-*` 的复制件（`default/`：其自带配色；`shadcn/`：构建时主题的同一套，包成 `AppTheme`）
 ├── nsh.json                    # plain TSX: no "rust" key
@@ -100,12 +100,12 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 
 ## 原生层：App 自己启动的 Host（仅本机桌面）
 
-本应用没有 Rust（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。Host 是 `127.0.0.1:4872`（`DSH_BOT_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证；Relay 有自己的 `127.0.0.1:8787` 与 `relay/serve-token`。
+本应用没有 Rust（[0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)）。Host 是 `127.0.0.1:4872`（`DSH_BOT_HOST_PORT`）上的回环 HTTP + 一个 WebSocket，用 `<数据根>/host/serve-token` 认证。OS 登记是 Host 自己的快照（`version`、`phase`、可选 `reason`）；公网 Relay 不是本机控制面，也不向系统登记。
 
 - `lib/host/launcher.ts`：没有 Host 就起（`dsh-bot-host serve-app`），有就复用，退出后 1 秒起、翻倍到 15 秒重启；要求 `dsh-bot-host` 在 `PATH` 上（`cargo build -p dsh-bot-host` 产出在 `target/debug`，`scripts/run-with-host-path.mjs` 为桌面端的 `dev*` 脚本（`dev`、`dev:macos`、`dev:windows`、`dev:linux`、`dev:gpui`）把它放前面）。日常用根目录 `bun run dev [target]`，它在 Host 源码变新时重建二进制，并且只给桌面目标接上这个 `PATH`。
 - `lib/host/client.ts` 是传输（`fetch` + 标准 `WebSocket`）；`lib/host/control.ts` 是产品面（`ensureBackendReady`、`resolveDshLoginUrl`、`watchHostStatus`）。Host 的公开状态还带 `hostVersion` 与 guardian 实际找到的 `dshVersion`，供后台与关于页显示。
 - 启动器起不来时，侧栏页脚就是 Host 空状态：原因 + 手动的 `dsh-bot-host serve-app`。
-- `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` 不起 Host——移动端经 Relay，不走本机 Host。
+- `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` 不起 Host——其他 Device 经公网 Relay 访问 Runner，不走本机 Host。
 
 ## 相关
 

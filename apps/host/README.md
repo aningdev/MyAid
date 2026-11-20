@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Rust Host for dsh-bot, shaped after lorca's `lorca serve`: it owns the official `dsh` process lifecycle and serves a loopback control API on `127.0.0.1:4872` — the same one the Client starts, probes and watches. OS registration is this unit's own `service` module (launchd / systemd / Windows `Run` key), with the shared launch plan in [`dsh-bot-service`](../../crates/dsh-bot-service/README.md).
+Rust Host for dsh-bot, shaped after lorca's `lorca serve`: it owns the official `dsh` process lifecycle and serves a loopback control API on `127.0.0.1:4872` — the same one the Client starts, probes and watches. OS registration lives in this unit's `service` module (`src/service/`: launchd, systemd, and the Windows `Run` key). The registration snapshot names only the Host.
 
 Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE.md), [0006](../../docs/decisions/0006-host-is-the-only-background-service.md), [0001](../../docs/decisions/0001-dsh-web-is-the-only-backend.md).
 
@@ -10,15 +10,15 @@ Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE
 
 `GET /` answers `dsh-bot` with no token, so a launcher can tell a Host from anything else. Everything else takes `Authorization: Bearer <token>`, the token in `<data root>/host/serve-token` (made once, mode 0600), and refuses a request that carries an `Origin` or names another host with 403.
 
-| Route                                                  | Answers                                            |
-| ------------------------------------------------------ | -------------------------------------------------- |
-| `GET /status`                                          | public lifecycle status (no login URL)             |
-| `GET /connection`                                      | the dsh login URL, only while ready                |
-| `GET /watch`                                           | a WebSocket that pushes each changed public status |
-| `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → status        |
-| `POST /dsh/stop`, `POST /dsh/restart`                  | status                                             |
-| `GET /registration`                                    | this unit's registration fact                      |
-| `POST /registration/enable`, `POST /registration/stop` | this unit's registration verb                      |
+| Route                                                  | Answers                                              |
+| ------------------------------------------------------ | ---------------------------------------------------- |
+| `GET /status`                                          | public lifecycle status (no login URL)               |
+| `GET /connection`                                      | the dsh login URL, only while ready                  |
+| `GET /watch`                                           | a WebSocket that pushes each changed public status   |
+| `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → status          |
+| `POST /dsh/stop`, `POST /dsh/restart`                  | status                                               |
+| `GET /registration`                                    | Host snapshot: `version`, `phase`, optional `reason` |
+| `POST /registration/enable`, `POST /registration/stop` | the same snapshot after the verb                     |
 
 ## Commands
 

@@ -1,10 +1,8 @@
-/** Shared Background Service registration contract (mirrors dsh-bot-background-service). */
+/** Host OS registration snapshot. Query, enable and stop all return this shape. */
 
 import { t } from "../i18n";
 
 export const REGISTRATION_CONTRACT_VERSION = 1;
-
-export type ServiceUnit = "host" | "relay";
 
 export type RegistrationPhase =
   | "notRegistered"
@@ -13,96 +11,52 @@ export type RegistrationPhase =
   | "denied"
   | "failed";
 
-export type BackgroundAvailability = "off" | "degraded" | "full";
-
-export type UnitRegistration = {
-  unit: ServiceUnit;
+export type RegistrationSnapshot = {
+  version: number;
   phase: RegistrationPhase;
   reason?: string | null;
 };
 
-export type RegistrationSnapshot = {
-  version: number;
-  host: UnitRegistration;
-  relay: UnitRegistration;
-  availability: BackgroundAvailability;
-};
-
-export type ProductBackgroundRegistration = {
-  version: number;
-  host: UnitRegistration;
-  relay: UnitRegistration;
-  availability: BackgroundAvailability;
-};
-
-const PHASES = new Set<RegistrationPhase>([
-  "notRegistered",
-  "pendingApproval",
-  "registered",
-  "denied",
-  "failed",
-]);
-
-const UNITS = new Set<ServiceUnit>(["host", "relay"]);
-
-export function isRegisteredWithOs(phase: RegistrationPhase): boolean {
-  return phase === "registered";
+function isPhase(value: unknown): value is RegistrationPhase {
+  return (
+    value === "notRegistered" ||
+    value === "pendingApproval" ||
+    value === "registered" ||
+    value === "denied" ||
+    value === "failed"
+  );
 }
 
-function unitAffectsBackgroundAvailability(phase: RegistrationPhase): boolean {
-  return phase !== "notRegistered";
-}
-
-export function backgroundAvailability(
-  host: RegistrationPhase,
-  relay: RegistrationPhase,
-): BackgroundAvailability {
-  if (isRegisteredWithOs(host) && isRegisteredWithOs(relay)) {
-    return "full";
-  }
-  if (!unitAffectsBackgroundAvailability(host) && !unitAffectsBackgroundAvailability(relay)) {
-    return "off";
-  }
-  return "degraded";
-}
-
-export function mergeProductRegistration(
-  fromHost: RegistrationSnapshot,
-  fromRelay: RegistrationSnapshot,
-): ProductBackgroundRegistration {
-  const host = fromHost.host;
-  const relay = fromRelay.relay;
-  return {
-    version: REGISTRATION_CONTRACT_VERSION,
-    host,
-    relay,
-    availability: backgroundAvailability(host.phase, relay.phase),
-  };
-}
-
-function assertUnitRegistration(value: UnitRegistration): void {
-  if (!UNITS.has(value.unit) || !PHASES.has(value.phase)) {
-    throw new Error(t("background.error.invalidUnit"));
-  }
-}
-
-export function decodeUnitRegistration(raw: string): UnitRegistration {
-  const value = JSON.parse(raw) as UnitRegistration;
-  assertUnitRegistration(value);
-  return value;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 export function decodeRegistrationSnapshot(raw: string): RegistrationSnapshot {
-  const value = JSON.parse(raw) as RegistrationSnapshot;
-  assertUnitRegistration(value.host);
-  assertUnitRegistration(value.relay);
-  if (typeof value.version !== "number") {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
     throw new Error(t("background.error.invalidSnapshot"));
   }
-  return value;
+  if (
+    !isRecord(value) ||
+    value.version !== REGISTRATION_CONTRACT_VERSION ||
+    !isPhase(value.phase)
+  ) {
+    throw new Error(t("background.error.invalidSnapshot"));
+  }
+  const reason = value.reason;
+  if (reason !== undefined && reason !== null && typeof reason !== "string") {
+    throw new Error(t("background.error.invalidSnapshot"));
+  }
+  return {
+    version: REGISTRATION_CONTRACT_VERSION,
+    phase: value.phase,
+    ...(typeof reason === "string" ? { reason } : {}),
+  };
 }
 
-/** Desktop targets may orchestrate OS Background Services; Linux deferred per ADR-0002. */
+/** The settings panel offers OS registration on macOS and Windows. */
 export function backgroundServicesRunnable(target: string): boolean {
   return target === "macos" || target === "windows";
 }

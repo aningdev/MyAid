@@ -35,12 +35,6 @@
         },
         {
           "host": "127.0.0.1",
-          "methods": ["GET"],
-          "schemes": ["http"],
-          "paths": ["/v1/health"]
-        },
-        {
-          "host": "127.0.0.1",
           "methods": ["POST"],
           "schemes": ["http"],
           "paths": [
@@ -79,7 +73,6 @@
       "env": [
         "DSH_BOT_HOME",
         "DSH_BOT_HOST_PORT",
-        "DSH_BOT_RELAY_PORT",
         "DSH_BOT_LOGIN_URL",
         "DSH_BOT_SMOKE_HOST",
         "DSH_BOT_PATCH"

@@ -98,8 +98,8 @@ fn accept_env_key(key: &str) -> bool {
 /// vars set after they started; dsh still needs `DEEPSEEK_API_KEY` and friends.
 #[cfg(windows)]
 fn merge_registry_env(env: &mut BTreeMap<String, String>) {
-    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ};
     use winreg::RegKey;
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ};
 
     let sources = [
         (
@@ -187,29 +187,25 @@ fn resolve_official_cli(path_env: &str) -> Result<PathBuf> {
     std::env::split_paths(path_env)
         .flat_map(|dir| candidates.iter().map(move |name| dir.join(name)))
         .find(|path| {
-            path.is_absolute()
-                && path.metadata().is_ok_and(|m| m.is_file())
-                && {
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::PermissionsExt;
-                        path.metadata()
-                            .is_ok_and(|m| m.permissions().mode() & 0o111 != 0)
-                    }
-                    #[cfg(windows)]
-                    {
-                        true
-                    }
+            path.is_absolute() && path.metadata().is_ok_and(|m| m.is_file()) && {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    path.metadata()
+                        .is_ok_and(|m| m.permissions().mode() & 0o111 != 0)
                 }
+                #[cfg(windows)]
+                {
+                    true
+                }
+            }
         })
         .and_then(|path| std::fs::canonicalize(path).ok())
         .map(strip_verbatim)
         .ok_or_else(|| "请先安装官方 dsh CLI；登录环境中找不到可执行文件".into())
 }
 
-pub(super) fn environment(
-    config: &Config,
-) -> Result<(BTreeMap<String, String>, PathBuf, String)> {
+pub(super) fn environment(config: &Config) -> Result<(BTreeMap<String, String>, PathBuf, String)> {
     let mut env = login_environment()?;
     env.insert(
         "DSH_HOME".into(),
