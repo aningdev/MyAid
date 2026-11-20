@@ -4,7 +4,7 @@
  * The Client mounts this contribution so it gets a typed namespace; the Host
  * side is the `@Remote`-marked `BotsService`. Registry DTOs live in
  * `./registry.ts`, preset DTOs in `./preset-types.ts`, and the Client mirrors
- * the preset shapes in `@dsh-bot/dsh-web-protocol/presets`.
+ * the preset shapes in `@dsh-bot/dsh-web-protocol/bots`.
  */
 import { createTypertRemoteInfo } from "@deepseek-ai/dsh-typert-protocol/remote-info";
 import { z, type ZodType } from "zod";
