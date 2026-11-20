@@ -6,7 +6,7 @@
 
 ## Decision
 
-- 新插件 `packages/bots`（`@dsh-bot/bots`，Remote 命名空间 `bots`）拥有 Registry，数据存放在 `$DSH_BOT_HOME` 下。原来的 `bot-presets` 并入这个插件。
+- 新插件 `packages/bots`（包名 `dsh-bots`，插件 id、Remote 命名空间和数据目录都是 `bots`）拥有 Registry，数据存放在 `$DSH_BOT_HOME` 下。原来的 `bot-presets` 并入这个插件。
 - 插件第一次启动时创建 Main Bot，并维护 Main Bot 可以派工的 Bot 列表。
 - 插件第一次启动时，如果 `<Data root>/registry/bots.json` 存在，就导入一次，再把它改名为 `bots.json.imported` 留作备份；之后不再读旧格式。
 - Client 不再写 Registry 文件，所有 Device 都通过 `bots` Remote 读写。Device 自己的偏好（Pin、Pane 布局、主题、语言）仍留在 Device 上。

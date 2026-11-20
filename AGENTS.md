@@ -25,7 +25,7 @@
 
 - **Vite+（vp）**：JS/TS 工作区统一用 `vp`（`vp run` / `vp check` / `vp pack` / `vp test` / `vp staged` / `vp fmt`）。根和各包都在 `package.json` 里保留 scripts；根用 `vp run pkg#task` / `--filter` 调度。同名任务不写进 `vite.config.ts` 的 `run.tasks`（两者互斥，见 [run](https://viteplus.dev/guide/run)）。
 - 根的 `check` / `test` **按发现运行**：`vp run -F '@dsh-bot/*' -F '!@dsh-bot/workspace' <task>` 会跑所有带该脚本的包，新包不用改根。Cargo 步骤单独一段（`test` 在前，`check` 在后）。
-- 轻量验收：`bun install && bun run check`（与 CI 相同）；`bun run test` 跑 Cargo 测试和各包测试。
+- 轻量验收：`bun install && bun run check`（与 CI 相同，只检查不改文件）；`bun run fix` 修格式和可自动修的 lint；`bun run test` 跑 Cargo 测试和各包测试。
 - 启动入口只有一个：`bun run dev [target]`（`ios` / `android` / `web` / `mobile` / `windows` / `linux` / `gpui` / `macos`，默认是桌面）。低层的 `dev*` 脚本留在 `apps/client`。
 - 不带参数的 `bun run dev` 会读写**真实的 `~/.dsh-bot`**。Agent、脚本化验证和冒烟测试一律用 `bun run dev --isolated[=<name>]`（数据根 `~/.dsh-bot-dev/<name>`，端口 4873），绝不运行不带它的 `dev`。
 - **dsh 版本**只写在三个地方：根 `package.json` 的 `workspaces.catalog`、`apps/host/supported-dsh.json`、`references/deepseek-harness` 的 `dsh-v<version>` tag。各包一律写 `"catalog:"`，由 `bun run check` 保证一致。升级只改这三处，再 `bun install`。
