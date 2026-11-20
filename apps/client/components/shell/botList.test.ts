@@ -1,16 +1,15 @@
 import { expect, test } from "nsh/test";
 
+import { emptyRegistry, type BotRegistry } from "../../features/bots/model";
+import type { SessionRow } from "../../features/dialogue/session/runtime";
+import type { WorkspaceProjection } from "../../features/workspace/state";
 import {
   archiveBot,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  type BotRegistry,
-} from "../../features/bots/model";
-import type { SessionRow } from "../../features/dialogue/session/runtime";
-import type { WorkspaceProjection } from "../../features/workspace/state";
+} from "../../test/bots-fixture";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import { botList } from "./botList";
 
@@ -58,7 +57,7 @@ function registryAt(): BotRegistry {
   return claimSegment(withAda, "bob", "s-bob", "ws-bob");
 }
 
-test("the rest of the Bots follow their latest activity, newest first", () => {
+test("unpinned Bots stay in Registry order, including when one worked later", () => {
   const list = botList({
     registry: registryAt(),
     workspaces: projection({
@@ -68,12 +67,12 @@ test("the rest of the Bots follow their latest activity, newest first", () => {
     rows: [],
     pins: [],
   });
-  expect(list.others.map((row) => row.bot.name)).toEqual(["Bob", "Ada"]);
+  expect(list.others.map((row) => row.bot.name)).toEqual(["Ada", "Bob"]);
   expect(list.pinned).toEqual([]);
   expect(list.archived).toEqual([]);
 });
 
-test("a Bot with no activity yet sorts after the rest, then by name", () => {
+test("a Bot with no activity stays where the Registry put it", () => {
   const created = createTemplate(emptyRegistry(), TMPL, "tmpl");
   const registry = createBot(
     createBot(created, { name: "Zed", templateId: "tmpl" }, "zed"),
@@ -81,7 +80,7 @@ test("a Bot with no activity yet sorts after the rest, then by name", () => {
     "amy",
   );
   const list = botList({ registry, workspaces: projection({}), rows: [], pins: [] });
-  expect(list.others.map((row) => row.bot.name)).toEqual(["Amy", "Zed"]);
+  expect(list.others.map((row) => row.bot.name)).toEqual(["Zed", "Amy"]);
 });
 
 test("pinned Bots come first in pin order, and leave the rest", () => {

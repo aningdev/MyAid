@@ -9,11 +9,19 @@
  * checkout, so build it first:
  *
  *   vp run dsh-bots#build
- *   HOME=<scratch>/home DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
+ *   HOME=<scratch>/home DSH_BOT_HOME=<scratch> DSH_BOT_SMOKE_HOST=1 \
+ *     DSH_BOT_HOST_PORT=4879 \
  *     DSH_BOT_PATCH="$PWD/.dev/bots.patch.yml" \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/bots-real-host.smoke.test.tsx --target macos
+ *
+ * `<scratch>` must sit under `~/.dsh-bot-dev`. The create-Bot test reads
+ * `$DSH_BOT_HOME/bots/registry.json` and refuses any other root.
  */
+import fs from "fs/promises";
+import { homedir } from "os";
+import { join } from "path";
+
 import { expect, test } from "nsh/test";
 
 import { t } from "../lib/i18n";
@@ -66,3 +74,33 @@ test("a Bot saves a derived preset and reads it back", async () => {
   });
   await shoot(app, "04-reply.png", SHOTS_P1);
 }, 600000);
+
+/**
+ * Creating a Bot through the New Bot dialog writes the plugin's Registry and
+ * the Navigator shows the new row. Requires `DSH_BOT_HOME` under
+ * `~/.dsh-bot-dev` so the assertion never opens the real `~/.dsh-bot`.
+ */
+test("creating a Bot writes the plugin registry and shows it in the Navigator", async () => {
+  if (!hostSmokeRequested()) return;
+  const root = process.env.DSH_BOT_HOME ?? "";
+  const isolated = join(homedir(), ".dsh-bot-dev");
+  if (root !== isolated && !root.startsWith(`${isolated}/`)) {
+    throw new Error(
+      "Set DSH_BOT_HOME to a directory under ~/.dsh-bot-dev. This smoke does not read ~/.dsh-bot.",
+    );
+  }
+  const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
+  if (!(await graphical(app))) return;
+
+  await app.waitFor(`text:${t("host.connected")}`, { timeout: 30000 });
+  await app.keyboard.press("mod+n");
+  await app.waitFor("id:new-bot-dialog");
+  await app.type("id:new-bot-name", "Smoke Bot");
+  await app.type("id:new-bot-workspace", "/tmp");
+  await app.press(`label:${t("newBot.create")}`);
+  await app.waitFor("label:Smoke Bot", { timeout: 120000 });
+
+  const text = await fs.readFile(join(root, "bots", "registry.json"), "utf8");
+  expect(text).toContain("Smoke Bot");
+  expect(text).toContain("bots-main");
+}, 180000);

@@ -2,8 +2,7 @@
  * Batch A of the Bot's identity mark: dsh-bot's own little character — a body in
  * the Bot's accent with two eyes cut out of it. The contact sheets prove every
  * body against every face, at the sizes the app draws and large enough to see
- * the holes; the rest walks the screens that carry the mark, the picker, and a
- * registry written by the version before this one.
+ * the holes; the rest walks the screens that carry the mark and the picker.
  *
  *   mkdir -p ~/.dsh-bot-dev/shots/pi-shots-avatar-a
  *   nsh test screens/avatar-a-shots.test.tsx --target macos
@@ -19,18 +18,17 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
-import { BOT_COLORS, BOT_FACES, BOT_SHAPES, defaultIdentity } from "../features/bots/identity";
+import { BOT_COLORS, BOT_FACES, BOT_SHAPES } from "../features/bots/identity";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
+import { t } from "../lib/i18n";
 import {
+  BOTS_FIXTURE_KEY,
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { t } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 import { graphical, shoot, SHOTS_AVATAR_A } from "./shots";
@@ -65,7 +63,7 @@ function shellPrefs(botId = "ada") {
 
 function storageOf(registry: BotRegistry, botId = "ada"): Record<string, string> {
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+    ...botsStorage(registry),
     [SHELL_PREFS_STORAGE]: shellPrefs(botId),
     ...workspaceStorage({
       rows: [
@@ -143,7 +141,7 @@ test("the screens that carry the mark: Navigator, Pane title, New Bot, Bot detai
     width: 1280,
     height: 860,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+      ...botsStorage(registry),
       [SHELL_PREFS_STORAGE]: shellPrefs("bot-round"),
       ...workspaceStorage({
         rows: [
@@ -218,52 +216,10 @@ test("the picker: a press on a shape and on a face shows at once", async () => {
   await app.wait(250);
   await shoot(app, "63-picker-face-after.png", SHOTS_AVATAR_A);
 
-  // The presses reached the registry: the shape and the face are stored, and
-  // the v4 glyph goes beside them.
+  // The presses reached the registry: the shape and the face are stored.
   await app.press(`label:${t("common.save")}`);
   await app.wait(400);
-  const stored = app.storage()[REGISTRY_STORAGE_KEY] ?? "";
-  expect(stored).toContain('"shape": "triangle"');
-  expect(stored).toContain('"face": "sleepy"');
-  expect(stored).toContain('"glyph": "prism"');
-}, 180000);
-
-test("a registry from before this batch: the color stays, the shape is the glyph's", async () => {
-  // The file the version before this one wrote: `{color, glyph}`, and nothing else.
-  const file = JSON.parse(serializeRegistry(shellRegistry())) as {
-    bots: { identity: unknown }[];
-  };
-  file.bots[0]!.identity = { color: "teal", glyph: "bolt" };
-  const app = await open("../App.tsx", {
-    platform: "macos" as const,
-    width: 1280,
-    height: 860,
-    storage: {
-      ...storageOf(shellRegistry()),
-      [REGISTRY_STORAGE_KEY]: `${JSON.stringify(file, null, 2)}\n`,
-    },
-  });
-  if (!(await graphical(app))) return;
-  await app.waitFor("label:Ada");
-  await app.setColorScheme("light");
-  await app.wait(250);
-  // Teal as stored, and the body the bolt became.
-  await both(app, "71-migrated-shell");
-
-  // The picker agrees: the drop is the shape in effect, and saving stores it.
-  await app.press(`label:${t("panel.botDetails", { name: "Ada" })}`);
-  await app.waitFor("id:bot-details");
-  await app.wait(250);
-  await shoot(app, "72-migrated-shape.png", SHOTS_AVATAR_A);
-  await app.press(`label:${t("common.save")}`);
-  await app.wait(400);
-  const stored = JSON.parse(app.storage()[REGISTRY_STORAGE_KEY] ?? "{}") as {
-    bots: { identity: Record<string, string> }[];
-  };
-  expect(stored.bots[0]?.identity).toEqual({
-    color: "teal",
-    shape: "drop",
-    face: defaultIdentity("ada").face,
-    glyph: "bolt",
-  });
+  const stored = app.storage()[BOTS_FIXTURE_KEY] ?? "";
+  expect(stored).toContain('"shape":"triangle"');
+  expect(stored).toContain('"face":"sleepy"');
 }, 180000);

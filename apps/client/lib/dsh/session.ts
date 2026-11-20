@@ -13,8 +13,8 @@ let shared: Connection | undefined;
 /**
  * Handlers every Connection needs (approvals, generation changes). It runs on
  * each instance **before** it connects and on the current one when registered:
- * whoever creates the Connection — a Workspace command, the shell's migration,
- * a Panel — must not be the one that remembers to wire approval routing, and a
+ * whoever creates the Connection — a Workspace command, a Panel — must not be
+ * the one that remembers to wire approval routing, and a
  * replacement Connection would otherwise come up unwired.
  */
 let prepare: ((connection: Connection) => void) | undefined;
@@ -26,6 +26,11 @@ let prepare: ((connection: Connection) => void) | undefined;
 export function prepareConnections(prepareConnection: (connection: Connection) => void): void {
   prepare = prepareConnection;
   if (shared) prepareConnection(shared);
+}
+
+/** The shared Connection when it is already up. Does not open one. */
+export function connectedSession(): Connection | undefined {
+  return shared?.ready ? shared : undefined;
 }
 
 /** The shared Connection, connected on demand. */

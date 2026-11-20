@@ -7,6 +7,13 @@
 import { cleanup, effect, mount, signal, Text, token, View } from "nsh";
 
 import {
+  claimSegment,
+  createBot,
+  createTemplate,
+  initializeBot,
+  renameSegment,
+} from "../../test/bots-fixture";
+import {
   assistantMessage,
   durable,
   scriptedHost,
@@ -15,15 +22,7 @@ import {
   type ScriptedSessions,
 } from "../../test/sessions";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
-import {
-  claimSegment,
-  createBot,
-  createTemplate,
-  emptyRegistry,
-  initializeBot,
-  renameSegment,
-  type BotRegistry,
-} from "../bots/model";
+import { emptyRegistry, type BotRegistry } from "../bots/model";
 import { ready, registry } from "../bots/state";
 import { setSegmentStarter, type SegmentStarter } from "../workspace/conversation";
 import { workspaces } from "../workspace/state";

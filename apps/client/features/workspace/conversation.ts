@@ -10,9 +10,8 @@ import { t } from "../../lib/i18n";
  * object keeps its own owner, and the UI reads the result from dsh's follow
  * stream. `SegmentStarter` is the seam `nsh test` substitutes without a Host.
  */
-import { updateBot } from "../bots/model";
 import { workingDirectoryOf } from "../bots/sessions";
-import { changeRegistry, registry, setActionError } from "../bots/state";
+import { registry, setActionError, updateBot } from "../bots/state";
 import { createSegment } from "../dialogue/session/runtime";
 import { trimPath } from "./paths";
 import { workspaces } from "./state";
@@ -54,7 +53,7 @@ function productStarter(): SegmentStarter {
     },
     createSession: (botId, workspaceId) => createSegment(botId, workspaceId),
     async rememberPath(botId, path) {
-      await changeRegistry((reg) => updateBot(reg, botId, { defaultWorkspacePath: path }));
+      await updateBot(botId, { defaultWorkspacePath: path });
     },
     async pickDirectory() {
       const { pickDirectory } = await import("../../lib/dsh/session");

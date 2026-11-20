@@ -12,17 +12,15 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
   renameSegment,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceStorage, workspaceRow } from "../test/workspaces";
 import { graphical, shoot } from "./shots";
@@ -57,7 +55,7 @@ test("marks, New Bot, palette and context menu", async () => {
     width: 1440,
     height: 900,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+      ...botsStorage(fixture()),
       [SHELL_PREFS_STORAGE]: fixturePrefs(),
       ...workspaceStorage({
         rows: [

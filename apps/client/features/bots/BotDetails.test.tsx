@@ -7,21 +7,20 @@
 import { expect, test } from "nsh/test";
 
 import { t } from "../../lib/i18n";
-import { open } from "../../test/open";
-import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import {
+  BOTS_FIXTURE_KEY,
   archiveBot,
   assignDerivedPreset,
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  parseRegistry,
-  serializeRegistry,
-  type BotRegistry,
-} from "./model";
-import { REGISTRY_STORAGE_KEY } from "./store";
+  mainBot,
+} from "../../test/bots-fixture";
+import { open } from "../../test/open";
+import { workspaceRow, workspaceStorage } from "../../test/workspaces";
+import { emptyRegistry, type BotRegistry } from "./model";
 
 const desktop = { platform: "web" as const, width: 1200, height: 860 };
 
@@ -51,7 +50,7 @@ async function details(registry: BotRegistry = sampleRegistry()) {
   const app = await open("./bot-details-harness.tsx", {
     ...desktop,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+      ...botsStorage(registry),
       ...workspaceStorage({
         rows: [
           workspaceRow({
@@ -86,11 +85,8 @@ test("Profile saves the Bot's name and description in the registry", async () =>
   // The list row and the Pane title behind the modal read the saved Bot.
   await app.waitFor("label:Ada L");
   await app.waitFor("id:tab-panel-1 >> text:Ada L");
-  const saved = parseRegistry(app.storage()[REGISTRY_STORAGE_KEY] ?? "");
-  expect(saved.ok).toBe(true);
-  expect(saved.ok && saved.state === "current" ? saved.registry.bots[0]?.description : null).toBe(
-    "Keeps the release branch tidy",
-  );
+  const saved = JSON.parse(app.storage()[BOTS_FIXTURE_KEY] ?? "") as BotRegistry;
+  expect(saved.bots[0]?.description).toBe("Keeps the release branch tidy");
 });
 
 test("Runs with lists the models as one radio group", async () => {
@@ -101,10 +97,8 @@ test("Runs with lists the models as one radio group", async () => {
   await app.press("label:Acme Deep");
   await app.press("id:bot-details >> Save");
   await app.waitUntil(() => !app.shows("id:bot-details"));
-  const saved = parseRegistry(app.storage()[REGISTRY_STORAGE_KEY] ?? "");
-  expect(saved.ok && saved.state === "current" ? saved.registry.bots[0]?.defaultModel : null).toBe(
-    "acme/deep",
-  );
+  const saved = JSON.parse(app.storage()[BOTS_FIXTURE_KEY] ?? "") as BotRegistry;
+  expect(saved.bots[0]?.defaultModel).toBe("acme/deep");
 });
 
 test("an added skill can be removed from an already-derived Bot", async () => {
@@ -176,13 +170,41 @@ test("Archive closes the modal and takes the Bot out of the list", async () => {
   await app.press("id:bot-details >> Archive");
   await app.waitUntil(() => !app.shows("id:bot-details"));
   await app.waitUntil(() => !app.shows("label:Ada"));
-  expect(app.storage()[REGISTRY_STORAGE_KEY]).toContain('"archived": true');
+  const saved = JSON.parse(app.storage()[BOTS_FIXTURE_KEY] ?? "") as BotRegistry;
+  expect(saved.bots[0]?.archived).toBe(true);
+});
+
+test("the Main Bot's details have no archive or delete", async () => {
+  const app = await open("./bot-details-harness.tsx", {
+    ...desktop,
+    storage: {
+      ...botsStorage(mainBot(sampleRegistry())),
+      ...workspaceStorage({
+        rows: [
+          workspaceRow({
+            id: "ws-work",
+            path: "/work/dsh-bot",
+            title: "dsh-bot",
+            sessionIds: ["s1"],
+          }),
+        ],
+      }),
+    },
+  });
+  await app.waitFor("label:Main Bot");
+  await app.press("label:Main Bot");
+  await app.waitFor("id:tab-panel-1 >> text:Main Bot");
+  await app.press("label:Bot details: Main Bot");
+  await app.waitFor("id:bot-details");
+  expect(app.shows("id:bot-details >> Archive")).toBe(false);
+  expect(app.shows("id:bot-details >> Delete")).toBe(false);
+  expect(app.shows("id:bot-details >> Unarchive")).toBe(false);
 });
 
 test("an archived Bot's modal offers Unarchive", async () => {
   const app = await open("./bot-details-harness.tsx", {
     ...desktop,
-    storage: { [REGISTRY_STORAGE_KEY]: serializeRegistry(archiveBot(sampleRegistry(), "bot")) },
+    storage: { ...botsStorage(archiveBot(sampleRegistry(), "bot")) },
   });
   await app.waitFor("id:tab-panel-1 >> text:Empty");
   // The archived Bot is out of the list, so a search finds it and opens it.
@@ -193,7 +215,11 @@ test("an archived Bot's modal offers Unarchive", async () => {
   await app.press("label:Bot details: Ada");
   await app.waitFor("id:bot-details");
   await app.press("id:bot-details >> Unarchive");
-  await app.waitUntil(() => app.storage()[REGISTRY_STORAGE_KEY]?.includes('"archived": false'));
+  await app.waitUntil(() => {
+    const text = app.storage()[BOTS_FIXTURE_KEY];
+    if (!text) return false;
+    return (JSON.parse(text) as BotRegistry).bots[0]?.archived === false;
+  });
   await app.clear("id:nav-search");
   await app.waitFor("label:Ada");
 });

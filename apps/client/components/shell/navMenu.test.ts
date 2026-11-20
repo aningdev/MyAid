@@ -1,8 +1,9 @@
 import { expect, test } from "nsh/test";
 
-import { archiveBot, createBot, createTemplate, emptyRegistry } from "../../features/bots/model";
+import { emptyRegistry } from "../../features/bots/model";
 import { registry } from "../../features/bots/state";
 import { t } from "../../lib/i18n";
+import { archiveBot, createBot, createTemplate, mainBot } from "../../test/bots-fixture";
 import { contextEntries } from "./navMenu";
 import { setPins } from "./pins";
 
@@ -29,6 +30,19 @@ test("a Bot's row offers its own verbs: Pin, details, rename, archive", () => {
   } finally {
     registry.set(emptyRegistry());
     setPins([]);
+  }
+});
+
+test("the Main Bot has no archive verb", () => {
+  const seeded = mainBot();
+  registry.set(seeded);
+  try {
+    const shown = labels(contextEntries(seeded.bots[0]!, { pinned: false }));
+    expect(shown).toContain(t("menu.rename"));
+    expect(shown).not.toContain(t("menu.archive"));
+    expect(shown).not.toContain(t("menu.unarchive"));
+  } finally {
+    registry.set(emptyRegistry());
   }
 });
 

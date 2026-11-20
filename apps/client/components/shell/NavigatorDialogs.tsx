@@ -5,8 +5,7 @@
 import { effect, signal, Text, View, token } from "nsh";
 
 import { openBotDetails } from "../../features/bots/details";
-import { updateBot } from "../../features/bots/model";
-import { actionError, changeRegistry, registry } from "../../features/bots/state";
+import { actionError, registry, updateBot } from "../../features/bots/state";
 import { t } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
@@ -50,9 +49,7 @@ function RenameDialog() {
     busy.set(true);
     failure.set(null);
     try {
-      const saved = await changeRegistry((registry) =>
-        updateBot(registry, current.botId, { name: next }),
-      );
+      const saved = await updateBot(current.botId, { name: next });
       if (!saved) {
         failure.set(actionError() ?? t("rename.saveFailed"));
         return;

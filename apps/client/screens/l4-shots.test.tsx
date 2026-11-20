@@ -14,17 +14,15 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
+import { messages, type MessageKey, type MessageValues } from "../lib/i18n";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { messages, type MessageKey, type MessageValues } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 import { graphical, shoot, SHOTS_L4 } from "./shots";
@@ -68,7 +66,7 @@ function storage(): Record<string, string> {
     activePanelId: "panel-1",
   };
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
+    ...botsStorage(fixture()),
     [SHELL_PREFS_STORAGE]: serializeShellPrefs(prefs),
     ...workspaceStorage({
       rows: [

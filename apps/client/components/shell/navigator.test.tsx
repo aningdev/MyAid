@@ -1,21 +1,20 @@
 /**
- * Navigator interaction: the flat Bot list (search, Pin, activity order, New
+ * Navigator interaction: the flat Bot list (search, Pin, Registry order, New
  * Bot, the Host footer), the row's context menu (Pin / Rename / Archive), the
  * archived Bot a search finds again, and the Panes a press or a drag opens.
  * The registry is seeded through the app's storage, so no Host is involved.
  */
 import { expect, test } from "nsh/test";
 
+import { emptyRegistry, type BotRegistry } from "../../features/bots/model";
 import {
+  BOTS_FIXTURE_KEY,
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../../features/bots/store";
+} from "../../test/bots-fixture";
 import { open } from "../../test/open";
 import { workspaceRow, workspaceStorage } from "../../test/workspaces";
 import { emptyShellPrefs, serializeShellPrefs, SHELL_PREFS_STORAGE } from "./prefs";
@@ -24,7 +23,7 @@ const desktop = { platform: "web" as const, width: 1100, height: 800 };
 
 /**
  * Ada (ready) → one segment at /work/dsh-bot; Bob (ready) → one segment at
- * /work/bob. Bob worked last.
+ * /work/bob. Ada stands first because that is the Registry's order.
  */
 function sample(): BotRegistry {
   const created = createTemplate(emptyRegistry(), { name: "Coding", presetId: "standard" }, "tmpl");
@@ -47,23 +46,22 @@ function start(options: { prefs?: string; registry?: BotRegistry; workspaces?: s
   return open("../../App.tsx", {
     ...desktop,
     storage: {
-      [REGISTRY_STORAGE_KEY]: serializeRegistry(options.registry ?? sample()),
+      ...botsStorage(options.registry ?? sample()),
       ...(options.prefs ? { [SHELL_PREFS_STORAGE]: options.prefs } : {}),
       ...workspaceStorage({ rows }),
     },
   });
 }
 
-test("the list is search, Pin, Bots by activity, New Bot, Host and Settings", async () => {
+test("the list is search, Pin, Bots in Registry order, New Bot, Host and Settings", async () => {
   const app = await start();
   await app.waitFor("label:Ada");
+  await app.waitFor("label:Bob");
 
-  // The rest of the Bots: Bob worked last, so it stands first once dsh's
-  // Workspace baseline (the activity) has arrived.
-  await app.waitUntil(() => {
-    const order = app.texts().filter((text) => text === "Ada" || text === "Bob");
-    return order[0] === "Bob" && order[1] === "Ada";
-  });
+  // The plugin's order is the list's order. A later Workspace does not move Bob up.
+  const order = app.texts().filter((text) => text === "Ada" || text === "Bob");
+  expect(order[0]).toBe("Ada");
+  expect(order[1]).toBe("Bob");
   const texts = app.texts();
   expect(app.shows("label:New Bot")).toBe(true);
   expect(app.shows("label:Search Bots")).toBe(true);
@@ -140,7 +138,8 @@ test("archiving hides a Bot, and a search brings it back to unarchive", async ()
   await app.press("label:Unarchive Ada");
   await app.clear("id:nav-search");
   await app.waitFor("label:Ada");
-  expect(app.storage()[REGISTRY_STORAGE_KEY]).toContain('"archived": false');
+  const saved = JSON.parse(app.storage()[BOTS_FIXTURE_KEY] ?? "") as BotRegistry;
+  expect(saved.bots.find((bot) => bot.id === "ada")?.archived).toBe(false);
 });
 
 test("the search, the Composer and the title's field take the keys from code", async () => {

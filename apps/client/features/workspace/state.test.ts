@@ -4,7 +4,6 @@ import { expect, test } from "nsh/test";
 import { fakeWorkspaces, remoteWorkspace, workspaceModel } from "../../test/workspaces";
 import {
   archiveSession,
-  pinSession,
   renameWorkspace,
   startWorkspaces,
   stopWorkspaces,
@@ -110,10 +109,10 @@ test("a replaced baseline supersedes everything before it without a new generati
 test("commands pass the Workspace and Session to the official service", async () => {
   const model = fakeWorkspaces();
   await renameWorkspace(model, "ws", "release");
-  await pinSession(model, "s1");
+  await archiveSession(model, "s1");
   expect(model.calls).toEqual([
     ["rename", "ws", "release"],
-    ["pinSession", "s1"],
+    ["archiveSession", "s1", {}],
   ]);
 });
 

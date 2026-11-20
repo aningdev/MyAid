@@ -1,14 +1,9 @@
 import { expect, test } from "nsh/test";
 
 import { t } from "../../../lib/i18n";
+import { claimSegment, createBot, createTemplate, initializeBot } from "../../../test/bots-fixture";
 import { workspaceProjection, workspaceRow } from "../../../test/workspaces";
-import {
-  claimSegment,
-  createBot,
-  createTemplate,
-  emptyRegistry,
-  initializeBot,
-} from "../../bots/model";
+import { emptyRegistry } from "../../bots/model";
 import { buildSessionRoster, sessionDetail, withStatuses, type SessionRow } from "./roster";
 
 /** The conversation's Workspace: path "/work", segment order old then new. */

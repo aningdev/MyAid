@@ -378,7 +378,6 @@ export const messages = {
     zh: "Workspace 状态断开了，正在重连：{error}",
     en: "The Workspace stream dropped; reconnecting: {error}",
   },
-  "notices.connectHost": { zh: "连接 Host", en: "Connect Host" },
   "notification.replied": { zh: "回复了你", en: "replied" },
   "notification.approval": { zh: "在等你批准", en: "is waiting for approval" },
   "launcher.timeout": {
@@ -729,106 +728,10 @@ export const messages = {
   "time.minutes": { zh: "{minutes} 分", en: "{minutes}m" },
   "time.minutesSeconds": { zh: "{minutes} 分 {seconds} 秒", en: "{minutes}m {seconds}s" },
 
-  // --- Registry and its file format ----------------------------------------
-  "registry.corrupt": {
-    zh: "注册表已损坏，未覆盖文件。",
-    en: "The registry is corrupt; the file was not overwritten.",
-  },
-  "registry.legacy": {
-    zh: "注册表是旧版本：先连接 Host 把旧对话迁成 Bot 的长对话。",
-    en: "The registry is an old version: connect the Host to migrate its conversations into each Bot's long conversation.",
-  },
-  "registry.tooOld": {
-    zh: "注册表版本过旧或无法读取，请删除 ~/.dsh-bot/registry/bots.json 后重建。",
-    en: "The registry version is too old or unreadable; delete ~/.dsh-bot/registry/bots.json and start over.",
-  },
-  "registry.missingRecord": { zh: "找不到这条记录。", en: "No such record." },
+  // --- Registry (owned by the bots plugin; the Client only shows these) ---
   "registry.templateGone": { zh: "模板不在了。", en: "The template is gone." },
-  "registry.templateInUse": { zh: "仍有 Bot 使用此模板。", en: "A Bot still uses this template." },
-  "registry.botInitialized": { zh: "这个 Bot 已经初始化。", en: "This Bot is set up already." },
-  "registry.workspaceRequired": {
-    zh: "开新段前要填写工作目录。",
-    en: "A segment needs a working directory.",
-  },
-  "registry.templateLocked": {
-    zh: "初始化后不能改模板。",
-    en: "The template cannot change once the Bot is set up.",
-  },
   "registry.nameEmpty": { zh: "名称不能为空。", en: "A name is required." },
-  "registry.presetEmpty": {
-    zh: "Agent preset id 不能为空。",
-    en: "The Agent preset id is required.",
-  },
-  "registry.duplicateId": { zh: "标识已存在。", en: "That id already exists." },
-  "registry.beforeInit": {
-    zh: "初始化之后才能开新段。",
-    en: "Set the Bot up before starting a segment.",
-  },
-  "registry.sessionClaimed": {
-    zh: "这条会话已经属于一个 Bot。",
-    en: "That Session belongs to a Bot already.",
-  },
-  "registry.alreadyHasConversation": {
-    zh: "这个 Bot 已经有过长对话。",
-    en: "This Bot already has a conversation.",
-  },
-  "registry.sessionMissing": { zh: "找不到这段会话。", en: "No such Session." },
-  "registry.sessionIdEmpty": { zh: "Session id 不能为空。", en: "The Session id is required." },
-  "registry.templateIdEmpty": { zh: "模板 id 不能为空。", en: "The template id is required." },
   "registry.saveFailed": { zh: "保存失败。", en: "Could not save." },
-  "registry.notJson": { zh: "注册表不是 JSON。", en: "The registry is not JSON." },
-  "registry.notObject": { zh: "注册表不是对象。", en: "The registry is not an object." },
-  "registry.missingLists": {
-    zh: "注册表缺少模板或 Bot 列表。",
-    en: "The registry has no templates or Bots list.",
-  },
-  "registry.missingDialogues": {
-    zh: "注册表缺少 Dialogue 列表。",
-    en: "The registry has no Dialogue list.",
-  },
-  "registry.duplicateTemplate": { zh: "模板 id 重复。", en: "A template id repeats." },
-  "registry.duplicateBot": { zh: "Bot id 重复。", en: "A Bot id repeats." },
-  "registry.botTemplateMissing": {
-    zh: "Bot 引用了不存在的模板。",
-    en: "A Bot names a template that is gone.",
-  },
-  "registry.duplicateSession": { zh: "Session id 重复。", en: "A Session id repeats." },
-  "registry.duplicateDialogue": { zh: "Dialogue id 重复。", en: "A Dialogue id repeats." },
-  "registry.dialogueBotMissing": {
-    zh: "Dialogue 引用了不存在的 Bot。",
-    en: "A Dialogue names a Bot that is gone.",
-  },
-  "registry.botHadDialogue": {
-    zh: "Bot 项无效：存在 Dialogue 但 hadDialogue 为 false。",
-    en: "Invalid Bot: it has a Dialogue but hadDialogue is false.",
-  },
-  "registry.botHadSegment": {
-    zh: "Bot 项无效：存在段但 hadDialogue 为 false。",
-    en: "Invalid Bot: it has segments but hadDialogue is false.",
-  },
-  "registry.badTemplate": { zh: "模板项无效。", en: "Invalid template entry." },
-  "registry.badBot": { zh: "Bot 项无效。", en: "Invalid Bot entry." },
-  "registry.badDialogue": { zh: "Dialogue 项无效。", en: "Invalid Dialogue entry." },
-  "registry.migrationTooOld": {
-    zh: "注册表还是旧版本（v{version}）：连接 Host 后会把旧对话并成 Bot 的一条长对话。",
-    en: "The registry is still version {version}: connect the Host to merge its conversations into each Bot's one long conversation.",
-  },
-  "registry.migrationSkipped": {
-    zh: "迁移完成；{count} 项 dsh 没有接受（名字可能重名，或旧 Session 已不存在）。",
-    en: "Migration done; dsh did not accept {count} item(s) (a repeated name, or an old Session is gone).",
-  },
-  "registry.migrationFailed": {
-    zh: "迁移中断：{error}；连接 Host 后会重试。",
-    en: "Migration stopped: {error}; it retries once the Host is connected.",
-  },
-  "registry.migrationNotWritten": {
-    zh: "迁移结果没能写入：{error}",
-    en: "The migration result could not be written: {error}",
-  },
-  "registry.webStorage": {
-    zh: "当前平台不写 ~/.dsh-bot，注册表存在应用自己的存储里。",
-    en: "This platform does not write ~/.dsh-bot; the registry lives in the app's own storage.",
-  },
 
   // --- Bot presets, facts and the Workspace --------------------------------
   "presets.writeGap": {

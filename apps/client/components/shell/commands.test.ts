@@ -1,17 +1,10 @@
 import { expect, test } from "nsh/test";
 
-import {
-  claimSegment,
-  createBot,
-  createTemplate,
-  emptyRegistry,
-  initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../../features/bots/model";
+import { emptyRegistry, type BotRegistry } from "../../features/bots/model";
 import { registry } from "../../features/bots/state";
 import { workspaces } from "../../features/workspace/state";
 import { t } from "../../lib/i18n";
+import { claimSegment, createBot, createTemplate, initializeBot } from "../../test/bots-fixture";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
 import {
   buildApplicationMenu,
@@ -185,9 +178,16 @@ test("enabled states follow the active Pane's Bot", () => {
   }
 });
 
-test("the registry's serialized form is the one the palette reads", () => {
-  const text = serializeRegistry(sample());
-  expect(text).toContain('"version": 6');
-  expect(text).toContain('"workspaceId": "ws-work"');
-  expect(text).toContain('"archived": false');
+test("the palette reads the Registry the Client is showing", () => {
+  registry.set(sample());
+  try {
+    expect(paletteItems().items.find((item) => item.id === "jump:bot:bot")?.label).toBe("Ada");
+    registry.set({
+      ...registry(),
+      bots: registry().bots.map((bot) => (bot.id === "bot" ? { ...bot, name: "Ada L" } : bot)),
+    });
+    expect(paletteItems().items.find((item) => item.id === "jump:bot:bot")?.label).toBe("Ada L");
+  } finally {
+    registry.set(emptyRegistry());
+  }
 });

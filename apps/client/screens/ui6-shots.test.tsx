@@ -1,6 +1,6 @@
 /**
- * Batch 6 of the shadcn-nsh copies: the `Alert` in the shell's notices, in the
- * Pane's connection banner and in the reply's error row back in the doc's
+ * Batch 6 of the shadcn-nsh copies: the `Alert` in the Pane's connection
+ * banner and in the reply's error row back in the doc's
  * shape (the mark beside the note, the action inside it), and Settings ›
  * General's new Colour choice — the Navigator and a Pane under each theme.
  *
@@ -18,16 +18,15 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry } from "../features/bots/model";
+import { t } from "../lib/i18n";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { t } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 import { graphical, shoot, SHOTS_UI6 } from "./shots";
@@ -44,7 +43,7 @@ function shellStorage(): Record<string, string> {
     activePanelId: "panel-1",
   };
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+    ...botsStorage(registry),
     [SHELL_PREFS_STORAGE]: serializeShellPrefs(prefs),
     ...workspaceStorage({
       rows: [
@@ -60,38 +59,6 @@ function shellStorage(): Record<string, string> {
   };
 }
 
-/** A v4 registry: read, never written, and its notice stands in the shell. */
-const V4 = `${JSON.stringify({
-  version: 4,
-  templates: [{ id: "tmpl", name: "Coding", presetId: "standard" }],
-  bots: [
-    {
-      id: "bot",
-      name: "Ada",
-      description: null,
-      templateId: "tmpl",
-      defaultModel: null,
-      defaultThinking: null,
-      defaultWorkspacePath: "/work/dsh-bot",
-      hadDialogue: true,
-      status: "ready",
-      boundPresetId: "standard",
-      derivedPresetId: null,
-      identity: { color: "rose", shape: "round", face: "calm" },
-    },
-  ],
-  dialogues: [
-    {
-      id: "dlg",
-      botId: "bot",
-      workspacePath: "/work/dsh-bot",
-      name: "Release notes",
-      archived: false,
-      claims: [{ sessionId: "s1", title: "First run", archived: false }],
-    },
-  ],
-})}\n`;
-
 /** The picture in both appearances. */
 async function both(app: App, name: string): Promise<void> {
   await app.setColorScheme("light");
@@ -102,23 +69,6 @@ async function both(app: App, name: string): Promise<void> {
   await shoot(app, `${name.replace(".png", "")}-dark.png`, SHOTS_UI6);
   await app.setColorScheme("light");
 }
-
-test("a notice: the mark beside the sentence, the action under it", async () => {
-  const app = await open("../App.tsx", {
-    platform: "macos" as const,
-    width: 1440,
-    height: 900,
-    storage: { [REGISTRY_STORAGE_KEY]: V4 },
-  });
-  if (!(await graphical(app))) return;
-  await app.waitFor("id:migration-notice");
-  await app.wait(300);
-  await both(app, "11-notice.png");
-  expect(
-    app.texts().some((text) => text.includes(t("registry.migrationTooOld", { version: 4 }))),
-  ).toBe(true);
-  expect(app.texts()).toContain(t("notices.connectHost"));
-}, 120000);
 
 test("the Pane's banner and the reply's error row", async () => {
   // A turn that failed: the reply's error row, with its message and Retry.

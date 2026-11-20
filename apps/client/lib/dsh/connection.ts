@@ -572,6 +572,11 @@ export class Connection {
     return unwrap(await this.remote.bots.discardPreset(presetId)) as DerivedPresetRemoveResult;
   }
 
+  /** The mounted `bots` namespace (Registry snapshot, watch, and writes). */
+  botsNamespace(): import("./bots-gateway").BotsNamespace {
+    return this.remote.bots as import("./bots-gateway").BotsNamespace;
+  }
+
   async modelCatalog(): Promise<FlatModelCatalog> {
     const value = unwrap(await this.remote.session.modelCatalog()) as OfficialModelCatalog;
     return flattenModelCatalog(value);

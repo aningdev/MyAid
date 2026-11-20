@@ -1,8 +1,9 @@
 import { expect, test } from "nsh/test";
 
 import { t } from "../../lib/i18n";
+import { claimSegment, createBot, createTemplate, initializeBot } from "../../test/bots-fixture";
 import { workspaceProjection, workspaceRow } from "../../test/workspaces";
-import { claimSegment, createBot, createTemplate, emptyRegistry, initializeBot } from "./model";
+import { emptyRegistry } from "./model";
 import {
   conversationOf,
   currentSegmentOf,

@@ -23,6 +23,7 @@
 import { mount, signal, Text, token, View } from "nsh";
 
 import { Pressable } from "../../../components/ui/pressable";
+import { claimSegment, createBot, createTemplate, initializeBot } from "../../../test/bots-fixture";
 import {
   assistantMessage,
   durable,
@@ -33,14 +34,7 @@ import {
   type ScriptedSessions,
 } from "../../../test/sessions";
 import { workspaceProjection, workspaceRow } from "../../../test/workspaces";
-import {
-  claimSegment,
-  createBot,
-  createTemplate,
-  emptyRegistry,
-  initializeBot,
-  type BotRegistry,
-} from "../../bots/model";
+import { emptyRegistry, type BotRegistry } from "../../bots/model";
 import { ready, registry } from "../../bots/state";
 import { workspaces } from "../../workspace/state";
 import { ChatPane } from "../ChatPane";

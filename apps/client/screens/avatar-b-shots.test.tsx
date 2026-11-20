@@ -27,17 +27,15 @@ import {
   serializeShellPrefs,
   SHELL_PREFS_STORAGE,
 } from "../components/shell/prefs";
+import { emptyRegistry, type BotRegistry } from "../features/bots/model";
+import { t } from "../lib/i18n";
 import {
+  botsStorage,
   claimSegment,
   createBot,
   createTemplate,
-  emptyRegistry,
   initializeBot,
-  serializeRegistry,
-  type BotRegistry,
-} from "../features/bots/model";
-import { REGISTRY_STORAGE_KEY } from "../features/bots/store";
-import { t } from "../lib/i18n";
+} from "../test/bots-fixture";
 import { open } from "../test/open";
 import { workspaceRow, workspaceStorage } from "../test/workspaces";
 import { graphical, shoot, SHOTS_AVATAR_B } from "./shots";
@@ -90,7 +88,7 @@ function shellPrefs(botId = "ada") {
 
 function storageOf(registry: BotRegistry, botId = "ada"): Record<string, string> {
   return {
-    [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
+    ...botsStorage(registry),
     [SHELL_PREFS_STORAGE]: shellPrefs(botId),
     ...workspaceStorage({
       rows: [

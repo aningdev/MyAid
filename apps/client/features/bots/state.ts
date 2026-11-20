@@ -1,80 +1,117 @@
 /**
- * Bots store: the desktop registry, readable and writable from any Panel.
- * Bot / segment / Session views are panels in the Workspace Shell; this
- * module owns the file and the one in-flight write, not any view state.
+ * The Registry the UI reads. The `bots` plugin owns it: a connection takes
+ * `snapshot`, then follows `watch`, and every write applies the snapshot that
+ * comes back. Nothing here is stored on the Device.
+ *
+ * A Host-less test installs the in-memory gateway (`memory.ts`) instead.
  */
-import { platform, signal, untracked } from "nsh";
+import { Storage, signal } from "nsh";
 
 import { usesTestStorage } from "../../lib/data-root";
+import type { BotInput, BotPatch, BotsGateway, BotsSnapshot } from "../../lib/dsh/bots-gateway";
+import { readableError } from "../../lib/dsh/connection";
 import { t } from "../../lib/i18n";
-import {
-  DERIVED_PRESET_PREFIX,
-  emptyRegistry,
-  importTemplatesFromPresets,
-  RegistryRejection,
-  type BotRegistry,
-  type LegacyRegistry,
-} from "./model";
-import { BotRegistryRepository, defaultRegistryPath, fileStore, storageStore } from "./store";
-
-/** The desktop file where there is one; the app's storage on the web and on phones. */
-const opened = openRepository();
-const repo = opened.repo;
+import { createMemoryBots, BOTS_FIXTURE_KEY, type MemoryBots } from "./memory";
+import { emptyRegistry, type BotRegistry } from "./model";
 
 export const registry = signal<BotRegistry>(emptyRegistry());
-/**
- * A v3 / v4 / v5 file: Dialogues that still own the conversation. It is read-only until a
- * Host is up and the migration writes v5; nothing writes the old shape.
- */
-export const legacyRegistry = signal<LegacyRegistry | null>(null);
-/** Why the v4 file has not migrated yet (no Host, or a failing step). */
-export const migrationNotice = signal<string | null>(null);
 export const ready = signal(false);
 export const saving = signal(false);
 export const loadError = signal<string | null>(null);
 export const actionError = signal<string | null>(null);
-export const persistenceNotice = signal<string | null>(opened.notice);
 
-export async function loadRegistry(): Promise<void> {
+let epoch = 0;
+let watchAbort: AbortController | undefined;
+let gateway: BotsGateway | undefined;
+let seenRevision = -1;
+const readyListeners = new Set<() => void>();
+
+/** True once a gateway is installed (a Host connection, or a test double). */
+export function botsAttached(): boolean {
+  return gateway !== undefined;
+}
+
+/** Run `listener` when a snapshot has been applied, including the current one. */
+export function onRegistryReady(listener: () => void): () => void {
+  readyListeners.add(listener);
+  if (ready()) listener();
+  return () => {
+    readyListeners.delete(listener);
+  };
+}
+
+/**
+ * Host-less tests: seed the in-memory gateway from the fixture the test put
+ * in Storage. A real launch does not call this.
+ */
+export async function openTestBots(): Promise<void> {
+  if (!usesTestStorage() || gateway) return;
+  const text = await Storage.getItem(BOTS_FIXTURE_KEY);
+  if (!text) {
+    await followBots(createMemoryBots(emptyRegistry()));
+    return;
+  }
   try {
-    const result = await repo.load();
-    registry.set(result.registry);
-    legacyRegistry.set(result.legacy);
-    loadError.set(result.corrupt);
-    migrationNotice.set(
-      result.legacy ? t("registry.migrationTooOld", { version: result.legacy.version }) : null,
-    );
+    const seeded = JSON.parse(text) as BotRegistry;
+    await followBots(createMemoryBots(seeded));
   } catch (error) {
     loadError.set(messageOf(error));
-  } finally {
     ready.set(true);
+    notifyReady();
   }
 }
 
 /**
- * Store a migrated v5 registry (the v4 file is backed up first). Returns false
- * when the write failed; the v4 file then stays the only copy.
+ * Install an in-memory gateway and show `initial`, without a watch loop.
+ * Unit tests that only write through the Client use this; a watch test calls
+ * {@link followBots} instead.
  */
-export async function acceptMigratedRegistry(next: BotRegistry): Promise<boolean> {
-  if (loadError() !== null) return false;
-  saving.set(true);
-  try {
-    await repo.replace(next);
-    registry.set(next);
-    legacyRegistry.set(null);
-    migrationNotice.set(null);
-    return true;
-  } catch (error) {
-    migrationNotice.set(t("registry.migrationNotWritten", { error: messageOf(error) }));
-    return false;
-  } finally {
-    saving.set(false);
-  }
+export async function useMemoryBots(initial: BotRegistry): Promise<MemoryBots> {
+  const memory = createMemoryBots(initial);
+  epoch += 1;
+  watchAbort?.abort();
+  watchAbort = undefined;
+  gateway = memory;
+  seenRevision = -1;
+  applySnapshot(await memory.snapshot());
+  loadError.set(null);
+  ready.set(true);
+  return memory;
 }
 
-/** True when a write would not go through (still loading, unreadable or v4 file, another write). */
-export function writeBlocked(): boolean {
-  return !ready() || loadError() !== null || legacyRegistry() !== null || saving();
+/** Subscribe to `gateway`, replacing any previous watch. */
+export async function followBots(next: BotsGateway): Promise<void> {
+  const mine = ++epoch;
+  watchAbort?.abort();
+  const controller = new AbortController();
+  watchAbort = controller;
+  gateway = next;
+  try {
+    const snapshot = await next.snapshot();
+    if (mine !== epoch) return;
+    applySnapshot(snapshot);
+    loadError.set(null);
+    ready.set(true);
+    notifyReady();
+  } catch (error) {
+    if (mine !== epoch) return;
+    loadError.set(messageOf(error));
+    ready.set(true);
+    notifyReady();
+    return;
+  }
+  void readWatch(next, controller, mine);
+}
+
+/** Drop the subscription. The next connection subscribes again. */
+export function stopBots(): void {
+  epoch += 1;
+  watchAbort?.abort();
+  watchAbort = undefined;
+  gateway = undefined;
+  seenRevision = -1;
+  ready.set(false);
+  saving.set(false);
 }
 
 export function clearActionError(): void {
@@ -85,66 +122,114 @@ export function setActionError(message: string | null): void {
   actionError.set(message);
 }
 
-/** Apply `change` and write it. A rejection or a corrupt file changes nothing. */
-export async function changeRegistry(
-  change: (registry: BotRegistry) => BotRegistry,
-): Promise<BotRegistry | null> {
-  if (writeBlocked()) return null;
+/** True when a write would not go through (still loading, unreadable, or another write). */
+export function writeBlocked(): boolean {
+  return !ready() || loadError() !== null || saving() || gateway === undefined;
+}
+
+export async function importTemplates(): Promise<boolean> {
+  return write((current) => current.importTemplates());
+}
+
+export async function createBot(request: BotInput): Promise<boolean> {
+  return write((current) => current.createBot(request));
+}
+
+export async function updateBot(id: string, patch: BotPatch): Promise<boolean> {
+  return write((current) => current.updateBot({ id, patch }));
+}
+
+export async function initializeBot(botId: string): Promise<boolean> {
+  return write((current) => current.initializeBot(botId));
+}
+
+export async function claimSegment(
+  botId: string,
+  sessionId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  return write((current) => current.claimSegment({ botId, sessionId, workspaceId }));
+}
+
+export async function renameSegment(
+  botId: string,
+  sessionId: string,
+  title: string | null,
+): Promise<boolean> {
+  return write((current) => current.renameSegment({ botId, sessionId, title }));
+}
+
+export async function releaseSegment(botId: string, sessionId: string): Promise<boolean> {
+  return write((current) => current.releaseSegment({ botId, sessionId }));
+}
+
+export async function archiveBot(botId: string): Promise<boolean> {
+  return write((current) => current.archive(botId));
+}
+
+export async function unarchiveBot(botId: string): Promise<boolean> {
+  return write((current) => current.unarchive(botId));
+}
+
+export async function deleteBot(botId: string): Promise<boolean> {
+  return write((current) => current.deleteBot(botId));
+}
+
+export async function assignPreset(botId: string, presetId: string): Promise<boolean> {
+  return write((current) => current.assignPreset({ botId, presetId }));
+}
+
+async function write(run: (current: BotsGateway) => Promise<BotsSnapshot>): Promise<boolean> {
+  const current = gateway;
+  if (writeBlocked() || !current) return false;
   saving.set(true);
   actionError.set(null);
   try {
-    const next = await repo.commit(change);
-    registry.set(next);
-    return next;
+    applySnapshot(await run(current));
+    return true;
   } catch (error) {
     actionError.set(messageOf(error));
-    return null;
+    return false;
   } finally {
     saving.set(false);
   }
 }
 
-/** Connect dsh if needed and upsert its agent presets as templates. */
-export async function importDshTemplates(): Promise<number> {
-  if (writeBlocked()) return 0;
-  saving.set(true);
-  actionError.set(null);
+async function readWatch(
+  source: BotsGateway,
+  controller: AbortController,
+  mine: number,
+): Promise<void> {
   try {
-    const api = await import("../../lib/dsh/session");
-    const connection = await api.ensureConnected();
-    const presets = (await api.listAgentPresets(connection)).filter(
-      (preset) => !preset.id.startsWith(DERIVED_PRESET_PREFIX),
-    );
-    const before = untracked(registry).templates.length;
-    const next = await repo.commit((reg) => importTemplatesFromPresets(reg, presets));
-    registry.set(next);
-    return Math.max(0, next.templates.length - before);
-  } catch (error) {
-    try {
-      const { readableError } = await import("../../lib/dsh/session");
-      actionError.set(readableError(error));
-    } catch {
-      actionError.set(messageOf(error));
+    for await (const snapshot of source.watch(controller.signal)) {
+      if (mine !== epoch) return;
+      applySnapshot(snapshot);
     }
-    return 0;
-  } finally {
-    saving.set(false);
+  } catch (error) {
+    if (mine !== epoch || controller.signal.aborted) return;
+    loadError.set(messageOf(error));
   }
+}
+
+function applySnapshot(snapshot: BotsSnapshot): void {
+  if (snapshot.revision < seenRevision) return;
+  seenRevision = snapshot.revision;
+  registry.set(snapshot.registry as BotRegistry);
+}
+
+function notifyReady(): void {
+  for (const listener of readyListeners) listener();
 }
 
 function messageOf(error: unknown): string {
-  if (error instanceof RegistryRejection) return error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return t("registry.saveFailed");
+  if (isRemoteError(error)) return error.message || t("registry.saveFailed");
+  return readableError(error);
 }
 
-function openRepository(): { repo: BotRegistryRepository; notice: string | null } {
-  const desktop = platform.os === "macos" || platform.os === "windows" || platform.os === "linux";
-  if (!desktop || usesTestStorage()) {
-    return {
-      repo: new BotRegistryRepository(storageStore()),
-      notice: desktop ? null : t("registry.webStorage"),
-    };
-  }
-  return { repo: new BotRegistryRepository(fileStore(defaultRegistryPath())), notice: null };
+function isRemoteError(error: unknown): error is { message: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { isDSHRemoteError?: unknown }).isDSHRemoteError === true
+  );
 }

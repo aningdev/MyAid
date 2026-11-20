@@ -1,8 +1,9 @@
 /**
  * The product data root (`~/.dsh-bot`, or the isolated root `DSH_BOT_HOME`
  * names), and the one seam tests use to keep every app they open away from the
- * real home. The test helper sets a host launch parameter; the registry and
- * shell prefs then use the app's isolated Storage instead of the desktop files.
+ * real home. The test helper sets a host launch parameter; shell prefs then use
+ * the app's isolated Storage instead of the desktop file. The Registry is not
+ * stored on the Device.
  * The product default sets neither.
  */
 import { homedir } from "os";
@@ -17,7 +18,7 @@ export const TEST_HOST_PARAM = "dshBotTest";
 export const DATA_ROOT_ENV = "DSH_BOT_HOME";
 
 /**
- * The data root the registry, prefs, Host token and the Host itself share:
+ * The data root the prefs, Host token and the Host itself share:
  * `DSH_BOT_HOME` when set (it must sit under `~/.dsh-bot-dev`, the granted
  * isolated area), else `~/.dsh-bot`. Unaffected by the test marker.
  */
@@ -28,11 +29,6 @@ export function dataRootPath(
 ): string {
   const named = raw?.trim();
   return named ? named : join(homedir(), ".dsh-bot");
-}
-
-/** `<data root>/registry/bots.json`. */
-export function registryPath(): string {
-  return join(dataRootPath(), "registry", "bots.json");
 }
 
 /** `<data root>/prefs/client.json`. */

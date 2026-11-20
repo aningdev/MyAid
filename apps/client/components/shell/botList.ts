@@ -4,8 +4,8 @@
  * order and its live marks are testable without a window; the Navigator only
  * draws what it returns.
  *
- * Order: pinned Bots in the person's pin order, then the rest by recent
- * activity (a Bot's Workspaces and Sessions, newest first), then by name.
+ * Order: pinned Bots in the person's pin order, then the rest in Registry
+ * order. The plugin keeps the Main Bot first; this list does not sort again.
  * Archived Bots leave the list; a search still finds them, so they can be
  * brought back.
  */
@@ -91,11 +91,7 @@ export function botList(input: BotListInput): BotList {
 
   const others = input.registry.bots
     .filter((bot) => !bot.archived && !pinnedIds.has(bot.id) && matches(bot, query))
-    .map(toRow)
-    .sort((left, right) => {
-      if (left.activity !== right.activity) return right.activity - left.activity;
-      return left.bot.name.localeCompare(right.bot.name);
-    });
+    .map(toRow);
 
   // An archive is out of sight unless the search names it: then it shows with
   // the way back, so archiving is never a one-way door.
