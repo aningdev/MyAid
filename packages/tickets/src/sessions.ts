@@ -16,8 +16,13 @@ declare module "@deepseek-ai/dsh-llm" {
     /** Work delivered by this plugin; `form` says which way it travels. */
     tickets: {
       kind: "tickets";
-      form: "request" | "report";
-      ticketId: string;
+      form: "request" | "report" | "trigger";
+      /** The Ticket this message belongs to; null for a Source Trigger. */
+      ticketId: string | null;
+      /** The Source Trigger that brought a person's message in. */
+      triggerId?: string;
+      /** The Source instance the Trigger came from. */
+      source?: string;
     };
   }
 }
@@ -42,6 +47,14 @@ export interface TicketSessions {
   cancel(sessionId: string): Promise<void>;
   /** Report a finished Ticket back into the Main Bot's Session. */
   notify(sessionId: string, ticketId: string, text: string): Promise<void>;
+  /** Deliver one Source Trigger into the Session that follows its thread. */
+  trigger(
+    sessionId: string,
+    trigger: { triggerId: string; source: string },
+    text: string,
+  ): Promise<void>;
+  /** The Session this one was started by, for sub-agent Sessions. */
+  parentSession(sessionId: string): Promise<string | null>;
 }
 
 export class DshTicketSessions implements TicketSessions {
@@ -83,6 +96,31 @@ export class DshTicketSessions implements TicketSessions {
   async notify(sessionId: string, ticketId: string, text: string): Promise<void> {
     const agent = await this.agent(sessionId);
     agent.followup(message(ticketId, "report", text));
+  }
+
+  async trigger(
+    sessionId: string,
+    trigger: { triggerId: string; source: string },
+    text: string,
+  ): Promise<void> {
+    const agent = await this.agent(sessionId);
+    agent.followup(
+      createUserMessage({
+        content: [{ type: "text", text }],
+        source: {
+          kind: "tickets",
+          form: "trigger",
+          ticketId: null,
+          triggerId: trigger.triggerId,
+          source: trigger.source,
+        },
+      }),
+    );
+  }
+
+  async parentSession(sessionId: string): Promise<string | null> {
+    const parent = this.ctx.agents.get(SessionId(sessionId))?.session.header.parentSession;
+    return parent === undefined ? null : String(parent);
   }
 
   private async agent(sessionId: string): Promise<Agent> {

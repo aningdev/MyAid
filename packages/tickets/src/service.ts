@@ -12,6 +12,7 @@ import { Remote, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 
 import { TicketsCore } from "./core.ts";
 import { DshTicketSessions } from "./sessions.ts";
+import type { Sources } from "./sources.ts";
 import { TicketsStore } from "./store.ts";
 import type { AnswerAttentionRequest, TicketsSnapshot } from "./wire.ts";
 
@@ -24,6 +25,8 @@ declare module "@deepseek-ai/cordis" {
 export type TicketsServiceOptions = {
   /** This plugin's Tickets file. */
   file: string;
+  /** The `sources` service Source plugins register through. */
+  sources: Sources;
 };
 
 export class TicketsService extends TypertRemoteService {
@@ -37,12 +40,17 @@ export class TicketsService extends TypertRemoteService {
       store: new TicketsStore({ file: options.file }),
       bots: ctx.bots,
       sessions: new DshTicketSessions(ctx),
+      sources: options.sources.registry,
       logger: { warn: (message) => ctx.logger.warn(message) },
+    });
+    options.sources.attach({
+      deliver: (sourceId, trigger) => this.core.deliver(sourceId, trigger),
     });
     this.listen(ctx);
   }
 
   /** The current Tickets and pending Attentions. */
+  @Remote("snapshot")
   async snapshot(): Promise<TicketsSnapshot> {
     return this.core.snapshot();
   }
@@ -51,16 +59,19 @@ export class TicketsService extends TypertRemoteService {
    * Stream the snapshot on subscription, then again after every write.
    * @param signal - subscription lifetime; aborting ends only this stream.
    */
+  @Remote({ mode: "stream" })
   async *watch(signal: AbortSignal): AsyncIterable<TicketsSnapshot> {
     yield* this.core.watch(signal);
   }
 
   /** Answer one pending Attention; its Ticket reopens and the Session continues. */
+  @Remote("answer")
   async answer(request: AnswerAttentionRequest): Promise<TicketsSnapshot> {
     return this.core.answer(request);
   }
 
   /** Cancel a live Ticket as its Owner: its Session stops and its Attention is withdrawn. */
+  @Remote("cancel")
   async cancel(ticketId: string): Promise<TicketsSnapshot> {
     return this.core.cancel(ticketId);
   }
@@ -71,6 +82,7 @@ export class TicketsService extends TypertRemoteService {
       // already sees the tool.
       try {
         await this.core.attachMainBotTool(agent);
+        await this.core.attachTicketTool(agent);
       } catch (error) {
         ctx.logger.warn(`tickets: could not prepare ${String(agent.id)}: ${String(error)}`);
       }
@@ -109,44 +121,4 @@ export class TicketsService extends TypertRemoteService {
       this.ctx.logger.warn(`tickets: ${error instanceof Error ? error.message : String(error)}`);
     });
   }
-}
-
-// `vp pack` leaves standard-decorator syntax in place, and Node cannot parse
-// it. Mark the same methods through the exported decorator API instead: the
-// Gateway reads exactly the descriptor `@Remote` would have written.
-for (const [method, exportName, stream] of [
-  ["snapshot", "snapshot", false],
-  ["watch", "watch", true],
-  ["answer", "answer", false],
-  ["cancel", "cancel", false],
-] as const) {
-  markRemoteMethod(TicketsService.prototype, method, exportName, stream);
-}
-
-function markRemoteMethod(
-  prototype: object,
-  method: string,
-  exportName: string,
-  stream: boolean,
-): void {
-  const member = (prototype as Record<string, unknown>)[method];
-  if (typeof member !== "function") {
-    throw new TypeError(`tickets: ${method} is not a method`);
-  }
-  const context = {
-    kind: "method",
-    name: method,
-    static: false,
-    private: false,
-    access: { has: () => true, get: () => undefined },
-    addInitializer(initializer: (this: object) => void) {
-      initializer.call(Object.create(prototype));
-    },
-    metadata: {},
-  } as unknown as ClassMethodDecoratorContext;
-  type Mark = (member: never, context: ClassMethodDecoratorContext) => void;
-  const decorate = stream
-    ? (Remote as unknown as (options: { mode: "stream" }) => Mark)({ mode: "stream" })
-    : (Remote as unknown as (name: string) => Mark)(exportName);
-  decorate(member as never, context);
 }

@@ -57,7 +57,14 @@ describe("TicketsStore", () => {
     const file = join(await scratch(), "tickets", "tickets.json");
     const store = new TicketsStore({ file });
     await store.load();
-    expect(await store.snapshot()).toEqual({ revision: 0, tickets: [], attentions: [] });
+    expect(await store.snapshot()).toEqual({
+      revision: 0,
+      tickets: [],
+      attentions: [],
+      triggers: [],
+      sourceThreads: [],
+      answers: [],
+    });
     const written = JSON.parse(await readFile(file, "utf8"));
     expect(written.version).toBe(TICKETS_VERSION);
   });

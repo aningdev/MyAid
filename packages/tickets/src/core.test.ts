@@ -12,8 +12,9 @@ import { afterEach, describe, expect, test } from "vite-plus/test";
 import { TicketsCore, type TicketBots } from "./core.ts";
 import { sessionIdFor } from "./ids.ts";
 import type { TicketSessionStart, TicketSessions } from "./sessions.ts";
+import { SourceRegistry } from "./sources.ts";
 import { TicketsStore } from "./store.ts";
-import { OPEN_TICKET_TOOL } from "./tool.ts";
+import { OPEN_TICKET_TOOL, REPORT_TICKET_TOOL } from "./tool.ts";
 import type { TicketsSnapshot } from "./wire.ts";
 
 const roots: string[] = [];
@@ -61,6 +62,8 @@ class FakeSessions implements TicketSessions {
   prompts: { sessionId: string; ticketId: string; text: string }[] = [];
   cancels: string[] = [];
   notices: { sessionId: string; ticketId: string; text: string }[] = [];
+  triggers: { sessionId: string; triggerId: string; source: string; text: string }[] = [];
+  parents = new Map<string, string>();
   failStart: Error | null = null;
 
   async start(target: TicketSessionStart): Promise<void> {
@@ -75,6 +78,16 @@ class FakeSessions implements TicketSessions {
   }
   async notify(sessionId: string, ticketId: string, text: string): Promise<void> {
     this.notices.push({ sessionId, ticketId, text });
+  }
+  async trigger(
+    sessionId: string,
+    trigger: { triggerId: string; source: string },
+    text: string,
+  ): Promise<void> {
+    this.triggers.push({ sessionId, ...trigger, text });
+  }
+  async parentSession(sessionId: string): Promise<string | null> {
+    return this.parents.get(sessionId) ?? null;
   }
 }
 
@@ -113,20 +126,22 @@ function assistantMessage(agent: FakeAgent, text: string): void {
 }
 
 async function makeCore(
-  options: { sessions?: FakeSessions; bots?: FakeBots } = {},
-): Promise<{ core: TicketsCore; sessions: FakeSessions; bots: FakeBots }> {
+  options: { sessions?: FakeSessions; bots?: FakeBots; sources?: SourceRegistry } = {},
+): Promise<{ core: TicketsCore; sessions: FakeSessions; bots: FakeBots; sources: SourceRegistry }> {
   const dir = await mkdtemp(join(tmpdir(), "tickets-core-"));
   roots.push(dir);
   const sessions = options.sessions ?? new FakeSessions();
   const bots = options.bots ?? new FakeBots();
+  const sources = options.sources ?? new SourceRegistry();
   const warnings: string[] = [];
   const core = new TicketsCore({
     store: new TicketsStore({ file: join(dir, "tickets.json") }),
     bots,
     sessions,
+    sources,
     logger: { warn: (message) => warnings.push(message) },
   });
-  return { core, sessions, bots };
+  return { core, sessions, bots, sources };
 }
 
 /** Let every settled microtask and the store's write queue drain. */
@@ -340,7 +355,7 @@ describe("Attention 与 Owner 介入", () => {
 });
 
 describe("Session 结束与 Ticket 状态", () => {
-  test("一轮跑完（running → idle）把 Ticket 记为 completed，并把结果写回 Main Bot", async () => {
+  test("一轮跑完不等于完成：没有报告的 idle 让 Ticket 保持 open", async () => {
     const { core, sessions } = await makeCore();
     const ticket = await core.open({
       bot: "worker",
@@ -353,13 +368,12 @@ describe("Session 结束与 Ticket 状态", () => {
     await core.agentStatus(agent.agent, "running");
     await core.agentStatus(agent.agent, "idle");
     const snapshot = await core.snapshot();
-    expect(snapshot.tickets[0]?.status).toBe("completed");
-    expect(snapshot.tickets[0]?.result).toBe("整理完了：12 条 5xx。");
-    expect(sessions.notices[0]).toMatchObject({ sessionId: "s-main" });
-    expect(sessions.notices[0]?.text).toContain("整理完了：12 条 5xx。");
+    expect(snapshot.tickets[0]?.status).toBe("open");
+    expect(snapshot.tickets[0]?.result).toBeNull();
+    expect(sessions.notices).toEqual([]);
   });
 
-  test("没经过 running 的 idle 不算完成", async () => {
+  test("Bot 报告完成后 Ticket 结束，结果写回 Main Bot", async () => {
     const { core, sessions } = await makeCore();
     const ticket = await core.open({
       bot: "worker",
@@ -368,12 +382,40 @@ describe("Session 结束与 Ticket 状态", () => {
       origin: ORIGIN,
     });
     const agent = fakeAgent(sessionIdFor(ticket.id));
-    await core.agentStatus(agent.agent, "idle");
-    expect((await core.snapshot()).tickets[0]?.status).toBe("open");
-    expect(sessions.notices).toEqual([]);
+    await core.attachTicketTool(agent.agent);
+    expect(agent.tools.map((tool) => tool.name)).toEqual([REPORT_TICKET_TOOL]);
+    const report = agent.tools[0]!;
+    const result = (await report.execute({ status: "completed", result: "整理完了：12 条 5xx。" }, {
+      signal: new AbortController().signal,
+      agent: agent.agent,
+    } as never)) as { ticketId: string; status: string };
+    expect(result.status).toBe("completed");
+    const snapshot = await core.snapshot();
+    expect(snapshot.tickets[0]?.status).toBe("completed");
+    expect(snapshot.tickets[0]?.result).toBe("整理完了：12 条 5xx。");
+    expect(sessions.notices[0]).toMatchObject({ sessionId: "s-main" });
+    expect(sessions.notices[0]?.text).toContain("整理完了：12 条 5xx。");
   });
 
-  test("等待 Owner 时 Session 空闲不结束 Ticket", async () => {
+  test("报告失败把 Ticket 记为 failed", async () => {
+    const { core, sessions } = await makeCore();
+    const ticket = await core.open({
+      bot: "worker",
+      title: "整理",
+      request: "做。",
+      origin: ORIGIN,
+    });
+    await core.reportWork(sessionIdFor(ticket.id), {
+      status: "failed",
+      result: "缺访问权限",
+    });
+    const snapshot = await core.snapshot();
+    expect(snapshot.tickets[0]?.status).toBe("failed");
+    expect(snapshot.tickets[0]?.error).toBe("缺访问权限");
+    expect(sessions.notices[0]?.text).toContain("缺访问权限");
+  });
+
+  test("等 Owner 回答时不能报告，非 Ticket Session 也不能报告", async () => {
     const { core } = await makeCore();
     const ticket = await core.open({
       bot: "worker",
@@ -381,20 +423,48 @@ describe("Session 结束与 Ticket 状态", () => {
       request: "做。",
       origin: ORIGIN,
     });
-    const agent = fakeAgent(sessionIdFor(ticket.id));
     const asking = core.askQuestion(ticket.id, {
       questions: [{ id: "q1", question: "哪一个？" }],
     } as AskUserQuestionRequest);
     await settle();
-    await core.agentStatus(agent.agent, "running");
-    await core.agentStatus(agent.agent, "idle");
-    expect((await core.snapshot()).tickets[0]?.status).toBe("waiting");
+    await expect(
+      core.reportWork(sessionIdFor(ticket.id), { status: "completed", result: "先斩后奏" }),
+    ).rejects.toMatchObject({ code: "tickets/invalid" });
     const attention = (await core.snapshot()).attentions[0]!;
     await core.answer({
       attentionId: attention.id,
       answer: { kind: "question", answers: [{ questionId: "q1", selected: [] }] },
     });
     await asking;
+    await expect(
+      core.reportWork("s-main", { status: "completed", result: "不是我的 Ticket" }),
+    ).rejects.toMatchObject({ code: "tickets/not-found" });
+  });
+
+  test("子代理 Session 的等待算在它所属的 Ticket 上", async () => {
+    const { core, sessions } = await makeCore();
+    const ticket = await core.open({
+      bot: "worker",
+      title: "整理",
+      request: "做。",
+      origin: ORIGIN,
+    });
+    sessions.parents.set("s-child", sessionIdFor(ticket.id));
+    await expect(core.ticketFor("s-child")).resolves.toMatchObject({ id: ticket.id });
+    const asking = core.askQuestion(ticket.id, {
+      questions: [{ id: "q1", question: "子代理该继续吗？" }],
+      agent: fakeAgent("s-child").agent,
+    } as AskUserQuestionRequest);
+    await settle();
+    expect((await core.snapshot()).tickets[0]?.status).toBe("waiting");
+    const attention = (await core.snapshot()).attentions[0]!;
+    await core.answer({
+      attentionId: attention.id,
+      answer: { kind: "question", answers: [{ questionId: "q1", selected: ["继续"] }] },
+    });
+    await expect(asking).resolves.toEqual({
+      answers: [{ id: "q1", selected: ["继续"] }],
+    });
   });
 
   test("Session 出错把 Ticket 记为 failed", async () => {
@@ -421,9 +491,7 @@ describe("Session 结束与 Ticket 状态", () => {
       request: "做。",
       origin: ORIGIN,
     });
-    const agent = fakeAgent(sessionIdFor(ticket.id));
-    await core.agentStatus(agent.agent, "running");
-    await core.agentStatus(agent.agent, "idle");
+    await core.reportWork(sessionIdFor(ticket.id), { status: "completed", result: "做完了。" });
     await core.ownerMessage(sessionIdFor(ticket.id));
     const restored = (await core.snapshot()).tickets[0]!;
     expect(restored.status).toBe("open");
@@ -499,7 +567,10 @@ describe("Main Bot 工具", () => {
     expect(result.bot).toBe("Worker");
     const snapshot = await core.snapshot();
     expect(snapshot.tickets[0]?.id).toBe(result.ticketId);
-    expect(snapshot.tickets[0]?.origin.sessionId).toBe("s-main-prompt");
+    expect(snapshot.tickets[0]?.origin).toMatchObject({
+      kind: "main-bot",
+      sessionId: "s-main-prompt",
+    });
   });
 });
 
