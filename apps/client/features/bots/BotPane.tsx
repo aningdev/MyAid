@@ -17,6 +17,7 @@ import { Icon } from "../../lib/icons";
 import { requestComposerFocus } from "../dialogue/chat/focus";
 import { ChatPane } from "../dialogue/ChatPane";
 import { controllerFor, sessionError } from "../dialogue/session/runtime";
+import { BotTickets } from "../tickets/BotTickets";
 import { startSegment } from "../workspace/conversation";
 import { workspaces } from "../workspace/state";
 import { openBotDetails } from "./details";
@@ -43,6 +44,7 @@ export function BotPane(props: { panelId: string; botId: string }) {
   return (
     <View style={{ flex: 1, minHeight: 0, minWidth: 0, backgroundColor: token("background") }}>
       <If when={bot()} else={<Missing ready={() => ready()} />}>
+        <BotTickets botId={props.botId} />
         <If
           when={segmentId()}
           else={<NoSegment botId={props.botId} onOpenDetails={() => openBotDetails(props.botId)} />}

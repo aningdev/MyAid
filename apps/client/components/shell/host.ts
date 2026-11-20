@@ -13,6 +13,7 @@ import {
   noteHostLost,
   refreshHostStatus,
 } from "../../features/dialogue/session/runtime";
+import { openTestTickets } from "../../features/tickets/state";
 import { loadStoredWorkspaces } from "../../features/workspace/state";
 import { hostControlAllowed, usesTestStorage } from "../../lib/data-root";
 import {
@@ -114,7 +115,10 @@ export async function startShell(): Promise<void> {
   stopHostOnQuit();
   // A real-Host smoke talks to the plugin. Every other test app uses the
   // in-memory Remote, seeded from the fixture in its Storage.
-  if (usesTestStorage() && !hostControlAllowed()) await openTestBots();
+  if (usesTestStorage() && !hostControlAllowed()) {
+    await openTestBots();
+    await openTestTickets();
+  }
   await startHost();
   await retryHost();
   // A Host-less test app reads the Workspace baseline a fixture put in its Storage.

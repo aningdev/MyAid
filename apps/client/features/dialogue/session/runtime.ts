@@ -10,6 +10,7 @@ import type { ISessions, SessionListState, SessionSummary } from "@dsh-bot/dsh-w
 import { computed, signal, untracked } from "nsh";
 
 import { liveBots } from "../../../lib/dsh/bots-live";
+import { liveTickets } from "../../../lib/dsh/tickets-live";
 import { t } from "../../../lib/i18n";
 import { presetForBot, segmentOwner } from "../../bots/model";
 import { titleFromPrompt, type ListedSession } from "../../bots/sessions";
@@ -22,6 +23,7 @@ import {
   renameSegment,
   stopBots,
 } from "../../bots/state";
+import { followTickets, stopTickets } from "../../tickets/state";
 import {
   isSessionArchived,
   startWorkspaces,
@@ -311,6 +313,7 @@ async function subscribeBots(): Promise<void> {
   const api = await loadDsh();
   const connection = api.connectedSession() ?? (await api.ensureConnected());
   await followBots(liveBots(connection.botsNamespace()));
+  await followTickets(liveTickets(connection.ticketsNamespace()));
 }
 
 function onGenerationChange(up: boolean): void {
@@ -321,6 +324,7 @@ function onGenerationChange(up: boolean): void {
     // The Registry subscription ends with the connection and starts again
     // when the next generation is up.
     stopBots();
+    stopTickets();
     sessionError.set(t("session.connectionLost"));
     watchForHost();
     return;
@@ -333,6 +337,7 @@ function onGenerationChange(up: boolean): void {
     const connection = api.connectedSession();
     if (!connection) return;
     await followBots(liveBots(connection.botsNamespace()));
+    await followTickets(liveTickets(connection.ticketsNamespace()));
   })().catch(() => undefined);
 }
 
