@@ -46,7 +46,7 @@
       "@deepseek-ai/dsh-user-questions": "0.2.2-rc.5",
       "@deepseek-ai/dsh-workspace": "0.2.2-rc.5",
       "@types/node": "26.6.6",
-      "esbuild": "^0.28.2",
+      "esbuild": "0.28.2",
       "shadcn-nsh": "0.8.0",
       "typescript": "7.1.0-beta",
       "zod": "4.6.6"
