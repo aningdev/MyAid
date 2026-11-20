@@ -70,7 +70,7 @@ test("a pairing link shows a code and a countdown", async () => {
 test("an unconfigured Relay shows the reason and no code", async () => {
   const app = await openDevices({ unconfigured: true });
   await app.waitFor("id:devices-relay-reason");
-  expect(app.shows(`text:${t("devices.relay.unset")}`)).toBe(true);
+  expect(app.shows(`text:${t("devices.relay.badAddress")}`)).toBe(true);
   expect(app.shows("id:devices-qr")).toBe(false);
   expect(app.shows("id:devices-add")).toBe(false);
 });

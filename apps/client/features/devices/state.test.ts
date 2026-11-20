@@ -20,11 +20,11 @@ import {
 } from "./state";
 
 const RELAY = { configured: true, connected: true, runnerId: "runner", reason: null };
-const UNSET = {
+const UNCONFIGURED = {
   configured: false,
   connected: false,
   runnerId: null,
-  reason: "DSH_BOT_RELAY_URL is unset; placeholder",
+  reason: "DSH_BOT_RELAY_URL is not a usable Relay address: no",
 };
 
 function ready(generation: string): HostStatus {
@@ -63,7 +63,7 @@ function until(ready: () => boolean, label: string): Promise<void> {
 
 function plane(options: { unconfigured?: boolean } = {}) {
   let devices: PairedDevice[] = [{ ...PHONE }];
-  const relay = options.unconfigured ? UNSET : RELAY;
+  const relay = options.unconfigured ? UNCONFIGURED : RELAY;
   let socket: HostSocket | undefined;
   let posts = 0;
   const transport = createHostTransport({

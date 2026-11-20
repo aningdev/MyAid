@@ -6,9 +6,6 @@ import { t } from "../../lib/i18n";
  */
 import { dayLabel, clockLabel } from "../dialogue/chat/time";
 
-/** The Host's sentence when no Relay address is configured. */
-const UNSET = "DSH_BOT_RELAY_URL is unset";
-
 /** The Host's sentence while the Bridge is still dialing. */
 const CONNECTING = "connecting";
 
@@ -16,7 +13,6 @@ const CONNECTING = "connecting";
 export function relayReasonText(reason: string | null | undefined): string {
   if (!reason) return t("devices.relay.unavailable");
   if (reason === CONNECTING) return t("devices.relay.connecting");
-  if (reason.startsWith(UNSET)) return t("devices.relay.unset");
   if (reason.startsWith("DSH_BOT_RELAY_URL")) return t("devices.relay.badAddress");
   return reason;
 }

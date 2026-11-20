@@ -5,9 +5,9 @@
 import { createHostTransport, type HostSocket, type HostTransport } from "../../lib/host/client";
 import type { PairedDevice, RelayStatus } from "../../lib/host/protocol";
 
-/** The Host's real unset sentence, so the page maps the words it will see. */
-export const UNSET_REASON =
-  "DSH_BOT_RELAY_URL is unset; DEFAULT_RELAY_URL (https://default-relay-url.invalid) is a placeholder, not a usable Relay";
+/** The Host's real sentence for an unusable `DSH_BOT_RELAY_URL`, so the page maps the words it will see. */
+export const BAD_ADDRESS_REASON =
+  "DSH_BOT_RELAY_URL is not a usable Relay address: relative URL without a base";
 
 export const PAIRING_LINK = "https://relay.example/pair#v=1&r=runner&k=a2V5&p=cHNr&e=999";
 
@@ -36,11 +36,11 @@ const READY_RELAY: RelayStatus = {
   reason: null,
 };
 
-const UNSET_RELAY: RelayStatus = {
+const UNCONFIGURED_RELAY: RelayStatus = {
   configured: false,
   connected: false,
   runnerId: null,
-  reason: UNSET_REASON,
+  reason: BAD_ADDRESS_REASON,
 };
 
 export type DevicesFixtureOptions = {
@@ -64,7 +64,7 @@ function reply(body: unknown, status = 200): Response {
 /** The control plane the Devices page talks to in tests. */
 export function createDevicesFixture(options: DevicesFixtureOptions = {}): HostTransport {
   let devices: PairedDevice[] = options.unconfigured ? [] : [{ ...PHONE }];
-  const relay = options.unconfigured ? UNSET_RELAY : READY_RELAY;
+  const relay = options.unconfigured ? UNCONFIGURED_RELAY : READY_RELAY;
   return createHostTransport({
     allow: () => true,
     token: async () => "fixture-token",
@@ -74,7 +74,7 @@ export function createDevicesFixture(options: DevicesFixtureOptions = {}): HostT
       const method = init?.method ?? "GET";
       if (path === "/bridge/devices" && method === "GET") return reply({ devices, relay });
       if (path === "/bridge/pairing" && method === "POST") {
-        if (!relay.configured) return reply({ error: UNSET_REASON }, 409);
+        if (!relay.configured) return reply({ error: BAD_ADDRESS_REASON }, 409);
         const expiresAt = options.expired ? 1 : Math.floor(Date.now() / 1000) + 300;
         return reply({ link: PAIRING_LINK, expiresAt });
       }

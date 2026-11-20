@@ -5,14 +5,11 @@ import { expect, test } from "nsh/test";
 
 import { t } from "../../lib/i18n";
 import { countdown, pairingExpired, relayReasonText } from "./copy";
-import { UNSET_REASON } from "./fixture";
+import { BAD_ADDRESS_REASON } from "./fixture";
 
 test("a Relay reason becomes the catalog sentence", () => {
-  expect(relayReasonText(UNSET_REASON)).toBe(t("devices.relay.unset"));
   expect(relayReasonText("connecting")).toBe(t("devices.relay.connecting"));
-  expect(relayReasonText("DSH_BOT_RELAY_URL is not a usable Relay address: no")).toBe(
-    t("devices.relay.badAddress"),
-  );
+  expect(relayReasonText(BAD_ADDRESS_REASON)).toBe(t("devices.relay.badAddress"));
   expect(relayReasonText("")).toBe(t("devices.relay.unavailable"));
   expect(relayReasonText("still dialing the far side")).toBe("still dialing the far side");
 });

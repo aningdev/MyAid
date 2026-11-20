@@ -192,10 +192,6 @@ export const messages = {
   "devices.revokeName": { zh: "撤销 {name}", en: "Revoke {name}" },
   "devices.relay.connected": { zh: "Relay 已连接", en: "Relay connected" },
   "devices.relay.connecting": { zh: "Relay 正在连接", en: "Relay is connecting" },
-  "devices.relay.unset": {
-    zh: "还没有可用的 Relay 地址，所以不能生成配对链接。",
-    en: "No Relay address is configured, so a pairing link cannot be generated.",
-  },
   "devices.relay.badAddress": {
     zh: "Relay 地址无法使用，所以不能生成配对链接。",
     en: "The Relay address cannot be used, so a pairing link cannot be generated.",

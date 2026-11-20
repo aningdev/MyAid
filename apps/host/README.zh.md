@@ -44,7 +44,7 @@ cargo test -p dsh-bot-host
 
 `DSH_BOT_RELAY_URL` 必须是 `https`（或 `wss`）地址；只有 host 是回环（`localhost`、`127.0.0.1`、`::1`，供本地测试的 Relay）时才接受 `http` / `ws`。其他地址按未配置 Relay 处理，`POST /bridge/pairing` 回 409 并说明原因。
 
-`src/bridge/` 是 Runner 侧的中继隧道：注册身份、Relay 连接、Noise、已配对 Device，以及 Bridge 转发。帧契约在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，这里不复述。`DSH_BOT_RELAY_URL` 覆盖 `src/bridge/mod.rs` 里编译进去的占位 `DEFAULT_RELAY_URL`；该占位不是真实地址，也不会被拨号。配对和设备列表走上面的 `/bridge/*`。`/watch` 在列表变化时另发 `{"event":"bridge.devices","devices":[...]}`。
+`src/bridge/` 是 Runner 侧的中继隧道：注册身份、Relay 连接、Noise、已配对 Device，以及 Bridge 转发。帧契约在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，这里不复述。`DSH_BOT_RELAY_URL` 不设或为空时，用项目运营的 Relay，即 `src/bridge/mod.rs` 里的 `DEFAULT_RELAY_URL`（`https://relay.aning.dev`）；设成别的地址就用自建 Relay（[部署方法](../relay/README.zh.md#部署)）。配对和设备列表走上面的 `/bridge/*`。`/watch` 在列表变化时另发 `{"event":"bridge.devices","devices":[...]}`。
 
 Bridge 转发把 Device 的一条 stream 变成对本 Host 启动的 dsh web 的回环请求：`POST /api/…` 走 HTTP，`/api/remote.mux` 走 WebSocket，其他一律以 forbidden 重置。它剥掉 Device 的 `Cookie`、`Authorization`、`Host`、`Origin` 和 `Sec-WebSocket-*`，换上自己的 Cookie，并且从不回传 `Set-Cookie`。Cookie 用 Host 登录 token 调 `/connect` 换取，按 dsh 的 origin 和 generation 缓存；遇到 401 或 dsh web 重启就重换一次。每条 stream 积压超过 1 MiB 时被当作 overloaded 重置。Bridge 始终读着回环 mux，因此自己回应 dsh 每两秒一次的 ping；Device 慢下来也不会让 mux 被断开。Device 的 `RESET` 即取消：Bridge 关掉该 tunnel stream 背后的回环请求或 mux 流，且不再回任何帧——Device 中止的 `fetch` 就是这样让 dsh 停下的。`src/bridge/dsh.rs` 是回环客户端与 Cookie 缓存，`http.rs` 是 HTTP stream，`ws.rs` 是 mux stream，`outbox.rs` 记积压。
 

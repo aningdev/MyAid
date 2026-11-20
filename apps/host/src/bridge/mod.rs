@@ -42,8 +42,8 @@ use std::{
 use tokio::sync::mpsc::UnboundedSender;
 use url::Url;
 
-/// Placeholder until the project picks a real default Relay. Bridge does not dial it.
-pub const DEFAULT_RELAY_URL: &str = "https://default-relay-url.invalid";
+/// The project-run Relay, used when `DSH_BOT_RELAY_URL` is unset or empty.
+pub const DEFAULT_RELAY_URL: &str = "https://relay.aning.dev";
 
 const PSK_TTL_SECS: u64 = 5 * 60;
 
@@ -230,10 +230,10 @@ impl Bridge {
     pub fn issue_pairing(&self) -> std::result::Result<PairingTicket, IssueError> {
         self.gate()?;
         let identity = self.identity().map_err(IssueError::Failed)?;
-        let RelayPlan::Up { origin, .. } = &self.shared.plan else {
-            return Err(IssueError::Unavailable(unset_reason()));
+        let origin = match &self.shared.plan {
+            RelayPlan::Up { origin, .. } => origin.clone(),
+            RelayPlan::Down { reason } => return Err(IssueError::Unavailable(reason.clone())),
         };
-        let origin = origin.clone();
         let mut bytes = [0u8; 32];
         getrandom::fill(&mut bytes).map_err(|error| IssueError::Failed(error.to_string()))?;
         let expires_at = (self.shared.now)().saturating_add(PSK_TTL_SECS);
@@ -579,26 +579,14 @@ fn pairing_link(
 }
 
 fn plan_from(setting: Option<&str>) -> RelayPlan {
-    let Some(setting) = setting.map(str::trim).filter(|value| !value.is_empty()) else {
-        return RelayPlan::Down {
-            reason: unset_reason(),
-        };
-    };
-    if setting == DEFAULT_RELAY_URL {
-        return RelayPlan::Down {
-            reason: unset_reason(),
-        };
-    }
+    let setting = setting
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DEFAULT_RELAY_URL);
     match endpoint(setting) {
         Ok((ws, origin)) => RelayPlan::Up { ws, origin },
         Err(reason) => RelayPlan::Down { reason },
     }
-}
-
-fn unset_reason() -> String {
-    format!(
-        "DSH_BOT_RELAY_URL is unset; DEFAULT_RELAY_URL ({DEFAULT_RELAY_URL}) is a placeholder, not a usable Relay"
-    )
 }
 
 fn endpoint(setting: &str) -> Result<(Url, String)> {

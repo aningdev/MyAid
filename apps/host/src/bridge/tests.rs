@@ -2,7 +2,7 @@
 //! product Relay.
 
 use super::{
-    Bridge, DEFAULT_RELAY_URL, DshEndpoint, DshSource, channel,
+    Bridge, DEFAULT_RELAY_URL, DshEndpoint, DshSource, RelayPlan, channel,
     channel::Inbound,
     encode, frames,
     frames::{
@@ -11,6 +11,7 @@ use super::{
     },
     identity, noise,
     outbox::OutFrame,
+    plan_from,
 };
 use axum::{
     Router,
@@ -598,22 +599,30 @@ fn rustls_client_config_builds() {
         .with_no_client_auth();
 }
 
+#[test]
+fn an_unset_relay_is_the_project_relay() {
+    for setting in [None, Some(""), Some("  ")] {
+        let RelayPlan::Up { ws, origin } = plan_from(setting) else {
+            panic!("{setting:?} left the Relay down");
+        };
+        assert_eq!(ws.as_str(), "wss://relay.aning.dev/v1/runner");
+        assert_eq!(origin, DEFAULT_RELAY_URL);
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn unset_or_placeholder_relay_is_not_dialed() {
+async fn an_unusable_relay_address_is_not_dialed() {
     let dir = tempfile::tempdir().expect("tempdir");
     let now = Arc::new(AtomicU64::new(1_800_000_000));
-    for setting in [None, Some(""), Some(DEFAULT_RELAY_URL), Some("not a url")] {
-        let bridge = Bridge::open_for_test(dir.path(), setting, now.clone(), no_dsh());
+    for setting in ["not a url", "relay.example"] {
+        let bridge = Bridge::open_for_test(dir.path(), Some(setting), now.clone(), no_dsh());
         bridge.spawn(Arc::new(AtomicBool::new(false)));
         tokio::time::sleep(Duration::from_millis(30)).await;
         let body = bridge.devices().expect("devices");
         assert!(!body.relay.configured);
         assert!(!body.relay.connected);
         let reason = body.relay.reason.expect("reason");
-        assert!(
-            reason.contains("DEFAULT_RELAY_URL") || reason.contains("not a usable"),
-            "{reason}"
-        );
+        assert!(reason.contains("not a usable"), "{reason}");
     }
     assert!(!dir.path().join("host/bridge/identity.json").exists());
     let broken = Bridge::open_for_test(dir.path(), Some("ftp://relay.example"), now, no_dsh());

@@ -79,7 +79,8 @@ fn start() -> Host {
         .arg(&dsh)
         .args(["--port", "0", "--ready-stdout"])
         .env("DSH_BOT_PATCH", "")
-        .env_remove("DSH_BOT_RELAY_URL")
+        // An unusable address keeps every test here off the project Relay.
+        .env("DSH_BOT_RELAY_URL", "not a url")
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -336,7 +337,7 @@ fn a_page_origin_is_refused_on_the_bridge_device_list() {
 }
 
 #[test]
-fn an_unconfigured_relay_is_reported_and_pairing_is_refused() {
+fn an_unusable_relay_is_reported_and_pairing_is_refused() {
     let host = start();
     let (status, body) = request(
         host.port,
@@ -351,7 +352,7 @@ fn an_unconfigured_relay_is_reported_and_pairing_is_refused() {
     assert_eq!(reported["relay"]["configured"], false);
     assert_eq!(reported["relay"]["connected"], false);
     let reason = reported["relay"]["reason"].as_str().expect("reason");
-    assert!(reason.contains("default-relay-url.invalid"), "{reason}");
+    assert!(reason.contains("not a usable Relay address"), "{reason}");
     assert!(!host._dir.path().join("host/bridge/identity.json").exists());
 
     let (status, body) = request(
@@ -367,7 +368,7 @@ fn an_unconfigured_relay_is_reported_and_pairing_is_refused() {
         refused["error"]
             .as_str()
             .unwrap_or_default()
-            .contains("default-relay-url.invalid")
+            .contains("not a usable Relay address")
     );
 
     let (status, _) = request(host.port, "GET", "/status", &bearer(&host.token), None);
