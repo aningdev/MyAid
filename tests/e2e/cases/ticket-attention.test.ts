@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { type ConnectedDevice, connectedDevice, openSession } from "../support/device";
 import type { Script } from "../support/llm";
-import { officialDsh, type RealStack, startRealStack } from "../support/real-stack";
+import { type RealStack, startRealStack } from "../support/real-stack";
 import { type Watch, watching } from "../support/watch";
 
 /**
@@ -50,7 +50,7 @@ const script: Script = (turn) => {
   return { text: "ok" };
 };
 
-describe.skipIf(!officialDsh)("a Ticket that needs its Owner", () => {
+describe("a Ticket that needs its Owner", () => {
   type Tickets = Awaited<ReturnType<ConnectedDevice["tickets"]["snapshot"]>>;
   let stack: RealStack;
   let phone: ConnectedDevice;

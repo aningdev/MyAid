@@ -35,17 +35,17 @@ Device 就是 Client 自己的 relay Carrier，从 `@dsh-bot/client/relay`（[`a
 
 [`support/real-stack.ts`](support/real-stack.ts) 的 `startRealStack(script)` 复用同一套 Relay 和 Host（[`startPlumbing`](support/harness.ts)），把 Host 后面的东西全换掉：
 
-| 部分       | 启动方式                                                                                  | 说明                                                                                                                                          |
-| ---------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| 官方 `dsh` | Host 的 `--official-dsh --patch <临时目录>/plugins.patch.yml`                             | patch 把 `packages/*/lib` 里的 `dsh-bots`、`dsh-tickets` 插进去，和 `scripts/dev.mjs` 的 `prepareOverlay` 一样。`test:e2e` 会先构建这两个包。 |
-| 模型供应商 | 在测试进程里（[`support/llm.ts`](support/llm.ts)）                                        | 线上协议用 `@deepseek-ai/dsh-llm-mock-server`，前面有个路由器按请求挑答案（见下）。key 固定是 `mock-key`。                                    |
-| dsh 的环境 | `HOME` = `<临时目录>/home`，其中 `.zshenv` 导出 `DEEPSEEK_BASE_URL` 和 `DEEPSEEK_API_KEY` | Host 用登录 shell 组装 dsh 的环境，这是唯一能到达 dsh 的通道；Owner 自己的登录文件和 key 不会被读。                                           |
+| 部分                          | 启动方式                                                                                  | 说明                                                                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 钉住版本的 `@deepseek-ai/dsh` | Host 的 `--dsh <它的 lib/bin.js> --patch <临时目录>/plugins.patch.yml`                    | patch 把 `packages/*/lib` 里的 `dsh-bots`、`dsh-tickets` 插进去，和 `scripts/dev.mjs` 的 `prepareOverlay` 一样。`test:e2e` 会先构建这两个包。 |
+| 模型供应商                    | 在测试进程里（[`support/llm.ts`](support/llm.ts)）                                        | 线上协议用 `@deepseek-ai/dsh-llm-mock-server`，前面有个路由器按请求挑答案（见下）。key 固定是 `mock-key`。                                    |
+| dsh 的环境                    | `HOME` = `<临时目录>/home`，其中 `.zshenv` 导出 `DEEPSEEK_BASE_URL` 和 `DEEPSEEK_API_KEY` | Host 用登录 shell 组装 dsh 的环境，这是唯一能到达 dsh 的通道；Owner 自己的登录文件和 key 不会被读。                                           |
 
 **剧本。** mock server 不管收到什么都按固定序列回答，而且只能发一种配置好的工具调用；用例却需要模型按「谁在问、前面发生了什么」来回答。所以 `startLlm(script)` 为每种不同的步骤起一个 mock 实例，前面放一个路由器：它把每个请求读成 `Turn`（提供的工具、最后一条用户文本、最后一个工具结果），调用 `script(turn)` 得到一段文本或一次工具调用，再转给对应的实例，并给每次工具调用单独的 id。Ticket 的 Session 靠 `ticket_report` 与 Main Bot 区分，只有它才有这个工具。`llm.turn(match)` 在匹配的请求到达时 resolve，用例就是这样不靠 sleep 地等「结果回到了 Main Bot 的 Session」。
 
 **Device。** [`connectedDevice`](support/device.ts) 配对一台 Device，并让 Client 的 `Connection`（从 `@dsh-bot/client/dsh` 导入）经它的 Carrier 连上去，所以 Remote 调用和 `watch` 流都是产品自己的 gateway。[`support/watch.ts`](support/watch.ts) 记下 `watch` 的每个快照，快照到达且匹配时 `until(match)` 就 resolve；没有任何地方按时间等。
 
-**每个文件一套 stack。** 测试文件并行跑，而 Registry 和 Tickets 文件会被用例改写，所以每个文件起自己的 stack（约一秒）；文件内的测试共用它，互不依赖。真 dsh 的文件需要官方 `dsh` CLI 在 Host 找得到的地方（登录 shell 里 `command -v dsh`）；没有时它们被跳过，不算失败。
+**每个文件一套 stack。** 测试文件并行跑，而 Registry 和 Tickets 文件会被用例改写，所以每个文件起自己的 stack（约一秒）；文件内的测试共用它，互不依赖。这个 npm 包是本包的 devDependency（`"catalog:"`，和其他 dsh 版本同一个 pin），所以真 dsh 的文件在任何装了依赖的地方都会跑，dsh 起不来就失败，不会跳过。
 
 ## 用例
 

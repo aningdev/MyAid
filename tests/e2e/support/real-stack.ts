@@ -1,11 +1,12 @@
-// The stack with the real dsh web behind the Host: the product's own plugins
+// The stack with the real dsh web behind the Host (the pinned `@deepseek-ai/dsh`
+// npm package): the product's own plugins
 // (`dsh-bots`, `dsh-tickets`) loaded through `--patch`, and a scripted model
 // provider on loopback instead of DeepSeek. The Relay, the Host and the
 // Devices are the same as in `harness.ts`.
 
-import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { type Plumbing, startPlumbing, startTeardown } from "./harness";
@@ -13,15 +14,11 @@ import { key, type Llm, type Script, startLlm } from "./llm";
 
 const repository = fileURLToPath(new URL("../../../", import.meta.url));
 
-/** Whether the official `dsh` CLI is installed where the Host looks for it. */
-export const officialDsh: boolean = (() => {
-  try {
-    execFileSync("/bin/zsh", ["-lc", "command -v dsh"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-})();
+/** The pinned `@deepseek-ai/dsh` the workspace installed (`workspaces.catalog`), by its bin. */
+const dsh = join(
+  dirname(createRequire(import.meta.url).resolve("@deepseek-ai/dsh/package.json")),
+  "lib/bin.js",
+);
 
 export interface RealStack extends Plumbing {
   readonly llm: Llm;
@@ -44,7 +41,12 @@ export async function startRealStack(script: Script): Promise<RealStack> {
     await mkdir(home, { recursive: true });
     await writeFile(
       join(home, ".zshenv"),
-      `export DEEPSEEK_BASE_URL='${llm.baseUrl}' DEEPSEEK_API_KEY='${key}'\n`,
+      [
+        // The bin's `#!/usr/bin/env node` must find the node running this test.
+        `export PATH='${dirname(process.execPath)}':"$PATH"`,
+        `export DEEPSEEK_BASE_URL='${llm.baseUrl}' DEEPSEEK_API_KEY='${key}'`,
+        "",
+      ].join("\n"),
     );
     const workspace = join(teardown.root, "work");
     await mkdir(workspace);
@@ -55,7 +57,7 @@ export async function startRealStack(script: Script): Promise<RealStack> {
     });
     await writeFile(patch, `- insert:\n${rows.join("")}`);
     const plumbing = await startPlumbing(teardown, {
-      args: ["--official-dsh", "--patch", patch],
+      args: ["--dsh", dsh, "--patch", patch],
       env: { HOME: home },
     });
     await plumbing.startDsh();

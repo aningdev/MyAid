@@ -5,10 +5,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { type ConnectedDevice, connectedDevice } from "../support/device";
-import { officialDsh, type RealStack, startRealStack } from "../support/real-stack";
+import { type RealStack, startRealStack } from "../support/real-stack";
 import { type Watch, watching } from "../support/watch";
 
-describe.skipIf(!officialDsh)("the Registry on two Devices", () => {
+describe("the Registry on two Devices", () => {
   let stack: RealStack;
   let phone: ConnectedDevice;
   let desktop: ConnectedDevice;

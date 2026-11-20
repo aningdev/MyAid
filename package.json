@@ -12,6 +12,7 @@
     "catalog": {
       "@deepseek-ai/cordis": "~4.1.0",
       "@deepseek-ai/cordis-plugin-include": "~1.1.0",
+      "@deepseek-ai/dsh": "0.2.2-rc.5",
       "@deepseek-ai/dsh-agent": "0.2.2-rc.5",
       "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.5",
       "@deepseek-ai/dsh-api-gateway": "0.2.2-rc.5",
@@ -64,7 +65,7 @@
     "fix": "vp check --fix && cargo fmt --all",
     "check": "node scripts/check-dsh-pin.mjs && node scripts/check-docs.mjs && vp check && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' check && cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "build": "vp run --filter @dsh-bot/client... build",
-    "test": "cargo test --workspace --all-features && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' test",
+    "test": "node --test scripts/dsh-pin.test.mjs && cargo test --workspace --all-features && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' test",
     "test:e2e": "vp run -F '@dsh-bot/*' -F '!@dsh-bot/workspace' test:e2e"
   },
   "devDependencies": {
