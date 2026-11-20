@@ -29,6 +29,7 @@
 | 每个 `apps/*`     | 必需      | 必需                               |
 | `packages/`       | 简短索引  | 插件族约束（`packages/AGENTS.md`） |
 | 每个 `packages/*` | 必需      | 默认不建，确有额外约束才建         |
+| 每个 `tests/*`    | 必需      | 默认不建                           |
 
 `docs/` 下的正文只写中文；`references/` 和 `scripts/` 不要求三件套。
 

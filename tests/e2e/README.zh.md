@@ -8,11 +8,11 @@ Relay 隧道的端到端测试：真 Relay、真 Host（含 Bridge）和 Client 
 
 ```sh
 bun run test:e2e                    # 在根目录：先构建二进制，再跑所有用例
-bun run --cwd tests/e2e test:e2e    # 同上，只跑这个包
-bun run --cwd tests/e2e check       # 给用例做类型检查
+vp run @dsh-bot/e2e#test:e2e        # 同上，只跑这个包
+vp run @dsh-bot/e2e#check           # 给用例做类型检查
 ```
 
-整层必须在 60 秒内跑完（不含开头的 `cargo build`）。它不碰 `~/.dsh-bot`、`~/.dsh-bot-dev` 和项目 Relay，也不安装任何服务。
+预算和何时跑见 [testing](../../docs/architecture/testing.md)。它不碰 `~/.dsh-bot`、`~/.dsh-bot-dev` 和项目 Relay，也不安装任何服务。
 
 ## 用例拿到什么
 

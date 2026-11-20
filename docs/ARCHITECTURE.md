@@ -37,7 +37,7 @@ flowchart TB
 - **Client**：`features/*` → `lib/*`，反过来不行。视图只读产品投影，不直接碰传输；投影也不重复计算官方 client model 已经维护的状态。
 - **lib/dsh** 只通过 Carrier 访问 dsh web，不知道自己走的是 loopback 还是 relay。`lib/host` 只在 Runner 上装载。
 - **Host** 只管进程和连接：dsh web 的生命周期、本机控制面、OS 登记和 Bridge。它不调用任何业务 Remote，Bridge 只负责鉴权之后的转发。
-- **Relay** 只负责配对会合和转发密文帧，不解密，也不含业务逻辑。配对和转发尚未实现，目前只有 `serve`、`GET /` 和 `GET /v1/health`。
+- **Relay** 只负责配对会合和转发密文帧，不解密，也不含业务逻辑。
 - **插件**只依赖 dsh 的公开服务（`ctx.get`），插件之间只通过声明的服务互相调用。Source 插件依赖 `tickets` 提供的 `sources` 服务：注册 Source kind 与实例，交付 Trigger，经 Channel 写回。
 
 ## Layout
@@ -56,7 +56,9 @@ packages/
   tickets/           Ticket、Attention、`sources` 服务（Remote `tickets`）
   source-<kind>/     一个 Source 一个插件，例如 source-feishu、source-github；目前只有测试用 fake
   dsh-web-protocol/  只给 Client 用的官方 Remote 类型再导出，插件不能依赖它
-scripts/             根编排：dev.mjs（唯一的 dev 入口）、dsh 版本检查、文档检查、pack-decorators（插件包共用的 decorator 降级）
+tests/
+  e2e/               端到端：真 Relay、真 Host 和 Client 的 relay Carrier，loopback 加假 dsh web
+scripts/             根编排：dev.mjs（唯一的 dev 入口）、nsh-test-parallel.mjs（Client 测试按文件并行）、dsh 版本检查、文档检查、pack-decorators（插件包共用的 decorator 降级）
 docs/                GLOSSARY · ARCHITECTURE · architecture/ · decisions/ · specs/ · agents/
 references/          只读的上游源码，不参与构建
 ```

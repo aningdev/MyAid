@@ -8,11 +8,11 @@ End-to-end tests for the Relay tunnel: a real Relay, a real Host with its Bridge
 
 ```sh
 bun run test:e2e                    # from the root: builds the binaries, then runs every case
-bun run --cwd tests/e2e test:e2e    # the same, for this package alone
-bun run --cwd tests/e2e check       # type-check the cases
+vp run @dsh-bot/e2e#test:e2e        # the same, for this package alone
+vp run @dsh-bot/e2e#check           # type-check the cases
 ```
 
-The layer must finish within 60 seconds, not counting the `cargo build` it starts with. It never touches `~/.dsh-bot`, `~/.dsh-bot-dev` or the project Relay, and installs no service.
+Its budget and when it runs are in [testing](../../docs/architecture/testing.md). It never touches `~/.dsh-bot`, `~/.dsh-bot-dev` or the project Relay, and installs no service.
 
 ## What a case gets
 
