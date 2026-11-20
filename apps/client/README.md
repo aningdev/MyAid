@@ -14,7 +14,7 @@ apps/client/
 │   ├── shell/                  # Navigator (flat Bot list), Panes, settings overlay, commands, prefs, attention
 │   └── ui/                     # shadcn-nsh copies, added with its CLI; theme.json is the theme
 ├── features/                   # bots (registry, Pane, details), dialogue (chat, segments), workspace, settings
-├── lib/                        # dsh, host, relay, background
+├── lib/                        # dsh, host, background
 ├── screens/                    # open(…) entries, screenshots, opt-in real-Host smokes
 ├── themes/                     # what shadcn-nsh's `add theme-*` copies in (`default/`: its own colours; `shadcn/`: the build theme again, as an `AppTheme`)
 ├── nsh.json                    # plain TSX: no "rust" key
@@ -101,12 +101,12 @@ Not translated, by design: what a person typed and what a Bot is called (Bot nam
 
 ## Native layer: the Host this app starts (desktop only)
 
-There is no Rust in this app ([0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)). The Host is loopback HTTP + one WebSocket on `127.0.0.1:4872` (`DSH_BOT_HOST_PORT`), authenticated by `<data root>/host/serve-token`; the Relay has its own at `127.0.0.1:8787` with `relay/serve-token`.
+There is no Rust in this app ([0007](../../docs/decisions/0007-the-client-is-pure-tsx.md)). The Host is loopback HTTP + one WebSocket on `127.0.0.1:4872` (`DSH_BOT_HOST_PORT`), authenticated by `<data root>/host/serve-token`. OS registration is the Host's own snapshot (`version`, `phase`, optional `reason`); the public Relay is not a local control plane and is not registered with the OS.
 
 - `lib/host/launcher.ts` starts the Host when none answers (`dsh-bot-host serve-app`), reuses one that does, and starts it again after an exit (1 s doubling to 15 s). It needs `dsh-bot-host` on `PATH`; `cargo build -p dsh-bot-host` puts it in `target/debug`, and `scripts/run-with-host-path.mjs` puts that folder first for the desktop `dev*` scripts (`dev`, `dev:macos`, `dev:windows`, `dev:linux`, `dev:gpui`). Prefer repo-root `bun run dev [target]`, which rebuilds the Host when its sources moved on and only wires that `PATH` for desktop targets.
 - `lib/host/client.ts` is the transport (`fetch` + standard `WebSocket`); `lib/host/control.ts` is the product surface (`ensureBackendReady`, `resolveDshLoginUrl`, `watchHostStatus`). The Host's public status also carries `hostVersion` and the `dshVersion` its guardian found, which Background and About show.
 - The sidebar footer is the Host empty state when the launcher cannot run one: its reason plus the manual `dsh-bot-host serve-app`.
-- `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` start no Host — mobile goes through the Relay, not the local Host.
+- `dev:ios` / `dev:android` / `dev:mobile` / `dev:web` / `dev:server` / `package:*` start no Host — other Devices reach the Runner through the public Relay, not the local Host.
 
 ## Related
 

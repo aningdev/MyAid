@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 /// launchd label and Windows `Run` value.
 pub const LABEL: &str = "com.aningdev.dshbot.host";
 /// systemd user unit file name.
+#[cfg(target_os = "linux")]
 pub const SYSTEMD_UNIT: &str = "dsh-bot-host.service";
 /// Arguments the service runs.
 pub const ARGUMENTS: &[&str] = &["serve-app"];

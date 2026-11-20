@@ -284,8 +284,8 @@ export const messages = {
   // --- Settings › Background ------------------------------------------------
   "settings.background.title": { zh: "后台", en: "Background" },
   "settings.background.note": {
-    zh: "Host 启动并监督 dsh web；Background Services 是两个单元在系统里的登记。",
-    en: "The Host starts and supervises dsh web; Background Services is the two units' registration with the system.",
+    zh: "Host 启动并监督 dsh web，并作为后台服务向系统登记。",
+    en: "The Host starts and supervises dsh web, and registers with the system as a background service.",
   },
   "settings.background.hostCard": { zh: "Host 与 dsh web", en: "Host and dsh web" },
   "settings.background.hostVersion": { zh: "Host 版本", en: "Host version" },
@@ -301,16 +301,13 @@ export const messages = {
   "background.phase.registered": { zh: "已登记", en: "Registered" },
   "background.phase.denied": { zh: "被拒绝", en: "Denied" },
   "background.phase.failed": { zh: "失败", en: "Failed" },
-  "background.phase.full": { zh: "完整", en: "Full" },
-  "background.phase.degraded": { zh: "降级", en: "Degraded" },
-  "background.phase.off": { zh: "关闭", en: "Off" },
   "background.note": {
-    zh: "Host 与 Relay 以两个独立的服务向系统登记。启用会同时请求两者；停止会同时撤回。一方被拒绝不影响另一方。",
-    en: "Host and Relay register with the OS as two independent services. Enabling asks for both; stopping withdraws both. Either may stay denied without rolling back the other.",
+    zh: "Host 作为后台服务向系统登记。",
+    en: "The Host registers with the system as a background service.",
   },
   "background.desktopOnly": {
-    zh: "Background Services 只在桌面运行。移动端经 Relay 访问 Host。",
-    en: "Background Services run on desktop only. Mobile clients reach the Host through Relay.",
+    zh: "系统登记只在 macOS 和 Windows 上提供。",
+    en: "OS registration is offered only on macOS and Windows.",
   },
   "lifecycle.idle": { zh: "空闲", en: "Idle" },
   "lifecycle.preparing": { zh: "准备中", en: "Preparing" },
@@ -321,7 +318,6 @@ export const messages = {
   "lifecycle.recovering": { zh: "恢复中", en: "Recovering" },
   "lifecycle.failed": { zh: "失败", en: "Failed" },
   "background.host": { zh: "Host", en: "Host" },
-  "background.relay": { zh: "Relay", en: "Relay" },
   "background.enable": { zh: "启用", en: "Enable" },
   "background.stop": { zh: "停止", en: "Stop" },
   "background.unknown": { zh: "未知", en: "Unknown" },
@@ -336,9 +332,6 @@ export const messages = {
     zh: "宿主未运行：请先启动 Host",
     en: "The Host is not running: start the Host first",
   },
-  "background.hostOffline": { zh: "宿主未运行", en: "The Host is not running" },
-  "background.relayOffline": { zh: "Relay 未运行", en: "The Relay is not running" },
-
   // --- Settings › About -----------------------------------------------------
   "settings.about.title": { zh: "关于", en: "About" },
   "settings.about.note": {
@@ -448,22 +441,6 @@ export const messages = {
   "host.protocol.invalidUrl": { zh: "宿主连接地址无效", en: "Invalid Host connection URL" },
   "host.protocol.invalidStatus": { zh: "宿主状态无效", en: "Invalid Host status" },
   "host.protocol.notReady": { zh: "宿主连接还没准备好", en: "The Host connection is not ready" },
-  "relay.registration.request": {
-    zh: "转发登记请求失败：{path} {status}",
-    en: "Relay registration request failed: {path} {status}",
-  },
-  "relay.notRunning": {
-    zh: "Relay 未运行：请 cargo run -p dsh-bot-relay -- serve-app，或登记为后台服务",
-    en: "The Relay is not running: cargo run -p dsh-bot-relay -- serve-app, or register it as a background service",
-  },
-  "relay.registerFailed": {
-    zh: "Relay 未运行，无法向系统登记",
-    en: "The Relay is not running; it cannot be registered with the system",
-  },
-  "relay.unregisterFailed": {
-    zh: "Relay 未运行，无法注销系统登记",
-    en: "The Relay is not running; its registration cannot be removed",
-  },
   "test.noControl": {
     zh: "测试应用不连接本机控制面",
     en: "A test app does not reach the local control plane",
@@ -1000,7 +977,6 @@ export const messages = {
     zh: "后台编排还没有配置",
     en: "Background orchestration is not configured",
   },
-  "background.error.invalidUnit": { zh: "单元登记无效", en: "Invalid unit registration" },
   "background.error.invalidSnapshot": { zh: "登记快照无效", en: "Invalid registration snapshot" },
 } as const satisfies Record<string, CatalogEntry>;
 

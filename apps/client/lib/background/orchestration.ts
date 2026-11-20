@@ -53,6 +53,8 @@ export async function enableProductBackground(): Promise<ProductBackgroundView> 
 
 /** Withdraw the Host's OS registration. Does not touch the Registry or Sessions. */
 export async function stopProductBackground(): Promise<ProductBackgroundView> {
-  await deps().host.registrationStop().catch(() => undefined);
+  await deps()
+    .host.registrationStop()
+    .catch(() => undefined);
   return queryHost();
 }

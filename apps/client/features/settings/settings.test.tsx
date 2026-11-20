@@ -1,7 +1,7 @@
 /**
- * Settings › Background Services over the stand-in control channels
- * (`settings-harness.tsx`): the panel shows the Host's and Relay's own
- * registration facts, and its verbs issue the shared registration calls.
+ * Settings › Background over the stand-in control channel
+ * (`settings-harness.tsx`): the panel shows the Host's registration, and its
+ * verbs issue the Host's registration calls.
  */
 import { expect, test } from "nsh/test";
 
@@ -22,32 +22,26 @@ async function panel() {
   return app;
 }
 
-test("the panel shows the Host and Relay facts separately", async () => {
+test("the panel shows the Host registration", async () => {
   const app = await panel();
 
   expect(app.shows(`id:settings-host-phase >> text:${t("background.phase.notRegistered")}`)).toBe(
     true,
   );
-  expect(
-    app.shows(`id:settings-relay-phase >> text:${t("background.phase.pendingApproval")}`),
-  ).toBe(true);
-  expect(app.texts()).toContain(t("background.phase.degraded"));
 });
 
-test("Enable and Stop issue both units' registration verbs", async () => {
+test("Enable and Stop register and withdraw the Host", async () => {
   const app = await panel();
 
   await app.press(`label:${t("background.enable")}`);
-  await app.waitUntil(
-    () => app.texts().filter((text) => text === t("background.phase.registered")).length === 2,
+  await app.waitUntil(() =>
+    app.shows(`id:settings-host-phase >> text:${t("background.phase.registered")}`),
   );
-  expect(app.texts()).toContain(t("background.phase.full"));
 
   await app.press(`label:${t("background.stop")}`);
-  await app.waitUntil(
-    () => app.texts().filter((text) => text === t("background.phase.notRegistered")).length === 2,
+  await app.waitUntil(() =>
+    app.shows(`id:settings-host-phase >> text:${t("background.phase.notRegistered")}`),
   );
-  expect(app.texts()).toContain(t("background.phase.off"));
 });
 
 async function openSettings(options: Parameters<typeof open>[1] = desktop) {

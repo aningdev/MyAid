@@ -10,13 +10,13 @@ Constraints: [AGENTS.md](AGENTS.md). Read [ARCHITECTURE](../../docs/ARCHITECTURE
 
 `GET /` answers `dsh-bot` with no token, so a launcher can tell a Host from anything else. Everything else takes `Authorization: Bearer <token>`, the token in `<data root>/host/serve-token` (made once, mode 0600), and refuses a request that carries an `Origin` or names another host with 403.
 
-| Route                                                  | Answers                                            |
-| ------------------------------------------------------ | -------------------------------------------------- |
-| `GET /status`                                          | public lifecycle status (no login URL)             |
-| `GET /connection`                                      | the dsh login URL, only while ready                |
-| `GET /watch`                                           | a WebSocket that pushes each changed public status |
-| `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → status        |
-| `POST /dsh/stop`, `POST /dsh/restart`                  | status                                             |
+| Route                                                  | Answers                                              |
+| ------------------------------------------------------ | ---------------------------------------------------- |
+| `GET /status`                                          | public lifecycle status (no login URL)               |
+| `GET /connection`                                      | the dsh login URL, only while ready                  |
+| `GET /watch`                                           | a WebSocket that pushes each changed public status   |
+| `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → status          |
+| `POST /dsh/stop`, `POST /dsh/restart`                  | status                                               |
 | `GET /registration`                                    | Host snapshot: `version`, `phase`, optional `reason` |
 | `POST /registration/enable`, `POST /registration/stop` | the same snapshot after the verb                     |
 

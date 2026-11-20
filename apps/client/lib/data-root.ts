@@ -49,7 +49,7 @@ export function usesTestStorage(): boolean {
 export const SMOKE_ENV = "DSH_BOT_SMOKE_HOST";
 
 /**
- * Whether this app may talk to the local Host / Relay control plane at all — probe a port, read
+ * Whether this app may talk to the local Host control plane at all — probe a port, read
  * a `serve-token`, start a Host.
  *
  * A test app may not: the user's real Host may be listening on 4872 with the real `~/.dsh-bot`, so

@@ -22,7 +22,7 @@ nsh test screens/ordered-list-markers.test.tsx --target macos
 # fs grants as the app really has them (refusals outside; the real ~/.dsh-bot is not read).
 nsh test screens/fs-grant.test.tsx --target macos
 
-# Settings › Background Services over stand-in control channels (no Host).
+# Settings › Background Services over a stand-in Host control channel (no Host).
 nsh test screens/settings-background.test.tsx --target macos
 
 # The Bot app's Panes, Bot details and Settings overlay (seeded, no Host).

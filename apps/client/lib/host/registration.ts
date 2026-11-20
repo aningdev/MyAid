@@ -2,10 +2,7 @@
  * Host Background Service registration over the Host's loopback HTTP API.
  * Query, enable and stop all return the same snapshot.
  */
-import {
-  decodeRegistrationSnapshot,
-  type RegistrationSnapshot,
-} from "../background/protocol";
+import { decodeRegistrationSnapshot, type RegistrationSnapshot } from "../background/protocol";
 import { hostControlAllowed } from "../data-root";
 import { t } from "../i18n";
 import { hostBaseUrl, hostPort, hostToken, noControlInTest } from "./client";

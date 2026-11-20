@@ -10,15 +10,15 @@ dsh-bot 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh
 
 `GET /` 无需 token，回 `dsh-bot`，让启动器区分「有 Host」与「什么都没有」。其余路由都要 `Authorization: Bearer <token>`（数据根 `<data root>/host/serve-token`，进程拿到端口后写一次、0600），带 `Origin` 或 `Host` 不是本端口回环的请求一律 403。
 
-| 路由                                                   | 回答                                      |
-| ------------------------------------------------------ | ----------------------------------------- |
-| `GET /status`                                          | 公开相位（不含登录 URL）                  |
-| `GET /connection`                                      | dsh 登录 URL，只在 ready 时给             |
-| `GET /watch`                                           | WebSocket，推送每次变化的公开相位         |
-| `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → 相位 |
-| `POST /dsh/stop`、`POST /dsh/restart`                  | 相位                                      |
+| 路由                                                   | 回答                                               |
+| ------------------------------------------------------ | -------------------------------------------------- |
+| `GET /status`                                          | 公开相位（不含登录 URL）                           |
+| `GET /connection`                                      | dsh 登录 URL，只在 ready 时给                      |
+| `GET /watch`                                           | WebSocket，推送每次变化的公开相位                  |
+| `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → 相位          |
+| `POST /dsh/stop`、`POST /dsh/restart`                  | 相位                                               |
 | `GET /registration`                                    | Host 的登记快照：`version`、`phase`、可选 `reason` |
-| `POST /registration/enable`、`POST /registration/stop` | 动词执行后的同一份快照                              |
+| `POST /registration/enable`、`POST /registration/stop` | 动词执行后的同一份快照                             |
 
 ## 命令
 
