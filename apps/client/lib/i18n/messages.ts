@@ -20,6 +20,7 @@ export const messages = {
   "common.save": { zh: "保存", en: "Save" },
   "common.saving": { zh: "保存中…", en: "Saving…" },
   "common.retry": { zh: "重试", en: "Retry" },
+  "common.dismiss": { zh: "知道了", en: "Dismiss" },
   "common.refresh": { zh: "刷新", en: "Refresh" },
   "common.delete": { zh: "删除", en: "Delete" },
   "common.archive": { zh: "归档", en: "Archive" },
@@ -149,6 +150,7 @@ export const messages = {
   "settings.nav.providers": { zh: "模型供应商", en: "Model providers" },
   "settings.nav.general": { zh: "通用", en: "General" },
   "settings.nav.background": { zh: "后台", en: "Background" },
+  "settings.nav.device": { zh: "这台设备", en: "This Device" },
   "settings.nav.devices": { zh: "设备", en: "Devices" },
   "settings.nav.about": { zh: "关于", en: "About" },
 
@@ -200,6 +202,116 @@ export const messages = {
   },
   "devices.relay.unavailable": { zh: "Relay 暂不可用。", en: "The Relay is unavailable." },
   "devices.down": { zh: "读不到已配对的 Device。", en: "The paired Devices could not be read." },
+
+  // --- Pairing entry (a Device's Client) ------------------------------------
+  "pairing.title": { zh: "连接到你的 Runner", en: "Connect to your Runner" },
+  "pairing.note": {
+    zh: "在 Runner 的 Settings › Devices 里生成配对链接，整段粘贴到这里。链接只用于这一次配对，不会被保存。",
+    en: "Generate a pairing link in Settings › Devices on the Runner and paste all of it here. The link is used for this pairing only and is not stored.",
+  },
+  "pairing.link": { zh: "配对链接", en: "Pairing link" },
+  "pairing.linkPlaceholder": { zh: "https://…/pair#…", en: "https://…/pair#…" },
+  "pairing.name": { zh: "设备名称", en: "Device name" },
+  "pairing.connect": { zh: "连接", en: "Connect" },
+  "pairing.connecting": { zh: "正在连接…", en: "Connecting…" },
+  "pairing.connectingNote": {
+    zh: "正在通过 Relay 联系 Runner。",
+    en: "Reaching the Runner through the Relay.",
+  },
+  "pairing.platformUnknown": { zh: "设备", en: "Device" },
+  "pairing.removedTitle": { zh: "这台设备已被移除", en: "This Device was removed" },
+  "pairing.removedNote": {
+    zh: "Runner 撤销了这台 Device。想继续使用，请在 Runner 上重新生成配对链接。",
+    en: "The Runner revoked this Device. To use it again, generate a new pairing link there.",
+  },
+  "pairing.error.invalid-link": {
+    zh: "配对链接不完整。请把 Runner 上显示的链接整段粘贴进来。",
+    en: "That pairing link is not complete. Paste the whole link the Runner shows.",
+  },
+  "pairing.error.expired-link": {
+    zh: "配对链接已过期。在 Runner 上重新生成一个。",
+    en: "This pairing link has expired. Generate another on the Runner.",
+  },
+  "pairing.error.pairing-rejected": {
+    zh: "Runner 拒绝了这个链接。它可能已经被用过，或者已经过期。",
+    en: "The Runner rejected this link. It may already have been used, or expired.",
+  },
+  "pairing.error.handshake-failed": {
+    zh: "连上了 Relay，但没能和 Runner 完成握手。",
+    en: "The Relay was reached, but the handshake with the Runner failed.",
+  },
+  "pairing.error.device-revoked": {
+    zh: "这台设备已被移除。在 Runner 上重新配对。",
+    en: "This Device was removed. Pair it again on the Runner.",
+  },
+  "pairing.error.runner-offline": {
+    zh: "Runner 不在线。确认 Runner 开着，并且连着 Relay。",
+    en: "The Runner is offline. Check that it is running and connected to the Relay.",
+  },
+  "pairing.error.replaced": {
+    zh: "这台 Device 在别处重新配对了。",
+    en: "This Device was paired again somewhere else.",
+  },
+  "pairing.error.overloaded": {
+    zh: "Relay 现在很忙，请稍后再试。",
+    en: "The Relay is overloaded. Try again shortly.",
+  },
+  "pairing.error.bad-auth": {
+    zh: "Relay 不接受这次连接。",
+    en: "The Relay refused this connection.",
+  },
+  "pairing.error.too-many": {
+    zh: "Relay 的连接已经满了，请稍后再试。",
+    en: "The Relay has too many connections. Try again shortly.",
+  },
+  "pairing.error.idle": {
+    zh: "连接超时了，请重试。",
+    en: "The connection timed out. Try again.",
+  },
+  "pairing.error.forbidden": {
+    zh: "Runner 不允许这次连接。",
+    en: "The Runner does not allow this connection.",
+  },
+  "pairing.error.protocol": {
+    zh: "连接中断了，请重试。",
+    en: "The connection broke down. Try again.",
+  },
+  "pairing.error.unavailable": {
+    zh: "Runner 暂时不可用，请稍后再试。",
+    en: "The Runner is unavailable right now. Try again shortly.",
+  },
+  "pairing.error.ping-timeout": {
+    zh: "和 Relay 失去了联系。",
+    en: "The Relay stopped answering.",
+  },
+  "pairing.error.closed": {
+    zh: "连接已经断开，请重试。",
+    en: "The connection closed. Try again.",
+  },
+  "pairing.error.invalid-identity": {
+    zh: "这台 Device 的身份损坏了，请重新安装。",
+    en: "This Device's identity is damaged. Reinstall the app.",
+  },
+  "pairing.error.invalid-pairing": {
+    zh: "本机保存的配对已损坏，请重新配对。",
+    en: "The pairing stored on this Device is damaged. Pair it again.",
+  },
+
+  // --- Settings › This Device (a Device's Client only) ---------------------
+  "device.title": { zh: "这台设备", en: "This Device" },
+  "device.note": {
+    zh: "这台 Device 通过 Relay 连到它的 Runner。断开只会清掉本机的配对记录；要收回访问，还得在 Runner 的 Settings › Devices 里撤销它。",
+    en: "This Device reaches its Runner through the Relay. Disconnecting only forgets the pairing stored here; to take the access away, revoke it in Settings › Devices on the Runner.",
+  },
+  "device.pairingTitle": { zh: "配对", en: "Pairing" },
+  "device.platform": { zh: "平台 {platform}", en: "Platform {platform}" },
+  "device.disconnect": { zh: "断开这台设备", en: "Disconnect this Device" },
+  "device.disconnectTitle": { zh: "断开这台设备？", en: "Disconnect this Device?" },
+  "device.disconnectNote": {
+    zh: "断开后这台 Device 回到配对页；想再连上，需要从 Runner 重新生成配对链接。",
+    en: "The Device returns to its pairing entry; connecting again needs a new pairing link from the Runner.",
+  },
+  "device.disconnectAction": { zh: "断开", en: "Disconnect" },
 
   "settings.general.title": { zh: "通用", en: "General" },
   "settings.general.note": {

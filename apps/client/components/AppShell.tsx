@@ -1,15 +1,19 @@
 /**
  * Workspace Shell host: the desktop opens the Navigator and the Panes, whose
- * bodies mount the Bot feature. Narrow windows are a placeholder for now.
+ * bodies mount the Bot feature. Narrow windows are a placeholder for now. A
+ * Device with no pairing shows the Pairing entry instead of either shell.
  */
 import { effect, Text, View, token } from "nsh";
 import { isAvailable as hasWindow, titleBar, Window } from "nsh/desktop";
 
 import { BotDetails } from "../features/bots/BotDetails";
 import { NewBotDialog } from "../features/bots/NewBotDialog";
+import { PairingEntry } from "../features/pairing/PairingEntry";
 import { t } from "../lib/i18n";
 import { isDesktopLayout, Shell, TITLE_CHROME, titleTopInset } from "./shell";
 import { CommandPalette } from "./shell/CommandPalette";
+import { devicePhase } from "./shell/device";
+import { hasHost } from "./shell/host";
 import { NavigatorDialogs } from "./shell/NavigatorDialogs";
 
 export { isDesktopLayout } from "./shell";
@@ -74,10 +78,22 @@ function MobileShell() {
   );
 }
 
-export function AppShell() {
+function PairingScreen() {
+  useHiddenTitleBar();
   return (
-    <If when={isDesktopLayout()} else={<MobileShell />}>
-      <DesktopShell />
+    <View style={{ flex: 1, minHeight: 0, backgroundColor: token("background") }}>
+      <PairingEntry />
+    </View>
+  );
+}
+
+export function AppShell() {
+  const shell = () => hasHost || devicePhase() === "paired";
+  return (
+    <If when={shell()} else={<PairingScreen />}>
+      <If when={isDesktopLayout()} else={<MobileShell />}>
+        <DesktopShell />
+      </If>
     </If>
   );
 }

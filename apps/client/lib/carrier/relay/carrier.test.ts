@@ -40,6 +40,7 @@ function setup(
     answerHttp?: boolean;
     wsFragments?: number;
     revoked?: boolean;
+    respondHttp?: ConstructorParameters<typeof FakeBridge>[0]["respondHttp"];
   } = {},
 ): Setup {
   const runner = generateKeyPair();
@@ -58,6 +59,7 @@ function setup(
     answerHttp: options.answerHttp,
     wsFragments: options.wsFragments,
     revoked: options.revoked,
+    respondHttp: options.respondHttp,
   });
   const carrier = createRelayCarrier({
     pairing,
@@ -77,6 +79,14 @@ function once(target: EventTarget, event: string): Promise<Record<string, unknow
       { once: true },
     );
   });
+}
+
+async function until(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
+  const end = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > end) throw new Error("the expected state never arrived");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 async function failure(promise: Promise<unknown>): Promise<RelayError> {
@@ -187,5 +197,50 @@ test("the relay records no plaintext path or body", async () => {
     expect(text).not.toContain("secret-ws-token");
   }
   socket.close();
+  carrier.close();
+});
+
+test("an aborted fetch resets its stream once", async () => {
+  const { bridge, carrier } = setup({ answerHttp: false });
+  const controller = new AbortController();
+  const work = failure(
+    carrier.fetch("https://relay.invalid/api/slow", { signal: controller.signal }),
+  );
+  await until(() => bridge.requests.length > 0);
+
+  controller.abort();
+
+  const error = await work;
+  expect(error.name).toBe("AbortError");
+  expect(bridge.resets).toEqual([{ stream: 1, code: { code: "cancelled" } }]);
+  carrier.close();
+});
+
+test("an abort after the response headers resets its stream", async () => {
+  const { bridge, carrier } = setup({
+    respondHttp: () => ({ status: 200, body: "first", hold: true }),
+  });
+  const controller = new AbortController();
+  const response = await carrier.fetch("https://relay.invalid/api/slow", {
+    signal: controller.signal,
+  });
+  expect(response.status).toBe(200);
+
+  controller.abort();
+
+  expect((await failure(response.text())).name).toBe("AbortError");
+  expect(bridge.resets).toEqual([{ stream: 1, code: { code: "cancelled" } }]);
+  carrier.close();
+});
+
+test("cancelling the response body resets its stream", async () => {
+  const { bridge, carrier } = setup({
+    respondHttp: () => ({ status: 200, body: "first", hold: true }),
+  });
+  const response = await carrier.fetch("https://relay.invalid/api/slow");
+
+  await response.body?.cancel();
+
+  expect(bridge.resets).toEqual([{ stream: 1, code: { code: "cancelled" } }]);
   carrier.close();
 });

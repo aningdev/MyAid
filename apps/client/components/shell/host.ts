@@ -1,8 +1,10 @@
 /**
  * Host reachability for the shell: connect dsh when the Host answers, and the
- * Registry follows that connection. Web and other non-desktop runs have no
- * Host to ask, so the shell stays usable and the footer says "disconnected".
- * A Host-less test reads its Registry from the in-memory `bots` double.
+ * Registry follows that connection. A Client without a Host (web and the
+ * mobile targets) is a Device: it pairs with a Runner instead
+ * (`components/shell/device.ts`) and the Pairing entry stands in for the
+ * Shell until it does. A Host-less test reads its Registry from the in-memory
+ * `bots` double.
  */
 import { platform } from "nsh";
 
@@ -23,6 +25,7 @@ import {
   stopHostOnQuit,
 } from "../../lib/host/launcher";
 import { t } from "../../lib/i18n";
+import { startDevice } from "./device";
 import { applyShellPrefs, loadShellPrefs, markPrefsLoaded } from "./prefs";
 
 /** A Host runs only beside the desktop app (the web target has none). */
@@ -118,6 +121,10 @@ export async function startShell(): Promise<void> {
   if (usesTestStorage() && !hostControlAllowed()) {
     await openTestBots();
     await openTestTickets();
+  }
+  if (!hasHost) {
+    await startDevice();
+    return;
   }
   await startHost();
   await retryHost();

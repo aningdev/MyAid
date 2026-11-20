@@ -163,16 +163,16 @@ test("send writes, close ends the connection, and neither works after it", async
   expect(() => socket.send("after")).toThrow(t("dsh.error.socketClosed"));
 });
 
-test("nsh.json grants only the loopback dsh endpoints", async () => {
-  await expect(connect("ws://example.com/socket")).rejects.toMatchObject({
+test("nsh.json admits any Relay host and the dsh endpoints", async () => {
+  // A Device learns its Relay's host at pairing, so `network.hosts` is `["*"]`
+  // and the capability no longer refuses an outside host. The scheme rule
+  // lives in the pairing code instead; here these fail on the wire, not on the
+  // capability.
+  await expect(connect("ws://relay.invalid/socket")).rejects.not.toMatchObject({
     code: "ERR_ACCESS_DENIED",
   });
-  await expect(connect(MUX.replace("/api/remote.mux", "/api/other"))).rejects.toMatchObject({
-    code: "ERR_ACCESS_DENIED",
-  });
-  await expect(fetch("http://127.0.0.1:1/other")).rejects.toMatchObject({
-    code: "ERR_ACCESS_DENIED",
-  });
-  // The granted mux URL is not refused by the capability, only by the connection.
   await expect(connect(MUX)).rejects.not.toMatchObject({ code: "ERR_ACCESS_DENIED" });
+  await expect(fetch("http://127.0.0.1:1/other")).rejects.not.toMatchObject({
+    code: "ERR_ACCESS_DENIED",
+  });
 });

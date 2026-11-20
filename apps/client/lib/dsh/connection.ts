@@ -1,3 +1,7 @@
+import type {
+  ClientTransportHooks,
+  ConnectionWebSocket,
+} from "@deepseek-ai/dsh-client-connection/client";
 /**
  * Official `dsh web` protocol client: cookie bootstrap, Gateway, and the
  * official React-free Client models (Sessions, Workspaces). No product
@@ -69,6 +73,17 @@ import {
   workspaceRemote,
 } from "./sdk.js";
 import { AuthenticatedSocket } from "./socket";
+
+/**
+ * The physical carrier official `installConnection` runs on. The Runner's own
+ * Client connects over loopback (`connect`); a paired Device hands over its
+ * Relay tunnel (`connectThrough`).
+ */
+export interface DshCarrier {
+  readonly streamBaseUrl: string;
+  readonly fetch: (input: string | URL, init: RequestInit) => Promise<Response>;
+  readonly createWebSocket: (url: string) => ConnectionWebSocket;
+}
 
 export type AgentPresetSummary = {
   id: string;
@@ -407,28 +422,51 @@ export class Connection {
     }
     if (epoch !== this.epoch) throw new Error(t("dsh.error.replaced"));
     const { origin, cookie } = login;
+    await this.install(
+      epoch,
+      origin,
+      {
+        streamBaseUrl: `${origin}/`,
+        fetch: (input, init = {}) => {
+          // `dshRequestInit` supplies our cookie and switches the platform's
+          // shared jar off (see its note: unmanaged cookies answer 431).
+          const signal = init.signal
+            ? AbortSignal.any([init.signal, controller.signal])
+            : controller.signal;
+          return fetch(
+            new URL(String(input), origin).toString(),
+            dshRequestInit(cookie, { ...init, signal }),
+          );
+        },
+        createWebSocket: (target: string) => new AuthenticatedSocket(target, cookie),
+      },
+      controller.signal,
+    );
+  }
 
+  /**
+   * Connect through a paired Device's Carrier: a Relay tunnel that already
+   * authenticates both ends with Noise. No Cookie is exchanged here; the
+   * Runner's Bridge adds its own when it forwards to dsh.
+   */
+  async connectThrough(carrier: DshCarrier): Promise<void> {
+    if (this.ctx) throw new Error(t("dsh.error.alreadyConnected"));
+    const epoch = ++this.epoch;
+    const controller = new AbortController();
+    this.connecting = controller;
+    await this.install(epoch, carrier.streamBaseUrl, carrier, controller.signal);
+  }
+
+  private async install(
+    epoch: number,
+    origin: string,
+    transport: ClientTransportHooks,
+    signal: AbortSignal,
+  ): Promise<void> {
     const ctx: any = new Context();
     this.origin = origin;
     try {
-      installConnection(ctx, {
-        interactions: "answer",
-        transport: {
-          streamBaseUrl: `${origin}/`,
-          fetch: (input: string | URL, init: RequestInit = {}) => {
-            // `dshRequestInit` supplies our cookie and switches the platform's
-            // shared jar off (see its note: unmanaged cookies answer 431).
-            const signal = init.signal
-              ? AbortSignal.any([init.signal, controller.signal])
-              : controller.signal;
-            return fetch(
-              new URL(String(input), origin).toString(),
-              dshRequestInit(cookie, { ...init, signal }),
-            );
-          },
-          createWebSocket: (target: string) => new AuthenticatedSocket(target, cookie),
-        },
-      });
+      installConnection(ctx, { interactions: "answer", transport });
       await ctx.plugin(TypertRegistry);
       await ctx.plugin(Gateway);
       // Every Remote namespace the product or an official model names.
@@ -456,7 +494,7 @@ export class Connection {
       });
       this.ctx = ctx;
       if (epoch !== this.epoch) throw new Error(t("dsh.error.replaced"));
-      await this.waitForGeneration(ctx, controller.signal);
+      await this.waitForGeneration(ctx, signal);
       if (epoch !== this.epoch) throw new Error(t("dsh.error.replaced"));
       this.ready = true;
       this.onGenerationChange?.(true);

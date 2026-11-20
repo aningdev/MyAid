@@ -36,6 +36,16 @@ export interface BridgeSocket {
   close: { code: number; reason: string } | null;
 }
 
+export interface BridgeResponse {
+  status: number;
+  headers?: [string, string][];
+  body: string;
+  /** Split the body into this many BODY frames. */
+  chunks?: number;
+  /** Send the head and first chunk, then wait for `finish`. */
+  hold?: boolean;
+}
+
 export interface FakeBridgeOptions {
   mode: "daily" | "pair";
   runner: KeyPair;
@@ -52,6 +62,10 @@ export interface FakeBridgeOptions {
   wsFragments?: number;
   /** Close instead of answering the handshake. */
   rejectCloseCode?: number;
+  /** Answer an HTTP request itself; `undefined` falls back to the echo. */
+  respondHttp?: (request: BridgeRequest) => BridgeResponse | undefined;
+  /** Answer a whole WS text message; `undefined` falls back to the echo. */
+  respondText?: (socket: BridgeSocket, text: string) => string | undefined;
 }
 
 /** A scripted Runner: HTTP echo, WebSocket echo, and every recorded frame. */
@@ -83,6 +97,11 @@ export class FakeBridge {
 
   get connector() {
     return this.relay.connector;
+  }
+
+  /** Ends a response that `hold` left open. */
+  finish(stream: number): void {
+    this.relay.sendFrame(stream, TYPE_END);
   }
 
   /** Sends a control frame on stream 0. */
@@ -177,6 +196,12 @@ export class FakeBridge {
     this.requests.push(request);
     if (this.options.answerHttp === false) return;
 
+    const answer = this.options.respondHttp?.(request);
+    if (answer) {
+      this.respond(stream, answer);
+      return;
+    }
+
     const response = utf8Encode(
       JSON.stringify({
         method: request.method,
@@ -194,6 +219,25 @@ export class FakeBridge {
     for (let at = 0; at < response.length; at += size) {
       this.relay.sendFrame(stream, TYPE_BODY, response.slice(at, at + size));
     }
+    this.relay.sendFrame(stream, TYPE_END);
+  }
+
+  private respond(stream: number, answer: BridgeResponse): void {
+    const head = utf8Encode(
+      JSON.stringify({
+        status: answer.status,
+        headers: answer.headers ?? [["content-type", "application/json"]],
+      }),
+    );
+    this.relay.sendFrame(stream, TYPE_HTTP_RESPONSE, head);
+    const body = utf8Encode(answer.body);
+    const chunks = answer.chunks ?? this.options.responseChunks ?? 1;
+    const size = Math.max(1, Math.ceil(body.length / chunks));
+    const end = answer.hold ? body.slice(0, size).length : body.length;
+    for (let at = 0; at < end; at += size) {
+      this.relay.sendFrame(stream, TYPE_BODY, body.slice(at, at + size));
+    }
+    if (answer.hold) return;
     this.relay.sendFrame(stream, TYPE_END);
   }
 
@@ -228,6 +272,11 @@ export class FakeBridge {
     const text = utf8Decode(concatBytes(...parts));
     const socket = this.sockets.get(frame.stream);
     if (socket) socket.text += text;
+    const answer = socket ? this.options.respondText?.(socket, text) : undefined;
+    if (answer !== undefined) {
+      this.text(frame.stream, answer, this.options.wsFragments ?? 1);
+      return;
+    }
     this.text(frame.stream, text, this.options.wsFragments ?? 1);
   }
 

@@ -73,7 +73,7 @@ class BodySink {
   private queue: Uint8Array[] = [];
   private over = false;
 
-  constructor() {
+  constructor(private readonly onCancel: () => void) {
     this.stream = new ReadableStream<Uint8Array>({
       start: (controller) => {
         this.controller = controller;
@@ -81,8 +81,10 @@ class BodySink {
       },
       pull: () => this.flush(),
       cancel: () => {
+        if (this.over) return;
         this.over = true;
         this.queue = [];
+        this.onCancel();
       },
     });
   }
@@ -159,9 +161,52 @@ function abortError(signal: AbortSignal): Error {
 }
 
 /** An EventTarget-shaped socket over one tunnel stream. */
+/** The socket events the dsh Gateway subscribes to. */
+export interface RelaySocketEventMap {
+  readonly open: object;
+  readonly error: object;
+  readonly close: object;
+  readonly message: { readonly data: unknown };
+}
+
 export class RelaySocket extends EventTarget {
   readyState = 0;
   protocol: string | null = null;
+
+  addEventListener<Event extends keyof RelaySocketEventMap>(
+    event: Event,
+    listener: (event: RelaySocketEventMap[Event]) => void,
+    options?: { readonly once?: boolean },
+  ): void;
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    super.addEventListener(type, listener, options);
+  }
+
+  removeEventListener<Event extends keyof RelaySocketEventMap>(
+    event: Event,
+    listener: (event: RelaySocketEventMap[Event]) => void,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    super.removeEventListener(type, listener, options);
+  }
 
   private readonly stream: number;
   private readonly carrier: RelayCarrierImpl;
@@ -303,6 +348,10 @@ class RelayCarrierImpl implements RelayCarrier {
   constructor(options: RelayCarrierOptions, streamBaseUrl = RELAY_STREAM_ORIGIN) {
     this.options = options;
     this.streamBaseUrl = streamBaseUrl;
+    // Official `installConnection` below the Carrier takes `fetch` and
+    // `createWebSocket` off a transport object, so it calls them unbound.
+    this.fetch = this.fetch.bind(this);
+    this.createWebSocket = this.createWebSocket.bind(this);
   }
 
   async fetch(input: string | URL, init: RequestInit = {}): Promise<Response> {
@@ -315,7 +364,21 @@ class RelayCarrierImpl implements RelayCarrier {
 
     const stream = this.allocate();
     const head = deferred<{ status: number; headers: [string, string][] }>();
-    const body = new BodySink();
+    const abandon = () => {
+      signal?.removeEventListener("abort", abort);
+      this.cancelStream(stream);
+    };
+    const abort = () => {
+      const error = abortError(signal!);
+      head.reject(error);
+      body.fail(error);
+      abandon();
+    };
+    const settle = () => {
+      signal?.removeEventListener("abort", abort);
+      this.finish(stream);
+    };
+    const body = new BodySink(abandon);
     this.streams.set(stream, {
       onFrame: (type, payload) => {
         if (type === TYPE_HTTP_RESPONSE) {
@@ -325,28 +388,21 @@ class RelayCarrierImpl implements RelayCarrier {
           body.push(payload);
         } else if (type === TYPE_END) {
           body.finish();
-          this.finish(stream);
+          settle();
         } else if (type === TYPE_RESET) {
           const error = this.resetError(payload);
           head.reject(error);
           body.fail(error);
-          this.finish(stream);
+          settle();
         }
       },
       fail: (error) => {
         head.reject(error);
         body.fail(error);
-        this.finish(stream);
+        settle();
       },
     });
-
-    const onAbort = () => {
-      const error = abortError(signal!);
-      head.reject(error);
-      body.fail(error);
-      this.finish(stream);
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
+    signal?.addEventListener("abort", abort, { once: true });
 
     const headers: [string, string][] = [];
     new Headers(init.headers).forEach((value, name) => headers.push([name, value]));
@@ -359,7 +415,6 @@ class RelayCarrierImpl implements RelayCarrier {
     this.send(stream, TYPE_END);
 
     const response = await head.promise;
-    signal?.removeEventListener("abort", onAbort);
     if (response.status === 204 || response.status === 205) body.finish();
     const empty = response.status === 204 || response.status === 205;
     return new Response(empty ? null : body.stream, {
@@ -418,6 +473,15 @@ class RelayCarrierImpl implements RelayCarrier {
   /** Drops a finished stream so late frames are ignored. */
   finish(stream: number): void {
     this.streams.delete(stream);
+  }
+
+  /** Tells the Runner a stream the Device no longer needs can be dropped. */
+  private cancelStream(stream: number): void {
+    if (!this.streams.has(stream)) return;
+    if (!this.closed && this.tunnel !== null) {
+      this.send(stream, TYPE_RESET, utf8Encode(JSON.stringify({ code: "cancelled" })));
+    }
+    this.finish(stream);
   }
 
   private allocate(): number {

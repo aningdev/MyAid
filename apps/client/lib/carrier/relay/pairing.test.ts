@@ -35,7 +35,9 @@ class FakeStorage implements StorageLike {
   }
 }
 
-function pairingLink(options: { version?: string; expiresAt?: number; runnerId?: string } = {}): {
+function pairingLink(
+  options: { version?: string; expiresAt?: number; runnerId?: string; relay?: string } = {},
+): {
   link: string;
   runner: KeyPair;
   runnerId: string;
@@ -54,7 +56,7 @@ function pairingLink(options: { version?: string; expiresAt?: number; runnerId?:
     `e=${options.expiresAt ?? now + 60}`,
   ];
   return {
-    link: `https://relay.example.com/pair#${params.join("&")}`,
+    link: `${options.relay ?? "https://relay.example.com"}/pair#${params.join("&")}`,
     runner,
     runnerId,
     runnerKey: runner.publicKey,
@@ -105,6 +107,19 @@ test("a malformed pairing link is invalid", () => {
   ];
   for (const link of cases) {
     expect(codeOf(() => parsePairingLink(link, now))).toBe("invalid-link");
+  }
+});
+
+test("a relay without TLS is only allowed on loopback", () => {
+  const secure = parsePairingLink(pairingLink().link, now);
+  expect(secure.relayUrl).toBe("https://relay.example.com");
+
+  for (const relay of ["http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080"]) {
+    expect(parsePairingLink(pairingLink({ relay }).link, now).relayUrl).toBe(relay);
+  }
+
+  for (const relay of ["http://relay.example.com", "http://192.168.1.10:8080"]) {
+    expect(codeOf(() => parsePairingLink(pairingLink({ relay }).link, now))).toBe("invalid-link");
   }
 });
 
