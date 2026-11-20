@@ -56,7 +56,7 @@ packages/
   tickets/           Ticket、Attention、`sources` 服务（Remote `tickets`）
   source-<kind>/     一个 Source 一个插件，例如 source-feishu、source-github；目前只有测试用 fake
   dsh-web-protocol/  只给 Client 用的官方 Remote 类型再导出，插件不能依赖它
-scripts/             根编排：dev.mjs（唯一的 dev 入口）、dsh 版本检查、文档检查
+scripts/             根编排：dev.mjs（唯一的 dev 入口）、dsh 版本检查、文档检查、pack-decorators（插件包共用的 decorator 降级）
 docs/                GLOSSARY · ARCHITECTURE · architecture/ · decisions/ · specs/ · agents/
 references/          只读的上游源码，不参与构建
 ```
