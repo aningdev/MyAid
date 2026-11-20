@@ -24,6 +24,7 @@ test("a test app keeps the bots fixture and prefs in its isolated storage", asyn
     platform: "macos",
     width: 1200,
     height: 860,
+    clock: {},
     storage: { ...botsStorage(template) },
   });
 

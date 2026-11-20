@@ -78,10 +78,15 @@ const LONG_DRAFT =
   "belongs to rather than beside it.";
 
 test("the Navigator's search, the Composer with a long draft, the header's field", async () => {
+  // The clock is manual so the two presses below land as one double press: on
+  // a real clock each press step waits out the quiet window (2 s while the
+  // Pane keeps drawing), well past the 500 ms the platforms count a second
+  // click within, and the title's field never opens.
   const app = await open("../App.tsx", {
     platform: "macos" as const,
     width: 1440,
     height: 900,
+    clock: {},
     storage: shellStorage(),
   });
   if (!(await graphical(app))) return;
@@ -149,10 +154,15 @@ test("a Bot's plugin rows are switches, on and off", async () => {
 }, 120000);
 
 test("the Pane title's field, and the image viewer", async () => {
+  // The clock is manual so the two presses below land as one double press: on
+  // a real clock each press step waits out the quiet window (2 s while the
+  // Pane keeps drawing), well past the 500 ms the platforms count a second
+  // click within, and the title's field never opens.
   const app = await open("../App.tsx", {
     platform: "macos" as const,
     width: 1440,
     height: 900,
+    clock: {},
     storage: shellStorage(),
   });
   if (!(await graphical(app))) return;

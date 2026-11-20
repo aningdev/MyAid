@@ -11,9 +11,10 @@ import { open } from "../../test/open";
 import { SUPPORTED_DSH, UNSUPPORTED_DSH } from "../../test/settings-fixtures";
 
 const desktop = { platform: "macos" as const, width: 1100, height: 800 };
+const headless = { ...desktop, clock: {} };
 
 async function panel() {
-  const app = await open("./settings-harness.tsx", desktop);
+  const app = await open("./settings-harness.tsx", headless);
   // Settings covers the Panes; the panel is the same one it always was.
   await app.press(`label:${t("host.settings")}`);
   await app.waitFor("id:settings-overlay");
@@ -45,7 +46,7 @@ test("Enable and Stop register and withdraw the Host", async () => {
 });
 
 async function openSettings(options: Parameters<typeof open>[1] = desktop) {
-  const app = await open("./settings-harness.tsx", options);
+  const app = await open("./settings-harness.tsx", { ...options, clock: {} });
   await app.press(`label:${t("host.settings")}`);
   await app.waitFor("id:settings-overlay");
   return app;
@@ -138,7 +139,7 @@ test("the language is saved and the scheme applies and persists", async () => {
   expect(dark).not.toBe(light);
 
   // Relaunch on the preferences it wrote: the dark scheme comes back.
-  const again = await open("./settings-harness.tsx", { ...desktop, storage: app.storage() });
+  const again = await open("./settings-harness.tsx", { ...headless, storage: app.storage() });
   await again.press("label:Settings");
   await again.press("id:settings-nav-general");
   await again.waitFor("id:settings-general");
@@ -160,7 +161,7 @@ test("the colour switches the whole app at once, and a relaunch keeps it", async
   expect(citrus).not.toBe(neutral);
 
   // Relaunch on the preferences it wrote: the citrus palette is back.
-  const again = await open("./settings-harness.tsx", { ...desktop, storage: app.storage() });
+  const again = await open("./settings-harness.tsx", { ...headless, storage: app.storage() });
   await again.press(`label:${t("host.settings")}`);
   await again.press("id:settings-nav-general");
   await again.waitFor("id:settings-general");
@@ -178,7 +179,7 @@ test("a stored colour this build does not carry is the build-time theme", async 
     appearance: { scheme: "system" as const, language: "system" as const, theme: "shadcn" },
   };
   const app = await open("./settings-harness.tsx", {
-    ...desktop,
+    ...headless,
     storage: { "dsh-bot.prefs.shell": serializeShellPrefs(stored) },
   });
   await app.press(`label:${t("host.settings")}`);
@@ -231,7 +232,7 @@ test("a dsh version mismatch names both versions and why the Host refuses", asyn
 });
 
 test("with no Host the providers page explains and offers no inputs", async () => {
-  const app = await open("./settings-offline-harness.tsx", desktop);
+  const app = await open("./settings-offline-harness.tsx", headless);
   await app.press(`label:${t("host.settings")}`);
   await app.waitFor("id:settings-overlay");
   await app.waitFor(`text:${t("providers.needsHost")}`);

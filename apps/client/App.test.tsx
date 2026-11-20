@@ -4,7 +4,7 @@ import { t } from "./lib/i18n";
 import { open, openIfSupported } from "./test/open";
 
 /** The Runner: a desktop that owns a Host, wide enough for the desktop shell. */
-const desktop = { platform: "macos" as const, width: 1100, height: 800 };
+const desktop = { platform: "macos" as const, width: 1100, height: 800, clock: {} };
 
 test("shows the flat Bot list and the Host footer", async () => {
   const app = await open("./App.tsx", desktop);

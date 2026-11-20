@@ -12,6 +12,7 @@ test("a watch snapshot renames a Bot in the Navigator, and the Main Bot stays fi
     platform: "web" as const,
     width: 400,
     height: 700,
+    clock: {},
   });
   await app.waitFor("label:Main Bot");
   await app.waitFor("label:Ada");

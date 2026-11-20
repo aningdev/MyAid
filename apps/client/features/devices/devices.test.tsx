@@ -15,8 +15,8 @@ import { PAIRING_LINK } from "./fixture";
 /** Relative to `apps/client`, where `nsh test` is run. The driver writes these. */
 const SHOTS = "../../.handoff/shots";
 
-const desktop = { platform: "macos" as const, width: 1100, height: 800 };
-const phone = { platform: "macos" as const, width: 390, height: 844 };
+const desktop = { platform: "macos" as const, width: 1100, height: 800, clock: {} };
+const phone = { platform: "macos" as const, width: 390, height: 844, clock: {} };
 
 type Params = {
   unconfigured?: boolean;
