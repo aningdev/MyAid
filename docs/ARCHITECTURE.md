@@ -83,6 +83,7 @@ references/          只读的上游源码，不参与构建
 | Registry、Main Bot                           | `bots` 插件，存在 `$DSH_BOT_HOME`    | `bots` Remote（[0004](decisions/0004-the-registry-lives-in-a-dsh-plugin.md)）    |
 | Ticket、Attention、Trigger                   | `tickets` 插件，存在 `$DSH_BOT_HOME` | `tickets` Remote                                                                 |
 | 配对的公钥                                   | Host 的 Bridge，存在数据根下         | Runner 上的本机控制面（[relay-tunnel](architecture/relay-tunnel.md#配对与撤销)） |
+| Device 静态密钥、配对记录                    | 各 Device 自己，存在它的数据根下     | relay Carrier（[0009](decisions/0009-the-device-key-lives-in-the-data-root.md)） |
 | Pin、Pane 布局、主题、语言                   | 各 Device 自己                       | Device 偏好存储                                                                  |
 
 Runner 的数据根是 `$DSH_BOT_HOME`（默认 `~/.dsh-bot`）。Host 启动 dsh web 时把它作为 dsh 的 `DSH_HOME` 传入，所以 dsh 和本仓插件的数据都在这里；`DSH_HOME` 只出现在这一个交接点，本仓其余文档和代码都用 `DSH_BOT_HOME`。隔离开发用 `~/.dsh-bot-dev/<name>`。

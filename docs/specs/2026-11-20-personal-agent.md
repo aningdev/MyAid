@@ -44,7 +44,8 @@ Owner 在任何一台 Device 或已接入的 Source 上提出请求，Main Bot �
    例：撤销手机后，手机上发出的消息显示「这台设备已被移除」。_automated_
 10. **Source 请求**：Owner 在一个已接入的 IM Source 里 @ 自己的 dsh-bot，Main Bot 确认一次，完成后把结果回复到同一个会话里；其他人的消息不会开出 Ticket。
     例：飞书群里 Owner 发「@bot 总结今天的 PR」，bot 回「好的，正在处理」，之后回复总结；同事发同样的话，没有任何反应。_automated_（用 fake Source），真实 IM 为 _manual_
+    （2026-11-20 推迟：Owner 只要求在多个 Device 上收到消息，验收 4、6、7 已经覆盖。这一条等接入第一个真实 Source 时再做。）
 
 ## Open questions
 
-- 第一批接入哪些 Source：飞书、Telegram、GitHub，还是定时规则？
+- 第一批接入哪些 Source：2026-11-20 定为暂不接入，见验收 10。

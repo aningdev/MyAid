@@ -27,7 +27,7 @@ sequenceDiagram
 | --------------- | --------------------------- | ------------------------------------------ | ------------------------------------------------- |
 | Runner 登记密钥 | Bridge                      | Ed25519，向 Relay 证明自己是这个 runner id | `$DSH_BOT_HOME/host/bridge/identity.json`（0600） |
 | Runner 静态密钥 | Bridge                      | X25519，Noise 的响应方静态密钥             | 同上                                              |
-| Device 静态密钥 | 每台 Device                 | X25519，Noise 的发起方静态密钥             | NSH Storage `dsh-bot.device.identity`             |
+| Device 静态密钥 | 每台 Device                 | X25519，Noise 的发起方静态密钥             | Device 数据根下的 `device/identity.json`（0600）  |
 | 配对 psk        | Bridge 生成，经配对链接给出 | 32 字节，一次性，5 分钟过期                | 只在 Bridge 内存和配对链接里                      |
 
 - **runner id**：Runner 登记公钥 SHA-256 的前 20 字节，用小写、无填充的 base32 编码（32 个字符）。
@@ -147,7 +147,7 @@ Runner 上的 Client 经 Host 本机控制面管理配对（这些路由和其�
 **配对链接**是 `<Relay 的 https 地址>/pair#v=1&r=<runner id>&k=<Runner 静态公钥>&p=<psk>&e=<过期的 Unix 秒>`，所有二进制字段都用 base64url 编码。Runner 上把它显示成二维码，同时提供复制。秘密都在 `#` 片段里，浏览器不会把片段发给 Relay。
 
 - 在手机上，用系统相机扫码。由 Relay 托管的 web 版 Client 能直接配对；原生 Client 则粘贴这条链接来配对。
-- Device 把 `{relayUrl, runnerId, runnerKey, deviceId}` 存进 NSH Storage 的 `dsh-bot.device.pairing`。每个 Owner 只有一台 Runner，所以只存一份。
+- Device 把 `{relayUrl, runnerId, runnerKey, deviceId}` 存进数据根下的 `device/pairing.json`（0600）。每个 Owner 只有一台 Runner，所以只存一份。web 版没有文件系统，这条记录和 Device 静态密钥都存在 NSH Storage 里（[0009](../decisions/0009-the-device-key-lives-in-the-data-root.md)）。
 - Device 收到 `device-revoked` 或 `revoked` 后，清掉自己的配对记录，显示「这台设备已被移除」，并回到配对入口。
 
 ## Relay 地址
