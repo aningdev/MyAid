@@ -37,6 +37,7 @@
 ## dsh 传输与产品层级
 
 - 认证 WS 用标准 `websocket`：`connect(url, { headers: { Cookie } })`；`AuthenticatedSocket` 只包装成官方 dsh 要的 EventTarget。`nsh.json` 的 `capabilities.network.http` 只放行回环 dsh 端点；未授权 URL 由 NSH 以 `ERR_ACCESS_DENIED` 拒绝。
+- **Relay Carrier 只经 `lib/carrier/relay/`**：Device 一侧的日常/配对握手、配对记录、隧道流复用与 `fetch` / `createWebSocket` 适配都在这里；wire 契约只看 [relay-tunnel](../../docs/architecture/relay-tunnel.md)，不在本文件复述。隧道断开只让进行中的流失败，重连归官方 connection；收到 `device-revoked` / `revoked` 时清掉配对记录。
 - wire 类型从 [`@dsh-bot/dsh-web-protocol`](../../packages/dsh-web-protocol) 引用，版本与 [`apps/host/supported-dsh.json`](../../apps/host/supported-dsh.json) 对齐；不从 `references/` 拷贝类型。产品视图 DTO 与官方同名类型分开命名。
 - Remote 优先复用官方已挂载面；新增命名空间先 `$mount` 其 `/remote`。不调用 `account.*`。
 - **段的落点是 dsh Workspace**（[GLOSSARY](../../docs/GLOSSARY.md)；产品形态见 [GLOSSARY](../../docs/GLOSSARY.md)）：`workspace.create` / `rename` / `insertSessionBefore` 等是 Workspace 字段的**唯一写入口**；`session.create({ workspaceId })` 负责 create-then-attach。插件的 Registry 只存段的 `workspaceId`，Client 不在本地重建 path / title / 顺序。
