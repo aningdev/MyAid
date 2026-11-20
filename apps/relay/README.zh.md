@@ -52,7 +52,7 @@ Bridge 经 `CLOSE` 帧给出的关闭码原样用来关闭 Device 的 WS，包�
 ## 命令
 
 ```sh
-cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout] [--trusted-proxy IP]
+cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout] [--trusted-proxy IP] [--idle-ms MS]
 cargo check -p dsh-bot-relay
 cargo test -p dsh-bot-relay
 cargo test -p dsh-bot-relay --features frame-tap
@@ -63,6 +63,8 @@ cargo test -p dsh-bot-relay --features frame-tap
 `--ready-stdout` 在监听后打印 `{"event":"ready","port":<port>}`，给脚本和测试用。
 
 `--trusted-proxy IP` 可以重复，默认没有。Device 的限速和日志用 TCP 对端。只有对端属于这些地址时，Relay 才从 `X-Forwarded-For` 取客户端：最后一个头里最右边的那一项，也就是代理自己看到的地址；它左边的条目来自客户端，一律不用。没有这个头，或最右一项不是裸 IP，就仍用对端。没被列出的对端一律忽略该头，伪造的头拆不开限额。
+
+`--idle-ms MS` 替换 10 秒的空闲时限（关闭码 `4006`），测试用它免去干等；部署不要加。
 
 `--frame-tap PATH` 把每一帧转发的二进制帧追加成一行 JSON——`{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}`——端到端测试靠它证明 Relay 只见过密文。这个 flag 只存在于启用 `frame-tap` feature 的构建里，release 构建根本无法录制；上面第二条 `cargo test` 会打开它跑那个读文件的用例。
 

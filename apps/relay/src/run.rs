@@ -53,7 +53,10 @@ async fn serve_async(config: Config, exit: &'static AtomicBool) -> Result<()> {
                 .unwrap_or_default()
         )
     })?;
-    let limits = Limits::default();
+    let limits = Limits {
+        idle: config.idle,
+        ..Limits::default()
+    };
     let api = routes::Api {
         registry: Arc::new(Registry::new()),
         rate: Arc::new(RateLimiter::new(

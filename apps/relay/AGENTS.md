@@ -14,7 +14,7 @@
 每个状态只有一份所有者，别的地方只读或发消息。
 
 - `main.rs`：只装配 `serve`、信号处理和日志。
-- `config.rs`：只解析 `--bind`、`--port`、`--ready-stdout`、`--frame-tap`、`--trusted-proxy`。
+- `config.rs`：只解析 `--bind`、`--port`、`--ready-stdout`、`--frame-tap`、`--trusted-proxy`、`--idle-ms`。
 - `routes.rs`：只装配路由（`GET /`、`GET /v1/health`、两条 WebSocket 入口）和 `Api`。Device 入口在这里把可信代理的 `X-Forwarded-For` 解析成客户端 IP。
 - `run.rs`：绑定监听套接字，建 `Registry`／`RateLimiter`／`Tap`，等退出信号。
 - `runner.rs`：`Registry` 是「哪个 runner id 现在归哪条连接」的唯一所有者，`generation` 保证旧连接收尾时删不掉新登记。Runner 链路自己拥有它的通道表和通道号分配。

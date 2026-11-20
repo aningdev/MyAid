@@ -1,7 +1,7 @@
 //! Bind address, port and trusted proxies for the public relay process.
 
 use crate::Result;
-use std::{collections::HashSet, ffi::OsString, net::IpAddr, path::PathBuf};
+use std::{collections::HashSet, ffi::OsString, net::IpAddr, path::PathBuf, time::Duration};
 
 /// The address `serve` binds when `--bind` is absent.
 pub const DEFAULT_BIND: IpAddr = IpAddr::V4(std::net::Ipv4Addr::LOCALHOST);
@@ -19,15 +19,18 @@ pub struct Config {
     pub trusted_proxies: HashSet<IpAddr>,
     /// Record every relayed frame here (`--frame-tap`, `frame-tap` builds only).
     pub frame_tap: Option<PathBuf>,
+    /// How long a Device may stay silent after connecting (`--idle-ms`); tests shorten it.
+    pub idle: Duration,
 }
 
-/// `serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH] [--trusted-proxy IP]`.
+/// `serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH] [--trusted-proxy IP] [--idle-ms MS]`.
 pub fn parse(args: &[OsString]) -> Result<Config> {
     let mut bind = DEFAULT_BIND;
     let mut port = DEFAULT_PORT;
     let mut ready_stdout = false;
     let mut trusted_proxies = HashSet::new();
     let mut frame_tap = None;
+    let mut idle = crate::limits::IDLE;
     let mut args = args.iter();
     while let Some(key) = args.next() {
         match key.to_string_lossy().as_ref() {
@@ -58,6 +61,16 @@ pub fn parse(args: &[OsString]) -> Result<Config> {
                 let value = args.next().ok_or("Missing argument")?;
                 frame_tap = Some(PathBuf::from(value));
             }
+            "--idle-ms" => {
+                let value = args.next().ok_or("Missing argument")?;
+                let millis = value
+                    .to_string_lossy()
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|millis| *millis > 0)
+                    .ok_or("Invalid idle milliseconds")?;
+                idle = Duration::from_millis(millis);
+            }
             other => return Err(format!("Unknown argument: {other}")),
         }
     }
@@ -68,5 +81,6 @@ pub fn parse(args: &[OsString]) -> Result<Config> {
         ready_stdout,
         trusted_proxies,
         frame_tap,
+        idle,
     })
 }

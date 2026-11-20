@@ -1,4 +1,4 @@
-//! Every protocol limit in one place. `serve` flags can lower them for tests.
+//! Every protocol limit in one place. `serve --idle-ms` shortens the idle time for tests.
 //!
 //! The values and the close codes they map to are contract:
 //! [relay-tunnel](../../../docs/architecture/relay-tunnel.md#关闭码与限制).

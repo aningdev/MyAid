@@ -431,13 +431,13 @@ async fn a_backlog_above_the_limit_closes_4003() {
 
 #[tokio::test]
 async fn a_device_that_never_sends_closes_4006() {
-    let relay = Relay::start(None);
+    let relay = Relay::start_with(None, &["--idle-ms", "400"]);
     let (key, _) = identity(13);
     let (mut bridge, id) = register(&relay, &key, None).await;
     let (mut device, _) = open_device(&relay, &id, &mut bridge).await;
     let started = Instant::now();
     assert_eq!(next_close(&mut device).await, 4006);
-    assert!(started.elapsed() >= Duration::from_secs(9));
+    assert!(started.elapsed() >= Duration::from_millis(350));
 }
 
 #[cfg(feature = "frame-tap")]
