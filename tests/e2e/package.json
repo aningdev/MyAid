@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "check": "tsc -p tsconfig.json --noEmit",
-    "test:e2e": "cargo build -p dsh-bot-relay -p dsh-bot-host --features dsh-bot-relay/frame-tap && vp test run"
+    "test:e2e": "cargo build -p dsh-bot-relay -p dsh-bot-host --features dsh-bot-relay/frame-tap && vp run dsh-bots#build && vp run dsh-tickets#build && vp run @dsh-bot/client#prepare:sdk && vp test run"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh": "catalog:",
+    "@deepseek-ai/dsh-llm-mock-server": "catalog:",
     "@dsh-bot/client": "workspace:*",
     "@types/node": "catalog:",
     "@types/ws": "^8.18.1",

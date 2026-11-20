@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Package names whose version must follow the pinned official dsh release. */
-const DSH = /^@deepseek-ai\/dsh-/;
+const DSH = /^@deepseek-ai\/dsh(?:-|$)/;
 
 /** A concrete version, as opposed to a range (`~4.1.0`, `^1.2.3`). */
 const EXACT = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
@@ -52,7 +52,7 @@ export function catalog(rootDir = root) {
  */
 export function manifests(rootDir = root) {
   const found = [{ name: "@dsh-bot/workspace", path: join(rootDir, "package.json") }];
-  for (const group of ["apps", "packages"]) {
+  for (const group of ["apps", "packages", "tests"]) {
     const dir = join(rootDir, group);
     if (!existsSync(dir)) continue;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
