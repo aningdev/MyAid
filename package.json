@@ -52,7 +52,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun scripts/dev.mjs",
-    "check": "node scripts/check-dsh-pin.mjs && vp check --fix && vp run -F '@myaid/*' -F 'dsh-*' -F '!@myaid/workspace' check && cargo check --workspace",
+    "check": "node scripts/check-dsh-pin.mjs && node scripts/check-docs.mjs && vp check --fix && vp run -F '@myaid/*' -F 'dsh-*' -F '!@myaid/workspace' check && cargo check --workspace",
     "build": "vp run --filter @myaid/client... build",
     "test": "cargo test --workspace && vp run -F '@myaid/*' -F 'dsh-*' -F '!@myaid/workspace' test"
   },
