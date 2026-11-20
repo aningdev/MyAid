@@ -13,7 +13,17 @@ import { join } from "path";
 
 import { dataRootPath, hostControlAllowed } from "../data-root";
 import { t } from "../i18n";
-import { decodeBackendInfo, decodeHostStatus, type HostStatus } from "./protocol";
+import {
+  decodeBackendInfo,
+  decodeDevicesSnapshot,
+  decodeHostStatus,
+  decodePairingLink,
+  decodeWatchFrame,
+  type DevicesSnapshot,
+  type HostStatus,
+  type PairedDevice,
+  type PairingLink,
+} from "./protocol";
 
 /** The control port when nothing names one (`DSH_BOT_HOST_PORT`, which the Host honours too). */
 export const DEFAULT_HOST_PORT = 4872;
@@ -37,9 +47,16 @@ export type HostOp =
 export type HostTransport = {
   reachable(): Promise<boolean>;
   call(op: HostOp): Promise<HostStatus>;
+  /** `GET /bridge/devices`. */
+  devices(): Promise<DevicesSnapshot>;
+  /** `POST /bridge/pairing`. A new link replaces the previous one. */
+  issuePairing(): Promise<PairingLink>;
+  /** `DELETE /bridge/devices/{deviceId}`. The body is the list after the revoke. */
+  revokeDevice(deviceId: string): Promise<DevicesSnapshot>;
   watch(
     onStatus: (status: HostStatus) => void,
     onDown: (reason: string) => void,
+    onDevices?: (devices: PairedDevice[]) => void,
   ): Promise<() => void>;
 };
 
@@ -193,7 +210,23 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
       }
     },
 
-    watch: async (onStatus, onDown) => {
+    devices: async () => {
+      if (!seams.allow()) throw new Error(noControlInTest());
+      return decodeDevicesSnapshot(await (await call("/bridge/devices")).text());
+    },
+
+    issuePairing: async () => {
+      if (!seams.allow()) throw new Error(noControlInTest());
+      return decodePairingLink(await (await call("/bridge/pairing", { method: "POST" })).text());
+    },
+
+    revokeDevice: async (deviceId) => {
+      if (!seams.allow()) throw new Error(noControlInTest());
+      const path = `/bridge/devices/${encodeURIComponent(deviceId)}`;
+      return decodeDevicesSnapshot(await (await call(path, { method: "DELETE" })).text());
+    },
+
+    watch: async (onStatus, onDown, onDevices) => {
       if (!seams.allow()) {
         onDown(noControlInTest());
         return () => {};
@@ -210,7 +243,13 @@ export function createHostTransport(overrides: Partial<HostSeams> = {}): HostTra
       socket.onmessage = (event) => {
         if (closed) return;
         try {
-          onStatus(decodeHostStatus(String(event.data)));
+          const frame = decodeWatchFrame(String(event.data));
+          if (frame.kind === "status") onStatus(frame.status);
+          else if (frame.kind === "devices") onDevices?.(frame.devices);
+          else if (frame.event) {
+            // Not a status, and not a list we know: leave the Host up.
+            console.warn(`host watch: ignored event ${frame.event.slice(0, 80)}`);
+          }
         } catch (error) {
           onDown(
             t("host.error.badStatusFrame", {

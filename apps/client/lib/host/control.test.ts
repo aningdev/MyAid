@@ -36,6 +36,15 @@ function fakeTransport(script: {
       }
       return current;
     },
+    devices: async () => {
+      throw new Error("unused");
+    },
+    issuePairing: async () => {
+      throw new Error("unused");
+    },
+    revokeDevice: async () => {
+      throw new Error("unused");
+    },
     watch: async (onStatus, onDown) => {
       if (script.failWatch) {
         onDown(script.failWatch);
