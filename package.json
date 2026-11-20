@@ -11,7 +11,6 @@
     "catalog": {
       "@deepseek-ai/cordis": "~4.1.0",
       "@deepseek-ai/cordis-plugin-include": "~1.1.0",
-      "@deepseek-ai/schemastery": "~3.19.0",
       "@deepseek-ai/dsh-agent": "0.2.2-rc.5",
       "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.5",
       "@deepseek-ai/dsh-api-gateway": "0.2.2-rc.5",
@@ -45,6 +44,10 @@
       "@deepseek-ai/dsh-user-approval": "0.2.2-rc.5",
       "@deepseek-ai/dsh-user-questions": "0.2.2-rc.5",
       "@deepseek-ai/dsh-workspace": "0.2.2-rc.5",
+      "@deepseek-ai/schemastery": "~3.19.0",
+      "@noble/ciphers": "2.4.0",
+      "@noble/curves": "2.4.0",
+      "@noble/hashes": "2.4.0",
       "@types/node": "26.6.6",
       "esbuild": "0.28.2",
       "shadcn-nsh": "0.8.0",
