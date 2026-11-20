@@ -8,10 +8,10 @@ mod routes;
 mod status;
 
 pub use auth::{check_caller, check_token, matches, token};
-pub use routes::router;
+pub use routes::{Api, router};
 pub use status::{PHASES, Status, assert_connection_info, assert_public_status, parse_ready_url};
 
-use crate::{Config, Result, dsh_process::Lifecycle, service::Registration};
+use crate::{Config, Result, bridge::Bridge, dsh_process::Lifecycle, service::Registration};
 use std::{
     io::Write,
     sync::{
@@ -51,6 +51,9 @@ async fn serve_async(
 ) -> Result<()> {
     let lifecycle = Lifecycle::new(config.clone())?;
     let registration = Registration::from_config(&config);
+    let bridge = Bridge::open(&config)?;
+    let bridge_stop = Arc::new(AtomicBool::new(false));
+    bridge.spawn(bridge_stop.clone());
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, config.port))
         .await
         .map_err(|error| {
@@ -91,17 +94,21 @@ async fn serve_async(
         }
     });
 
+    let exit_flag = Arc::new(AtomicBool::new(false));
     let api = routes::Api {
         lifecycle,
         registration,
+        bridge,
         port,
         token: Arc::from(token),
-        exit,
+        exit: exit_flag.clone(),
     };
     let stopping = async move {
         while !exit.load(Ordering::Acquire) {
             tokio::time::sleep(WATCH_INTERVAL).await;
         }
+        exit_flag.store(true, Ordering::Release);
+        bridge_stop.store(true, Ordering::Release);
         tracing::info!("stopping");
     };
     let served = axum::serve(listener, router(api))

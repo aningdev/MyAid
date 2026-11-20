@@ -6,32 +6,37 @@ use super::{
 };
 use crate::{
     Result,
+    bridge::{Bridge, IssueError},
     dsh_process::Lifecycle,
     service::{Registration, RegistrationSnapshot},
 };
 use axum::{
     Json, Router,
     extract::{
-        Query, State,
+        Path, Query, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
     http::{HeaderMap, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use serde::Deserialize;
-use std::{sync::Arc, sync::atomic::AtomicBool};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 /// What every handler reads.
 #[derive(Clone)]
 pub struct Api {
     pub lifecycle: Lifecycle,
     pub registration: Registration,
+    pub bridge: Bridge,
     /// The port this process bound, which every caller's `Host` must name.
     pub port: u16,
     pub token: Arc<str>,
-    pub exit: &'static AtomicBool,
+    pub exit: Arc<AtomicBool>,
 }
 
 /// The API: `/` for a liveness probe, everything else behind [`authorize`].
@@ -46,6 +51,9 @@ pub fn router(api: Api) -> Router {
         .route("/registration", get(registration_snapshot))
         .route("/registration/enable", post(registration_enable))
         .route("/registration/stop", post(registration_stop))
+        .route("/bridge/pairing", post(bridge_pairing))
+        .route("/bridge/devices", get(bridge_devices))
+        .route("/bridge/devices/{device_id}", delete(bridge_revoke))
         .layer(middleware::from_fn_with_state(api.clone(), authorize));
     Router::new()
         .route("/", get(index))
@@ -178,6 +186,43 @@ async fn registration_enable(State(api): State<Api>) -> Response {
     }
 }
 
+async fn bridge_pairing(State(api): State<Api>) -> Response {
+    let bridge = api.bridge.clone();
+    let result = tokio::task::spawn_blocking(move || bridge.issue_pairing())
+        .await
+        .map_err(|error| error.to_string());
+    match result {
+        Ok(Ok(ticket)) => Json(ticket).into_response(),
+        Ok(Err(IssueError::Unavailable(error))) => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "error": error })),
+        )
+            .into_response(),
+        Ok(Err(IssueError::Failed(error))) | Err(error) => failed(error),
+    }
+}
+
+async fn bridge_devices(State(api): State<Api>) -> Response {
+    let bridge = api.bridge.clone();
+    match blocking(move || bridge.devices()).await {
+        Ok(body) => Json(body).into_response(),
+        Err(error) => failed(error),
+    }
+}
+
+async fn bridge_revoke(State(api): State<Api>, Path(device_id): Path<String>) -> Response {
+    let bridge = api.bridge.clone();
+    match blocking(move || bridge.revoke(&device_id)).await {
+        Ok(Some(body)) => Json(body).into_response(),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "unknown device" })),
+        )
+            .into_response(),
+        Err(error) => failed(error),
+    }
+}
+
 async fn registration_stop(State(api): State<Api>) -> Response {
     let registration = api.registration.clone();
     match blocking(move || registration.stop()).await {
@@ -212,8 +257,9 @@ async fn watch(
 /// nothing after the upgrade; a frame it does send ends the subscription.
 async fn stream(mut socket: WebSocket, api: Api) {
     let mut previous = String::new();
+    let mut seen_devices = api.bridge.generation();
     loop {
-        if api.exit.load(std::sync::atomic::Ordering::Acquire) {
+        if api.exit.load(Ordering::Acquire) {
             break;
         }
         let snapshot = api.lifecycle.snapshot();
@@ -233,6 +279,20 @@ async fn stream(mut socket: WebSocket, api: Api) {
                 break;
             }
             previous = encoded;
+        }
+        let generation = api.bridge.generation();
+        if generation != seen_devices {
+            seen_devices = generation;
+            match api.bridge.devices_event() {
+                Ok(event) => {
+                    if socket.send(Message::Text(event.into())).await.is_err() {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "bridge devices");
+                }
+            }
         }
         tokio::select! {
             _ = tokio::time::sleep(super::WATCH_INTERVAL) => {}

@@ -1,6 +1,6 @@
 //! Host lifecycle and its local control API. No Harness business calls or session state.
 //! Modules: `dsh_process` (the dsh lifecycle), `local_api` (the loopback HTTP/websocket API),
-//! `service` (the Host's OS registration), `bridge` (multi-device, later).
+//! `service` (the Host's OS registration), `bridge` (relay identity, Noise, paired Devices).
 
 pub mod bridge;
 mod config;

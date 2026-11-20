@@ -14,11 +14,14 @@ dsh-bot 的 Rust 宿主，照 lorca 的 `lorca serve` 成形：独占官方 `dsh
 | ------------------------------------------------------ | -------------------------------------------------- |
 | `GET /status`                                          | 公开相位（不含登录 URL）                           |
 | `GET /connection`                                      | dsh 登录 URL，只在 ready 时给                      |
-| `GET /watch`                                           | WebSocket，推送每次变化的公开相位                  |
+| `GET /watch`                                           | WebSocket：每次变化的公开相位，以及配对列表变化时的 `bridge.devices` 事件 |
 | `POST /dsh/start`                                      | `{"source":"attach"\|"userStart"}` → 相位          |
 | `POST /dsh/stop`、`POST /dsh/restart`                  | 相位                                               |
 | `GET /registration`                                    | Host 的登记快照：`version`、`phase`、可选 `reason` |
 | `POST /registration/enable`、`POST /registration/stop` | 动词执行后的同一份快照                             |
+| `POST /bridge/pairing`                                 | `{"link","expiresAt"}`；没有可用 Relay 时 409      |
+| `GET /bridge/devices`                                  | 已配对 Device，以及 Relay 链路状态                |
+| `DELETE /bridge/devices/{deviceId}`                    | 撤销该 Device；未知则 404                          |
 
 ## 命令
 
@@ -37,7 +40,10 @@ cargo test -p dsh-bot-host
 
 默认端口 `4872`（`DSH_BOT_HOST_PORT`、`--port`）；默认数据根 `~/.dsh-bot`（`DSH_BOT_HOME`）。App 的启动器 spawn `dsh-bot-host serve-app`，二进制必须在 `PATH` 上（`cargo build -p dsh-bot-host` 产出在 `target/debug`）。
 
+## Bridge
+
+`src/bridge/` 是 Runner 侧的中继隧道：注册身份、Relay 连接、Noise、已配对 Device。帧契约在 [relay-tunnel](../../docs/architecture/relay-tunnel.md)。`DSH_BOT_RELAY_URL` 覆盖 `src/bridge/mod.rs` 里编译进去的占位 `DEFAULT_RELAY_URL`；该占位不是真实地址，也不会被拨号。配对和设备列表走上面的 `/bridge/*`。`/watch` 在列表变化时另发 `{"event":"bridge.devices","devices":[...]}`。stream 0 应答 ping，其余 stream 被拒绝。本模块还不把 Device 流量转发到 dsh web。
+
 ## Known limitations
 
 - `cargo test` 不证明签名成品上的 OS 登记：测试只快照 launchd plist、systemd 单元与 Windows `Run` 命令行，不安装任何东西。
-- 控制面还不承载多端流量；`bridge` 仍是空模块。
