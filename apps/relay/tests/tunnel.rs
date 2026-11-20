@@ -13,7 +13,10 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{net::TcpStream as TokioTcpStream, time::timeout};
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
+use tokio_tungstenite::{
+    MaybeTlsStream, WebSocketStream, connect_async,
+    tungstenite::{Message, client::IntoClientRequest, http::HeaderValue},
+};
 
 const PREFIX: &[u8] = b"dsh-bot-relay/1 runner\n";
 const OPEN: u8 = 1;
@@ -45,8 +48,13 @@ impl Drop for Relay {
 
 impl Relay {
     fn start(tap: Option<&Path>) -> Self {
+        Self::start_with(tap, &[])
+    }
+
+    fn start_with(tap: Option<&Path>, extra: &[&str]) -> Self {
         let mut command = Command::new(env!("CARGO_BIN_EXE_dsh-bot-relay"));
         command.args(["serve", "--port", "0", "--ready-stdout"]);
+        command.args(extra);
         if let Some(tap) = tap {
             command.arg("--frame-tap").arg(tap);
         }
@@ -77,11 +85,38 @@ impl Relay {
 type Client = WebSocketStream<MaybeTlsStream<TokioTcpStream>>;
 
 async fn connect(url: &str) -> Client {
-    let (socket, _) = timeout(Duration::from_secs(10), connect_async(url))
+    connect_forwarded(url, None).await
+}
+
+async fn connect_forwarded(url: &str, forwarded_for: Option<&str>) -> Client {
+    let mut request = url.into_client_request().expect("device url");
+    if let Some(forwarded_for) = forwarded_for {
+        request.headers_mut().insert(
+            "x-forwarded-for",
+            HeaderValue::from_str(forwarded_for).expect("forwarded header"),
+        );
+    }
+    let (socket, _) = timeout(Duration::from_secs(10), connect_async(request))
         .await
         .expect("relay answered the upgrade")
         .expect("websocket handshake");
     socket
+}
+
+/// Close code of one `/v1/device` attempt. `4001` passed the rate limit with no
+/// runner; `4005` was refused.
+async fn device_close(url: &str, forwarded_for: Option<&str>) -> u16 {
+    let mut socket = connect_forwarded(url, forwarded_for).await;
+    next_close(&mut socket).await
+}
+
+/// The first `connect_rate` attempts must pass. Clients rotate through `forwarded_for`.
+async fn fill_device_rate(url: &str, forwarded_for: &[&str]) {
+    let limit = dsh_bot_relay::Limits::default().connect_rate as usize;
+    for index in 0..limit {
+        let code = device_close(url, Some(forwarded_for[index % forwarded_for.len()])).await;
+        assert_eq!(code, 4001, "connection {index}");
+    }
 }
 
 fn identity(seed: u8) -> (SigningKey, String) {
@@ -497,4 +532,21 @@ async fn the_frame_tap_records_every_relayed_frame() {
         ("bridge".into(), "out".into(), close_frame(channel, 1000))
     );
     assert!(!text.contains("opaque-device-payload"));
+}
+
+#[tokio::test]
+async fn a_trusted_proxy_gives_each_forwarded_client_its_own_rate_limit() {
+    let relay = Relay::start_with(None, &["--trusted-proxy", "127.0.0.1"]);
+    let url = relay.url("/v1/device");
+    fill_device_rate(&url, &["203.0.113.10"]).await;
+    assert_eq!(device_close(&url, Some("203.0.113.10")).await, 4005);
+    assert_eq!(device_close(&url, Some("203.0.113.20")).await, 4001);
+}
+
+#[tokio::test]
+async fn forged_forwarded_for_shares_the_peer_rate_limit() {
+    let relay = Relay::start(None);
+    let url = relay.url("/v1/device");
+    fill_device_rate(&url, &["203.0.113.10", "203.0.113.20", "203.0.113.30"]).await;
+    assert_eq!(device_close(&url, Some("198.51.100.8")).await, 4005);
 }

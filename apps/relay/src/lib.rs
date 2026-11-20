@@ -20,7 +20,7 @@ use std::ffi::OsString;
 
 pub type Result<T> = std::result::Result<T, String>;
 
-/// `serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH]`.
+/// `serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH] [--trusted-proxy IP]`.
 pub fn parse_args(args: &[OsString]) -> Result<Config> {
     config::parse(args)
 }

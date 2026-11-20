@@ -52,7 +52,7 @@ Every number above lives in [`src/limits.rs`](src/limits.rs) and the codes in [`
 ## Commands
 
 ```sh
-cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout]
+cargo run -p dsh-bot-relay -- serve [--bind ADDR] [--port PORT] [--ready-stdout] [--trusted-proxy IP]
 cargo check -p dsh-bot-relay
 cargo test -p dsh-bot-relay
 cargo test -p dsh-bot-relay --features frame-tap
@@ -62,6 +62,8 @@ cargo test -p dsh-bot-relay --features frame-tap
 
 `--ready-stdout` prints `{"event":"ready","port":<port>}` once it listens, for scripts and tests.
 
+`--trusted-proxy IP` can be repeated and defaults to none. Device rate limiting and logs use the TCP peer. Only when that peer is one of these addresses does the Relay read the client from `X-Forwarded-For`: the rightmost entry of the last header value, which is the address the proxy itself saw; entries left of it come from the client and are never used. No header, or a rightmost entry that is not a bare IP, keeps the peer. A peer that is not listed is never allowed to set the client, so a forged header cannot split the limit.
+
 `--frame-tap PATH` appends every relayed binary frame as one JSON line — `{"seq":n,"link":"bridge"|"device","dir":"in"|"out","bytes":"<base64url>"}` — which is how the end-to-end test proves the Relay only ever sees ciphertext. The flag exists only in builds with the `frame-tap` feature, so a release build cannot record frames at all; the second `cargo test` line above turns it on for the test that reads the file back.
 
 ## Known limitations
@@ -69,4 +71,4 @@ cargo test -p dsh-bot-relay --features frame-tap
 - It does not host the web Client. A browser reaches a Runner through its own transport, not this process.
 - All state is in memory: a restart drops registrations and channels, and Devices reconnect.
 - No persistence, no metrics endpoint, no per-owner accounting, no TLS termination of its own — deploy it behind a reverse proxy when it is public.
-- The connection rate limit is per source IP in memory, so behind a proxy it needs the proxy's real client address to be meaningful.
+- The connection rate limit counts each client IP in memory. Behind a reverse proxy, pass that proxy's address with `--trusted-proxy` (a loopback Caddy is `127.0.0.1`) so the Relay takes the client from `X-Forwarded-For`. Without it, every Device shares the proxy's one limit.
