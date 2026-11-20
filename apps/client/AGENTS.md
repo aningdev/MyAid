@@ -73,8 +73,8 @@
 
 ## 验证
 
-- 应用生命周期走官方 `nsh check` / `nsh test`；工作区编排用 `vp run @dsh-bot/client#…`。命令清单在 README。
-- 组件层改动：`nsh check` → 相关 `nsh test <file>` → 收尾跑 `nsh test --target macos`（截图落在 `.handoff/shots`，不进 `/tmp`）→ `bun run ui:diff` 必须是 `No differences.`。配对页截图走 `screens/pairing-harness.tsx`：macOS target 不能开 phone 平台，窄屏用 390 pt 宽的桌面窗口。
+- 应用生命周期走官方 `nsh check` / `nsh test`（`test` 脚本经根 `scripts/nsh-test-parallel.mjs` 按文件并行）；工作区编排用 `vp run @dsh-bot/client#…`。命令清单在 README，分层与预算见 [testing](../../docs/architecture/testing.md)。
+- 组件层改动：`nsh check` → 相关 `nsh test <file>` → 用 `nsh test --target macos <file>…` 跑改动涉及的截图和原生输入文件，不跑 macOS 全量（截图落在 `.handoff/shots`，不进 `/tmp`）→ `bun run ui:diff` 必须是 `No differences.`。配对页截图走 `screens/pairing-harness.tsx`：macOS target 不能开 phone 平台，窄屏用 390 pt 宽的桌面窗口。
 - Bun 单测不能证明 NSH 权限或原生绑定；触及这些能力时用 `nsh test` / 集成入口。
 - 真 Host 冒烟是 opt-in（`DSH_BOT_SMOKE_HOST`）；默认 `nsh test` 不得需要活 Host。测试应用（`test/open.ts` 的标记）**不得**探本机控制面端口、不得 spawn `dsh-bot-host`：判据在 `lib/data-root.ts` 的 `hostControlAllowed`，护栏测试 `test/host-control.test.tsx`。
 - 测试隔离：所有打开 app 的测试经 [`test/open`](test/open.ts)（`nsh test` 的 host 参数 `dshBotTest`），prefs 落到该 app 的 Storage，绝不用真实 `~/.dsh-bot`；`test/data-root.test.tsx` 是这条 seam 的 guard。没有 Host 的 app 把 Registry 夹具放在同一份 Storage（`dsh-bot.test.bots`），由内存 `bots` Remote 读出，这不是产品缓存。没有 Host 的 app 测试用 [`test/workspaces`](test/workspaces.ts) 预置 Workspace baseline（与 dsh 发出的帧同形），生产路径只读 `workspace.follow`。

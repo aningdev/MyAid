@@ -24,7 +24,7 @@
     "package:gpui": "bun run prepare:sdk && nsh package --target gpui",
     "package:ios": "bun run prepare:sdk && nsh package --target ios",
     "package:android": "bun run prepare:sdk && nsh package --target android",
-    "test": "bun run prepare:sdk && nsh test",
+    "test": "bun run prepare:sdk && node ../../scripts/nsh-test-parallel.mjs",
     "ui:diff": "bun ./scripts/ui-diff.mjs"
   },
   "dependencies": {

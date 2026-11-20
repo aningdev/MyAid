@@ -36,9 +36,9 @@ vp run @dsh-bot/client#dev:mobile       # Mac Catalyst
 vp run @dsh-bot/client#dev:ios
 vp run @dsh-bot/client#dev:android
 vp run @dsh-bot/client#dev:server       # nsh dev --server-only
-vp run @dsh-bot/client#test
+vp run @dsh-bot/client#test             # every test file, NSH_TEST_JOBS at once; with args, plain nsh test
 vp run @dsh-bot/client#build            # bytecode (nsh build)
-bun run ui:diff                       # components/ui vs the shadcn-nsh registry (see check)
+bun run ui:diff                         # components/ui vs the shadcn-nsh registry (see check)
 vp run @dsh-bot/client#package:macos    # .nsh/out/dsh-bot.app, then runs it
 vp run @dsh-bot/client#package:web      # also package:windows / linux / gpui / ios / android
 ```
@@ -47,6 +47,7 @@ vp run @dsh-bot/client#package:web      # also package:windows / linux / gpui / 
 - Service only (attach your own simulator/host): `dev:server`.
 - `package:macos` produces an NSH-installable `.app`, **not** the finished App + Host + `SMAppService` product.
 - Real-Host smokes are opt-in: `screens/*.smoke.test.tsx` returns unless `DSH_BOT_SMOKE_HOST` is set, and that is also the only way a test app reaches the local control plane (an app opened by `test/open.ts` never probes or spawns). See [screens/README.md](screens/README.md).
+- `test` runs one `nsh test <file>` per file in parallel (`NSH_TEST_JOBS`, default cores − 1, at most 8), longest first; layers, budgets and what to run before handing off are in [testing](../../docs/architecture/testing.md). Native-only proofs run per file: `nsh test --target macos <file>…`.
 - Tests that open the app use [`test/open.ts`](test/open.ts): its host parameter makes the registry and shell prefs use the test app's isolated storage, never the real `~/.dsh-bot`.
 
 ## Shell

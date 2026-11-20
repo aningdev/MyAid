@@ -28,7 +28,7 @@ apps/client/
 根目录用 `vp run`（勿用 `bun --cwd`）：
 
 ```sh
-vp run @dsh-bot/client#check            # nsh check + nsh build
+vp run @dsh-bot/client#check            # nsh check + nsh build + ui:diff
 vp run @dsh-bot/client#dev              # 桌面端，会拉起 Host
 vp run @dsh-bot/client#dev:macos        # 另有 dev:windows / dev:linux / dev:gpui
 vp run @dsh-bot/client#dev:web
@@ -36,8 +36,9 @@ vp run @dsh-bot/client#dev:mobile       # Mac Catalyst
 vp run @dsh-bot/client#dev:ios
 vp run @dsh-bot/client#dev:android
 vp run @dsh-bot/client#dev:server       # nsh dev --server-only
-vp run @dsh-bot/client#test
+vp run @dsh-bot/client#test             # 所有测试文件，NSH_TEST_JOBS 个并行；带参数时即 nsh test
 vp run @dsh-bot/client#build            # bytecode（nsh build）
+bun run ui:diff                         # components/ui 对照 shadcn-nsh registry（见 check）
 vp run @dsh-bot/client#package:macos    # .nsh/out/dsh-bot.app，打包后运行
 vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui / ios / android
 ```
@@ -46,6 +47,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 - 只起服务、自己连模拟器或已开宿主：`dev:server`。
 - `package:macos` 产出 NSH 可安装 `.app`，**不是**根级成品（App + Host + `SMAppService` 组装另议）。
 - 真 Host 冒烟是 opt-in：未设置 `DSH_BOT_SMOKE_HOST` 时 `screens/*.smoke.test.tsx` 直接返回；它也是测试应用接触本机控制面的唯一入口（`test/open.ts` 打开的应用既不探活也不 spawn）。见 [screens/README.md](screens/README.md)。
+- `test` 每个文件起一个 `nsh test <file>` 并行跑（`NSH_TEST_JOBS`，默认核数减 1，最多 8），长的先跑；分层、预算和交付前跑什么见 [testing](../../docs/architecture/testing.md)。只有原生能证明的按文件跑：`nsh test --target macos <file>…`。
 - 打开 app 的测试统一走 [`test/open.ts`](test/open.ts)：host 参数让注册表与 shell prefs 使用测试 app 自己的 Storage，绝不碰真实 `~/.dsh-bot`。
 
 ## 壳
