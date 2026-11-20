@@ -48,7 +48,12 @@ export function apply(ctx: Context, config: Config): void {
   });
 }
 
-export { BotsService, type BotsServiceOptions } from "./service.ts";
+export {
+  BotsService,
+  type BotsServiceOptions,
+  type BotRoute,
+  type BotsRouting,
+} from "./service.ts";
 export type { BotsSnapshot } from "./store.ts";
 export {
   MAIN_BOT_ID,
