@@ -30,11 +30,16 @@ impl Drop for StartupAttempt {
     }
 }
 
+/// The restart delay after the first failure.
+const RETRY_UNIT: Duration = Duration::from_secs(1);
+
 pub(super) struct DshProcess {
     config: Config,
     durable: Durable,
     running: Option<Running>,
     retry_at: Option<Instant>,
+    /// The first restart delay; each further failure in the window doubles it. Tests shorten it.
+    retry_unit: Duration,
     pub(super) state: Arc<Mutex<ProcessState>>,
     pub(super) attempt: Arc<AtomicU64>,
     launcher: Box<dyn ProcessLauncher>,
@@ -69,7 +74,7 @@ impl DshProcess {
         let retry_at = if recover && !state.blocked {
             state.phase = "recovering".into();
             state.reason = Some("正在恢复先前已启用的后台".into());
-            Some(Instant::now() + Duration::from_secs(1 << (durable.failures.len() - 1)))
+            Some(Instant::now() + RETRY_UNIT * (1 << (durable.failures.len() - 1)))
         } else {
             None
         };
@@ -78,6 +83,7 @@ impl DshProcess {
             durable,
             running: None,
             retry_at,
+            retry_unit: RETRY_UNIT,
             state: Arc::new(Mutex::new(state)),
             attempt: Arc::new(AtomicU64::new(0)),
             launcher,
@@ -247,7 +253,7 @@ impl DshProcess {
         self.retry_at = if self.durable.exhausted {
             None
         } else {
-            Some(Instant::now() + Duration::from_secs(1 << (self.durable.failures.len() - 1)))
+            Some(Instant::now() + self.retry_unit * (1 << (self.durable.failures.len() - 1)))
         };
         Ok(())
     }
@@ -390,6 +396,7 @@ mod tests {
             .collect();
         let launcher = ScriptedLauncher::new(runs);
         let (_dir, mut process) = test_env(Box::new(launcher));
+        process.retry_unit = Duration::from_millis(10);
 
         // First explicit start records a failure and schedules retry.
         let err = process.ensure(true).unwrap_err();
