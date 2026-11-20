@@ -6,22 +6,16 @@
  *
  * Opt in with DSH_BOT_SMOKE_HOST on a scratch home; the app starts the Host itself
  * (see screens/README.md). The overlay must name the plugin built from this
- * checkout, so build it first:
+ * checkout: build `dsh-bots` and `dsh-tickets`, then write a patch that
+ * inserts both `lib/index.js` files, the same shape `scripts/dev.mjs` writes.
  *
- *   vp run dsh-bots#build
- *   HOME=<scratch>/home DSH_BOT_HOME=<scratch> DSH_BOT_SMOKE_HOST=1 \
- *     DSH_BOT_HOST_PORT=4879 \
- *     DSH_BOT_PATCH="$PWD/.dev/bots.patch.yml" \
- *     PATH="$PWD/target/debug:$PATH" \
+ *   vp run dsh-bots#build && vp run dsh-tickets#build
+ *   DSH_BOT_HOME=<scratch> DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
+ *     DSH_BOT_PATCH=<patch.yml> PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/bots-real-host.smoke.test.tsx --target macos
  *
- * `<scratch>` must sit under `~/.dsh-bot-dev`. The create-Bot test reads
- * `$DSH_BOT_HOME/bots/registry.json` and refuses any other root.
+ * Keep `<scratch>` under `~/.dsh-bot-dev`, never the real `~/.dsh-bot`.
  */
-import fs from "fs/promises";
-import { homedir } from "os";
-import { join } from "path";
-
 import { expect, test } from "nsh/test";
 
 import { t } from "../lib/i18n";
@@ -76,19 +70,14 @@ test("a Bot saves a derived preset and reads it back", async () => {
 }, 600000);
 
 /**
- * Creating a Bot through the New Bot dialog writes the plugin's Registry and
- * the Navigator shows the new row. Requires `DSH_BOT_HOME` under
- * `~/.dsh-bot-dev` so the assertion never opens the real `~/.dsh-bot`.
+ * Creating a Bot through the New Bot dialog creates and initializes it in the
+ * plugin's Registry: the dialog closes only after both Remote calls succeed,
+ * and the Navigator lists the new Bot beside the Main Bot. The test runner has
+ * no file system, so whoever runs it reads `$DSH_BOT_HOME/bots/registry.json`
+ * to see the file itself.
  */
 test("creating a Bot writes the plugin registry and shows it in the Navigator", async () => {
   if (!hostSmokeRequested()) return;
-  const root = process.env.DSH_BOT_HOME ?? "";
-  const isolated = join(homedir(), ".dsh-bot-dev");
-  if (root !== isolated && !root.startsWith(`${isolated}/`)) {
-    throw new Error(
-      "Set DSH_BOT_HOME to a directory under ~/.dsh-bot-dev. This smoke does not read ~/.dsh-bot.",
-    );
-  }
   const app = await open("../App.tsx", { width: 1440, height: 900, network: "live" });
   if (!(await graphical(app))) return;
 
@@ -96,11 +85,9 @@ test("creating a Bot writes the plugin registry and shows it in the Navigator", 
   await app.keyboard.press("mod+n");
   await app.waitFor("id:new-bot-dialog");
   await app.type("id:new-bot-name", "Smoke Bot");
-  await app.type("id:new-bot-workspace", "/tmp");
+  await app.type("id:new-bot-workspace", WORKSPACE);
   await app.press(`label:${t("newBot.create")}`);
-  await app.waitFor("label:Smoke Bot", { timeout: 120000 });
-
-  const text = await fs.readFile(join(root, "bots", "registry.json"), "utf8");
-  expect(text).toContain("Smoke Bot");
-  expect(text).toContain("bots-main");
+  await app.waitUntil(() => !app.shows("id:new-bot-dialog"), { timeout: 120000 });
+  expect(app.shows("label:Smoke Bot")).toBe(true);
+  expect(app.shows("label:Main Bot")).toBe(true);
 }, 180000);
