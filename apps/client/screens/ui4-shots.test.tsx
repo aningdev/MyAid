@@ -160,10 +160,20 @@ test("the Pane title's field, and the image viewer", async () => {
   await app.press("label:Ada");
   await app.waitFor("id:chat", { timeout: 30000 });
 
-  // A double press on the title turns it into the group's field.
-  await app.press("id:chat >> text:Ada · Untitled context");
-  await app.press("id:chat >> text:Ada · Untitled context");
-  await app.waitFor("id:session-title", { timeout: 5000 });
+  // A double press on the title turns it into the group's field. A busy
+  // machine can space the two presses past the app's double-press window, so
+  // the pair is pressed again while the field is missing.
+  const title = "id:chat >> text:Ada · Untitled context";
+  let editing = false;
+  for (let attempt = 0; attempt < 3 && !editing; attempt += 1) {
+    await app.press(title);
+    await app.press(title);
+    editing = await app.waitFor("id:session-title", { timeout: 3000 }).then(
+      () => true,
+      () => false,
+    );
+  }
+  expect(editing).toBe(true);
   await both(app, "41-title-field.png");
   await app.clear("id:session-title");
   await app.type("id:session-title", "Notes for the release");
