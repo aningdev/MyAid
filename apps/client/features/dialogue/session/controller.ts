@@ -16,8 +16,8 @@ import type {
   SessionId,
   SessionReference,
   SessionSnapshot,
-} from "@myaid/dsh-web-protocol/client";
-import type { PromptContentPart } from "@myaid/dsh-web-protocol/session";
+} from "@dsh-bot/dsh-web-protocol/client";
+import type { PromptContentPart } from "@dsh-bot/dsh-web-protocol/session";
 import { signal, untracked } from "nsh";
 
 import { t } from "../../../lib/i18n";

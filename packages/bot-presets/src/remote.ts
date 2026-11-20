@@ -3,7 +3,7 @@
  *
  * The Client mounts this contribution so it gets a typed namespace; the Host
  * side is the `@Remote`-marked `BotPresetsService`. DTOs live in
- * `./types.ts` (and are mirrored in `@myaid/dsh-web-protocol/bot-presets`).
+ * `./types.ts` (and are mirrored in `@dsh-bot/dsh-web-protocol/bot-presets`).
  */
 import { createTypertRemoteInfo } from "@deepseek-ai/dsh-typert-protocol/remote-info";
 import { z, type ZodType } from "zod";

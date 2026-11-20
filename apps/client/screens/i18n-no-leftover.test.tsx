@@ -182,7 +182,7 @@ const FIXTURE_TEXT =
 /** Product terms and proper names that stay as they are, plus commands and key names. */
 const NOT_TRANSLATED = new Set([
   // Product and proper names.
-  "MyAid",
+  "dsh-bot",
   "Host",
   "Relay",
   "dsh",
@@ -242,7 +242,7 @@ const NOT_TRANSLATED = new Set([
   "dev",
   "cargo",
   "p",
-  "myaid-host",
+  "dsh-bot-host",
   "serve-app",
 ]);
 

@@ -3,7 +3,7 @@
  * Pane header's directory as `InputGroup`s, the Pane title's field, a Bot's
  * plugin rows as `Switch`es, and the image viewer. Both appearances.
  *
- *   mkdir -p ~/.myaid-dev/shots/pi-shots-ui4
+ *   mkdir -p ~/.dsh-bot-dev/shots/pi-shots-ui4
  *   nsh test screens/ui4-shots.test.tsx --target macos
  *
  * A headless run stops at the picture probe.
@@ -124,7 +124,12 @@ test("a Bot's plugin rows are switches, on and off", async () => {
       [REGISTRY_STORAGE_KEY]: serializeRegistry(fixture()),
       ...workspaceStorage({
         rows: [
-          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+          workspaceRow({
+            id: "ws-work",
+            path: "/work/dsh-bot",
+            title: "dsh-bot",
+            sessionIds: ["s1"],
+          }),
         ],
       }),
     },
@@ -179,7 +184,7 @@ test("the image viewer opens, closes on Escape, and opens again", async () => {
 
   await app.type("id:composer", "picture");
   await app.keyboard.press("Return");
-  await app.press("label:MyAid");
+  await app.press("label:dsh-bot");
   await app.waitFor("id:image-viewer", { timeout: 30000 });
   await both(app, "51-image-viewer.png");
 
@@ -189,7 +194,7 @@ test("the image viewer opens, closes on Escape, and opens again", async () => {
   await app.keyboard.press("Escape");
   await app.waitUntil(() => !app.shows("id:image-viewer"), { timeout: 10000 });
   expect(app.shows("id:image-viewer")).toBe(false);
-  await app.press("label:MyAid");
+  await app.press("label:dsh-bot");
   await app.waitFor("id:image-viewer", { timeout: 30000 });
   expect(app.shows("id:image-viewer")).toBe(true);
   await app.press(`label:${t("chat.closeImage")}`);

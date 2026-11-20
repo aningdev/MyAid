@@ -6,7 +6,7 @@ use std::{path::PathBuf, time::Duration};
 /// Default startup deadline when unset.
 pub const STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// The local control port when nothing names one (`MYAID_HOST_PORT`, `--port`).
+/// The local control port when nothing names one (`DSH_BOT_HOST_PORT`, `--port`).
 pub const DEFAULT_PORT: u16 = 4872;
 
 const SUPPORTED_DSH: &str = include_str!("../supported-dsh.json");
@@ -45,12 +45,12 @@ impl Config {
         self.runtime().join("serve-token")
     }
 
-    /// Product defaults: `~/.myaid` (`MYAID_DATA_ROOT` names another), official dsh, embedded
+    /// Product defaults: `~/.dsh-bot` (`DSH_BOT_HOME` names another), official dsh, embedded
     /// version pin.
     pub fn product() -> Result<Self> {
-        let root = match std::env::var_os("MYAID_DATA_ROOT") {
+        let root = match std::env::var_os("DSH_BOT_HOME") {
             Some(root) if !root.is_empty() => PathBuf::from(root),
-            _ => home_dir()?.join(".myaid"),
+            _ => home_dir()?.join(".dsh-bot"),
         };
         let config = Self {
             logs: root.join("logs"),
@@ -203,9 +203,9 @@ impl Config {
     }
 }
 
-/// Dev-only overlays from `MYAID_DSH_PATCH`; paths are split like `PATH`.
+/// Dev-only overlays from `DSH_BOT_PATCH`; paths are split like `PATH`.
 fn patches_from_env() -> Result<Vec<PathBuf>> {
-    let Some(value) = std::env::var_os("MYAID_DSH_PATCH") else {
+    let Some(value) = std::env::var_os("DSH_BOT_PATCH") else {
         return Ok(Vec::new());
     };
     let mut patches = Vec::new();
@@ -214,16 +214,16 @@ fn patches_from_env() -> Result<Vec<PathBuf>> {
             continue;
         }
         if !path.is_absolute() {
-            return Err("MYAID_DSH_PATCH paths must be absolute".into());
+            return Err("DSH_BOT_PATCH paths must be absolute".into());
         }
         patches.push(path);
     }
     Ok(patches)
 }
 
-/// `MYAID_HOST_PORT`, else [`DEFAULT_PORT`].
+/// `DSH_BOT_HOST_PORT`, else [`DEFAULT_PORT`].
 fn port_from_env() -> Result<u16> {
-    match std::env::var("MYAID_HOST_PORT") {
+    match std::env::var("DSH_BOT_HOST_PORT") {
         Ok(text) if !text.trim().is_empty() => {
             text.trim().parse::<u16>().map_err(|_| "Invalid port".into())
         }

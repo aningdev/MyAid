@@ -1,6 +1,6 @@
 /**
  * Capability check: `capabilities.fs` in nsh.json grants the app's data
- * (`~/.myaid`) and nothing else, so `file:` bytes a drop or a paste hands
+ * (`~/.dsh-bot`) and nothing else, so `file:` bytes a drop or a paste hands
  * over are read inside it, and outside it the app offers the open dialog
  * instead of reading. This probe reads no part of the real data root; it only
  * proves the refusal outside the grant. A headless run has no filesystem and

@@ -24,7 +24,7 @@ Owner 在任何一台 Device 或已接入的 Source 上提出请求，Main Bot �
 ## Acceptance criteria
 
 1. **改名完成**：仓库、包、二进制、环境变量和数据根都改成 dsh-bot 的名字，代码里找不到旧名。
-   例：`rg -i myaid --glob '!references/**'` 没有结果；`bun run dev --isolated=a` 用的数据根是 `~/.dsh-bot-dev/a`。_automated_
+   例：`rg -i myaid --glob '!references/**' --glob '!docs/decisions/**' --glob '!docs/specs/**'` 没有结果（decision 和 spec 是带日期的记录，保留旧名）；`bun run dev --isolated=a` 用的数据根是 `~/.dsh-bot-dev/a`。_automated_
 2. **跟随 dsh**：catalog、`supported-dsh.json` 和子模块 tag 中任何一处与其他两处不一致，`bun run check` 就失败。
    例：把子模块切到 `dsh-v0.2.2-rc.4`，check 报出三处的版本差异。_automated_
 3. **Main Bot 一直在**：全新数据根第一次启动后，Navigator 第一个就是 Main Bot，它不能被归档或删除。

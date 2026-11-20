@@ -65,8 +65,8 @@ test("a version 1 file keeps its Bot pins and Pane Bots, and drops Session pins"
       {
         id: "dialogue:dlg",
         root: "dialogues",
-        path: ["Ada · myaid"],
-        title: "Ada · myaid",
+        path: ["Ada · dsh-bot"],
+        title: "Ada · dsh-bot",
         kind: "dialogue",
         botId: "bot2",
         dialogueId: "dlg",

@@ -2,14 +2,14 @@
  * Project the official Session event window onto Dialogue `Msg` values.
  * The window is the official model's contiguous logical history
  * (`SessionEventLikeEntry[]`); this module keeps no history of its own, it
- * folds each published delta and reads the events MyAid draws.
+ * folds each published delta and reads the events dsh-bot draws.
  * Only human-sourced `user/message` events become user bubbles.
  */
 import type {
   SessionEventChange,
   SessionEventLikeEntry,
   SessionEventWindow,
-} from "@myaid/dsh-web-protocol/client";
+} from "@dsh-bot/dsh-web-protocol/client";
 
 import { t } from "../../../lib/i18n";
 import type { Msg, Status, Tool } from "../chat/scripts";

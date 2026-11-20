@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@myaid/workspace",
+      "name": "@dsh-bot/workspace",
       "devDependencies": {
         "@types/node": "catalog:",
         "typescript": "catalog:",
@@ -11,7 +11,7 @@
       },
     },
     "apps/client": {
-      "name": "@myaid/client",
+      "name": "@dsh-bot/client",
       "version": "0.1.0",
       "dependencies": {
         "@deepseek-ai/cordis": "catalog:",
@@ -29,7 +29,7 @@
         "@deepseek-ai/dsh-plugin-manager": "catalog:",
         "@deepseek-ai/dsh-subagent": "catalog:",
         "@deepseek-ai/dsh-typert-registry": "catalog:",
-        "@myaid/dsh-web-protocol": "workspace:*",
+        "@dsh-bot/dsh-web-protocol": "workspace:*",
         "dsh-bot-presets": "workspace:*",
         "immer": "^10.1.1",
         "lucide": "1.66.0",
@@ -68,7 +68,7 @@
       },
     },
     "packages/dsh-web-protocol": {
-      "name": "@myaid/dsh-web-protocol",
+      "name": "@dsh-bot/dsh-web-protocol",
       "version": "0.1.0",
       "dependencies": {
         "@deepseek-ai/dsh-api-session-controller": "catalog:",
@@ -323,9 +323,9 @@
 
     "@js-temporal/polyfill": ["@js-temporal/polyfill@0.5.1", "", { "dependencies": { "jsbi": "^4.3.0" } }, "sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ=="],
 
-    "@myaid/client": ["@myaid/client@workspace:apps/client"],
+    "@dsh-bot/client": ["@dsh-bot/client@workspace:apps/client"],
 
-    "@myaid/dsh-web-protocol": ["@myaid/dsh-web-protocol@workspace:packages/dsh-web-protocol"],
+    "@dsh-bot/dsh-web-protocol": ["@dsh-bot/dsh-web-protocol@workspace:packages/dsh-web-protocol"],
 
     "@oxc-project/runtime": ["@oxc-project/runtime@0.157.0", "", {}, "sha512-srnUknwVoji5JdmU664pA4XyjBJXmgxP8rWlnZhFovzw6XQxaICGWAuScZdlLmIHI+ZRc7WgeiC2CURF4tAszQ=="],
 

@@ -4,7 +4,7 @@
  * ids. Pure shapes only — the live signal lives in `state.ts`, and the
  * official `ClientWorkspaceModel` snapshot is its only writer.
  */
-import type { WorkspaceView } from "@myaid/dsh-web-protocol/workspace";
+import type { WorkspaceView } from "@dsh-bot/dsh-web-protocol/workspace";
 
 /** One Workspace, as the product needs it. */
 export type WorkspaceRow = {

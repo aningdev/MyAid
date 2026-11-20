@@ -1,5 +1,5 @@
 /**
- * A Bot's identity: an accent color, and MyAid's own little character — a body
+ * A Bot's identity: an accent color, and dsh-bot's own little character — a body
  * shape and a face — drawn from the two names. The registry stores the names,
  * not a picture, so the mark follows the UI's palette and dark mode.
  *

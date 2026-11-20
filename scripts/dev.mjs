@@ -3,13 +3,13 @@
  *
  * `bun run dev` starts the desktop app; `bun run dev <target>` starts the target
  * named on the command line. Only desktop targets get a Host: the app starts it
- * itself (`lib/host/launcher`), so those targets need `myaid-host` on PATH and
- * the Bot preset plugin overlay (`MYAID_DSH_PATCH`). `web`, `mobile`, `ios` and
+ * itself (`lib/host/launcher`), so those targets need `dsh-bot-host` on PATH and
+ * the Bot preset plugin overlay (`DSH_BOT_PATCH`). `web`, `mobile`, `ios` and
  * `android` do not run a local Host, so they get neither.
  *
  * Before starting, the launcher makes the tree match what the repository says:
  * `node_modules` is reinstalled when the catalog's `@deepseek-ai/*` pins, the
- * lockfile or a manifest moved on, and `myaid-host` is rebuilt when it is older
+ * lockfile or a manifest moved on, and `dsh-bot-host` is rebuilt when it is older
  * than its sources or `apps/host/supported-dsh.json`. That is what turns a stale
  * checkout into a run of the version this branch pins, instead of silently
  * running last week's build.
@@ -20,10 +20,10 @@
  * was rebuilt is stopped here; a Host from anywhere else is only reported, with
  * the command that stops it.
  *
- * `--isolated[=<name>]` runs against `~/.myaid-dev/<name>` (default `default`)
- * instead of the real `~/.myaid`: the app's registry, prefs and Host token and
- * the Host it starts all use that root (`MYAID_DATA_ROOT`), on port 4873 unless
- * `MYAID_HOST_PORT` names another, so it never reaches the person's own Host.
+ * `--isolated[=<name>]` runs against `~/.dsh-bot-dev/<name>` (default `default`)
+ * instead of the real `~/.dsh-bot`: the app's registry, prefs and Host token and
+ * the Host it starts all use that root (`DSH_BOT_HOME`), on port 4873 unless
+ * `DSH_BOT_HOST_PORT` names another, so it never reaches the person's own Host.
  * Agents and scripted checks always use it.
  */
 import { execFileSync, spawn } from "node:child_process";
@@ -63,10 +63,10 @@ const HOST_BIN = join(
   root,
   "target",
   "debug",
-  process.platform === "win32" ? "myaid-host.exe" : "myaid-host",
+  process.platform === "win32" ? "dsh-bot-host.exe" : "dsh-bot-host",
 );
 
-/** Port an isolated run's Host uses when `MYAID_HOST_PORT` names none. */
+/** Port an isolated run's Host uses when `DSH_BOT_HOST_PORT` names none. */
 const ISOLATED_PORT = 4873;
 
 /**
@@ -85,18 +85,18 @@ function applyIsolation(argv) {
     console.error(`--isolated 的名字只能用字母、数字、. _ -：${name}`);
     process.exit(1);
   }
-  const dataRoot = join(homedir(), ".myaid-dev", name);
+  const dataRoot = join(homedir(), ".dsh-bot-dev", name);
   mkdirSync(dataRoot, { recursive: true });
-  process.env.MYAID_DATA_ROOT = dataRoot;
-  process.env.MYAID_HOST_PORT ||= String(ISOLATED_PORT);
-  console.log(`隔离运行：数据根 ${dataRoot}，Host 端口 ${process.env.MYAID_HOST_PORT}`);
+  process.env.DSH_BOT_HOME = dataRoot;
+  process.env.DSH_BOT_HOST_PORT ||= String(ISOLATED_PORT);
+  console.log(`隔离运行：数据根 ${dataRoot}，Host 端口 ${process.env.DSH_BOT_HOST_PORT}`);
   return argv.filter((argument) => argument !== flag);
 }
 
 const args = applyIsolation(process.argv.slice(2));
 
 /** The port the app's Host listens on (`apps/client/lib/host/client.ts` honours the same one). */
-const HOST_PORT = Number(process.env.MYAID_HOST_PORT ?? "") || 4872;
+const HOST_PORT = Number(process.env.DSH_BOT_HOST_PORT ?? "") || 4872;
 
 /** Directories and files a Host build depends on. */
 const HOST_INPUTS = ["Cargo.toml", "Cargo.lock", "apps/host", "crates"];
@@ -108,7 +108,7 @@ const HOST_INPUT_TYPES = [".rs", ".toml", ".json", ".lock"];
 const DEV_DIR = join(root, ".dev");
 
 /** Marks the install result the freshness step last accepted. */
-const INSTALL_STAMP = join(root, "node_modules", ".myaid-install-stamp.json");
+const INSTALL_STAMP = join(root, "node_modules", ".dsh-bot-install-stamp.json");
 
 const delimiter = process.platform === "win32" ? ";" : ":";
 /** @type {import('node:child_process').ChildProcess | undefined} */
@@ -251,13 +251,13 @@ function newestHostInput() {
 }
 
 /**
- * Why `myaid-host` has to be rebuilt.
+ * Why `dsh-bot-host` has to be rebuilt.
  * @returns the reason, or null when the binary is up to date.
  */
 function hostStaleness() {
-  if (!existsSync(HOST_BIN)) return "myaid-host 还没有构建";
+  if (!existsSync(HOST_BIN)) return "dsh-bot-host 还没有构建";
   const newest = newestHostInput();
-  if (newest.time > mtime(HOST_BIN)) return `${relative(root, newest.path)} 比 myaid-host 新`;
+  if (newest.time > mtime(HOST_BIN)) return `${relative(root, newest.path)} 比 dsh-bot-host 新`;
   return null;
 }
 
@@ -268,7 +268,7 @@ async function ensureHost() {
   const stale = hostStaleness();
   if (stale !== null) {
     console.log(`重建 Host（${stale}）…`);
-    await completed(run("cargo", ["build", "-p", "myaid-host"]), "构建 myaid-host 失败");
+    await completed(run("cargo", ["build", "-p", "dsh-bot-host"]), "构建 dsh-bot-host 失败");
   }
   console.log("Host 已构建；客户端会自己启动它。");
   // A Host still answering on the port must be the one just built (or not ours
@@ -387,7 +387,7 @@ async function sweepStaleHost() {
       continue;
     }
     console.log(
-      `端口 ${HOST_PORT} 上的 Host（pid ${pid}）比刚构建的 myaid-host 旧，先停掉它，` +
+      `端口 ${HOST_PORT} 上的 Host（pid ${pid}）比刚构建的 dsh-bot-host 旧，先停掉它，` +
         "让 App 启动新的那个。",
     );
     process.kill(pid, "SIGTERM");
@@ -421,7 +421,7 @@ async function prepareOverlay() {
  */
 function report(target) {
   const reasons = installReasons();
-  console.log(`目标：${target.name} → @myaid/client#${target.script}`);
+  console.log(`目标：${target.name} → @dsh-bot/client#${target.script}`);
   console.log(
     reasons.length === 0 ? "依赖：已是最新" : `依赖：需要 bun install（${reasons.join("；")}）`,
   );
@@ -441,9 +441,9 @@ async function startClient(target, patch) {
   const env = { ...process.env };
   if (target.host) {
     env.PATH = [join(root, "target", "debug"), process.env.PATH].filter(Boolean).join(delimiter);
-    env.MYAID_DSH_PATCH = [process.env.MYAID_DSH_PATCH, patch].filter(Boolean).join(delimiter);
+    env.DSH_BOT_PATCH = [process.env.DSH_BOT_PATCH, patch].filter(Boolean).join(delimiter);
   }
-  child = spawn("bun", ["x", "vp", "run", `@myaid/client#${target.script}`], {
+  child = spawn("bun", ["x", "vp", "run", `@dsh-bot/client#${target.script}`], {
     cwd: root,
     env,
     stdio: "inherit",

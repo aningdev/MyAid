@@ -5,7 +5,7 @@
  * the colour scheme persists across a relaunch, and that About shows the
  * versions the Host reports.
  *
- * Opt in with `MYAID_SMOKE_HOST=1`, a scratch home/data root and `myaid-host`
+ * Opt in with `DSH_BOT_SMOKE_HOST=1`, a scratch home/data root and `dsh-bot-host`
  * on PATH (see screens/README.md):
  *
  *   nsh test screens/settings-real-host.smoke.test.tsx --target macos
@@ -95,7 +95,7 @@ test("a fake key round-trips, fields and the default model read back, appearance
   const light = app.spanStyle(`text:${t("settings.general.note")}`).color;
   await app.press(`text:${t("appearance.dark")}`);
   await app.waitUntil(() => {
-    const prefs = app.storage()["myaid.prefs.shell"] ?? "";
+    const prefs = app.storage()["dsh-bot.prefs.shell"] ?? "";
     return prefs.includes('"scheme": "dark"');
   });
   const dark = app.spanStyle(`text:${t("settings.general.note")}`).color;
@@ -108,7 +108,7 @@ test("a fake key round-trips, fields and the default model read back, appearance
   expect(app.texts()).toContain(SUPPORTED_DSH);
   await app.press(`label:${t("settings.about.copy")}`);
   const copied = app.clipboard() ?? "";
-  expect(copied).toContain("MyAid: 0.1.0");
+  expect(copied).toContain("dsh-bot: 0.1.0");
   expect(copied).toContain("Host: 0.1.0");
   expect(copied).toContain(`dsh: ${SUPPORTED_DSH}`);
   await shoot(app, "settings-about-real.png", SHOTS_L3);

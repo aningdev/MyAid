@@ -1,6 +1,6 @@
 //! Executable modes, configuration and signal handling.
 
-use myaid_host::{Config, SERVICE_UNIT, dsh_process, local_api, service};
+use dsh_bot_host::{Config, SERVICE_UNIT, dsh_process, local_api, service};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static EXIT: AtomicBool = AtomicBool::new(false);
@@ -55,11 +55,11 @@ fn init_logging() {
         .try_init();
 }
 
-const USAGE: &str = "Usage: myaid-host serve-app [--port PORT] [--ready-stdout]
-       myaid-host serve --data-root PATH [--port PORT] [--official-dsh|--dsh PATH] [--version VERSION] [--startup-ms MS] [--patch PATH]… [--ready-stdout]
-       myaid-host guardian --data-root PATH …
-       myaid-host service install|uninstall|status
-       myaid-host service run [--env NAME=VALUE]…";
+const USAGE: &str = "Usage: dsh-bot-host serve-app [--port PORT] [--ready-stdout]
+       dsh-bot-host serve --data-root PATH [--port PORT] [--official-dsh|--dsh PATH] [--version VERSION] [--startup-ms MS] [--patch PATH]… [--ready-stdout]
+       dsh-bot-host guardian --data-root PATH …
+       dsh-bot-host service install|uninstall|status
+       dsh-bot-host service run [--env NAME=VALUE]…";
 
 /// `service <verb>`: the OS registration this unit keeps for itself.
 fn service_command(args: &[String]) -> Result<(), String> {
@@ -119,15 +119,15 @@ fn service_command(args: &[String]) -> Result<(), String> {
 /// What `service install` passes on, so the service serves this data root and port.
 fn service_variables() -> Vec<(&'static str, String)> {
     let mut vars = Vec::new();
-    if let Ok(root) = std::env::var("MYAID_DATA_ROOT")
+    if let Ok(root) = std::env::var("DSH_BOT_HOME")
         && !root.is_empty()
     {
-        vars.push(("MYAID_DATA_ROOT", root));
+        vars.push(("DSH_BOT_HOME", root));
     }
-    if let Ok(port) = std::env::var("MYAID_HOST_PORT")
+    if let Ok(port) = std::env::var("DSH_BOT_HOST_PORT")
         && !port.is_empty()
     {
-        vars.push(("MYAID_HOST_PORT", port));
+        vars.push(("DSH_BOT_HOST_PORT", port));
     }
     vars
 }

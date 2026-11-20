@@ -1,5 +1,5 @@
 /**
- * MyAid's own little character: a body in the Bot's accent, with two eyes cut
+ * dsh-bot's own little character: a body in the Bot's accent, with two eyes cut
  * out of it. The body is one closed radial profile per shape — the same 64
  * angles for every shape, normalized so all eight read at one size — and the
  * eyes are holes, so whatever stands behind the mark shows through them.

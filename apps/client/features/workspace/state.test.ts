@@ -1,4 +1,4 @@
-import type { WorkspaceBaseline, WorkspaceView } from "@myaid/dsh-web-protocol/workspace";
+import type { WorkspaceBaseline, WorkspaceView } from "@dsh-bot/dsh-web-protocol/workspace";
 import { expect, test } from "nsh/test";
 
 import { fakeWorkspaces, remoteWorkspace, workspaceModel } from "../../test/workspaces";
@@ -17,8 +17,8 @@ import {
 function view(overrides: Partial<WorkspaceView> = {}): WorkspaceView {
   return {
     workspaceId: "ws" as unknown as WorkspaceView["workspaceId"],
-    path: "/work/myaid",
-    title: "myaid",
+    path: "/work/dsh-bot",
+    title: "dsh-bot",
     sessionIds: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -57,7 +57,7 @@ test("the official baseline replaces the projection and marks the tree readable"
   await settled();
   expect(workspacesReady()).toBe(true);
   expect(workspaces().rows).toHaveLength(1);
-  expect(workspaces().rows[0]?.title).toBe("myaid");
+  expect(workspaces().rows[0]?.title).toBe("dsh-bot");
   expect([...workspaces().archived]).toEqual(["s1"]);
   expect(workspaces().pinned).toEqual(["s1"]);
   await reset();

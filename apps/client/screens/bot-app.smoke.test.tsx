@@ -5,12 +5,12 @@
  * registry and prefs this one wrote restores the Panes, their Bots and the
  * Pin.
  *
- * Opt in with MYAID_SMOKE_HOST on a scratch home; the app starts the Host
+ * Opt in with DSH_BOT_SMOKE_HOST on a scratch home; the app starts the Host
  * itself, so nothing runs beforehand (see screens/README.md):
  *
- *   SC=$PWD/.myaid-smoke                         # gitignored, outside /tmp
+ *   SC=$PWD/.dsh-bot-smoke                         # gitignored, outside /tmp
  *   mkdir -p "$SC/home"
- *   HOME="$SC/home" MYAID_SMOKE_HOST=1 MYAID_HOST_PORT=4879 \
+ *   HOME="$SC/home" DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
  *     PATH="$PWD/target/debug:$PATH" \
  *     nsh test screens/bot-app.smoke.test.tsx --target macos
  *

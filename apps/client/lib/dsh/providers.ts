@@ -3,7 +3,7 @@
  * are not active yet. The Settings page reads this instead of a hard-coded
  * list; the join and its order are the only policy here.
  */
-import type { LlmConfigurableProvider, LlmProviderInfo } from "@myaid/dsh-web-protocol/llm";
+import type { LlmConfigurableProvider, LlmProviderInfo } from "@dsh-bot/dsh-web-protocol/llm";
 
 /** One provider row the Settings page shows: dsh's directory joined with its live route. */
 export type ModelProviderEntry = {

@@ -2,7 +2,7 @@
 //!
 //! Two halves: [`run`] is the process (a local control API today, the forwarding socket once
 //! identity and pairing land), and [`service`] is this unit's OS registration. The registration
-//! vocabulary lives in `myaid-service`, which the Host uses too.
+//! vocabulary lives in `dsh-bot-service`, which the Host uses too.
 
 mod config;
 mod routes;

@@ -1,7 +1,7 @@
 /**
  * Guard: a test app writes its registry and shell prefs to the storage `open`
  * gave it. If the test marker or this helper regresses, the app falls back to
- * the real `~/.myaid` and these two keys stay at their seeded/absent state.
+ * the real `~/.dsh-bot` and these two keys stay at their seeded/absent state.
  */
 import { homedir } from "os";
 import { join } from "path";
@@ -43,10 +43,10 @@ test("a test app keeps registry and prefs in its isolated storage", async () => 
   expect(app.storage()[REGISTRY_STORAGE_KEY] ?? "").not.toBe(serializeRegistry(template));
 }, 60000);
 
-test("MYAID_DATA_ROOT moves the registry, prefs and Host root together", () => {
-  const isolated = join(homedir(), ".myaid-dev", "probe");
+test("DSH_BOT_HOME moves the registry, prefs and Host root together", () => {
+  const isolated = join(homedir(), ".dsh-bot-dev", "probe");
   expect(dataRootPath(isolated)).toBe(isolated);
   expect(dataRootPath(`  ${isolated}  `)).toBe(isolated);
-  expect(dataRootPath("")).toBe(join(homedir(), ".myaid"));
-  expect(dataRootPath(undefined)).toBe(join(homedir(), ".myaid"));
+  expect(dataRootPath("")).toBe(join(homedir(), ".dsh-bot"));
+  expect(dataRootPath(undefined)).toBe(join(homedir(), ".dsh-bot"));
 });

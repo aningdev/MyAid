@@ -8,7 +8,7 @@ Rules: [packages/AGENTS.md](../AGENTS.md). Principles: [0001](../../docs/decisio
 
 ## Why this exists
 
-dsh exposes `agentPresets.list/read/select` but no Remote that writes a preset body; bodies live in the profile YAML. Without this plugin Bot Settings › Skills / Plugins is read-only. The plugin supplies the missing writer without moving execution into MyAid:
+dsh exposes `agentPresets.list/read/select` but no Remote that writes a preset body; bodies live in the profile YAML. Without this plugin Bot Settings › Skills / Plugins is read-only. The plugin supplies the missing writer without moving execution into dsh-bot:
 
 - `derive({ botId, label, basePresetId })` copies the base composition read through `agentPresets.read`.
 - `read(presetId)` returns the saved plugin overrides and added skills.
@@ -44,7 +44,7 @@ Development and the Rust Host use an absolute `--patch` overlay naming the built
       name: /absolute/path/to/packages/bot-presets/lib/index.js
 ```
 
-`bun run dev` builds this package and passes that overlay through `MYAID_DSH_PATCH`; the Host forwards each `--patch` to `dsh web`. A running Host that was not launched with the overlay keeps Bot Settings read-only.
+`bun run dev` builds this package and passes that overlay through `DSH_BOT_PATCH`; the Host forwards each `--patch` to `dsh web`. A running Host that was not launched with the overlay keeps Bot Settings read-only.
 
 ## Commands
 
@@ -77,6 +77,6 @@ The plugin id, the Remote and the preset namespace were renamed before release; 
 
 ## Related
 
-- [@myaid/dsh-web-protocol](../dsh-web-protocol/README.md) — Client-side DTOs of the Remote.
+- [@dsh-bot/dsh-web-protocol](../dsh-web-protocol/README.md) — Client-side DTOs of the Remote.
 - [@deepseek-ai/dsh-agent-preset-registry](https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/preset/agent-preset-registry) — official registry and `agentPresets` Remotes.
 - [Bot details](../../apps/client/features/bots/BotDetails.tsx) — the Client surface that calls the Remote.

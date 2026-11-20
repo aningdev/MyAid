@@ -1,14 +1,14 @@
 /**
- * Batch A of the Bot's identity mark: MyAid's own little character — a body in
+ * Batch A of the Bot's identity mark: dsh-bot's own little character — a body in
  * the Bot's accent with two eyes cut out of it. The contact sheets prove every
  * body against every face, at the sizes the app draws and large enough to see
  * the holes; the rest walks the screens that carry the mark, the picker, and a
  * registry written by the version before this one.
  *
- *   mkdir -p ~/.myaid-dev/shots/pi-shots-avatar-a
+ *   mkdir -p ~/.dsh-bot-dev/shots/pi-shots-avatar-a
  *   nsh test screens/avatar-a-shots.test.tsx --target macos
  *
- * The apps are opened in the app's isolated storage, never the real `~/.myaid`;
+ * The apps are opened in the app's isolated storage, never the real `~/.dsh-bot`;
  * a headless run stops at the picture probe.
  */
 import { expect, test } from "nsh/test";

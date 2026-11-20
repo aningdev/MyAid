@@ -1,5 +1,5 @@
 {
-  "name": "@myaid/dsh-web-protocol",
+  "name": "@dsh-bot/dsh-web-protocol",
   "version": "0.1.0",
   "private": true,
   "description": "Client-only type re-exports of the official dsh web Remote/wire contracts the product imports (pinned through the workspace catalog). Plugins must not depend on this package.",

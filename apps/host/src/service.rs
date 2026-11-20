@@ -4,40 +4,40 @@
 //! `notRegistered`, and the Client merges the two snapshots.
 
 use crate::{Config, Result};
-use myaid_service::{
+use dsh_bot_service::{
     RegistrationPhase, RegistrationSnapshot, ServiceUnit, Status as ServiceStatus, Unit,
     UnitRegistration,
 };
 
 /// The Host's Background Service unit: `serve-app` at login, logging beside the app's logs.
 pub const UNIT: Unit = Unit {
-    label: "com.myaid.host",
-    systemd_unit: "myaid-host.service",
+    label: "com.aningdev.dshbot.host",
+    systemd_unit: "dsh-bot-host.service",
     arguments: &["serve-app"],
     log: "host.log",
 };
 
-/// Start a `service run` supervisor: `MyAid` keeps its own unit running on Windows.
+/// Start a `service run` supervisor: `dsh-bot` keeps its own unit running on Windows.
 pub fn supervise(vars: &[(&str, String)]) -> Result<()> {
-    myaid_service::supervise(&UNIT, vars)
+    dsh_bot_service::supervise(&UNIT, vars)
 }
 
 /// Bound the log a supervised run appends to.
 pub fn trim_log() {
-    myaid_service::trim_log();
+    dsh_bot_service::trim_log();
 }
 
 /// Install, uninstall, and status for the CLI's own `service` verb.
-pub fn install(vars: &[(&str, String)]) -> Result<myaid_service::Status> {
-    myaid_service::install(&UNIT, vars).map_err(|error| error.to_string())
+pub fn install(vars: &[(&str, String)]) -> Result<dsh_bot_service::Status> {
+    dsh_bot_service::install(&UNIT, vars).map_err(|error| error.to_string())
 }
 
 pub fn uninstall() -> Result<bool> {
-    myaid_service::uninstall(&UNIT).map_err(|error| error.to_string())
+    dsh_bot_service::uninstall(&UNIT).map_err(|error| error.to_string())
 }
 
-pub fn status() -> myaid_service::Status {
-    myaid_service::status(&UNIT)
+pub fn status() -> dsh_bot_service::Status {
+    dsh_bot_service::status(&UNIT)
 }
 
 #[derive(Clone)]
@@ -55,11 +55,11 @@ impl Registration {
     /// The variables the service needs to serve the same data root and port as this process.
     pub fn variables(&self) -> Vec<(&'static str, String)> {
         let mut vars = Vec::new();
-        if Some(&self.config.root) != myaid_service::home_dir().map(|home| home.join(".myaid")).as_ref() {
-            vars.push(("MYAID_DATA_ROOT", self.config.root.to_string_lossy().to_string()));
+        if Some(&self.config.root) != dsh_bot_service::home_dir().map(|home| home.join(".dsh-bot")).as_ref() {
+            vars.push(("DSH_BOT_HOME", self.config.root.to_string_lossy().to_string()));
         }
         if self.config.port != crate::DEFAULT_PORT {
-            vars.push(("MYAID_HOST_PORT", self.config.port.to_string()));
+            vars.push(("DSH_BOT_HOST_PORT", self.config.port.to_string()));
         }
         vars
     }
@@ -72,17 +72,17 @@ impl Registration {
     }
 
     pub fn enable(&self) -> Result<UnitRegistration> {
-        myaid_service::install(&UNIT, &self.variables()).map_err(|error| error.to_string())?;
+        dsh_bot_service::install(&UNIT, &self.variables()).map_err(|error| error.to_string())?;
         Ok(self.unit())
     }
 
     pub fn stop(&self) -> Result<UnitRegistration> {
-        myaid_service::uninstall(&UNIT).map_err(|error| error.to_string())?;
+        dsh_bot_service::uninstall(&UNIT).map_err(|error| error.to_string())?;
         Ok(self.unit())
     }
 
     fn unit(&self) -> UnitRegistration {
-        unit_registration(myaid_service::status(&UNIT))
+        unit_registration(dsh_bot_service::status(&UNIT))
     }
 }
 
@@ -131,7 +131,7 @@ mod tests {
         let snapshot = Registration::from_config(&config(dir.path().to_path_buf())).snapshot();
         assert_eq!(snapshot.host.unit, ServiceUnit::Host);
         assert_eq!(snapshot.relay.phase, RegistrationPhase::NotRegistered);
-        assert_eq!(snapshot.version, myaid_service::CONTRACT_VERSION);
+        assert_eq!(snapshot.version, dsh_bot_service::CONTRACT_VERSION);
     }
 
     #[test]
@@ -163,7 +163,7 @@ mod tests {
         config.port = 4999;
         let registration = Registration::from_config(&config);
         let vars = registration.variables();
-        assert!(vars.contains(&("MYAID_HOST_PORT", "4999".to_string())));
-        assert!(vars.iter().any(|(name, _)| *name == "MYAID_DATA_ROOT"));
+        assert!(vars.contains(&("DSH_BOT_HOST_PORT", "4999".to_string())));
+        assert!(vars.iter().any(|(name, _)| *name == "DSH_BOT_HOME"));
     }
 }

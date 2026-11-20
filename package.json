@@ -1,5 +1,5 @@
 {
-  "name": "@myaid/workspace",
+  "name": "@dsh-bot/workspace",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -52,9 +52,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun scripts/dev.mjs",
-    "check": "node scripts/check-dsh-pin.mjs && node scripts/check-docs.mjs && vp check --fix && vp run -F '@myaid/*' -F 'dsh-*' -F '!@myaid/workspace' check && cargo check --workspace",
-    "build": "vp run --filter @myaid/client... build",
-    "test": "cargo test --workspace && vp run -F '@myaid/*' -F 'dsh-*' -F '!@myaid/workspace' test"
+    "check": "node scripts/check-dsh-pin.mjs && node scripts/check-docs.mjs && vp check --fix && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' check && cargo check --workspace",
+    "build": "vp run --filter @dsh-bot/client... build",
+    "test": "cargo test --workspace && vp run -F '@dsh-bot/*' -F 'dsh-*' -F '!@dsh-bot/workspace' test"
   },
   "devDependencies": {
     "@types/node": "catalog:",

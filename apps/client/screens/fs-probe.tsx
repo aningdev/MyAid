@@ -39,7 +39,7 @@ async function write(call: string, path: string) {
 }
 
 async function probe() {
-  // The grant is `${homeDir}/.myaid`; this probe deliberately does not touch
+  // The grant is `${homeDir}/.dsh-bot`; this probe deliberately does not touch
   // it, so a test run leaves the real data root alone. It only proves what the
   // grant refuses: the home itself, and a path outside it.
   await read("read-home", homedir());

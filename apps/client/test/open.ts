@@ -1,7 +1,7 @@
 /**
  * `open` with the one marker that makes the app use its isolated Storage for
  * the registry and shell prefs. Every test that opens an app goes through this
- * helper; no suite run reads or writes the real `~/.myaid`.
+ * helper; no suite run reads or writes the real `~/.dsh-bot`.
  */
 import { open as openApp, type App, type OpenOptions } from "nsh/test";
 

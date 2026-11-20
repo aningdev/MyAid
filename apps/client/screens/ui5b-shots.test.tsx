@@ -5,7 +5,7 @@
  * answered approval, the `Empty` of a registry that could not be read, the
  * spinner copy in a running tool row and the group's fields with the keys.
  *
- *   mkdir -p ~/.myaid-dev/shots/pi-shots-ui5b
+ *   mkdir -p ~/.dsh-bot-dev/shots/pi-shots-ui5b
  *   nsh test screens/ui5b-shots.test.tsx --target macos
  *
  * A headless run stops at the picture probe.
@@ -81,7 +81,7 @@ const V4 = `${JSON.stringify({
       templateId: "tmpl",
       defaultModel: null,
       defaultThinking: null,
-      defaultWorkspacePath: "/work/myaid",
+      defaultWorkspacePath: "/work/dsh-bot",
       hadDialogue: true,
       status: "ready",
       boundPresetId: "standard",
@@ -93,7 +93,7 @@ const V4 = `${JSON.stringify({
     {
       id: "dlg",
       botId: "bot",
-      workspacePath: "/work/myaid",
+      workspacePath: "/work/dsh-bot",
       name: "Release notes",
       archived: false,
       claims: [{ sessionId: "s1", title: "First run", archived: false }],

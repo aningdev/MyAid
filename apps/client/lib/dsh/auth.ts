@@ -1,5 +1,5 @@
 /**
- * DSH loopback auth bootstrap for MyAid.
+ * DSH loopback auth bootstrap for dsh-bot.
  * fetch `/connect?token=…` with Cookie → open `ws://127.0.0.1…/api/remote.mux`.
  */
 
@@ -34,14 +34,14 @@ export function dshRequestInit(cookie: string | null, init: RequestInit = {}): R
 
 /**
  * Prefer explicit argument, then Host `connectionInfo` (async path via `resolveDshLoginUrl`),
- * then `MYAID_DSH_LOGIN_URL` for manual smoke without Host.
+ * then `DSH_BOT_LOGIN_URL` for manual smoke without Host.
  */
 export function resolveLoginUrl(explicit?: string): string {
   const fromEnv =
     typeof process !== "undefined" &&
     process.env &&
-    typeof process.env.MYAID_DSH_LOGIN_URL === "string"
-      ? process.env.MYAID_DSH_LOGIN_URL
+    typeof process.env.DSH_BOT_LOGIN_URL === "string"
+      ? process.env.DSH_BOT_LOGIN_URL
       : undefined;
   const url = explicit?.trim() || fromEnv;
   if (!url) {

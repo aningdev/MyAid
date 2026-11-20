@@ -8,7 +8,7 @@
  * which is the behaviour the smoke proves. Only a Host whose command line names the port is
  * touched, and it acts once.
  *
- *   node apps/client/screens/host-restart-watch.mjs --root <home>/.myaid --port 4879
+ *   node apps/client/screens/host-restart-watch.mjs --root <home>/.dsh-bot --port 4879
  *
  * Logs each stop to stdout; stop with Ctrl-C.
  */
@@ -43,7 +43,7 @@ const ZSTD = existsSync("/opt/homebrew/bin/zstd") ? "/opt/homebrew/bin/zstd" : "
 
 /** The Host this launcher started, by its exact command line. */
 function hostPids() {
-  const expected = `myaid-host serve-app --port ${port}`;
+  const expected = `dsh-bot-host serve-app --port ${port}`;
   const listing = execFileSync("/bin/ps", ["-Ao", "pid=,command="], { encoding: "utf8" });
   const pids = [];
   for (const line of listing.split("\n")) {

@@ -1,4 +1,4 @@
-import type { SessionEventLikeEntry, SessionEventWindow } from "@myaid/dsh-web-protocol/client";
+import type { SessionEventLikeEntry, SessionEventWindow } from "@dsh-bot/dsh-web-protocol/client";
 import { expect, test } from "nsh/test";
 
 import { assistantMessage, durable, liveChunk, userMessage } from "../../../test/sessions";

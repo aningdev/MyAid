@@ -217,7 +217,7 @@ test("Bot preferences — description, thinking, default workspace — round-tri
       templateId: "tmpl",
       defaultModel: "deepseek/deepseek-chat",
       defaultThinking: "high",
-      defaultWorkspacePath: "/work/myaid",
+      defaultWorkspacePath: "/work/dsh-bot",
     },
     "bot",
   );
@@ -227,7 +227,7 @@ test("Bot preferences — description, thinking, default workspace — round-tri
   const bot = parsed.ok && parsed.state === "current" ? parsed.registry.bots[0] : undefined;
   expect(bot?.description).toBe("Keeps the release branch tidy");
   expect(bot?.defaultThinking).toBe("low");
-  expect(bot?.defaultWorkspacePath).toBe("/work/myaid");
+  expect(bot?.defaultWorkspacePath).toBe("/work/dsh-bot");
 
   // A v6 file written before these preferences existed still loads, as null.
   const older = JSON.parse(serializeRegistry(registry)) as {

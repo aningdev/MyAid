@@ -68,7 +68,7 @@ test("a Host that already answers is reused and nothing is spawned", async () =>
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => true,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: spawner.spawn,
     startTimeoutMs: 200,
     pollMs: 5,
@@ -88,7 +88,7 @@ test("a Host is started when none answers, and its binary and arguments are the 
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => answering,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: spawner.spawn,
     startTimeoutMs: 200,
     pollMs: 5,
@@ -98,7 +98,7 @@ test("a Host is started when none answers, and its binary and arguments are the 
   const started = await launcher.ensureRunning();
   expect(started.phase).toBe("starting");
   expect(spawner.children.length).toBe(1);
-  expect(spawner.children[0]?.binary).toBe("myaid-host");
+  expect(spawner.children[0]?.binary).toBe("dsh-bot-host");
   expect(spawner.children[0]?.args).toEqual(["serve-app", "--port", "4873"]);
   answering = true;
   const running = await waitFor("running", (status) => status.phase === "running", launcher);
@@ -113,7 +113,7 @@ test("a Host that exits is started again after the pause", async () => {
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => answering,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: spawner.spawn,
     startTimeoutMs: 200,
     pollMs: 5,
@@ -133,9 +133,9 @@ test("a binary that cannot be started is the empty state's reason", async () => 
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => false,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: () => {
-      throw new Error("ENOENT: myaid-host");
+      throw new Error("ENOENT: dsh-bot-host");
     },
     startTimeoutMs: 200,
     pollMs: 5,
@@ -153,7 +153,7 @@ test("a Host that never answers is stopped and reported as a startup failure", a
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => false,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: spawner.spawn,
     startTimeoutMs: 50,
     pollMs: 5,
@@ -173,7 +173,7 @@ test("a stopped launcher starts nothing more", async () => {
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => answering,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: spawner.spawn,
     startTimeoutMs: 200,
     pollMs: 5,
@@ -197,7 +197,7 @@ test("quitting the app stops the Host it started", async () => {
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => answering,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: spawner.spawn,
     startTimeoutMs: 200,
     pollMs: 5,
@@ -220,7 +220,7 @@ test("a Host the app found running is not this app's to stop", async () => {
   const launcher = createHostLauncher({
     port: () => 4873,
     probe: async () => true,
-    locate: () => "myaid-host",
+    locate: () => "dsh-bot-host",
     spawn: spawner.spawn,
     startTimeoutMs: 200,
     pollMs: 5,

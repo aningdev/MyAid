@@ -62,7 +62,7 @@ test("the workbench shortcuts split, focus and close panels", async () => {
 
 test("an empty workbench leads to the first Bot", async () => {
   const app = await open("./App.tsx", desktop);
-  await app.waitFor("text:Welcome to MyAid");
+  await app.waitFor("text:Welcome to dsh-bot");
   expect(app.shows("label:Create your first Bot")).toBe(true);
   await app.press("label:Create your first Bot");
   await app.waitFor("id:new-bot-dialog");

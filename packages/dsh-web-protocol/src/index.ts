@@ -2,7 +2,7 @@
  * Client-only barrel for the official dsh web Remote / wire types the product
  * imports.
  *
- * Prefer domain subpaths (`@myaid/dsh-web-protocol/session`, …). Root uses
+ * Prefer domain subpaths (`@dsh-bot/dsh-web-protocol/session`, …). Root uses
  * namespace re-exports to avoid cross-domain name collisions.
  *
  * Only surfaces with a real importer live here: a domain the product does not

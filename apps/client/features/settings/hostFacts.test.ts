@@ -73,6 +73,6 @@ test("a Host that does not answer leaves the unavailable state", async () => {
   expect(facts.phase).toBe("unavailable");
   expect(facts.reachable).toBe(false);
   expect(facts.errors.join(" ")).toContain("宿主未运行");
-  expect(facts.errors.join(" ")).toContain("myaid-host");
+  expect(facts.errors.join(" ")).toContain("dsh-bot-host");
   expect(hostFacts().phase).toBe("unavailable");
 });

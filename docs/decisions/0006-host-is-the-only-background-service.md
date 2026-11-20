@@ -2,13 +2,13 @@
 
 ## Context
 
-原来 Runner 上登记了两个 Background Service：Host 和本机 Relay。另外有一个 `crates/myaid-service`，专门给这两个单元生成 OS 登记计划。按 0003，Relay 改成了公网服务，Runner 上只需要 Bridge。
+原来 Runner 上登记了两个 Background Service：Host 和本机 Relay。另外有一个 `crates/dsh-bot-service`，专门给这两个单元生成 OS 登记计划。按 0003，Relay 改成了公网服务，Runner 上只需要 Bridge。
 
 ## Decision
 
 - Runner 上只有 Host 一个 Background Service，Bridge 是 Host 的一部分。
 - `apps/relay` 是独立部署的公网服务，不在任何 Device 上做 OS 登记。
-- OS 登记代码并入 `apps/host`，删除 `crates/myaid-service`。
+- OS 登记代码并入 `apps/host`，删除 `crates/dsh-bot-service`。
 
 ## Why
 

@@ -2,7 +2,7 @@ import type {
   CredentialInfo,
   SettingsDescribeValue,
   SettingsNamespaceView,
-} from "@myaid/dsh-web-protocol/settings";
+} from "@dsh-bot/dsh-web-protocol/settings";
 /**
  * Settings › Model providers: the page's state. It joins what dsh says about
  * its providers (the route directory, the settings namespaces, the effective

@@ -3,7 +3,7 @@
  * Dialogue messages / live reply / freeze. `SessionProjector` stays the
  * window fold; freeze and "turned" races live here.
  */
-import type { SessionEventWindow } from "@myaid/dsh-web-protocol/client";
+import type { SessionEventWindow } from "@dsh-bot/dsh-web-protocol/client";
 
 import type { Msg, Status, Tool } from "../chat/scripts";
 import {

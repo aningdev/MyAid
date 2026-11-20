@@ -29,14 +29,19 @@ function start(registry: BotRegistry) {
       [REGISTRY_STORAGE_KEY]: serializeRegistry(registry),
       ...workspaceStorage({
         rows: [
-          workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+          workspaceRow({
+            id: "ws-work",
+            path: "/work/dsh-bot",
+            title: "dsh-bot",
+            sessionIds: ["s1"],
+          }),
         ],
       }),
     },
   });
 }
 
-/** Ada (ready) → one segment at /work/myaid. */
+/** Ada (ready) → one segment at /work/dsh-bot. */
 function sampleRegistry(): BotRegistry {
   return claimSegment(
     initializeBot(

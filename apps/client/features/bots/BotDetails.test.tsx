@@ -56,8 +56,8 @@ async function details(registry: BotRegistry = sampleRegistry()) {
         rows: [
           workspaceRow({
             id: "ws-work",
-            path: "/work/myaid",
-            title: "myaid",
+            path: "/work/dsh-bot",
+            title: "dsh-bot",
             sessionIds: ["s1"],
           }),
         ],
@@ -164,7 +164,7 @@ test("the modal shows the current segment's working directory and model", async 
   await app.waitFor("id:bot-details-segment");
   // The path is dsh's Workspace path, the one the baseline reported.
   await app.waitFor("id:bot-details-path");
-  expect(app.texts().some((text) => text.includes("/work/myaid"))).toBe(true);
+  expect(app.texts().some((text) => text.includes("/work/dsh-bot"))).toBe(true);
   await app.waitFor("id:bot-details-model");
   expect(app.texts()).toContain("Current segment");
   await app.waitFor("id:bot-details-usage");

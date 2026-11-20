@@ -9,7 +9,7 @@ import { t } from "../../../lib/i18n";
 /** Enter sends (Shift+Enter adds a line), or the platform's command key does. */
 export type SendKey = "enter" | "mod-enter";
 
-export const SEND_KEY_STORAGE = "myaid.prefs.sendKey";
+export const SEND_KEY_STORAGE = "dsh-bot.prefs.sendKey";
 
 export function parseSendKey(raw: string | null | undefined): SendKey {
   return raw === "mod-enter" ? "mod-enter" : "enter";

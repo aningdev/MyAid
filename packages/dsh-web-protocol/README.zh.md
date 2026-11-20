@@ -1,4 +1,4 @@
-# `@myaid/dsh-web-protocol`
+# `@dsh-bot/dsh-web-protocol`
 
 [English](README.md) | 中文
 
@@ -15,10 +15,10 @@
 ## 用法
 
 ```ts
-import type { BotPresetRecord } from "@myaid/dsh-web-protocol/bot-presets";
-import type { ISessions } from "@myaid/dsh-web-protocol/client";
-import type { ApprovalOutcome } from "@myaid/dsh-web-protocol/interaction";
-import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
+import type { BotPresetRecord } from "@dsh-bot/dsh-web-protocol/bot-presets";
+import type { ISessions } from "@dsh-bot/dsh-web-protocol/client";
+import type { ApprovalOutcome } from "@dsh-bot/dsh-web-protocol/interaction";
+import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
 ```
 
 优先用**领域子路径**。根入口把同样的模块再导出为**命名空间**别名（`Client`、`Session`、`Llm` …）以避免跨域同名冲突；稳定导入风格仍是子路径。
@@ -80,12 +80,12 @@ import type { SessionFollowFrame } from "@myaid/dsh-web-protocol/session";
 2. `SessionFollowFrame` → 投影的完整映射覆盖。
 3. 产品 UI 需要时再接 `userQuestions`（类型已在，Remote 未挂载）。
 4. `lib/dsh/connection.ts` 保持薄壳（鉴权、epoch、unwrap、产品 DTO 映射）。
-5. 插件 Host 契约：按上游文档用 `@deepseek-ai/dsh-agent`、`dsh-tools`、`dsh-session` —— **不要** MyAid 自建 host-protocol 包装。
+5. 插件 Host 契约：按上游文档用 `@deepseek-ai/dsh-agent`、`dsh-tools`、`dsh-session` —— **不要** dsh-bot 自建 host-protocol 包装。
 
 上游只读：`references/deepseek-harness/docs/api-gateway.md`、`docs/subsystems/web-client.md`。
 
 ## 检查
 
 ```sh
-vp run @myaid/dsh-web-protocol#check
+vp run @dsh-bot/dsh-web-protocol#check
 ```

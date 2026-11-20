@@ -2,7 +2,7 @@ import type {
   CredentialInfo,
   SettingsDescribeValue,
   SettingsNamespaceView,
-} from "@myaid/dsh-web-protocol/settings";
+} from "@dsh-bot/dsh-web-protocol/settings";
 
 import type { FlatCatalogModel } from "../../lib/dsh/connection";
 import type { ModelProviderEntry } from "../../lib/dsh/providers";

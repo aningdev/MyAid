@@ -52,4 +52,4 @@ bun run check
 bun run test
 ```
 
-A plain `bun run dev` uses your real `~/.dsh-bot`. Coming from MyAid, move your data once with `mv ~/.myaid ~/.dsh-bot`.
+A plain `bun run dev` uses your real `~/.dsh-bot`.

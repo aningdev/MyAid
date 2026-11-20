@@ -8,7 +8,7 @@ import type {
   CredentialInfo,
   SettingsDescribeValue,
   SettingsNamespaceView,
-} from "@myaid/dsh-web-protocol/settings";
+} from "@dsh-bot/dsh-web-protocol/settings";
 
 import dshPin from "../../host/supported-dsh.json";
 import type { HostFactsSource } from "../features/settings/hostFacts";

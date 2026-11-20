@@ -8,7 +8,7 @@
  * spells both the same way.
  *
  * Not here, because it is not UI copy: what a person typed, Bot names, model
- * replies, dsh's own error bodies, product and proper names (MyAid, Host, dsh,
+ * replies, dsh's own error bodies, product and proper names (dsh-bot, Host, dsh,
  * Relay, DeepSeek, model ids, `/new`), and file paths.
  */
 
@@ -83,7 +83,7 @@ export const messages = {
     zh: "从左边选一个 Bot，或拆分这个 Pane 再拖一个进来。",
     en: "Pick a Bot on the left, or split this panel and drag one in.",
   },
-  "welcome.title": { zh: "欢迎使用 MyAid", en: "Welcome to MyAid" },
+  "welcome.title": { zh: "欢迎使用 dsh-bot", en: "Welcome to dsh-bot" },
   "welcome.body": {
     zh: "Bot 是你一起工作的对象。给它一个名字、一个标记和一个工作目录；和它的每次对话都是同一条长对话。",
     en: "Bots are who you work with. Give one a name, a mark and a workspace; every conversation with it is one long conversation.",
@@ -209,8 +209,8 @@ export const messages = {
     en: "Saved; enter a new value to replace it",
   },
   "providers.keyRef": {
-    zh: "引用 {ref}；Key 只写入 dsh 的凭据存储，不写入 MyAid 的任何文件。",
-    en: "Refers to {ref}; the key goes only to dsh's credential store, never a file of MyAid's.",
+    zh: "引用 {ref}；Key 只写入 dsh 的凭据存储，不写入 dsh-bot 的任何文件。",
+    en: "Refers to {ref}; the key goes only to dsh's credential store, never a file of dsh-bot's.",
   },
   "providers.saveKey": { zh: "保存 Key", en: "Save key" },
   "providers.clearKey": { zh: "清除 Key", en: "Clear key" },
@@ -342,8 +342,8 @@ export const messages = {
   // --- Settings › About -----------------------------------------------------
   "settings.about.title": { zh: "关于", en: "About" },
   "settings.about.note": {
-    zh: "MyAid、Host 与 dsh 的版本，以及当前的连接状态。",
-    en: "The MyAid, Host and dsh versions, and the current connection state.",
+    zh: "dsh-bot、Host 与 dsh 的版本，以及当前的连接状态。",
+    en: "The dsh-bot, Host and dsh versions, and the current connection state.",
   },
   "settings.about.versions": { zh: "版本", en: "Versions" },
   "settings.about.support": { zh: "支持 {version}", en: "Requires {version}" },
@@ -359,7 +359,7 @@ export const messages = {
     zh: "不含 Key、令牌或会话内容",
     en: "No key, token or conversation content",
   },
-  "diagnostics.title": { zh: "MyAid 诊断信息", en: "MyAid diagnostics" },
+  "diagnostics.title": { zh: "dsh-bot 诊断信息", en: "dsh-bot diagnostics" },
   "diagnostics.host": { zh: "Host: {version}（{phase}）", en: "Host: {version} ({phase})" },
   "diagnostics.dsh": { zh: "dsh: {version}", en: "dsh: {version}" },
   "diagnostics.supported": { zh: "dsh 支持版本: {version}", en: "dsh required: {version}" },
@@ -393,8 +393,8 @@ export const messages = {
     en: "The Host did not answer on 127.0.0.1:{port} within {seconds}s",
   },
   "launcher.missingBinary": {
-    zh: "找不到 {binary}：请先构建 Host（cargo build -p myaid-host）并让它出现在 PATH 上",
-    en: "Cannot find {binary}: build the Host (cargo build -p myaid-host) and put it on PATH",
+    zh: "找不到 {binary}：请先构建 Host（cargo build -p dsh-bot-host）并让它出现在 PATH 上",
+    en: "Cannot find {binary}: build the Host (cargo build -p dsh-bot-host) and put it on PATH",
   },
   "launcher.launchFailed": {
     zh: "无法启动 Host：{reason}",
@@ -424,8 +424,8 @@ export const messages = {
   "host.error.watchClosed": { zh: "宿主状态订阅已断开", en: "Host status subscription closed" },
   "host.error.probeTimeout": { zh: "宿主没有响应", en: "The Host did not answer" },
   "host.control.notRunning": {
-    zh: "宿主未运行：请运行 bun run dev（会自动起 Host），或单独 cargo run -p myaid-host -- serve-app",
-    en: "The Host is not running: run bun run dev (it starts the Host), or cargo run -p myaid-host -- serve-app by hand",
+    zh: "宿主未运行：请运行 bun run dev（会自动起 Host），或单独 cargo run -p dsh-bot-host -- serve-app",
+    en: "The Host is not running: run bun run dev (it starts the Host), or cargo run -p dsh-bot-host -- serve-app by hand",
   },
   "host.control.startFailed": { zh: "后台启动失败", en: "The backend failed to start" },
   "host.control.readyTimeout": {
@@ -453,8 +453,8 @@ export const messages = {
     en: "Relay registration request failed: {path} {status}",
   },
   "relay.notRunning": {
-    zh: "Relay 未运行：请 cargo run -p myaid-relay -- serve-app，或登记为后台服务",
-    en: "The Relay is not running: cargo run -p myaid-relay -- serve-app, or register it as a background service",
+    zh: "Relay 未运行：请 cargo run -p dsh-bot-relay -- serve-app，或登记为后台服务",
+    en: "The Relay is not running: cargo run -p dsh-bot-relay -- serve-app, or register it as a background service",
   },
   "relay.registerFailed": {
     zh: "Relay 未运行，无法向系统登记",
@@ -653,8 +653,8 @@ export const messages = {
   "chat.attachOtherOne": { zh: "另一个文件没有附加", en: "The other file was not attached" },
   "chat.attachOtherMany": { zh: "其他文件没有附加", en: "The other files were not attached" },
   "chat.attachDialog": {
-    zh: "{missing}：MyAid 只通过打开对话框读取本地文件。",
-    en: "{missing}: MyAid reads local files through the open dialog.",
+    zh: "{missing}：dsh-bot 只通过打开对话框读取本地文件。",
+    en: "{missing}: dsh-bot reads local files through the open dialog.",
   },
   "chat.attachTooLarge": {
     zh: "{names}：超过单个文件的大小上限，没有附加。",
@@ -762,8 +762,8 @@ export const messages = {
     en: "The registry is an old version: connect the Host to migrate its conversations into each Bot's long conversation.",
   },
   "registry.tooOld": {
-    zh: "注册表版本过旧或无法读取，请删除 ~/.myaid/registry/bots.json 后重建。",
-    en: "The registry version is too old or unreadable; delete ~/.myaid/registry/bots.json and start over.",
+    zh: "注册表版本过旧或无法读取，请删除 ~/.dsh-bot/registry/bots.json 后重建。",
+    en: "The registry version is too old or unreadable; delete ~/.dsh-bot/registry/bots.json and start over.",
   },
   "registry.missingRecord": { zh: "找不到这条记录。", en: "No such record." },
   "registry.templateGone": { zh: "模板不在了。", en: "The template is gone." },
@@ -849,8 +849,8 @@ export const messages = {
     en: "The migration result could not be written: {error}",
   },
   "registry.webStorage": {
-    zh: "当前平台不写 ~/.myaid，注册表存在应用自己的存储里。",
-    en: "This platform does not write ~/.myaid; the registry lives in the app's own storage.",
+    zh: "当前平台不写 ~/.dsh-bot，注册表存在应用自己的存储里。",
+    en: "This platform does not write ~/.dsh-bot; the registry lives in the app's own storage.",
   },
 
   // --- Bot presets, facts and the Workspace --------------------------------
@@ -982,8 +982,8 @@ export const messages = {
   "dsh.error.approvalReason": { zh: "需要你的确认", en: "needs your confirmation" },
   "dsh.error.socketClosed": { zh: "连接还没打开", en: "The socket is not open" },
   "dsh.auth.noLoginUrl": {
-    zh: "缺少登录 URL：请先经 Host 启动后台（connectionInfo），或设置 MYAID_DSH_LOGIN_URL",
-    en: "No login URL: start the backend through the Host (connectionInfo), or set MYAID_DSH_LOGIN_URL",
+    zh: "缺少登录 URL：请先经 Host 启动后台（connectionInfo），或设置 DSH_BOT_LOGIN_URL",
+    en: "No login URL: start the backend through the Host (connectionInfo), or set DSH_BOT_LOGIN_URL",
   },
   "dsh.auth.loopbackOnly": {
     zh: "后台地址必须是本机回环地址",

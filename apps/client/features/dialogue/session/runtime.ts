@@ -6,7 +6,7 @@
  * when the reply lands).
  * Host control + official dsh SDK load lazily so AppShell / Today stay free.
  */
-import type { ISessions, SessionListState, SessionSummary } from "@myaid/dsh-web-protocol/client";
+import type { ISessions, SessionListState, SessionSummary } from "@dsh-bot/dsh-web-protocol/client";
 import { computed, signal, untracked } from "nsh";
 
 import { t } from "../../../lib/i18n";

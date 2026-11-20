@@ -18,7 +18,7 @@ import { hostControlAllowed } from "../data-root";
 import { hostDataRoot } from "../host/launcher";
 import { t } from "../i18n";
 
-/** The Relay's control port when nothing names one (`MYAID_RELAY_PORT`). */
+/** The Relay's control port when nothing names one (`DSH_BOT_RELAY_PORT`). */
 export const DEFAULT_RELAY_PORT = 8787;
 
 export type RelayRegistrationOp = "registrationQuery" | "registrationEnable" | "registrationStop";
@@ -35,7 +35,7 @@ const ROUTES: Record<RelayRegistrationOp, { path: string; method: string }> = {
 };
 
 export function relayPort(): number {
-  const raw = typeof process !== "undefined" && process.env ? process.env.MYAID_RELAY_PORT : "";
+  const raw = typeof process !== "undefined" && process.env ? process.env.DSH_BOT_RELAY_PORT : "";
   const port = raw ? Number.parseInt(raw, 10) : Number.NaN;
   return Number.isInteger(port) && port > 0 ? port : DEFAULT_RELAY_PORT;
 }

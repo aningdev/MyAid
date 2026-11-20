@@ -1,5 +1,5 @@
 {
-  "name": "@myaid/client",
+  "name": "@dsh-bot/client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -43,7 +43,7 @@
     "@deepseek-ai/dsh-plugin-manager": "catalog:",
     "@deepseek-ai/dsh-subagent": "catalog:",
     "@deepseek-ai/dsh-typert-registry": "catalog:",
-    "@myaid/dsh-web-protocol": "workspace:*",
+    "@dsh-bot/dsh-web-protocol": "workspace:*",
     "dsh-bot-presets": "workspace:*",
     "immer": "^10.1.1",
     "lucide": "1.66.0",

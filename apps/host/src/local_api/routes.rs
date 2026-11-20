@@ -16,7 +16,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use myaid_service::RegistrationSnapshot;
+use dsh_bot_service::RegistrationSnapshot;
 use serde::Deserialize;
 use std::{sync::Arc, sync::atomic::AtomicBool};
 
@@ -51,7 +51,7 @@ pub fn router(api: Api) -> Router {
 }
 
 async fn index() -> &'static str {
-    "myaid"
+    "dsh-bot"
 }
 
 /// A refusal is the caller's, not the Host's: 403 for a page or another host, 401 for no token.

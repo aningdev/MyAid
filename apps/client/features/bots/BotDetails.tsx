@@ -29,7 +29,7 @@ import type {
   BotPresetPlugin,
   BotPresetRecord,
   BotPresetSkill,
-} from "@myaid/dsh-web-protocol/bot-presets";
+} from "@dsh-bot/dsh-web-protocol/bot-presets";
 import { X } from "lucide";
 import {
   Clipboard,

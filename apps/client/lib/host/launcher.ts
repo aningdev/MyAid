@@ -18,10 +18,10 @@ import { t } from "../i18n";
 import { hostPort, probeHost } from "./client";
 
 /** The command the empty state tells the user to run by hand. */
-export const MANUAL_HOST_COMMAND = "myaid-host serve-app";
+export const MANUAL_HOST_COMMAND = "dsh-bot-host serve-app";
 
 /** The binary the app starts, resolved on `PATH`; `capabilities.process.execute` names it. */
-export const HOST_BINARY = "myaid-host";
+export const HOST_BINARY = "dsh-bot-host";
 
 export type LauncherFailure =
   | { kind: "missing_binary" }
@@ -204,7 +204,7 @@ export function createHostLauncher(overrides: Partial<LauncherSeams> = {}): Host
 
   async function ensureRunning(): Promise<LauncherStatus> {
     if (stopped) return status;
-    // A test app starts nothing: the real port may be the person's own Host, and `myaid-host`
+    // A test app starts nothing: the real port may be the person's own Host, and `dsh-bot-host`
     // may be on PATH. It keeps the idle status, so the footer says the neutral "Host
     // disconnected" rather than a failure it never looked for (`lib/data-root.ts`).
     if (!hostControlAllowed()) return status;

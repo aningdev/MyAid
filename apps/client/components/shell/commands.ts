@@ -414,7 +414,7 @@ export function buildApplicationMenu(
   const menu: MenuItem[] = [];
   if (options.mac !== false) {
     menu.push({
-      label: options.appName ?? "MyAid",
+      label: options.appName ?? "dsh-bot",
       submenu: [
         { role: "about" },
         { type: "separator" },

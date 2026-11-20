@@ -1,4 +1,4 @@
-# myaid-service
+# dsh-bot-service
 
 English | [中文](README.zh.md)
 
@@ -9,8 +9,8 @@ Consumers: [`apps/host`](../../apps/host/README.md), [`apps/relay`](../../apps/r
 ## Commands
 
 ```sh
-cargo check -p myaid-service
-cargo test -p myaid-service
+cargo check -p dsh-bot-service
+cargo test -p dsh-bot-service
 ```
 
 ## Layout

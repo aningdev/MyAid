@@ -6,7 +6,7 @@ import { dirname } from "path";
  * pinned Bots, the Workbench's Panes (layout, the Bot each shows, the one
  * with the focus), and the General page's appearance, language and colour.
  * Kept under
- * the data root (`~/.myaid/prefs`) on the desktop and in the app's storage on
+ * the data root (`~/.dsh-bot/prefs`) on the desktop and in the app's storage on
  * the web, so a launch opens where the person left it. A Bot that is gone
  * leaves its Pane empty.
  *
@@ -45,7 +45,7 @@ import { activePanelId, applyWorkbench, dockLayout, panelContents } from "./stat
 import type { PanelContents } from "./types";
 
 export const SHELL_PREFS_VERSION = 2 as const;
-export const SHELL_PREFS_STORAGE = "myaid.prefs.shell";
+export const SHELL_PREFS_STORAGE = "dsh-bot.prefs.shell";
 
 export type ShellPrefs = {
   version: typeof SHELL_PREFS_VERSION;
@@ -69,7 +69,7 @@ export type ShellPrefs = {
   };
 };
 
-/** `~/.myaid/prefs/client.json`. */
+/** `~/.dsh-bot/prefs/client.json`. */
 export function defaultPrefsPath(): string {
   return prefsPath();
 }

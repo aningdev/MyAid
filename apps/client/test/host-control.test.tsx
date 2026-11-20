@@ -1,8 +1,8 @@
 /**
  * Guard: a test app never touches the local control plane. The user's real Host may be listening
- * on 4872 with the real `~/.myaid`, and `myaid-host` may be on PATH, so an app opened by
+ * on 4872 with the real `~/.dsh-bot`, and `dsh-bot-host` may be on PATH, so an app opened by
  * `test/open.ts` must neither probe a port nor start a process; a real-Host smoke opts in with
- * `MYAID_SMOKE_HOST`.
+ * `DSH_BOT_SMOKE_HOST`.
  *
  * The app-level half proves it by effect: with a probe, the footer would leave "Host disconnected"
  * within the launcher's 1.5 s probe — it would say "Host connected" (a Host answers) or
@@ -91,5 +91,5 @@ test("a test app neither probes for a Host nor starts one", async () => {
   expect(app.shows("id:host-status >> text:Host disconnected")).toBe(true);
   expect(app.shows("id:host-status >> text:Starting Host…")).toBe(false);
   expect(app.shows("id:host-status >> text:Host connected")).toBe(false);
-  expect(app.texts().some((text) => text.startsWith("找不到 myaid-host"))).toBe(false);
+  expect(app.texts().some((text) => text.startsWith("找不到 dsh-bot-host"))).toBe(false);
 }, 60000);

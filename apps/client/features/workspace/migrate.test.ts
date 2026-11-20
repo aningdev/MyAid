@@ -33,7 +33,7 @@ function legacy(): LegacyRegistry {
       {
         id: "dlg",
         botId: "bot",
-        workspacePath: "/work/myaid",
+        workspacePath: "/work/dsh-bot",
         name: "Release notes",
         archived: false,
         claims: [
@@ -114,11 +114,11 @@ function bridge(
 test("a v4 Dialogue becomes segments over the Workspace dsh creates", async () => {
   const dsh = bridge();
   const { registry, report } = await migrateRegistry(legacy(), dsh);
-  expect(dsh.calls).toContain("create:/work/myaid");
+  expect(dsh.calls).toContain("create:/work/dsh-bot");
   expect(registry.version).toBe(6);
   expect(registry.bots[0]?.segments).toEqual([
-    { sessionId: "s1", workspaceId: "ws:/work/myaid", title: "First run" },
-    { sessionId: "s2", workspaceId: "ws:/work/myaid", title: null },
+    { sessionId: "s1", workspaceId: "ws:/work/dsh-bot", title: "First run" },
+    { sessionId: "s2", workspaceId: "ws:/work/dsh-bot", title: null },
   ]);
   expect(report).toMatchObject({ dialogues: 1, workspaces: 1, unarchived: 0 });
 });
@@ -155,7 +155,7 @@ test("an archived Session comes back as a segment, so the history is complete", 
 test("a v4 name moves to the title only while dsh still has the default one", async () => {
   const dsh = bridge();
   await migrateRegistry(legacy(), dsh);
-  expect(dsh.calls).toContain("rename:ws:/work/myaid:Release notes");
+  expect(dsh.calls).toContain("rename:ws:/work/dsh-bot:Release notes");
 
   // The Workspace was already renamed by a person: the old name does not win.
   const renamed = bridge({ title: "release" });
@@ -179,9 +179,9 @@ test("two Dialogues on one Workspace move one name and create one Workspace", as
   expect(dsh.calls.filter((call) => call.startsWith("create:"))).toHaveLength(2);
   expect(dsh.calls.filter((call) => call.startsWith("rename:"))).toHaveLength(1);
   expect(registry.bots[0]?.segments.map((segment) => segment.workspaceId)).toEqual([
-    "ws:/work/myaid",
-    "ws:/work/myaid",
-    "ws:/work/myaid",
+    "ws:/work/dsh-bot",
+    "ws:/work/dsh-bot",
+    "ws:/work/dsh-bot",
   ]);
   // The second Dialogue's name cannot be the shared title: it is reported.
   expect(report.renamed).toBe(1);
@@ -246,7 +246,7 @@ test("a name dsh refuses, or a Session it no longer knows, is skipped not fatal"
 });
 
 test("the default title is the last path segment, root spellings included", () => {
-  expect(defaultWorkspaceTitle("/work/myaid")).toBe("myaid");
-  expect(defaultWorkspaceTitle("/work/myaid/")).toBe("myaid");
+  expect(defaultWorkspaceTitle("/work/dsh-bot")).toBe("dsh-bot");
+  expect(defaultWorkspaceTitle("/work/dsh-bot/")).toBe("dsh-bot");
   expect(defaultWorkspaceTitle("/")).toBe("/");
 });

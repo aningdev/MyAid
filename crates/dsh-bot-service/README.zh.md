@@ -1,4 +1,4 @@
-# myaid-service
+# dsh-bot-service
 
 [English](README.md) | 中文
 
@@ -9,8 +9,8 @@ Host 与 Relay 共用的启动计划与登记词汇，照 lorca 的 `crates/cli/
 ## 命令
 
 ```sh
-cargo check -p myaid-service
-cargo test -p myaid-service
+cargo check -p dsh-bot-service
+cargo test -p dsh-bot-service
 ```
 
 ## 布局

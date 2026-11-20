@@ -10,7 +10,7 @@
  */
 import { basename } from "path";
 
-import type { BotPresetRecord } from "@myaid/dsh-web-protocol/bot-presets";
+import type { BotPresetRecord } from "@dsh-bot/dsh-web-protocol/bot-presets";
 import { mount } from "nsh";
 
 import { AppShell } from "../../components/AppShell";

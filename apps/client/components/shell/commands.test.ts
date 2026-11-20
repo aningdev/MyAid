@@ -62,7 +62,7 @@ test("command ids and shortcuts are unique", () => {
 test("the menu is built from the command table: labels, shortcuts, sections", () => {
   const menu = buildApplicationMenu(COMMANDS, { mac: true });
   expect(menu.map((item) => ("label" in item ? item.label : ""))).toEqual([
-    "MyAid",
+    "dsh-bot",
     t("menu.file"),
     t("menu.edit"),
     t("menu.view"),
@@ -70,7 +70,7 @@ test("the menu is built from the command table: labels, shortcuts, sections", ()
     t("menu.window"),
   ]);
   // The app menu carries Settings on macOS too, as the platform expects.
-  const appMenu = section(menu, "MyAid");
+  const appMenu = section(menu, "dsh-bot");
   expect(
     appMenu.some(
       (item) =>
@@ -123,7 +123,12 @@ test("the palette lists every command and every Bot, archived ones included", ()
   workspaces.set(
     workspaceProjection({
       rows: [
-        workspaceRow({ id: "ws-work", path: "/work/myaid", title: "myaid", sessionIds: ["s1"] }),
+        workspaceRow({
+          id: "ws-work",
+          path: "/work/dsh-bot",
+          title: "dsh-bot",
+          sessionIds: ["s1"],
+        }),
       ],
     }),
   );
@@ -136,7 +141,7 @@ test("the palette lists every command and every Bot, archived ones included", ()
     const ada = items.find((item) => item.id === "jump:bot:bot");
     expect(ada?.label).toBe("Ada");
     expect(ada?.group).toBe(t("palette.group.archived"));
-    expect(ada?.keywords).toContain("/work/myaid");
+    expect(ada?.keywords).toContain("/work/dsh-bot");
     expect(
       items.some((item) => item.id === "jump:bot:bot2" && item.group === t("palette.group.bots")),
     ).toBe(true);

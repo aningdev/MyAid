@@ -5,8 +5,8 @@
 ## 模块与生命周期
 
 - `DshProcess` 独占 dsh 生命周期；公开入口为 `Lifecycle`。内部锁、guardian、环境与日志保持私有。
-- `local_api` 是本机控制面（照 lorca 的 `ws.rs`）：`127.0.0.1:<port>` 的 HTTP 路由 + `/watch` WebSocket，`Origin` / 非本端口 `Host` 403，`serve-token` 作 Bearer（`/` 免 token，只回 `myaid`）。**只调用** `Lifecycle` 与 `service`，不另建启停策略。
-- `service` 命名本单元的 OS 登记（`crates/myaid-service` 的纯计划：launchd plist、systemd 单元、Windows Run 键与 `service run` 监督器）。测试只快照计划，**不安装**。
+- `local_api` 是本机控制面（照 lorca 的 `ws.rs`）：`127.0.0.1:<port>` 的 HTTP 路由 + `/watch` WebSocket，`Origin` / 非本端口 `Host` 403，`serve-token` 作 Bearer（`/` 免 token，只回 `dsh-bot`）。**只调用** `Lifecycle` 与 `service`，不另建启停策略。
+- `service` 命名本单元的 OS 登记（`crates/dsh-bot-service` 的纯计划：launchd plist、systemd 单元、Windows Run 键与 `service run` 监督器）。测试只快照计划，**不安装**。
 - `main.rs` 只装配与分派（`serve-app` / `serve` / `guardian` / `service`）；`lib.rs` 导出 Client 与控制脚本用的共享形状。
 - 公开状态形状集中在 `local_api/status.rs`（含 `recovering` 等相位）；修改时同时核对 Client 解码（`apps/client/lib/host/protocol.ts`）与 fixture（`testdata/host-contract-cases.json`）。公开 status 与 `GET /connection` 分离。
 
@@ -18,5 +18,5 @@
 
 ## 联调与成品
 
-- 控制面与协议修改验证真实 HTTP：`cargo test -p myaid-host`（含未认证拒绝、页面/外部 Host 拒绝、登记事实、`/watch` 升级），以及 `apps/host/scripts/smoke-control.mjs`。
+- 控制面与协议修改验证真实 HTTP：`cargo test -p dsh-bot-host`（含未认证拒绝、页面/外部 Host 拒绝、登记事实、`/watch` 升级），以及 `apps/host/scripts/smoke-control.mjs`。
 - `launchctl` / `systemctl` / `reg` 的注册 / 批准 / 注销以真机为准；`cargo test` 只证明计划文本。
