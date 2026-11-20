@@ -1,8 +1,8 @@
 {
-  "name": "dsh-bot-presets",
+  "name": "dsh-bots",
   "version": "0.1.0",
   "private": true,
-  "description": "Bot-owned Agent presets: a derived preset per Bot, with its plugin and skill selections.",
+  "description": "The product Registry and Main Bot, and the writable half of Bot Agent presets, exposed to every Device through the `bots` Remote.",
   "files": [
     "lib",
     "src",

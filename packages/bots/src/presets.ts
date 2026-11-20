@@ -1,16 +1,16 @@
 /**
- * The Host-side owner of derived Bot presets.
+ * Derived Bot presets: the writable half of a Bot's Agent preset.
  *
  * `derive` copies a base composition from the official registry; `update`
  * stores complete plugin-row and skill selections; every change re-registers
  * the preset through `ctx.agentPresets`, so dsh's own `agentPresets.list/read/
- * select` and Session creation see it. Records live in the `bot_presets` storage
- * domain; the private skill copies live under the plugin's data root
- * (`$DSH_HOME/bot-presets` unless configured).
+ * select` and Session creation see it. Records live in this plugin's `bots`
+ * storage domain; the private skill copies live under the plugin's data root
+ * (`$DSH_HOME/bots` unless configured).
  */
 import type { Context } from "@deepseek-ai/cordis";
 import type { KvTable } from "@deepseek-ai/dsh-storage-domain";
-import { Remote, RemoteError, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
+import { RemoteError } from "@deepseek-ai/dsh-typert-protocol";
 
 import {
   applyPluginOverrides,
@@ -20,29 +20,28 @@ import {
   resolveOverride,
   type PluginRow,
 } from "./composition.ts";
-import { botPresetsDomainSpec, publicRecord, type StoredPreset } from "./domain.ts";
+import { presetsDomainSpec, publicRecord, type StoredPreset } from "./domain.ts";
 import { derivedPresetId } from "./ids.ts";
-import { materializeSkills, removeSkillRoot, skillRoot } from "./skills.ts";
 import type {
-  BotPresetDeriveRequest,
-  BotPresetPlugin,
-  BotPresetRecord,
-  BotPresetRemoveResult,
-  BotPresetUpdateRequest,
-} from "./types.ts";
+  DerivedPresetDeriveRequest,
+  DerivedPresetPlugin,
+  DerivedPresetRecord,
+  DerivedPresetRemoveResult,
+  DerivedPresetUpdateRequest,
+} from "./preset-types.ts";
+import { materializeSkills, removeSkillRoot, skillRoot } from "./skills.ts";
 
 /** One Bot's preset as the Host currently stores it. */
-export class BotPresetsService extends TypertRemoteService {
-  static inject = ["agentPresets", "storageDomain"];
-
+export class DerivedPresets {
+  private readonly ctx: Context;
   private readonly dataDir: string;
-  private readonly ready: Promise<void>;
+  readonly ready: Promise<void>;
   private readonly unregisters = new Map<string, () => Promise<void>>();
   private readonly broken = new Map<string, string>();
   private table?: KvTable<string, StoredPreset>;
 
   constructor(ctx: Context, options: { dataDir: string }) {
-    super(ctx, "botPresets");
+    this.ctx = ctx;
     this.dataDir = options.dataDir;
     this.ready = this.start();
     // A failed open must not become an unhandled rejection; the first Remote
@@ -51,8 +50,8 @@ export class BotPresetsService extends TypertRemoteService {
   }
 
   private async start(): Promise<void> {
-    const domain = await this.ctx.storageDomain.open(botPresetsDomainSpec);
-    this.ctx.effect(() => () => domain.close(), "bot-presets.domain");
+    const domain = await this.ctx.storageDomain.open(presetsDomainSpec);
+    this.ctx.effect(() => () => domain.close(), "bots.presets.domain");
     this.table = domain.table("presets");
     for (const [presetId, stored] of this.table.entries()) {
       try {
@@ -60,13 +59,13 @@ export class BotPresetsService extends TypertRemoteService {
       } catch (error) {
         const reason = messageOf(error);
         this.broken.set(presetId, reason);
-        this.ctx.logger.warn(`bot-presets: 派生 preset ${presetId} 无法装配：${reason}`);
+        this.ctx.logger.warn(`bots: 派生 preset ${presetId} 无法装配：${reason}`);
       }
     }
   }
 
   /** Copy a Bot's current preset into its own derived preset. */
-  async derive(request: BotPresetDeriveRequest): Promise<{ presetId: string }> {
+  async derive(request: DerivedPresetDeriveRequest): Promise<{ presetId: string }> {
     await this.ready;
     const existing = this.recordForBot(request.botId);
     if (existing !== undefined) return { presetId: existing.presetId };
@@ -96,7 +95,7 @@ export class BotPresetsService extends TypertRemoteService {
   }
 
   /** Read one derived preset's saved state. */
-  async read(presetId: string): Promise<BotPresetRecord> {
+  async read(presetId: string): Promise<DerivedPresetRecord> {
     await this.ready;
     const stored = this.requireTable().get(presetId);
     if (stored === undefined) throw notFound(presetId, this.knownIds());
@@ -104,7 +103,7 @@ export class BotPresetsService extends TypertRemoteService {
   }
 
   /** Replace the saved skill and plugin selections; omitted fields stay as saved. */
-  async update(presetId: string, patch: BotPresetUpdateRequest): Promise<BotPresetRecord> {
+  async update(presetId: string, patch: DerivedPresetUpdateRequest): Promise<DerivedPresetRecord> {
     await this.ready;
     const stored = this.requireTable().get(presetId);
     if (stored === undefined) throw notFound(presetId, this.knownIds());
@@ -141,7 +140,7 @@ export class BotPresetsService extends TypertRemoteService {
   }
 
   /** Remove one derived preset and its private skill copies. */
-  async remove(presetId: string): Promise<BotPresetRemoveResult> {
+  async remove(presetId: string): Promise<DerivedPresetRemoveResult> {
     await this.ready;
     const stored = this.requireTable().get(presetId);
     if (stored === undefined) return { removed: false };
@@ -207,7 +206,7 @@ export class BotPresetsService extends TypertRemoteService {
       this.unregisters.set(stored.presetId, unregister);
       // Cordis owns the registration's lifetime, like the official
       // `@deepseek-ai/dsh-agent-preset` declaration row.
-      this.ctx.effect(() => unregister, `bot-presets.preset:${stored.presetId}`);
+      this.ctx.effect(() => unregister, `bots.presets:${stored.presetId}`);
       this.broken.delete(stored.presetId);
     } catch (error) {
       throw invalid(stored.presetId, `装配派生 preset 失败：${messageOf(error)}`);
@@ -221,7 +220,7 @@ export class BotPresetsService extends TypertRemoteService {
     } catch (error) {
       const reason = messageOf(error);
       this.broken.set(stored.presetId, reason);
-      this.ctx.logger.warn(`bot-presets: 回滚 ${stored.presetId} 失败：${reason}`);
+      this.ctx.logger.warn(`bots: 回滚 ${stored.presetId} 失败：${reason}`);
     }
     await this.materialize(
       stored.presetId,
@@ -238,43 +237,10 @@ export class BotPresetsService extends TypertRemoteService {
   }
 }
 
-// `vp pack` leaves standard-decorator syntax in place, and Node cannot parse
-// it. Mark the same methods through the exported decorator API instead: the
-// Gateway reads exactly the descriptor `@Remote` would have written.
-for (const [method, exportName] of [
-  ["derive", "derive"],
-  ["read", "read"],
-  ["update", "update"],
-  ["remove", "discard"],
-] as const) {
-  markRemoteMethod(BotPresetsService.prototype, method, exportName);
-}
-
-function markRemoteMethod(prototype: object, method: string, exportName: string): void {
-  const member = (prototype as Record<string, unknown>)[method];
-  if (typeof member !== "function") {
-    throw new TypeError(`bot-presets: ${method} is not a method`);
-  }
-  const context = {
-    kind: "method",
-    name: method,
-    static: false,
-    private: false,
-    access: { has: () => true, get: () => undefined },
-    addInitializer(initializer: (this: object) => void) {
-      // The decorator initializer runs once per instance and only reads the
-      // prototype; a bare prototype child gives it the same target.
-      initializer.call(Object.create(prototype));
-    },
-    metadata: {},
-  } as unknown as ClassMethodDecoratorContext;
-  Remote(exportName)(member as never, context);
-}
-
 function validatedOverrides(
   rows: readonly PluginRow[],
-  overrides: readonly BotPresetPlugin[],
-): BotPresetPlugin[] {
+  overrides: readonly DerivedPresetPlugin[],
+): DerivedPresetPlugin[] {
   const seen = new Set<string>();
   for (const override of overrides) {
     resolveOverride(rows, override);
@@ -285,15 +251,15 @@ function validatedOverrides(
   return [...overrides];
 }
 
-function invalid(presetId: string, reason: string): RemoteError<"bot-preset/invalid"> {
-  return new RemoteError("bot-preset/invalid", reason, { presetId, reason });
+function invalid(presetId: string, reason: string): RemoteError<"bots/preset-invalid"> {
+  return new RemoteError("bots/preset-invalid", reason, { presetId, reason });
 }
 
 function notFound(
   presetId: string,
   available: readonly string[],
-): RemoteError<"bot-preset/not-found"> {
-  return new RemoteError("bot-preset/not-found", `没有派生 preset ${presetId}。`, {
+): RemoteError<"bots/preset-not-found"> {
+  return new RemoteError("bots/preset-not-found", `没有派生 preset ${presetId}。`, {
     presetId,
     available,
   });

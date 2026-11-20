@@ -1,8 +1,8 @@
 /**
  * The Host-side capability Bot Settings cannot have from dsh alone: writing a
  * Bot's Agent preset. dsh exposes `agentPresets.list/read/select` only; preset
- * bodies live in the profile's YAML. `packages/bot-presets` owns the missing
- * writer and exposes it as the `botPresets` Remote.
+ * bodies live in the profile's YAML. `packages/bots` owns the missing writer
+ * and exposes it as the `bots` Remote.
  *
  * The seam stays here rather than in the dialog: the Client keeps the
  * registry's derived-preset rule (docs/GLOSSARY.md, Bot), and the dialog
@@ -10,32 +10,32 @@
  * read-only note.
  */
 import type {
-  BotPresetDeriveRequest,
-  BotPresetRecord,
-  BotPresetRemoveResult,
-  BotPresetUpdateRequest,
-} from "@dsh-bot/dsh-web-protocol/bot-presets";
+  DerivedPresetDeriveRequest,
+  DerivedPresetRecord,
+  DerivedPresetRemoveResult,
+  DerivedPresetUpdateRequest,
+} from "@dsh-bot/dsh-web-protocol/bots";
 
 import { t } from "../../lib/i18n";
 import { sessionTransport } from "../dialogue/session/runtime";
 
 /** One capability change the dialog asks the plugin to save. */
-export type DeriveRequest = BotPresetDeriveRequest;
+export type DeriveRequest = DerivedPresetDeriveRequest;
 export type DeriveResult = { presetId: string } | { unavailable: string };
-export type UpdateResult = BotPresetRecord | { unavailable: string };
+export type UpdateResult = DerivedPresetRecord | { unavailable: string };
 
 /** What the plugin implements for Bot Settings › Skills / Plugins to save. */
-export type BotPresetWriter = {
+export type DerivedPresetWriter = {
   /** Whether this Host has the Remote; `read` with an unknown id probes it. */
   probe(): Promise<boolean>;
   /** Copy the Bot's current preset into a Bot-owned derived preset. */
   derive(request: DeriveRequest): Promise<DeriveResult>;
   /** Read one derived preset's saved selections, or null when it is gone. */
-  read(presetId: string): Promise<BotPresetRecord | null>;
+  read(presetId: string): Promise<DerivedPresetRecord | null>;
   /** Replace the saved selections; omitted fields stay as saved. */
-  update(presetId: string, patch: BotPresetUpdateRequest): Promise<UpdateResult>;
+  update(presetId: string, patch: DerivedPresetUpdateRequest): Promise<UpdateResult>;
   /** Remove a derived preset and its private skill copies. */
-  remove(presetId: string): Promise<BotPresetRemoveResult>;
+  remove(presetId: string): Promise<DerivedPresetRemoveResult>;
 };
 
 /** Why capability edits cannot be saved, in the dialog and in the docs. */
@@ -43,22 +43,22 @@ export function presetWriteGap(): string {
   return t("presets.writeGap");
 }
 
-let replacement: BotPresetWriter | undefined;
+let replacement: DerivedPresetWriter | undefined;
 
 /** The writer over the live Remote, or a test's substitute. */
-export function presetWriter(): BotPresetWriter {
+export function presetWriter(): DerivedPresetWriter {
   return replacement ?? hostWriter();
 }
 
 /** Substitute the Host-side writer (a test's fake). */
-export function setPresetWriter(next: BotPresetWriter | undefined): void {
+export function setPresetWriter(next: DerivedPresetWriter | undefined): void {
   replacement = next;
 }
 
-function hostWriter(): BotPresetWriter {
+function hostWriter(): DerivedPresetWriter {
   const transport = () => {
     const current = sessionTransport();
-    return current?.ready ? current.botPresets : undefined;
+    return current?.ready ? current.bots : undefined;
   };
   return {
     probe: async () => {

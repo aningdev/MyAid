@@ -30,7 +30,7 @@
         "@deepseek-ai/dsh-subagent": "catalog:",
         "@deepseek-ai/dsh-typert-registry": "catalog:",
         "@dsh-bot/dsh-web-protocol": "workspace:*",
-        "dsh-bot-presets": "workspace:*",
+        "dsh-bots": "workspace:*",
         "immer": "^10.1.1",
         "lucide": "1.66.0",
         "zustand": "~4.5.7",
@@ -39,8 +39,8 @@
         "shadcn-nsh": "catalog:",
       },
     },
-    "packages/bot-presets": {
-      "name": "dsh-bot-presets",
+    "packages/bots": {
+      "name": "dsh-bots",
       "version": "0.1.0",
       "dependencies": {
         "@deepseek-ai/schemastery": "catalog:",
@@ -313,6 +313,10 @@
 
     "@deepseek-ai/schemastery": ["@deepseek-ai/schemastery@3.19.0", "", { "dependencies": { "@deepseek-ai/cosmokit": "~1.9.0", "@standard-schema/spec": "^1.1.0" } }, "sha512-bDXoYQa7ghAhmdYD5VPlzKxEzJV/aKkz5l4V5h1u06z8GAPN1ROewSjvR9WiXhpa52E9fng8lpH5QdCRIQgnyQ=="],
 
+    "@dsh-bot/client": ["@dsh-bot/client@workspace:apps/client"],
+
+    "@dsh-bot/dsh-web-protocol": ["@dsh-bot/dsh-web-protocol@workspace:packages/dsh-web-protocol"],
+
     "@eslint-community/regexpp": ["@eslint-community/regexpp@4.12.2", "", {}, "sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew=="],
 
     "@jridgewell/resolve-uri": ["@jridgewell/resolve-uri@3.1.2", "", {}, "sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw=="],
@@ -322,10 +326,6 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@js-temporal/polyfill": ["@js-temporal/polyfill@0.5.1", "", { "dependencies": { "jsbi": "^4.3.0" } }, "sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ=="],
-
-    "@dsh-bot/client": ["@dsh-bot/client@workspace:apps/client"],
-
-    "@dsh-bot/dsh-web-protocol": ["@dsh-bot/dsh-web-protocol@workspace:packages/dsh-web-protocol"],
 
     "@oxc-project/runtime": ["@oxc-project/runtime@0.157.0", "", {}, "sha512-srnUknwVoji5JdmU664pA4XyjBJXmgxP8rWlnZhFovzw6XQxaICGWAuScZdlLmIHI+ZRc7WgeiC2CURF4tAszQ=="],
 
@@ -627,7 +627,7 @@
 
     "dom-accessibility-api": ["dom-accessibility-api@0.5.16", "", {}, "sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg=="],
 
-    "dsh-bot-presets": ["dsh-bot-presets@workspace:packages/bot-presets"],
+    "dsh-bots": ["dsh-bots@workspace:packages/bots"],
 
     "es-module-lexer": ["es-module-lexer@2.3.2", "", {}, "sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw=="],
 

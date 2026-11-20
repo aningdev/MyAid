@@ -5,12 +5,12 @@ import { createHash } from "node:crypto";
  * Every derived preset id starts with the plugin's own id: the namespace names
  * the writer, so a preset is recognizable as Bot-owned without asking dsh.
  */
-export const DERIVED_PREFIX = "bot-presets-";
+export const DERIVED_PREFIX = "bots-";
 
 /**
  * Stable id for one Bot. The digest keeps ids distinct even when two Bot ids
  * sanitize to the same prefix; a derived preset never collides with a profile
- * preset because of the `bot-presets-` namespace.
+ * preset because of the `bots-` namespace.
  */
 export function derivedPresetId(botId: string): string {
   const trimmed = botId.trim();

@@ -1,5 +1,5 @@
 /**
- * Real-Host smoke for `dsh-bot-presets`: a template-bound Bot saves a
+ * Real-Host smoke for `dsh-bots`: a template-bound Bot saves a
  * plugin switch in its Bot details modal and reads the derived preset back
  * (Profile shows the id and 单独配置). Starting a new segment under it lands
  * with the long conversation; this smoke answers one prompt on the Bot.
@@ -8,11 +8,11 @@
  * (see screens/README.md). The overlay must name the plugin built from this
  * checkout, so build it first:
  *
- *   vp run dsh-bot-presets#build
+ *   vp run dsh-bots#build
  *   HOME=<scratch>/home DSH_BOT_SMOKE_HOST=1 DSH_BOT_HOST_PORT=4879 \
- *     DSH_BOT_PATCH="$PWD/.dev/bot-presets.patch.yml" \
+ *     DSH_BOT_PATCH="$PWD/.dev/bots.patch.yml" \
  *     PATH="$PWD/target/debug:$PATH" \
- *     nsh test screens/bot-presets-real-host.smoke.test.tsx --target macos
+ *     nsh test screens/bots-real-host.smoke.test.tsx --target macos
  */
 import { expect, test } from "nsh/test";
 
@@ -51,7 +51,7 @@ test("a Bot saves a derived preset and reads it back", async () => {
   await app.press(`label:${t("panel.botDetails", { name: "Preset Bot" })}`);
   await app.waitFor("id:bot-details", { timeout: 30000 });
   await app.waitFor(`text:${t("bot.binding.custom")}`, { timeout: 30000 });
-  await app.waitUntil(() => app.texts().some((text) => text.startsWith("bot-presets-")), {
+  await app.waitUntil(() => app.texts().some((text) => text.startsWith("bots-")), {
     timeout: 30000,
   });
   await shoot(app, "02-binding.png", SHOTS_P1);

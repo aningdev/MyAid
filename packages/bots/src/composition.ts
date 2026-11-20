@@ -10,16 +10,16 @@ import { entryListSchema } from "@deepseek-ai/cordis-plugin-include";
 import type { PresetDefinition } from "@deepseek-ai/dsh-agent-preset-registry";
 import { dump, load } from "js-yaml";
 
-import type { BotPresetPlugin } from "./types.ts";
+import type { DerivedPresetPlugin } from "./preset-types.ts";
 
 /** One child plugin row as dsh's registry declares it. */
 export type PluginRow = PresetDefinition["plugins"][number];
 
 /** Row id this plugin owns when it adds the private skill provider. */
-export const SKILL_ROW_ID = "bot-presets-skills";
+export const SKILL_ROW_ID = "bots-skills";
 
 /** Provider name the private skill root registers under. */
-export const SKILL_PROVIDER = "bot-presets-skills";
+export const SKILL_PROVIDER = "bots-skills";
 
 /** Parse the YAML `agentPresets.read` returns. */
 export function decodeComposition(content: string): PluginRow[] {
@@ -72,7 +72,10 @@ function rowsWithPaths(rows: readonly PluginRow[], prefix = ""): RowAtPath[] {
  * Validate one override against the base body before it is stored.
  * @returns the row the override addresses.
  */
-export function resolveOverride(rows: readonly PluginRow[], override: BotPresetPlugin): PluginRow {
+export function resolveOverride(
+  rows: readonly PluginRow[],
+  override: DerivedPresetPlugin,
+): PluginRow {
   const all = rowsWithPaths(rows);
   let found = all.filter(({ path }) => override.entryId !== null && path === override.entryId);
   // An anonymous group's generated Loader id is not in the base YAML; fall
@@ -97,7 +100,7 @@ export function resolveOverride(rows: readonly PluginRow[], override: BotPresetP
 /** Apply the complete override list to a freshly parsed base body. */
 export function applyPluginOverrides(
   rows: PluginRow[],
-  overrides: readonly BotPresetPlugin[],
+  overrides: readonly DerivedPresetPlugin[],
 ): PluginRow[] {
   for (const override of overrides) {
     const row = resolveOverride(rows, override);

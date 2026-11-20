@@ -167,7 +167,7 @@ test("a derived preset id from another writer is dropped, so the Bot inherits it
   };
   // A Bot that runs only its derived preset, named in the pre-rename namespace:
   // nothing registers those any more, and this app cannot read or update them
-  // through the bot-presets plugin.
+  // through the `bots` plugin.
   file.bots[0]!.boundPresetId = null;
   file.bots[0]!.derivedPresetId = "legacy-preset-bot-1f2e3d4c";
 
@@ -181,10 +181,10 @@ test("a derived preset id from another writer is dropped, so the Bot inherits it
   expect(bot && presetBinding(bot, parsed.registry.templates[0]!).binding).toBe("inherit");
 
   const kept = JSON.parse(JSON.stringify(file)) as { bots: Record<string, unknown>[] };
-  kept.bots[0]!.derivedPresetId = "bot-presets-bot-1f2e3d4c";
+  kept.bots[0]!.derivedPresetId = "bots-bot-1f2e3d4c";
   const read = parseRegistry(JSON.stringify(kept));
   expect(read.ok && read.state === "current" ? read.registry.bots[0]?.derivedPresetId : null).toBe(
-    "bot-presets-bot-1f2e3d4c",
+    "bots-bot-1f2e3d4c",
   );
 });
 

@@ -17,7 +17,7 @@
  *   it again); delete is only for a Bot that never had a conversation.
  *
  * Capability edits (a skill added, a plugin switched) go through the
- * `presets.ts` seam, backed by the `bot-presets` plugin when the Host mounts
+ * `presets.ts` seam, backed by the `bots` plugin when the Host mounts
  * it. Without that Remote the modal stays honestly read-only. Nothing here
  * fakes a preset: the registry records a derived preset id only when the writer
  * returned one.
@@ -26,10 +26,10 @@
  */
 
 import type {
-  BotPresetPlugin,
-  BotPresetRecord,
-  BotPresetSkill,
-} from "@dsh-bot/dsh-web-protocol/bot-presets";
+  DerivedPresetPlugin,
+  DerivedPresetRecord,
+  DerivedPresetSkill,
+} from "@dsh-bot/dsh-web-protocol/bots";
 import { X } from "lucide";
 import {
   Clipboard,
@@ -168,10 +168,10 @@ function Body(props: { botId: string; onClose: () => void }) {
   /** Plugin rows the person changed, keyed by {@link pluginKey}. */
   const changed = signal<Readonly<Record<string, boolean>>>({});
   /** Skill bundles added on top of the base composition. */
-  const addedSkills = signal<readonly BotPresetSkill[]>([]);
+  const addedSkills = signal<readonly DerivedPresetSkill[]>([]);
   /** The Bot's saved derived preset, when it has one. */
-  const derived = signal<BotPresetRecord | null>(null);
-  /** Whether the Host has the `botPresets` Remote. */
+  const derived = signal<DerivedPresetRecord | null>(null);
+  /** Whether the Host has the `bots` Remote. */
   const writable = signal(false);
   /** A person changed a plugin row / the added skill list. */
   const pluginsDirty = signal(false);
@@ -247,9 +247,9 @@ function Body(props: { botId: string; onClose: () => void }) {
 
   /** The complete override list to save: changed rows, plus saved rows the
    * inventory no longer shows (a partial read must not drop them). */
-  const overrides = (): BotPresetPlugin[] => {
+  const overrides = (): DerivedPresetPlugin[] => {
     const rows = inventory()?.rows ?? [];
-    const result: BotPresetPlugin[] = [];
+    const result: DerivedPresetPlugin[] = [];
     const seen = new Set<string>();
     for (const [key, enabled] of Object.entries(changed())) {
       const row = rows.find((item) => pluginKey(item) === key);
@@ -295,7 +295,7 @@ function Body(props: { botId: string; onClose: () => void }) {
           }
           target = result.presetId;
         }
-        const patch: { plugins?: BotPresetPlugin[]; skills?: string[] } = {};
+        const patch: { plugins?: DerivedPresetPlugin[]; skills?: string[] } = {};
         if (wantsPlugins) patch.plugins = overrides();
         if (wantsSkills) patch.skills = addedSkills().map((item) => item.path);
         const result = await writer.update(target, patch);
@@ -920,7 +920,7 @@ function RunsTab(props: {
 
 function SkillsTab(props: {
   skills: Signal<SkillSummary[] | null>;
-  added: Signal<readonly BotPresetSkill[]>;
+  added: Signal<readonly DerivedPresetSkill[]>;
   writable: () => boolean;
   note: Signal<string | null>;
   onAdd: () => void;

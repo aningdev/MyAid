@@ -81,7 +81,8 @@
         "DSH_BOT_HOST_PORT",
         "DSH_BOT_RELAY_PORT",
         "DSH_BOT_LOGIN_URL",
-        "DSH_BOT_SMOKE_HOST"
+        "DSH_BOT_SMOKE_HOST",
+        "DSH_BOT_PATCH"
       ],
       "execute": ["dsh-bot-host"]
     }

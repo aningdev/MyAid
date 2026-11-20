@@ -44,7 +44,7 @@
     "@deepseek-ai/dsh-subagent": "catalog:",
     "@deepseek-ai/dsh-typert-registry": "catalog:",
     "@dsh-bot/dsh-web-protocol": "workspace:*",
-    "dsh-bot-presets": "workspace:*",
+    "dsh-bots": "workspace:*",
     "immer": "^10.1.1",
     "lucide": "1.66.0",
     "zustand": "~4.5.7"

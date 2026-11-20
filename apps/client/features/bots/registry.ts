@@ -8,7 +8,7 @@ export const REGISTRY_VERSION = 6 as const;
  * preset names it, so an id outside this namespace is not one this app can
  * read, update or remove: the Bot keeps its template's preset instead.
  */
-export const DERIVED_PRESET_PREFIX = "bot-presets-";
+export const DERIVED_PRESET_PREFIX = "bots-";
 
 export type RegistryIssue =
   | { code: "corrupt" }

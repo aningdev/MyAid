@@ -10,12 +10,12 @@
  * it never re-implements them.
  */
 import type {
-  BotPresetDeriveRequest,
-  BotPresetDeriveResult,
-  BotPresetRecord,
-  BotPresetRemoveResult,
-  BotPresetUpdateRequest,
-} from "@dsh-bot/dsh-web-protocol/bot-presets";
+  DerivedPresetDeriveRequest,
+  DerivedPresetDeriveResult,
+  DerivedPresetRecord,
+  DerivedPresetRemoveResult,
+  DerivedPresetUpdateRequest,
+} from "@dsh-bot/dsh-web-protocol/bots";
 import type { ISessions, IWorkspaces } from "@dsh-bot/dsh-web-protocol/client";
 import type { ApprovalOutcome, ApprovalRequestEvent } from "@dsh-bot/dsh-web-protocol/interaction";
 import type { LlmConfigurableProvider, LlmProviderInfo } from "@dsh-bot/dsh-web-protocol/llm";
@@ -37,13 +37,13 @@ import type {
 
 import { joinProviderDirectory, type ModelProviderEntry } from "./providers";
 export type {
-  BotPresetDeriveRequest,
-  BotPresetDeriveResult,
-  BotPresetRecord,
-  BotPresetRemoveResult,
-  BotPresetSkill,
-  BotPresetUpdateRequest,
-} from "@dsh-bot/dsh-web-protocol/bot-presets";
+  DerivedPresetDeriveRequest,
+  DerivedPresetDeriveResult,
+  DerivedPresetRecord,
+  DerivedPresetRemoveResult,
+  DerivedPresetSkill,
+  DerivedPresetUpdateRequest,
+} from "@dsh-bot/dsh-web-protocol/bots";
 import { t } from "../i18n";
 import { dshRequestInit, fetchSessionCookie } from "./auth";
 // Bun-prepared Node-condition bundle (`bun run prepare:sdk` → `sdk.js`).
@@ -52,7 +52,7 @@ import {
   Gateway,
   TypertRegistry,
   agentPresetsRemote,
-  botPresetsRemote,
+  botsRemote,
   commandsRemote,
   fileUploadClient,
   fileUploadsRemote,
@@ -433,7 +433,7 @@ export class Connection {
       // Every Remote namespace the product or an official model names.
       await ctx.remote.$mount(sessionRemote);
       await ctx.remote.$mount(agentPresetsRemote);
-      await ctx.remote.$mount(botPresetsRemote);
+      await ctx.remote.$mount(botsRemote);
       await ctx.remote.$mount(workspaceRemote);
       await ctx.remote.$mount(settingsRemote);
       await ctx.remote.$mount(llmRemote);
@@ -550,23 +550,26 @@ export class Connection {
   }
 
   /** Copy a Bot's base composition into its own derived preset. */
-  async deriveBotPreset(request: BotPresetDeriveRequest): Promise<BotPresetDeriveResult> {
-    return unwrap(await this.remote.botPresets.derive(request)) as BotPresetDeriveResult;
+  async deriveBotPreset(request: DerivedPresetDeriveRequest): Promise<DerivedPresetDeriveResult> {
+    return unwrap(await this.remote.bots.derivePreset(request)) as DerivedPresetDeriveResult;
   }
 
   /** Read one derived preset's saved plugin and skill selections. */
-  async readBotPreset(presetId: string): Promise<BotPresetRecord> {
-    return unwrap(await this.remote.botPresets.read(presetId)) as BotPresetRecord;
+  async readBotPreset(presetId: string): Promise<DerivedPresetRecord> {
+    return unwrap(await this.remote.bots.readPreset(presetId)) as DerivedPresetRecord;
   }
 
   /** Replace a derived preset's saved selections. */
-  async updateBotPreset(presetId: string, patch: BotPresetUpdateRequest): Promise<BotPresetRecord> {
-    return unwrap(await this.remote.botPresets.update(presetId, patch)) as BotPresetRecord;
+  async updateBotPreset(
+    presetId: string,
+    patch: DerivedPresetUpdateRequest,
+  ): Promise<DerivedPresetRecord> {
+    return unwrap(await this.remote.bots.updatePreset(presetId, patch)) as DerivedPresetRecord;
   }
 
   /** Remove a derived preset and its private skill copies. */
-  async removeBotPreset(presetId: string): Promise<BotPresetRemoveResult> {
-    return unwrap(await this.remote.botPresets.discard(presetId)) as BotPresetRemoveResult;
+  async removeBotPreset(presetId: string): Promise<DerivedPresetRemoveResult> {
+    return unwrap(await this.remote.bots.discardPreset(presetId)) as DerivedPresetRemoveResult;
   }
 
   async modelCatalog(): Promise<FlatModelCatalog> {

@@ -7,4 +7,4 @@ Workspace packages for dsh-bot plugins and Client-facing protocol types. Plugin 
 | Package                                                   | Role                                                                        |
 | --------------------------------------------------------- | --------------------------------------------------------------------------- |
 | [`@dsh-bot/dsh-web-protocol`](dsh-web-protocol/README.md) | Client-only re-exports of the official `dsh web` Remote / wire types in use |
-| [`dsh-bot-presets`](bot-presets/README.md)                | Derived Agent presets for Bots: plugin/skill edits + `botPresets` Remote    |
+| [`dsh-bots`](bots/README.md)                              | Registry and Main Bot; derived Agent presets; `bots` Remote                 |

@@ -15,7 +15,7 @@
 ## 用法
 
 ```ts
-import type { BotPresetRecord } from "@dsh-bot/dsh-web-protocol/bot-presets";
+import type { BotPresetRecord } from "@dsh-bot/dsh-web-protocol/bots";
 import type { ISessions } from "@dsh-bot/dsh-web-protocol/client";
 import type { ApprovalOutcome } from "@dsh-bot/dsh-web-protocol/interaction";
 import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
@@ -38,7 +38,7 @@ import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
 | `/workspace`   | workspace-controller、workspace-files、workspace、directory-picker                                                        |
 | `/interaction` | user-questions、user-approval                                                                                             |
 | `/plugins`     | plugin-manager、plugin-market、plugin-inventory、plugin-manager 的 Remote 类型                                            |
-| `/bot-presets` | `dsh-bot-presets` 的 `botPresets` DTO —— 不依赖 dsh                                                                       |
+| `/bots`        | `dsh-bots` 的 Registry 与派生 preset DTO —— 不依赖 dsh                                                                    |
 
 **不在这里：** 产品还没调用的 Remote —— account、analytics、commands、gateway / connection、feedback、goals、jobs、terminal、schedule、subagent、uploads、docs、preset registry、access。要加一个域，连同第一个调用方一起加：先在 `references/deepseek-harness` 读上游面，加子路径，把它再导出的包按 `"catalog:"` 写进本包 `package.json`，再在 Client 里 `$mount` 该 Remote。
 
@@ -50,7 +50,7 @@ import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ---------------------------------- |
 | 对话                            | `session`（`create`/`list`/`follow`/`prompt`/`cancel`/`modelCatalog`/`selectModel`/`updateQueue`/`attachment`）；`SessionFollowFrame`；`approval/request` → `ApprovalOutcome` | A（现在）          | 认领 Session → 对话循环            |
 | Bot                             | `agentPresets`（`list`/`read`/`select`）；`session.create`                                                                                                                    | A                  | 认领留在桌面注册表                 |
-| Bot 设置                        | `skills.list`；`pluginInventory.list`；`agentPresets.read`；`botPresets`（`derive`/`read`/`update`/`discard`）                                                                | 现在               | `botPresets` 需要 Bot preset 插件  |
+| Bot 设置                        | `skills.list`；`pluginInventory.list`；`agentPresets.read`；`bots`（`derivePreset`/`readPreset`/`updatePreset`/`discardPreset`）                                              | 现在               | `bots` 即 `dsh-bots`               |
 | Inspector                       | `session.projections`（`contextPressure` / `tokenUsage`）；`session.canOpenWorkspacePath` / `openWorkspacePath`；`commands.execute`（`/compact`）                             | 现在               | 成本未暴露 → 不出行                |
 | Bot 工作目录                    | 只用 `directoryPicker`                                                                                                                                                        | B                  | 路径存 Bot；当 `cwd` 传            |
 | 设置                            | `settings`、`credentials`                                                                                                                                                     | B                  | UI 偏好留本地 —— 永不进 dsh        |
@@ -68,7 +68,7 @@ import type { SessionFollowFrame } from "@dsh-bot/dsh-web-protocol/session";
 
 ## Client 挂载现状（`lib/dsh/connection.ts`）
 
-`Connection.connect` 常驻挂载：`session`（含 `skills` / `fileReferences`）、`agentPresets`、`botPresets`（`dsh-bot-presets/remote`）、`directoryPicker`（经 workspace-controller）、`settings`（含 `credentials`）、`fileUploads`、`pluginManager`、`pluginInventory`、`commands`。
+`Connection.connect` 常驻挂载：`session`（含 `skills` / `fileReferences`）、`agentPresets`、`bots`（`dsh-bots/remote`）、`directoryPicker`（经 workspace-controller）、`settings`（含 `credentials`）、`fileUploads`、`pluginManager`、`pluginInventory`、`commands`。
 
 对话提示词接受 `PromptContentPart`（文本 / 图片 / 文件回执）。图片走内联 image part；非图片文件由 `fileUploads.upload` 暂存；`session.attachment` 读回持久图片。
 

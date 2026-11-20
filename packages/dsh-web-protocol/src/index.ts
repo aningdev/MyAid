@@ -11,7 +11,7 @@
  *
  * Plugins must not import this package — use `@deepseek-ai/dsh-*` directly.
  */
-export type * as BotPresets from "./bot-presets.ts";
+export type * as Bots from "./bots.ts";
 export type * as Client from "./client.ts";
 export type * as Interaction from "./interaction.ts";
 export type * as Llm from "./llm.ts";

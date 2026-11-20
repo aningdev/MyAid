@@ -37,9 +37,9 @@
       "types": "./src/workspace.ts",
       "default": "./src/workspace.ts"
     },
-    "./bot-presets": {
-      "types": "./src/bot-presets.ts",
-      "default": "./src/bot-presets.ts"
+    "./bots": {
+      "types": "./src/bots.ts",
+      "default": "./src/bots.ts"
     },
     "./package.json": "./package.json"
   },
