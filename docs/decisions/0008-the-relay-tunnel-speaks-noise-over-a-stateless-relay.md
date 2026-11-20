@@ -11,7 +11,7 @@
 
 ## Decision
 
-- **端到端加密**用 Noise：日常连接用 `Noise_IK_25519_ChaChaPoly_SHA256`，配对用 `Noise_IKpsk2_25519_ChaChaPoly_SHA256`。Device 从配对链接里拿到 Runner 的静态公钥和一次性 psk。Bridge 用 Rust 的 `snow`；Client 在 `@noble/curves`、`@noble/ciphers`、`@noble/hashes` 上自己实现，并用公开测试向量校验。
+- **端到端加密**用 Noise：日常连接用 `Noise_IK_25519_ChaChaPoly_SHA256`，配对用 `Noise_IKpsk1_25519_ChaChaPoly_SHA256`（psk 在第 1 条消息就参与运算，Bridge 登记 Device 之前就能验证它）。Device 从配对链接里拿到 Runner 的静态公钥和一次性 psk。Bridge 用 Rust 的 `snow`；Client 在 `@noble/curves`、`@noble/ciphers`、`@noble/hashes` 上自己实现，并用公开测试向量校验。
 - **Relay 不留状态**：它只在内存里路由，不落盘、不排队、不暂存。Runner 用 Ed25519 密钥签 challenge 来登记，runner id 由这个公钥派生。每条 Device 连接由 Relay 分配一个通道号，Relay 连 Device 公钥都看不到。Runner 不在线就立即拒绝。
 - **隧道里运送 HTTP 和 WebSocket 流**，不重新设计一套 Remote 协议。Bridge 只放行 dsh web 的 `/api` 路径，用它自己的 Cookie 访问回环，并在本机回应 dsh 的 mux 心跳。
 - **Device 私钥存在 NSH Storage 里**：NSH 没有 keychain API。私钥泄露的补救办法是在 Runner 上撤销。

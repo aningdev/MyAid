@@ -63,16 +63,18 @@ Relay 只有三个入口，全都不需要存储：
 
 ### 关闭码与限制
 
-| 关闭码 | 名字           | 何时                                                         |
-| ------ | -------------- | ------------------------------------------------------------ |
-| 4001   | runner-offline | Device 连进来时，这个 runner id 没有登记连接，或者登记断了   |
-| 4002   | replaced       | 同一个 runner 有了新的登记连接                               |
-| 4003   | overloaded     | 某个方向积压超过 1 MiB，或者单条消息超过 65 600 字节         |
-| 4004   | bad-auth       | Runner 登记失败                                              |
-| 4005   | too-many       | 一个 runner 已经有 64 条通道，或者来源 IP 超过了连接速率限制 |
-| 4006   | idle           | Device 连上后 10 秒内没有发出第一条消息                      |
+| 关闭码 | 名字             | 何时                                                         |
+| ------ | ---------------- | ------------------------------------------------------------ |
+| 4001   | runner-offline   | Device 连进来时，这个 runner id 没有登记连接，或者登记断了   |
+| 4002   | replaced         | 同一个 runner 有了新的登记连接                               |
+| 4003   | overloaded       | 某个方向积压超过 1 MiB，或者单条消息超过 65 600 字节         |
+| 4004   | bad-auth         | Runner 登记失败                                              |
+| 4005   | too-many         | 一个 runner 已经有 64 条通道，或者来源 IP 超过了连接速率限制 |
+| 4006   | idle             | Device 连上后 10 秒内没有发出第一条消息                      |
+| 4010   | pairing-rejected | 由 Bridge 发出：配对握手被拒（见「握手」）                   |
+| 4011   | handshake-failed | 由 Bridge 发出：模式字节未知，或日常握手的第 1 条解不开      |
 
-Relay 每 20 秒向两边发 WS ping；Runner 连接断开时，它名下的所有通道都以 `4001` 关闭。
+Bridge 经 `CLOSE` 帧给出关闭码，Relay 原样用它关闭 Device 的 WS；Bridge 正常结束一个通道（包括回过 `device-revoked` 或发过 `revoked` 之后）用 `1000`。Relay 每 20 秒向两边发 WS ping；Runner 连接断开时，它名下的所有通道都以 `4001` 关闭。
 
 ## 握手
 
@@ -81,11 +83,11 @@ Device 的第一条消息是 `[u8 模式][Noise 握手消息 1]`：
 | 模式 | Noise 模式                             | 第 1 条的载荷             | 第 2 条的载荷（加密）                                     |
 | ---- | -------------------------------------- | ------------------------- | --------------------------------------------------------- |
 | `1`  | `Noise_IK_25519_ChaChaPoly_SHA256`     | `{}`                      | `{"ok":true}`，或者 `{"error":"device-revoked"}` 之后关闭 |
-| `2`  | `Noise_IKpsk2_25519_ChaChaPoly_SHA256` | `{"name":…,"platform":…}` | `{"ok":true,"deviceId":…}`                                |
+| `2`  | `Noise_IKpsk1_25519_ChaChaPoly_SHA256` | `{"name":…,"platform":…}` | `{"ok":true,"deviceId":…}`                                |
 
 - prologue 是 `dsh-bot-tunnel/1` 加上模式字节和 runner id，所以模式和目标 Runner 都受握手保护。
 - **日常连接（1）**：Bridge 解开第 1 条后拿到 Device 静态公钥。不在已配对列表里的，照常完成握手，但在第 2 条里回 `device-revoked`。
-- **配对（2）**：Bridge 只用当前那一份配对 psk 尝试。成功后把 Device 记进列表，psk 立即作废。没有可用的 psk、psk 过期或解密失败时，Bridge 直接关闭通道（`CLOSE`），不回第 2 条。配对成功的通道直接进入传输阶段，不用重连。
+- **配对（2）**：IKpsk1 把 psk 混进第 1 条，所以 Bridge 解开第 1 条就证明了对方持有 psk。Bridge 只用当前那一份配对 psk 尝试，成功后才把 Device 记进列表，psk 立即作废。没有可用的 psk、psk 过期或用过、第 1 条解不开时，Bridge 以 `4010` 关闭通道，不回第 2 条。配对成功的通道直接进入传输阶段，不用重连。
 - 握手之后，每条 Noise 传输消息最多 65 535 字节，nonce 用尽前要关闭通道并重连。
 
 ## 隧道内的流
@@ -151,6 +153,6 @@ Bridge 连接的 Relay 地址取自 `DSH_BOT_RELAY_URL`；没有设置时，用�
 
 ## 验证
 
-- **Noise 一致性**：JS 实现要通过公开测试向量里 IK 和 IKpsk2 这两种模式（25519、ChaChaPoly、SHA256）的全部用例。
+- **Noise 一致性**：JS 实现要通过公开测试向量里 IK 和 IKpsk1 这两种模式（25519、ChaChaPoly、SHA256）的全部用例。
 - **Relay 零知识**（spec 验收 8）：端到端测试在 Relay 一侧录下一次完整对话经过的所有帧，断言其中找不到对话里的任何明文片段。
 - **撤销**（spec 验收 9）：撤销后，这台 Device 的在线流收到 `revoked`，下一次握手收到 `device-revoked`。
