@@ -8,8 +8,14 @@ export {
   loadDeviceIdentity,
   loadPairing,
   pairDevice,
+  savePairing,
   type DeviceIdentity,
   type Pairing,
-  type StorageLike,
 } from "./pairing";
+export {
+  fileDeviceStore,
+  storageDeviceStore,
+  type DeviceStore,
+  type KeyValueStorage,
+} from "./device-store";
 export { openTunnel, type Tunnel } from "./tunnel";

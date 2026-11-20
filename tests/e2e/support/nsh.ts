@@ -1,12 +1,6 @@
-// Stand-in for the NSH `nsh` module the Client's relay Carrier and Connection
-// import. Every call in these tests passes its own Storage, so the default one
-// must never be used; the interface language only needs a value to read.
-
-function unused(): never {
-  throw new Error("the e2e tests pass their own Storage; NSH Storage must not be used");
-}
-
-export const Storage = { getItem: unused, setItem: unused, removeItem: unused };
+// Stand-in for the NSH `nsh` module the Client's i18n imports; the interface
+// language only needs a value to read. The Devices keep their records in files,
+// so there is no Storage here to reach.
 
 export function signal<T>(initial: T): (() => T) & { set(next: T): void } {
   let value = initial;

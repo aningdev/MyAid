@@ -27,7 +27,7 @@ vp run @dsh-bot/e2e#check           # 给用例做类型检查
 | `fake-dsh` 可执行文件 | 临时目录里的一个 shell 脚本                                                                                        | 回答 `--version`，然后打印假 dsh web 的登录 URL 并休眠；Host 把它当 dsh 运行。 |
 | `dsh-bot-host`        | `serve --data-root <临时目录>/data --dsh <fake-dsh> --port 0 --ready-stdout`，`DSH_BOT_RELAY_URL` 指向上面的 Relay | 经 `POST /dsh/start` 启动 dsh；它的 Bridge 向 Relay 登记。                     |
 
-Device 就是 Client 自己的 relay Carrier，从 `@dsh-bot/client/relay`（[`apps/client/lib/carrier/relay/index.ts`](../../apps/client/lib/carrier/relay/index.ts)）导入，没有复制任何代码。它导入的两个 NSH 模块 `nsh` 和 `websocket`，由 [`vite.config.ts`](vite.config.ts) 里的 `resolve.alias` 换成 [`support/nsh.ts`](support/nsh.ts) 和 [`support/websocket.ts`](support/websocket.ts)。[`support/device.ts`](support/device.ts) 经 `POST /bridge/pairing` 配对：链接从响应直接在内存里交给 `pairDevice`，不写文件，也不进日志。
+Device 就是 Client 自己的 relay Carrier，从 `@dsh-bot/client/relay`（[`apps/client/lib/carrier/relay/index.ts`](../../apps/client/lib/carrier/relay/index.ts)）导入，没有复制任何代码。它导入的两个 NSH 模块 `nsh` 和 `websocket`，由 [`vite.config.ts`](vite.config.ts) 里的 `resolve.alias` 换成 [`support/nsh.ts`](support/nsh.ts) 和 [`support/websocket.ts`](support/websocket.ts)。[`support/device.ts`](support/device.ts) 经 `POST /bridge/pairing` 配对：链接从响应直接在内存里交给 `pairDevice`，不写文件，也不进日志。每台 Device 在 stack 的临时目录下有自己的数据根（`<temp>/devices/<name>`），并用 Client 真正的 `fileDeviceStore`，所以它的密钥和配对记录就是那里的 `device/identity.json` 与 `device/pairing.json`，和桌面端一致；`stop()` 连同其余一起删掉。`nsh` 替身里没有 Storage，用例要是碰到 NSH Storage 就会失败。
 
 不论成败，`stop()` 都会结束所有进程并删掉临时目录。
 
@@ -55,4 +55,5 @@ Device 就是 Client 自己的 relay Carrier，从 `@dsh-bot/client/relay`（[`a
 | [`cases/revocation-is-immediate.test.ts`](cases/revocation-is-immediate.test.ts) | 9    | 被撤销 Device 的在线流失败、配对记录清除，旧身份再握手收到 `device-revoked`。                                                                  |
 | [`cases/registry-is-consistent.test.ts`](cases/registry-is-consistent.test.ts)   | 4、3 | 一台 Device 新建并改名的 Bot 出现在另一台的 `watch` 里；经 Relay 删除 Main Bot 被拒绝。                                                        |
 | [`cases/ticket-attention.test.ts`](cases/ticket-attention.test.ts)               | 5、6 | Main Bot 在另一个 Bot 下开出 Ticket；它的提问是两台 Device 上的 Attention；一台回答后另一台上消失；Ticket 完成，结果回到 Main Bot 的 Session。 |
+| [`cases/device-files.test.ts`](cases/device-files.test.ts)                       | —    | Client 的文件存储跑在真实目录上：密钥只生成一次并能读回，配对记录能存、读、清，损坏的文件会报错，写入后不留临时文件。                          |
 | [`cases/frames.test.ts`](cases/frames.test.ts)                                   | —    | tap 读取器能在任何写法里找到标记，并标出不是密文的帧。                                                                                         |

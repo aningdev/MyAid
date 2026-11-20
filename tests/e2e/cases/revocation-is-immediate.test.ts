@@ -40,8 +40,8 @@ test("revoking a Device ends its live stream and shuts it out", async () => {
   const before = await listed();
   expect(before.map((entry) => entry.deviceId)).toEqual([device.deviceId]);
   expect(before[0]?.online).toBe(true);
-  const identity = await loadDeviceIdentity(device.storage);
-  const pairing = await loadPairing(device.storage);
+  const identity = await loadDeviceIdentity(device.store);
+  const pairing = await loadPairing(device.store);
   expect(pairing).not.toBeNull();
 
   const removed = await stack.host(`/bridge/devices/${device.deviceId}`, { method: "DELETE" });
@@ -52,7 +52,7 @@ test("revoking a Device ends its live stream and shuts it out", async () => {
   await failed;
   await until("onRevoked", async () => device.revoked.count > 0);
   expect(device.revoked.count).toBe(1);
-  expect(await loadPairing(device.storage)).toBeNull();
+  expect(await loadPairing(device.store)).toBeNull();
   expect(await listed()).toEqual([]);
 
   // The old identity shakes hands again and is told it was revoked.

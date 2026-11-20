@@ -9,7 +9,7 @@
 import { homedir } from "os";
 import { join } from "path";
 
-import { host } from "nsh";
+import { host, platform } from "nsh";
 
 /** Host launch parameter a test harness sets before the app starts. */
 export const TEST_HOST_PARAM = "dshBotTest";
@@ -39,6 +39,18 @@ export function prefsPath(): string {
 /** True when the app was opened by the test helper. */
 export function usesTestStorage(): boolean {
   return host.params[TEST_HOST_PARAM] === true;
+}
+
+/**
+ * Whether this app keeps its Device data (preferences, the Device key and
+ * pairing) as files in the data root: a desktop app that is not a test app.
+ * Everything else (web, mobile, a test app) uses the app's own Storage.
+ */
+export function usesDataRootFiles(): boolean {
+  return (
+    (platform.os === "macos" || platform.os === "windows" || platform.os === "linux") &&
+    !usesTestStorage()
+  );
 }
 
 /** The environment variable a real-Host smoke sets: the only opt-in past the test marker. */

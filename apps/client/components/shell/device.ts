@@ -4,7 +4,7 @@
  * itself belongs to `lib/carrier/relay/pairing.ts`; this module keeps the
  * in-memory view the UI reads and owns no copy of the link or the psk.
  */
-import { computed, platform, signal } from "nsh";
+import { Storage, computed, platform, signal } from "nsh";
 
 import {
   connectSession,
@@ -12,6 +12,11 @@ import {
   useHostControl,
 } from "../../features/dialogue/session/runtime";
 import { createRelayCarrier, type RelayCarrier } from "../../lib/carrier/relay/carrier";
+import {
+  fileDeviceStore,
+  storageDeviceStore,
+  type DeviceStore,
+} from "../../lib/carrier/relay/device-store";
 import { RelayError, type RelayErrorCode } from "../../lib/carrier/relay/errors";
 import {
   clearPairing,
@@ -21,6 +26,7 @@ import {
   type Pairing,
 } from "../../lib/carrier/relay/pairing";
 import type { TunnelConnector } from "../../lib/carrier/relay/tunnel";
+import { dataRootPath, usesDataRootFiles } from "../../lib/data-root";
 import { useCarrier } from "../../lib/dsh/session";
 import { t } from "../../lib/i18n";
 
@@ -30,9 +36,24 @@ export type DevicePhase = "starting" | "unpaired" | "pairing" | "paired";
 /** `removed` is the answer to a revocation, kept until the Device pairs again. */
 export type DeviceNotice = "removed";
 
-/** The tunnel's websocket, only replaced by a test that fakes the Relay. */
+/** The tunnel's websocket and the record store, only replaced by a test. */
 export interface DeviceOptions {
   connect?: TunnelConnector;
+  store?: DeviceStore;
+}
+
+/**
+ * Where this Device keeps its key and pairing: files under the data root
+ * where the app has them (the same rule as the prefs), nsh Storage elsewhere.
+ */
+export function defaultDeviceStore(): DeviceStore {
+  return usesDataRootFiles() ? fileDeviceStore(dataRootPath()) : storageDeviceStore(Storage);
+}
+
+let defaultStore: DeviceStore | undefined;
+
+function storeOf(options: DeviceOptions): DeviceStore {
+  return options.store ?? (defaultStore ??= defaultDeviceStore());
 }
 
 export const devicePhase = signal<DevicePhase>("starting");
@@ -73,7 +94,7 @@ let carrier: RelayCarrier | undefined;
 /** Loads the stored pairing, if any, and connects the Client through it. */
 export async function startDevice(options: DeviceOptions = {}): Promise<void> {
   try {
-    const pairing = await loadPairing();
+    const pairing = await loadPairing(storeOf(options));
     if (pairing === null) {
       devicePhase.set("unpaired");
       return;
@@ -82,7 +103,7 @@ export async function startDevice(options: DeviceOptions = {}): Promise<void> {
   } catch (error) {
     // A record that no longer parses is worth no pairing attempt: the next
     // link replaces it.
-    await clearPairing().catch(() => undefined);
+    await clearPairing(storeOf(options)).catch(() => undefined);
     pairingError.set(error instanceof RelayError ? error.code : null);
     devicePhase.set("unpaired");
   }
@@ -103,6 +124,7 @@ export async function pairWithLink(link: string, options: DeviceOptions = {}): P
     const { pairing, tunnel } = await pairDevice(trimmed, {
       name: deviceName(),
       platform: platformName(),
+      store: storeOf(options),
       connect: options.connect,
     });
     // The pairing tunnel outlives the handshake no further: the Carrier opens
@@ -116,8 +138,8 @@ export async function pairWithLink(link: string, options: DeviceOptions = {}): P
 }
 
 /** Forgets this Device's pairing; the Runner keeps its own record until revoked. */
-export async function disconnectDevice(): Promise<void> {
-  await clearPairing().catch(() => undefined);
+export async function disconnectDevice(options: DeviceOptions = {}): Promise<void> {
+  await clearPairing(storeOf(options)).catch(() => undefined);
   deviceNotice.set(null);
   forget();
 }
@@ -131,10 +153,12 @@ export function clearDeviceNotice(): void {
 }
 
 async function attach(pairing: Pairing, options: DeviceOptions): Promise<void> {
-  const identity = await loadDeviceIdentity();
+  const store = storeOf(options);
+  const identity = await loadDeviceIdentity(store);
   const next = createRelayCarrier({
     pairing,
     identity,
+    store,
     connect: options.connect,
     onRevoked: () => {
       deviceNotice.set("removed");

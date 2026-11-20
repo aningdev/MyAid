@@ -81,6 +81,8 @@ export async function ready(process: Process): Promise<number> {
 
 /** What both stacks share: the Relay and the Host in front of dsh. */
 export interface Plumbing {
+  /** The stack's temporary directory; `stop()` removes it, Devices' data roots included. */
+  readonly root: string;
   /** The Relay's address as the pairing link will carry it. */
   readonly relayUrl: string;
   /** The Relay's frame-tap file: one JSON line per relayed binary frame. */
@@ -165,7 +167,7 @@ export async function startPlumbing(
       hostProcess,
     );
   };
-  return { relayUrl, tapPath, host: call, startDsh };
+  return { root, relayUrl, tapPath, host: call, startDsh };
 }
 
 /** Starts the stack; `stop()` ends every process and removes the data root. */

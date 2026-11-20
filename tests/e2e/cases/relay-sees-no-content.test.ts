@@ -71,7 +71,7 @@ test("a conversation through the Relay leaves only ciphertext on the wire", asyn
   const frames = await readFrames(stack.tapPath);
 
   // (a) No marker, in any spelling; neither does the Device's identity.
-  const identity = await loadDeviceIdentity(device.storage);
+  const identity = await loadDeviceIdentity(device.store);
   const secrets: [string, string | Uint8Array][] = [
     ...Object.entries(marker),
     ["device public key", identity.publicKey],
