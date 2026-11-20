@@ -26,6 +26,8 @@ export interface FakeRelayOptions {
   rejectCloseCode?: number;
   /** Answer stream-0 pings; `false` lets the Device's pong timer run out. */
   answerPings?: boolean;
+  /** Called for every transport frame after it is recorded. */
+  onFrame?: (frame: FakeFrame) => void;
 }
 
 class DuplexEnd implements TunnelConnection {
@@ -186,7 +188,9 @@ export class FakeRelay {
         if (control.type === "ping" && this.options.answerPings !== false) this.sendFrame(0, 11, utf8Encode('{"type":"pong"}'));
         continue;
       }
-      this.frames.push({ stream, type, body });
+      const frame = { stream, type, body };
+      this.frames.push(frame);
+      this.options.onFrame?.(frame);
     }
   }
 

@@ -2,17 +2,20 @@ import { expect, test } from "nsh/test";
 
 import { b64urlEncode, publicId } from "./bytes";
 import { relayError } from "./errors";
-import { generateKeyPair } from "./noise";
+import { RelayError } from "./errors";
+import { generateKeyPair, type KeyPair } from "./noise";
 import {
   clearPairing,
   DEVICE_IDENTITY_KEY,
   loadDeviceIdentity,
   loadPairing,
   PAIRING_KEY,
+  pairDevice,
   parsePairingLink,
   savePairing,
   type StorageLike,
 } from "./pairing";
+import { FakeRelay } from "./test-support/fake-relay";
 
 const now = 1_700_000_000;
 
@@ -34,6 +37,7 @@ class FakeStorage implements StorageLike {
 
 function pairingLink(options: { version?: string; expiresAt?: number; runnerId?: string } = {}): {
   link: string;
+  runner: KeyPair;
   runnerKey: Uint8Array;
   psk: Uint8Array;
 } {
@@ -47,7 +51,7 @@ function pairingLink(options: { version?: string; expiresAt?: number; runnerId?:
     `p=${b64urlEncode(psk)}`,
     `e=${options.expiresAt ?? now + 60}`,
   ];
-  return { link: `https://relay.example.com/pair#${params.join("&")}`, runnerKey: runner.publicKey, psk };
+  return { link: `https://relay.example.com/pair#${params.join("&")}`, runner, runnerKey: runner.publicKey, psk };
 }
 
 function codeOf(run: () => unknown): string {
@@ -142,4 +146,53 @@ test("a damaged pairing is reported", async () => {
 
 test("the errors carry their messages", () => {
   expect(relayError("expired-link").message).toBe("The pairing link has expired.");
+});
+
+async function failure(promise: Promise<unknown>): Promise<RelayError> {
+  try {
+    await promise;
+  } catch (error) {
+    return error as RelayError;
+  }
+  throw new Error("expected the promise to reject");
+}
+
+test("pairing with a Runner stores the record once the handshake completes", async () => {
+  const storage = new FakeStorage();
+  const { link, runner, psk } = pairingLink();
+  const identity = await loadDeviceIdentity(storage);
+  const relay = new FakeRelay({
+    mode: "pair",
+    runner,
+    runnerId: publicId(runner.publicKey),
+    deviceId: identity.id,
+    psk,
+  });
+
+  const result = await pairDevice(link, { name: "Ada's phone", platform: "ios", storage, connect: relay.connector, nowSeconds: now });
+  expect(result.pairing.deviceId).toBe(identity.id);
+  expect(await loadPairing(storage)).toMatchObject({
+    runnerId: publicId(runner.publicKey),
+    deviceId: identity.id,
+  });
+  result.tunnel.close();
+  await result.tunnel.closed;
+});
+
+test("a rejected pairing leaves no record", async () => {
+  const storage = new FakeStorage();
+  const { link, runner } = pairingLink();
+  const identity = await loadDeviceIdentity(storage);
+  const relay = new FakeRelay({
+    mode: "pair",
+    runner,
+    runnerId: publicId(runner.publicKey),
+    deviceId: identity.id,
+    psk: generateKeyPair().privateKey,
+    rejectCloseCode: 4010,
+  });
+
+  const error = await failure(pairDevice(link, { name: "phone", platform: "ios", storage, connect: relay.connector, nowSeconds: now }));
+  expect(error.code).toBe("pairing-rejected");
+  expect(await loadPairing(storage)).toBeNull();
 });

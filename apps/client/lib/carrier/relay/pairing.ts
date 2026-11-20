@@ -7,6 +7,7 @@ import { Storage } from "nsh";
 import { b64urlDecode, b64urlEncode, publicId } from "./bytes";
 import { relayError } from "./errors";
 import { generateKeyPair, keyPairFromPrivate, type KeyPair } from "./noise";
+import { openTunnel, type Tunnel, type TunnelConnector } from "./tunnel";
 
 /** The part of nsh's storage this module uses; a Map-backed object suffices in tests. */
 export interface StorageLike {
@@ -176,4 +177,57 @@ export async function loadPairing(storage: StorageLike = Storage): Promise<Pairi
 /** Forgets the pairing, as a `device-revoked` or `revoked` answer requires. */
 export async function clearPairing(storage: StorageLike = Storage): Promise<void> {
   await storage.removeItem(PAIRING_KEY);
+}
+
+/** Options for the one pairing handshake the link authorizes. */
+export interface PairDeviceOptions {
+  name: string;
+  platform: string;
+  storage?: StorageLike;
+  connect?: TunnelConnector;
+  nowSeconds?: number;
+}
+
+/** A completed pairing and the tunnel that carried it. */
+export interface PairedDevice {
+  pairing: Pairing;
+  /** The pairing window's tunnel; the pairing itself is already stored. */
+  tunnel: Tunnel;
+}
+
+/**
+ * Claims a pairing link: parses it, loads or creates the Device key, runs the
+ * IKpsk1 handshake with the link's one-time psk, then stores the pairing.
+ * Every failure leaves the stored pairing untouched.
+ */
+export async function pairDevice(link: string, options: PairDeviceOptions): Promise<PairedDevice> {
+  const invite = parsePairingLink(link, options.nowSeconds);
+  const identity = await loadDeviceIdentity(options.storage);
+  const tunnel = await openTunnel(
+    {
+      mode: "pair",
+      relayUrl: invite.relayUrl,
+      runnerId: invite.runnerId,
+      runnerKey: invite.runnerKey,
+      identity,
+      psk: invite.psk,
+      name: options.name,
+      platform: options.platform,
+      connect: options.connect,
+    },
+    {
+      // The pairing window carries no streams; the Runner closes it after
+      // handing over the device id, and the daily tunnel replaces it.
+      onFrame: () => undefined,
+      onClose: () => undefined,
+    },
+  );
+  const pairing: Pairing = {
+    relayUrl: invite.relayUrl,
+    runnerId: invite.runnerId,
+    runnerKey: invite.runnerKey,
+    deviceId: identity.id,
+  };
+  await savePairing(pairing, options.storage);
+  return { pairing, tunnel };
 }
