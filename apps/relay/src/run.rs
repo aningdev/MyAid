@@ -1,10 +1,15 @@
 //! The relay process: one listening socket and a graceful stop.
 
-use crate::{Config, Result, routes};
+use crate::{
+    Config, Result, limits::Limits, rate::RateLimiter, routes, runner::Registry, tap::Tap,
+};
 use std::{
     io::Write,
     net::SocketAddr,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -38,7 +43,25 @@ async fn serve_async(config: Config, exit: &'static AtomicBool) -> Result<()> {
         );
         let _ = stdout.flush();
     }
+    let tap = Tap::from_path(config.frame_tap.as_deref()).map_err(|error| {
+        format!(
+            "无法打开 {}：{error}",
+            config
+                .frame_tap
+                .as_ref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_default()
+        )
+    })?;
+    let limits = Limits::default();
     let api = routes::Api {
+        registry: Arc::new(Registry::new()),
+        rate: Arc::new(RateLimiter::new(
+            limits.connect_rate,
+            limits.connect_rate_window,
+        )),
+        tap,
+        limits,
         config,
         started: Instant::now(),
     };
@@ -48,8 +71,11 @@ async fn serve_async(config: Config, exit: &'static AtomicBool) -> Result<()> {
         }
         tracing::info!("stopping");
     };
-    axum::serve(listener, routes::router(api))
-        .with_graceful_shutdown(stopping)
-        .await
-        .map_err(|error| error.to_string())
+    axum::serve(
+        listener,
+        routes::router(api).into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(stopping)
+    .await
+    .map_err(|error| error.to_string())
 }

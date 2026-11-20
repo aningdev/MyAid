@@ -1,7 +1,7 @@
 //! Bind address and port for the public relay process.
 
 use crate::Result;
-use std::net::IpAddr;
+use std::{ffi::OsString, net::IpAddr, path::PathBuf};
 
 /// The address `serve` binds when `--bind` is absent.
 pub const DEFAULT_BIND: IpAddr = IpAddr::V4(std::net::Ipv4Addr::LOCALHOST);
@@ -15,34 +15,46 @@ pub struct Config {
     pub version: String,
     /// Announce the bound port on stdout once it listens (`--ready-stdout`).
     pub ready_stdout: bool,
+    /// Record every relayed frame here (`--frame-tap`, `frame-tap` builds only).
+    pub frame_tap: Option<PathBuf>,
 }
 
-impl Config {
-    /// `serve [--bind ADDR] [--port PORT] [--ready-stdout]`.
-    pub fn from_args(args: &[String]) -> Result<Self> {
-        let mut bind = DEFAULT_BIND;
-        let mut port = DEFAULT_PORT;
-        let mut ready_stdout = false;
-        let mut args = args.iter();
-        while let Some(key) = args.next() {
-            match key.as_str() {
-                "--ready-stdout" => ready_stdout = true,
-                "--bind" => {
-                    let value = args.next().ok_or("Missing argument")?;
-                    bind = value.parse().map_err(|_| "Invalid bind address")?;
-                }
-                "--port" => {
-                    let value = args.next().ok_or("Missing argument")?;
-                    port = value.parse::<u16>().map_err(|_| "Invalid port")?;
-                }
-                other => return Err(format!("Unknown argument: {other}")),
+/// `serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH]`.
+pub fn parse(args: &[OsString]) -> Result<Config> {
+    let mut bind = DEFAULT_BIND;
+    let mut port = DEFAULT_PORT;
+    let mut ready_stdout = false;
+    let mut frame_tap = None;
+    let mut args = args.iter();
+    while let Some(key) = args.next() {
+        match key.to_string_lossy().as_ref() {
+            "--ready-stdout" => ready_stdout = true,
+            "--bind" => {
+                let value = args.next().ok_or("Missing argument")?;
+                bind = value
+                    .to_string_lossy()
+                    .parse()
+                    .map_err(|_| "Invalid bind address")?;
             }
+            "--port" => {
+                let value = args.next().ok_or("Missing argument")?;
+                port = value
+                    .to_string_lossy()
+                    .parse::<u16>()
+                    .map_err(|_| "Invalid port")?;
+            }
+            "--frame-tap" => {
+                let value = args.next().ok_or("Missing argument")?;
+                frame_tap = Some(PathBuf::from(value));
+            }
+            other => return Err(format!("Unknown argument: {other}")),
         }
-        Ok(Self {
-            bind,
-            port,
-            version: env!("CARGO_PKG_VERSION").into(),
-            ready_stdout,
-        })
     }
+    Ok(Config {
+        bind,
+        port,
+        version: env!("CARGO_PKG_VERSION").into(),
+        ready_stdout,
+        frame_tap,
+    })
 }

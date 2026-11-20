@@ -1,6 +1,6 @@
 //! Executable modes, configuration and signal handling.
 
-use dsh_bot_relay::{Config, run};
+use dsh_bot_relay::{parse_args, run};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static EXIT: AtomicBool = AtomicBool::new(false);
@@ -45,15 +45,16 @@ fn init_logging() {
         .try_init();
 }
 
-const USAGE: &str = "Usage: dsh-bot-relay serve [--bind ADDR] [--port PORT] [--ready-stdout]";
+const USAGE: &str =
+    "Usage: dsh-bot-relay serve [--bind ADDR] [--port PORT] [--ready-stdout] [--frame-tap PATH]";
 
 fn main() {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     install_exit_handlers();
     init_logging();
     let result = match args.split_first() {
         Some((mode, rest)) if mode == "serve" => {
-            Config::from_args(rest).and_then(|config| run::serve(config, &EXIT))
+            parse_args(rest).and_then(|config| run::serve(config, &EXIT))
         }
         _ => Err(USAGE.into()),
     };
