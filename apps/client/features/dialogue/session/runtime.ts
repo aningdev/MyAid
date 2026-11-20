@@ -285,7 +285,7 @@ function wrapConnection(connection: import("../../../lib/dsh/connection").Connec
     executeCommand: (sessionId, line) => connection.executeCommand(sessionId, line),
     listSkills: (sessionId) => connection.listSkills(sessionId),
     pluginInventory: () => connection.pluginInventory(),
-    botPresets: {
+    bots: {
       derive: (request) => connection.deriveBotPreset(request),
       read: (presetId) => connection.readBotPreset(presetId),
       update: (presetId, patch) => connection.updateBotPreset(presetId, patch),

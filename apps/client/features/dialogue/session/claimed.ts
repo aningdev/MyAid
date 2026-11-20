@@ -11,11 +11,11 @@ import type { ISessions, IWorkspaces } from "@dsh-bot/dsh-web-protocol/client";
 import type {
   ApprovalDecision,
   ApprovalRequest,
-  BotPresetDeriveRequest,
-  BotPresetDeriveResult,
-  BotPresetRecord,
-  BotPresetRemoveResult,
-  BotPresetUpdateRequest,
+  DerivedPresetDeriveRequest,
+  DerivedPresetDeriveResult,
+  DerivedPresetRecord,
+  DerivedPresetRemoveResult,
+  DerivedPresetUpdateRequest,
   CommandOutcome,
   FlatModelCatalog,
   InventoryEntry,
@@ -77,12 +77,12 @@ export type SessionHost = {
     presets: InventoryPreset[];
     managementAvailable: boolean;
   }>;
-  /** Derived Bot presets (`botPresets`), when the Host plugin is loaded. */
-  botPresets?: {
-    derive(request: BotPresetDeriveRequest): Promise<BotPresetDeriveResult>;
-    read(presetId: string): Promise<BotPresetRecord>;
-    update(presetId: string, patch: BotPresetUpdateRequest): Promise<BotPresetRecord>;
-    discard(presetId: string): Promise<BotPresetRemoveResult>;
+  /** Derived Bot presets (`bots`), when the Host plugin is loaded. */
+  bots?: {
+    derive(request: DerivedPresetDeriveRequest): Promise<DerivedPresetDeriveResult>;
+    read(presetId: string): Promise<DerivedPresetRecord>;
+    update(presetId: string, patch: DerivedPresetUpdateRequest): Promise<DerivedPresetRecord>;
+    discard(presetId: string): Promise<DerivedPresetRemoveResult>;
   };
   /** Whether the Host can hand a path to the desktop's file manager. */
   canReveal?(): Promise<boolean>;

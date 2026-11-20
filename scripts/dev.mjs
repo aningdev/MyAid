@@ -400,18 +400,15 @@ async function sweepStaleHost() {
 }
 
 /**
- * Build the Bot preset plugin and point the app at it through an overlay patch.
+ * Build the bots plugin and point the app at it through an overlay patch.
  * @returns the patch file inside the worktree.
  */
 async function prepareOverlay() {
-  await completed(
-    run("bun", ["x", "vp", "run", "dsh-bot-presets#build"]),
-    "构建 dsh-bot-presets 失败",
-  );
+  await completed(run("bun", ["x", "vp", "run", "dsh-bots#build"]), "构建 dsh-bots 失败");
   mkdirSync(DEV_DIR, { recursive: true });
-  const patch = join(DEV_DIR, "bot-presets.patch.yml");
-  const entry = pathToFileURL(join(root, "packages/bot-presets/lib/index.js")).href;
-  writeFileSync(patch, `- insert:\n    - id: bot-presets\n      name: ${JSON.stringify(entry)}\n`);
+  const patch = join(DEV_DIR, "bots.patch.yml");
+  const entry = pathToFileURL(join(root, "packages/bots/lib/index.js")).href;
+  writeFileSync(patch, `- insert:\n    - id: bots\n      name: ${JSON.stringify(entry)}\n`);
   return patch;
 }
 

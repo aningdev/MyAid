@@ -1,14 +1,14 @@
 /**
- * Wire records of the `botPresets` Remote.
+ * Wire records of the `bots` Remote.
  *
  * This file is the plugin-owned source of truth; the Client mirrors these DTOs
- * in `@dsh-bot/dsh-web-protocol/bot-presets` because plugins must not import that
+ * in `@dsh-bot/dsh-web-protocol/bots` because plugins must not import that
  * Client-only package. Keep the two shapes in sync.
  */
 import type {} from "@deepseek-ai/dsh-typert-protocol";
 
 /** One skill bundle copied into a derived preset's private skill root. */
-export type BotPresetSkill = {
+export type DerivedPresetSkill = {
   /** Kebab-case skill name, taken from the bundle's frontmatter when present. */
   name: string;
   /** Absolute source path the person selected. */
@@ -16,7 +16,7 @@ export type BotPresetSkill = {
 };
 
 /** One plugin-row override in a derived preset. */
-export type BotPresetPlugin = {
+export type DerivedPresetPlugin = {
   /** The base row's entry id, or null when the declaration leaves it anonymous. */
   entryId: string | null;
   /** Module specifier the row names; used when the row has no entry id. */
@@ -26,8 +26,8 @@ export type BotPresetPlugin = {
 };
 
 /** One Bot's derived preset as the Client reads it. */
-export type BotPresetRecord = {
-  /** Stable, namespaced preset id (`bot-presets-…`). */
+export type DerivedPresetRecord = {
+  /** Stable, namespaced preset id (`bots-…`). */
   presetId: string;
   /** Registry Bot that owns this derived preset. */
   botId: string;
@@ -36,14 +36,14 @@ export type BotPresetRecord = {
   /** Display name in dsh's preset roster. */
   label: string;
   /** Skill bundles added on top of the base composition. */
-  skills: readonly BotPresetSkill[];
+  skills: readonly DerivedPresetSkill[];
   /** Plugin rows the person switched against the base composition. */
-  plugins: readonly BotPresetPlugin[];
+  plugins: readonly DerivedPresetPlugin[];
   /** Current activation diagnostic, when the preset cannot compose a Session. */
   broken?: string;
 };
 
-export type BotPresetDeriveRequest = {
+export type DerivedPresetDeriveRequest = {
   botId: string;
   /** Display label for the derived preset, normally the Bot's name. */
   label: string;
@@ -51,24 +51,26 @@ export type BotPresetDeriveRequest = {
   basePresetId: string;
 };
 
-export type BotPresetUpdateRequest = {
+export type DerivedPresetUpdateRequest = {
   /** Complete replacement list of skill bundle paths; omit to leave unchanged. */
   skills?: readonly string[];
   /** Complete replacement list of plugin overrides; omit to leave unchanged. */
-  plugins?: readonly BotPresetPlugin[];
+  plugins?: readonly DerivedPresetPlugin[];
 };
 
-export type BotPresetRemoveResult = { removed: boolean };
+export type DerivedPresetDeriveResult = { presetId: string };
+
+export type DerivedPresetRemoveResult = { removed: boolean };
 
 declare module "@deepseek-ai/dsh-typert-protocol" {
   interface RemoteErrorDetailsMap {
     /** The id is not a derived preset this plugin owns. */
-    "bot-preset/not-found": {
+    "bots/preset-not-found": {
       readonly presetId: string;
       readonly available: readonly string[];
     };
     /** The request cannot produce a preset (missing base, bad row, bad skill). */
-    "bot-preset/invalid": {
+    "bots/preset-invalid": {
       readonly presetId: string;
       readonly reason: string;
     };

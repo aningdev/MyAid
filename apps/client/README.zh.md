@@ -95,7 +95,7 @@ vp run @dsh-bot/client#package:web      # 另有 package:windows / linux / gpui 
 - 窄窗只显示移动提示页；桌面壳从 700 pt（desktop idiom）/ 900 pt（其他）起。
 - 界面没有段级归档 / 删除；归档的是 Bot，段与日志都保留。
 - dsh 的 Session 模型目录受凭据门控：没有可用 Key 时目录为空，默认模型卡片退回各供应商设置里公布的 `models` 与当前选择。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md)。
-- Host 未挂载 `dsh-bot-presets` 时 Bot 详情存不了 Skills / Plugins 变更：没有别的 Remote 能写 Agent preset 正文。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md) 的缺口表。
+- Host 未挂载 `dsh-bots` 时 Bot 详情存不了 Skills / Plugins 变更：没有别的 Remote 能写 Agent preset 正文。见 [ARCHITECTURE §4](../../docs/ARCHITECTURE.md) 的缺口表。
 - 客户端阻塞时 dsh mux 可能因错过两次心跳断开；Session controller 会重跟（3 次、退避）。细节见 [dsh-connection](../../docs/architecture/dsh-connection.md)。
 
 ## 原生层：App 自己启动的 Host（仅本机桌面）

@@ -96,7 +96,7 @@ Not translated, by design: what a person typed and what a Bot is called (Bot nam
 - Narrow windows show the mobile notice; the desktop shell starts at 700 pt (desktop idiom) / 900 pt (others).
 - There is no per-segment archive or delete in the UI; archiving is the Bot's, and its segments and logs stay.
 - dsh's Session model catalog is credential-gated: with no working key it lists no models, so the default-model card falls back to the `models` each provider's settings advertise and the current selection. See [ARCHITECTURE §4](../../docs/ARCHITECTURE.md).
-- Bot details cannot save Skills / Plugins changes when the Host does not mount `dsh-bot-presets`: no other Remote writes an Agent preset body. See the gaps table in [ARCHITECTURE §4](../../docs/ARCHITECTURE.md).
+- Bot details cannot save Skills / Plugins changes when the Host does not mount `dsh-bots`: no other Remote writes an Agent preset body. See the gaps table in [ARCHITECTURE §4](../../docs/ARCHITECTURE.md).
 - The dsh mux can drop a peer that misses two heartbeats while the client is blocked; the Session controller re-follows (3 tries, backoff). Details in [dsh-connection](../../docs/architecture/dsh-connection.md).
 
 ## Native layer: the Host this app starts (desktop only)

@@ -69,7 +69,7 @@ the footer's empty state with the manual command. Its pictures go to
 `shots.ts`'s `SHOTS_N1`.
 
 The other real-Host smokes (`real-turn`, `new-bot-real-host`, `bot-app`,
-`bot-presets-real-host`, `session-model`, `session-restart`,
+`bots-real-host`, `session-model`, `session-restart`,
 `settings-real-host`, `long-conversation`) run the same way;
 `session-restart` still expects
 `screens/host-restart-watch.mjs --after-turns 1` to stop the Host mid-turn.
@@ -100,11 +100,11 @@ first segment, a prompt sent while scrolled up going to the latest segment, and
 a second launch that restores all three segments. Its pictures go to
 `SHOTS_L2`.
 
-`bot-presets-real-host.smoke.test.tsx` additionally needs `dsh-bot-presets` on
-the Host command line: `vp run dsh-bot-presets#build`, then point
-`DSH_BOT_PATCH` at an overlay that `--patch`es the built
-`packages/bot-presets/lib/index.js`. It saves a plugin switch, checks the
-derived preset through `agentPresets.read`, and starts a new Session under it.
+`bots-real-host.smoke.test.tsx` additionally needs `dsh-bots` on the Host
+command line: `vp run dsh-bots#build`, then point `DSH_BOT_PATCH` at an
+overlay that `--patch`es the built `packages/bots/lib/index.js`. It saves a
+plugin switch, checks the derived preset through `agentPresets.read`, and
+starts a new Session under it.
 
 `nsh test --target macos` can drive presses, typing and screenshots, but not
 the gestures that need a system dialog or dropped paths: `onPick` is headless

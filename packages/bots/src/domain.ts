@@ -2,14 +2,14 @@
 import { defineDomain, domainTable } from "@deepseek-ai/dsh-storage-domain";
 import { z } from "zod";
 
-import type { BotPresetRecord } from "./types.ts";
-import { botPresetRecordSchema } from "./wire.ts";
+import type { DerivedPresetRecord } from "./preset-types.ts";
+import { derivedPresetRecordSchema } from "./preset-wire.ts";
 
 /** Domain name; also the backend unit name under `$DSH_HOME/storages`. */
-export const DOMAIN_NAME = "bot_presets";
+export const DOMAIN_NAME = "bots";
 
 /** The stored record adds the copied base body, which is not a Client DTO. */
-export const storedPresetSchema = botPresetRecordSchema.extend({
+export const storedPresetSchema = derivedPresetRecordSchema.extend({
   /** Base composition YAML captured by `derive`; the derived preset's body. */
   baseYaml: z.string(),
   /** Host epoch milliseconds of the last update. */
@@ -18,7 +18,7 @@ export const storedPresetSchema = botPresetRecordSchema.extend({
 
 export type StoredPreset = z.infer<typeof storedPresetSchema>;
 
-export const botPresetsDomainSpec = defineDomain({
+export const presetsDomainSpec = defineDomain({
   name: DOMAIN_NAME,
   version: 1,
   // One document for the whole table: these records are small and updated
@@ -27,7 +27,7 @@ export const botPresetsDomainSpec = defineDomain({
 });
 
 /** Strip the body before a record crosses the Remote boundary. */
-export function publicRecord(stored: StoredPreset, broken?: string): BotPresetRecord {
+export function publicRecord(stored: StoredPreset, broken?: string): DerivedPresetRecord {
   return {
     presetId: stored.presetId,
     botId: stored.botId,

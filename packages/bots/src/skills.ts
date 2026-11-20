@@ -4,7 +4,7 @@
  * A preset's skill provider only takes directories, and dsh's filesystem
  * provider has no per-skill exclusion. The plugin therefore copies the person's
  * selected bundles into `<dataDir>/skills/<presetId>` (by default
- * `$DSH_HOME/bot-presets/skills/<presetId>`) and mounts that directory as an
+ * `$DSH_HOME/bots/skills/<presetId>`) and mounts that directory as an
  * extra provider. Copying (not symlinking)
  * keeps Windows working and leaves the base composition's skills untouched.
  */
@@ -13,7 +13,7 @@ import { basename, isAbsolute, join } from "node:path";
 
 import { load } from "js-yaml";
 
-import type { BotPresetSkill } from "./types.ts";
+import type { DerivedPresetSkill } from "./preset-types.ts";
 
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -59,12 +59,12 @@ export async function materializeSkills(
   presetId: string,
   paths: readonly string[],
   options: { tolerateMissing?: boolean } = {},
-): Promise<BotPresetSkill[]> {
+): Promise<DerivedPresetSkill[]> {
   const root = skillRoot(dataDir, presetId);
   await rm(root, { recursive: true, force: true });
   if (paths.length === 0) return [];
   await mkdir(root, { recursive: true });
-  const records: BotPresetSkill[] = [];
+  const records: DerivedPresetSkill[] = [];
   const seen = new Set<string>();
   for (const path of paths) {
     if (!isAbsolute(path)) throw new Error(`技能路径必须是绝对路径：${path}`);

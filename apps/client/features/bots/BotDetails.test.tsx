@@ -108,7 +108,7 @@ test("Runs with lists the models as one radio group", async () => {
 });
 
 test("an added skill can be removed from an already-derived Bot", async () => {
-  const app = await details(assignDerivedPreset(sampleRegistry(), "bot", "bot-presets-bot"));
+  const app = await details(assignDerivedPreset(sampleRegistry(), "bot", "bots-bot"));
   await app.press("Skills");
   await app.waitFor("text:/release-notes");
   await app.press(`label:${t("bot.skills.remove", { name: "release-notes" })}`);
@@ -140,7 +140,7 @@ test("a capability change on a template-bound Bot derives its own preset", async
   await app.press("label:Bot details: Ada");
   await app.waitFor("id:bot-details");
   await app.waitFor(`text:${t("bot.binding.custom")}`);
-  expect(app.texts()).toContain("bot-presets-bot");
+  expect(app.texts()).toContain("bots-bot");
 });
 
 test("Cancel dismisses without writing", async () => {
