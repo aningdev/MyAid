@@ -12,10 +12,5 @@ export {
   type DeviceIdentity,
   type Pairing,
 } from "./pairing";
-export {
-  fileDeviceStore,
-  storageDeviceStore,
-  type DeviceStore,
-  type KeyValueStorage,
-} from "./device-store";
+export { storageDeviceStore, type DeviceStore, type KeyValueStorage } from "./device-store";
 export { openTunnel, type Tunnel } from "./tunnel";

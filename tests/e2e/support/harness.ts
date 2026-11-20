@@ -81,7 +81,7 @@ export async function ready(process: Process): Promise<number> {
 
 /** What both stacks share: the Relay and the Host in front of dsh. */
 export interface Plumbing {
-  /** The stack's temporary directory; `stop()` removes it, Devices' data roots included. */
+  /** The stack's temporary directory; `stop()` removes it. */
   readonly root: string;
   /** The Relay's address as the pairing link will carry it. */
   readonly relayUrl: string;
