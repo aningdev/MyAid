@@ -20,7 +20,7 @@
 
 - 用 NSH 细粒度响应式；不套 React hooks，不引入 `solid-js`。
 - 订阅与原生句柄在 `cleanup` 中释放；组件卸载 ≠ 后台任务停止（运行中的 Session 在 Pane 关掉后继续）。
-- 每个状态 / 策略只有一个所有者：Registry 的读写只经 `features/bots/state.ts` 调 `bots` Remote（插件是 Registry 的所有者，Client 不落盘），`SessionController`、壳的 Pane 状态不各自复制一份。派生值用 `computed`（列表行见 `components/shell/botList.ts`），别在视图里重算第二套模型。Navigator 不按活动重排：Pin 区之后跟插件快照的顺序，Main Bot 由插件放在第一。
+- 每个状态 / 策略只有一个所有者：Registry 的读写只经 `features/bots/state.ts` 调 `bots` Remote（插件是 Registry 的所有者，Client 不落盘），`SessionController`、壳的 Pane 状态不各自复制一份。派生值用 `computed`（列表行见 `components/shell/botList.ts`），别在视图里重算第二套模型。Navigator 的顺序只在 `botList.ts` 计算：先是 Pin 区（按 Owner 的 Pin 顺序），其后 Main Bot 排第一，其余 Bot 按最近活动排序（[GLOSSARY](../../docs/GLOSSARY.md)）。
 - 一个 Bot 只在一个 Pane 里：打开走 `state.openBot`（已有 Pane 只切焦点），拖入走 `state.dropBot`；不要在视图里再拼一套去重。
 
 ## UI 边界

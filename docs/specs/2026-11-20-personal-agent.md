@@ -20,6 +20,7 @@ Owner 在任何一台 Device 或已接入的 Source 上提出请求，Main Bot �
 - 自定义模型供应商、Bot 市场
 - dsh 自带的 Web GUI 和 DeepSeek 品牌界面
 - 没人请求时主动开始工作（原型里的 inferred / auto 模式）
+- 移动端推送通知（APNs / FCM）：Attention 只在 Client 打开时提醒（2026-11-20 定）
 
 ## Acceptance criteria
 
@@ -46,5 +47,4 @@ Owner 在任何一台 Device 或已接入的 Source 上提出请求，Main Bot �
 
 ## Open questions
 
-- 移动端的推送通知（APNs / FCM）要求有一个能发推送的服务端。是由 Relay 兼任，还是第一版只在 App 打开时提醒？
 - 第一批接入哪些 Source：飞书、Telegram、GitHub，还是定时规则？
